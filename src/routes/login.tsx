@@ -4,10 +4,10 @@ import { DEMO_USERS, roleLabel, useSessionStore } from "@/stores/sessionStore";
 export const Route = createFileRoute("/login")({
   head: () => ({
     meta: [
-      { title: "Log in — LevelUp ERP" },
-      { name: "description", content: "Pick a demo user to explore LevelUp ERP as a leader, IBO, apprentice or candidate." },
-      { property: "og:title", content: "Log in — LevelUp ERP" },
-      { property: "og:description", content: "Pick a demo user to explore LevelUp ERP." },
+      { title: "Log in — LevelUp LOS" },
+      { name: "description", content: "Pick a demo user to explore LevelUp LOS as a leader, IBO, apprentice or candidate." },
+      { property: "og:title", content: "Log in — LevelUp LOS" },
+      { property: "og:description", content: "Pick a demo user to explore LevelUp LOS." },
     ],
   }),
   component: LoginPage,

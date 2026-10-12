@@ -21,7 +21,7 @@ export function TopNav() {
   return (
     <>
       <nav className="flex h-12 shrink-0 items-center gap-1 border-b border-border bg-background px-3">
-        <span className="mr-3 text-xs font-semibold tracking-tight">LevelUp ERP</span>
+        <span className="mr-3 text-xs font-semibold tracking-tight">LevelUp LOS</span>
         {user && (
           <>
             <Link to="/" activeOptions={{ exact: true }} className={linkBase} activeProps={{ className: `${linkBase} ${activeCls}` }}>

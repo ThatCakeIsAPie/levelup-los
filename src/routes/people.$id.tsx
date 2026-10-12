@@ -19,7 +19,10 @@ import { HelpingFor } from "@/modules/people/HelpingFor";
 import { QuickActions } from "@/modules/people/QuickActions";
 import { format } from "date-fns";
 
-export const Route = createFileRoute("/people/$id")({ component: PersonDetail });
+export const Route = createFileRoute("/people/$id")({
+  head: () => ({ meta: [{ title: "Person — LevelUp LOS" }] }),
+  component: PersonDetail,
+});
 
 const bizClassOptions: { value: BizClass; label: string }[] = [
   { value: "ibo", label: "IBO" },

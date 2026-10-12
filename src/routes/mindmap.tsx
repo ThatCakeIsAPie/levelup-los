@@ -24,9 +24,9 @@ import { Switch } from "@/components/ui/switch";
 export const Route = createFileRoute("/mindmap")({
   head: () => ({
     meta: [
-      { title: "LOS Mindmap — Direct Sales Team Manager" },
+      { title: "Mindmap — LevelUp LOS" },
       { name: "description", content: "Visualize your downline, expand branches, and manage your direct sales team from a single mindmap." },
-      { property: "og:title", content: "LOS Mindmap — Direct Sales Team Manager" },
+      { property: "og:title", content: "Mindmap — LevelUp LOS" },
       { property: "og:description", content: "Visualize your downline and manage your team from a single mindmap." },
     ],
   }),

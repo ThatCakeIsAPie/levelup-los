@@ -7,8 +7,8 @@ import { toast } from "sonner";
 
 export const Route = createFileRoute("/wallet")({
   head: () => ({ meta: [
-    { title: "Wallet — LevelUp ERP" }, { name: "description", content: "See what you owe and what you've paid for shared event costs." },
-    { property: "og:title", content: "Wallet — LevelUp ERP" }, { property: "og:description", content: "See what you owe and what you've paid for shared event costs." },
+    { title: "Wallet — LevelUp LOS" }, { name: "description", content: "See what you owe and what you've paid for shared event costs." },
+    { property: "og:title", content: "Wallet — LevelUp LOS" }, { property: "og:description", content: "See what you owe and what you've paid for shared event costs." },
     { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" },
   ] }),
   component: WalletPage,

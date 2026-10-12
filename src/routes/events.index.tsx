@@ -11,7 +11,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
 import { Plus } from "lucide-react";
 
-export const Route = createFileRoute("/events/")({ component: EventsPage });
+export const Route = createFileRoute("/events/")({
+  head: () => ({ meta: [{ title: "Events — LevelUp LOS" }] }),
+  component: EventsPage,
+});
 
 const typeLabel: Record<EventType, string> = { conference: "Conference", team_meeting: "Team Meeting" };
 

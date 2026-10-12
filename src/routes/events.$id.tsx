@@ -25,7 +25,10 @@ import { toCsv, downloadCsv } from "@/lib/csvExport";
 import { toast } from "sonner";
 import { differenceInDays, format } from "date-fns";
 
-export const Route = createFileRoute("/events/$id")({ component: EventDetail });
+export const Route = createFileRoute("/events/$id")({
+  head: () => ({ meta: [{ title: "Event — LevelUp LOS" }] }),
+  component: EventDetail,
+});
 
 const typeLabel: Record<EventType, string> = { conference: "Conference", team_meeting: "Team Meeting" };
 

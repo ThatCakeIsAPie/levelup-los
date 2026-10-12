@@ -29,7 +29,10 @@ import { toast } from "sonner";
 import { useCrmStore, lastContactDate, daysSince, today } from "@/stores/crmStore";
 import { useSessionStore } from "@/stores/sessionStore";
 
-export const Route = createFileRoute("/people/")({ component: PeoplePage });
+export const Route = createFileRoute("/people/")({
+  head: () => ({ meta: [{ title: "People — LevelUp LOS" }] }),
+  component: PeoplePage,
+});
 
 const bizClassOptions: { value: BizClass; label: string }[] = [
   { value: "ibo", label: "IBO" },
