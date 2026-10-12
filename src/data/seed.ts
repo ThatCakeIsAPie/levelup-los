@@ -8,6 +8,7 @@
  * Ids are stable so links and tests can rely on them:
  *   people "1".."21" (named), "100".."114" / "200".."214" / "300".."314"
  *   (generated downlines), customers "c1".."c10"; events "e1".."e6".
+ * Prospects never have a downline: every sponsor is an apprentice or IBO.
  */
 import { addDays, addYears, subYears } from "date-fns";
 import { daysFromToday, localDate, parseDate } from "@/lib/dates";
@@ -19,7 +20,7 @@ import type { ActivityEvent } from "@/stores/activityStore";
 import type { Logistics, SharedCost } from "@/stores/opsStore";
 
 /** Bump to reset every persisted store to a fresh seed on next load. */
-export const SEED_VERSION = 2;
+export const SEED_VERSION = 3;
 
 const ago = (n: number) => daysFromToday(-n);
 const ahead = (n: number) => daysFromToday(n);
@@ -155,7 +156,8 @@ export function seedPeople(): CrmPerson[] {
       businessStartDate: anniversaryIn(24),
       joinedDate: anniversaryIn(24),
     }),
-    biz("20", "Beau Foster", "prospect", "10", {
+    // Beau is the demo candidate, sponsored by Marcus (an IBO).
+    biz("20", "Beau Foster", "prospect", "6", {
       location: "Kansas City, MO",
       joinedDate: ago(14),
       email: "beau@example.com",
@@ -179,7 +181,9 @@ export function seedPeople(): CrmPerson[] {
     cust("c10", "Ben Tucker", "13", "San Diego, CA", 88, 425),
   ];
 
-  // Deterministic downlines under David Chen (3), Jamal Brown (4), Linh Nguyen (5).
+  // Deterministic downlines under David Chen (3), Jamal Brown (4) and Ed Miller (17,
+  // Anita's branch). Sponsors are only ever drawn from the root and the
+  // apprentices/IBOs generated so far, so no prospect ends up with a downline.
   const FIRST = ["Alex", "Jordan", "Taylor", "Morgan", "Casey", "Riley", "Avery", "Quinn", "Sage", "Drew", "Reese", "Skylar", "Rowan", "Emerson", "Hayden", "Parker", "Logan", "Cameron", "Devon", "Finley", "Harper", "Jamie", "Kai", "Lane", "Micah", "Noa", "Owen", "Remy", "Sasha", "Tatum", "Val", "Wren", "Zane", "Blair", "Cody", "Dana", "Eli", "Frankie", "Gray"]; // prettier-ignore
   const LAST = ["Stone", "Rivers", "Walker", "Hayes", "Bennett", "Cruz", "Ford", "Hughes", "Iverson", "Jenkins", "Knox", "Lopez", "Marsh", "Nash", "Pierce", "Quincy", "Reyes", "Sutton", "Tate", "Underwood", "Vance", "Ward", "Xiong", "Young", "Zimmer", "Abbott", "Bishop", "Carter", "Doyle"]; // prettier-ignore
   const rng = makeRng(42);
@@ -187,7 +191,7 @@ export function seedPeople(): CrmPerson[] {
   for (const [root, start] of [
     ["3", 100],
     ["4", 200],
-    ["5", 300],
+    ["17", 300],
   ] as const) {
     const pool: string[] = [root];
     for (let i = 0; i < 15; i++) {
@@ -218,7 +222,7 @@ export function seedPeople(): CrmPerson[] {
         businessStartDate: startDate,
         joinedDate: startDate ?? ago(10 + Math.floor(rng() * 120)),
       });
-      pool.push(id);
+      if (bizClass !== "prospect") pool.push(id);
     }
   }
 
