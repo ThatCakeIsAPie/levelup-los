@@ -1,5 +1,4 @@
-import { useShallow } from "zustand/react/shallow";
-import { useAttendanceStore } from "@/stores/attendanceStore";
+import { useAttendancesForEvent, useVisibleTeam } from "@/data";
 import { usePeopleStore } from "@/stores/peopleStore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -13,8 +12,8 @@ function Stat({ label, value }: { label: string; value: number }) {
 }
 
 export function EventMetricsPanel({ eventId }: { eventId: string }) {
-  const attendances = useAttendanceStore(useShallow((s) => s.forEvent(eventId)));
-  const people = usePeopleStore((s) => s.people);
+  const attendances = useAttendancesForEvent(eventId);
+  const people = useVisibleTeam();
   const getPerson = usePeopleStore((s) => s.getById);
 
   const ibos = attendances.filter((a) => getPerson(a.personId)?.bizClass === "ibo").length;

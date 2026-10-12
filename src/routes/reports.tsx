@@ -5,7 +5,7 @@ import { useAttendanceStore } from "@/stores/attendanceStore";
 import { useEventsStore } from "@/stores/eventsStore";
 import { useCrmStore, lastContactDate } from "@/stores/crmStore";
 import { useOpsStore, invoicesFor } from "@/stores/opsStore";
-import { visiblePeople, visibleCustomers } from "@/lib/db";
+import { visiblePeople, visibleCustomers } from "@/data";
 import { toCsv, downloadCsv } from "@/lib/csvExport";
 import { Button } from "@/components/ui/button";
 

@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { logEvent } from "./activityStore";
+import { seedEvents, SEED_VERSION } from "@/data/seed";
 
 export type EventType = "conference" | "team_meeting";
 
@@ -8,7 +9,9 @@ export interface CrmEvent {
   id: string;
   name: string;
   type: EventType;
-  date: string; // ISO date
+  date: string; // "YYYY-MM-DD" (first day)
+  /** Last day for multi-day events ("YYYY-MM-DD"); omit for single-day events. */
+  endDate?: string;
   location?: string;
   notes?: string;
 }
@@ -23,43 +26,12 @@ interface EventsState {
   getComparisonEvents: (id: string) => { prior?: CrmEvent; lastYear?: CrmEvent };
 }
 
-const seed: CrmEvent[] = [
-  {
-    id: "e1",
-    name: "SpringConference26",
-    type: "conference",
-    date: "2026-09-15",
-    location: "Dallas, TX",
-  },
-  {
-    id: "e2",
-    name: "SpringConference25",
-    type: "conference",
-    date: "2025-09-12",
-    location: "Dallas, TX",
-  },
-  {
-    id: "e3",
-    name: "SummerConference25",
-    type: "conference",
-    date: "2025-07-12",
-    location: "Orlando, FL",
-  },
-  {
-    id: "e4",
-    name: "June Team Meeting",
-    type: "team_meeting",
-    date: "2026-06-08",
-    location: "Zoom",
-  },
-];
-
 const DAY = 24 * 60 * 60 * 1000;
 
 export const useEventsStore = create<EventsState>()(
   persist(
     (set, get) => ({
-      events: seed,
+      events: seedEvents(),
       add: (e) => {
         const ev: CrmEvent = { ...e, id: crypto.randomUUID() };
         set({ events: [...get().events, ev] });
@@ -103,6 +75,8 @@ export const useEventsStore = create<EventsState>()(
       name: "levelup.events",
       storage: createJSONStorage(() => localStorage),
       partialize: (s) => ({ events: s.events }),
+      version: SEED_VERSION,
+      migrate: () => ({ events: seedEvents() }) as unknown as EventsState,
     },
   ),
 );

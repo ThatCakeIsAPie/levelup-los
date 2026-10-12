@@ -1,8 +1,8 @@
-import { useShallow } from "zustand/react/shallow";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useEventsStore, type EventType } from "@/stores/eventsStore";
 import { usePeopleStore } from "@/stores/peopleStore";
+import { useAttendancesForEvent, useVisiblePeople } from "@/data";
 import {
   useAttendanceStore,
   type Attendance,
@@ -67,7 +67,7 @@ function EventDetail() {
   const event = useEventsStore((s) => s.getById(id));
   const updateEvent = useEventsStore((s) => s.update);
   const removeEvent = useEventsStore((s) => s.remove);
-  const attendances = useAttendanceStore(useShallow((s) => s.forEvent(id)));
+  const attendances = useAttendancesForEvent(id);
 
   if (!event) {
     return (
@@ -189,7 +189,7 @@ function EventDetail() {
 
 function AttendeesView({ eventId, attendances }: { eventId: string; attendances: Attendance[] }) {
   const [view, setView] = useState<"table" | "kanban">("table");
-  const people = usePeopleStore((s) => s.people);
+  const people = useVisiblePeople();
   const getById = usePeopleStore((s) => s.getById);
   const update = useAttendanceStore((s) => s.update);
   const bulkUpdate = useAttendanceStore((s) => s.bulkUpdate);
@@ -463,7 +463,7 @@ function AddAttendeeDialog({
   eventId: string;
   existingPersonIds: string[];
 }) {
-  const people = usePeopleStore((s) => s.people);
+  const people = useVisiblePeople();
   const addPerson = usePeopleStore((s) => s.add);
   const addAttendance = useAttendanceStore((s) => s.add);
   const [open, setOpen] = useState(false);

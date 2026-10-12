@@ -13,6 +13,7 @@ import {
   apprenticeAlertLabel,
 } from "@/stores/peopleStore";
 import { useAttendanceStore } from "@/stores/attendanceStore";
+import { useVisibleAttendances, useVisiblePeople } from "@/data";
 import { useEventsStore } from "@/stores/eventsStore";
 import { getPersonShowRate } from "@/lib/selectors";
 import { Input } from "@/components/ui/input";
@@ -86,8 +87,8 @@ function bizBadge(s: BizClass) {
 type SortKey = "name" | "showRate" | "lastUpdated" | "nextFollowUp";
 
 function PeoplePage() {
-  const people = usePeopleStore((s) => s.people);
-  const attendances = useAttendanceStore((s) => s.attendances);
+  const people = useVisiblePeople();
+  const attendances = useVisibleAttendances();
   const events = useEventsStore((s) => s.events);
   const addAttendance = useAttendanceStore((s) => s.add);
   const bulkUpdateAttendance = useAttendanceStore((s) => s.bulkUpdate);
@@ -500,7 +501,7 @@ function PersonRow({
 
 function AddPersonDialog() {
   const add = usePeopleStore((s) => s.add);
-  const people = usePeopleStore((s) => s.people);
+  const people = useVisiblePeople();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<Omit<CrmPerson, "id"> & { id?: string }>({
     name: "",

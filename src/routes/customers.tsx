@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { usePeopleStore } from "@/stores/peopleStore";
 import { useSessionStore } from "@/stores/sessionStore";
-import { visibleCustomers } from "@/lib/db";
+import { visibleCustomers } from "@/data";
 import { useCrmStore, lastContactDate, lastSale, daysSince, today } from "@/stores/crmStore";
 import {
   Table,

@@ -1,7 +1,7 @@
-import { useShallow } from "zustand/react/shallow";
 import { useMemo } from "react";
 import { useAttendanceStore, type Attendance, type DesireLevel } from "@/stores/attendanceStore";
 import { usePeopleStore } from "@/stores/peopleStore";
+import { useAttendancesForEvent } from "@/data";
 import { daysFromToday } from "@/lib/dates";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link } from "@tanstack/react-router";
@@ -33,7 +33,7 @@ function classify(a: Attendance): ColKey {
 }
 
 export function AttendeeKanban({ eventId }: { eventId: string }) {
-  const attendances = useAttendanceStore(useShallow((s) => s.forEvent(eventId)));
+  const attendances = useAttendancesForEvent(eventId);
   const update = useAttendanceStore((s) => s.update);
   const getPerson = usePeopleStore((s) => s.getById);
 

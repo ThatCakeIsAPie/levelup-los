@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { logAttendance } from "./activityStore";
+import { seedAttendances, SEED_VERSION } from "@/data/seed";
 
 export type TicketType = "in_person" | "stream";
 export type DesireLevel = "yes" | "no" | "maybe";
@@ -38,7 +39,7 @@ interface AttendanceState {
 export const useAttendanceStore = create<AttendanceState>()(
   persist(
     (set, get) => ({
-      attendances: makeSeed(),
+      attendances: seedAttendances(),
       forEvent: (eventId) => get().attendances.filter((a) => a.eventId === eventId),
       forPerson: (personId) => get().attendances.filter((a) => a.personId === personId),
       forEventAndPerson: (eventId, personId) =>
@@ -95,100 +96,8 @@ export const useAttendanceStore = create<AttendanceState>()(
       name: "levelup.attendance",
       storage: createJSONStorage(() => localStorage),
       partialize: (s) => ({ attendances: s.attendances }),
+      version: SEED_VERSION,
+      migrate: () => ({ attendances: seedAttendances() }) as unknown as AttendanceState,
     },
   ),
 );
-
-function makeSeed(): Attendance[] {
-  // Seeded combos so funnel / audit / engagement views have data to show.
-  // Keep IDs stable for dev.
-  const mk = (
-    id: string,
-    eventId: string,
-    personId: string,
-    o: Partial<Attendance> = {},
-  ): Attendance => ({
-    id,
-    eventId,
-    personId,
-    hasTicket: false,
-    leadershipQualified: false,
-    specialEventQualified: false,
-    ...o,
-  });
-  return [
-    // SpringConference26 (upcoming, e1)
-    mk("a1", "e1", "1", {
-      desireToAttend: "yes",
-      hasTicket: true,
-      ticketType: "in_person",
-      leadershipQualified: true,
-    }),
-    mk("a2", "e1", "2", { desireToAttend: "yes", hasTicket: true, ticketType: "in_person" }),
-    mk("a3", "e1", "3", {
-      desireToAttend: "yes",
-      hasTicket: false,
-      plannedPurchaseDate: "2026-05-15",
-      followUpDate: "2026-06-03",
-      helperId: "1",
-    }),
-    mk("a4", "e1", "4", {
-      desireToAttend: "yes",
-      hasTicket: false,
-      plannedPurchaseDate: "2026-05-30",
-      helperId: "2",
-    }),
-    mk("a5", "e1", "5", { desireToAttend: "maybe", hasTicket: false, followUpDate: "2026-06-05" }),
-    mk("a6", "e1", "6", { desireToAttend: "yes", hasTicket: true, ticketType: "stream" }),
-    mk("a7", "e1", "7", {
-      desireToAttend: "yes",
-      hasTicket: false,
-      plannedPurchaseDate: "2025-05-15",
-    }),
-    mk("a8", "e1", "8", { desireToAttend: "yes", hasTicket: true, ticketType: "in_person" }),
-    mk("a9", "e1", "9", { desireToAttend: "no" }),
-    mk("a10", "e1", "11", { desireToAttend: "yes", hasTicket: false, helperId: "7" }),
-    // SpringConference25 (last year, e2)
-    mk("b1", "e2", "1", {
-      desireToAttend: "yes",
-      hasTicket: true,
-      attended: true,
-      ticketType: "in_person",
-    }),
-    mk("b2", "e2", "2", {
-      desireToAttend: "yes",
-      hasTicket: true,
-      attended: true,
-      ticketType: "in_person",
-    }),
-    mk("b3", "e2", "3", {
-      desireToAttend: "yes",
-      hasTicket: true,
-      attended: false,
-      ticketType: "in_person",
-    }),
-    mk("b4", "e2", "6", {
-      desireToAttend: "yes",
-      hasTicket: true,
-      attended: true,
-      ticketType: "stream",
-    }),
-    mk("b5", "e2", "8", {
-      desireToAttend: "yes",
-      hasTicket: true,
-      attended: true,
-      ticketType: "in_person",
-    }),
-    mk("b6", "e2", "13", { desireToAttend: "yes", hasTicket: true, attended: true }),
-    mk("b7", "e2", "17", { desireToAttend: "yes", hasTicket: true, attended: false }),
-    // SummerConference25 (prior, e3)
-    mk("c1", "e3", "1", { desireToAttend: "yes", hasTicket: true, attended: true }),
-    mk("c2", "e3", "2", { desireToAttend: "yes", hasTicket: true, attended: true }),
-    mk("c3", "e3", "4", { desireToAttend: "yes", hasTicket: true, attended: true }),
-    mk("c4", "e3", "8", { desireToAttend: "yes", hasTicket: true, attended: false }),
-    // June Team Meeting (e4)
-    mk("d1", "e4", "1", { desireToAttend: "yes", hasTicket: true }),
-    mk("d2", "e4", "4", { desireToAttend: "yes", hasTicket: false, followUpDate: "2026-06-01" }),
-    mk("d3", "e4", "11", { desireToAttend: "maybe" }),
-  ];
-}

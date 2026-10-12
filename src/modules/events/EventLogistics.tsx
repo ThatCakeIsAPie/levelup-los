@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { usePeopleStore } from "@/stores/peopleStore";
-import { useAttendanceStore } from "@/stores/attendanceStore";
+import { useAttendancesForEvent, useVisiblePeople } from "@/data";
 import { useSessionStore } from "@/stores/sessionStore";
 import { useOpsStore, splitCost, type Logistics } from "@/stores/opsStore";
 import { Button } from "@/components/ui/button";
@@ -11,8 +10,8 @@ const sel = "h-7 rounded border border-input bg-background px-1 text-xs";
 
 export function EventLogistics({ eventId }: { eventId: string }) {
   const user = useSessionStore((s) => s.user)!;
-  const people = usePeopleStore((s) => s.people);
-  const att = useAttendanceStore((s) => s.attendances).filter((a) => a.eventId === eventId);
+  const people = useVisiblePeople();
+  const att = useAttendancesForEvent(eventId);
   const ops = useOpsStore();
   const [name, setName] = useState("");
   const [total, setTotal] = useState(0);

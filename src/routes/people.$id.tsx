@@ -1,6 +1,6 @@
-import { useShallow } from "zustand/react/shallow";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { usePeopleStore, type BizClass, missingRequiredFields } from "@/stores/peopleStore";
+import { useAttendancesForPerson, usePerson, useVisiblePeople } from "@/data";
 import { useEventsStore } from "@/stores/eventsStore";
 import { useAttendanceStore, type DesireLevel, type TicketType } from "@/stores/attendanceStore";
 import { Button } from "@/components/ui/button";
@@ -47,12 +47,13 @@ const bizClassOptions: { value: BizClass; label: string }[] = [
 function PersonDetail() {
   const { id } = Route.useParams();
   const nav = useNavigate();
-  const person = usePeopleStore((s) => s.getById(id));
-  const people = usePeopleStore((s) => s.people);
+  // Non-visible ids behave as "not found" (src/data/access.ts).
+  const person = usePerson(id);
+  const people = useVisiblePeople();
   const update = usePeopleStore((s) => s.update);
   const remove = usePeopleStore((s) => s.remove);
   const events = useEventsStore((s) => s.events);
-  const attendances = useAttendanceStore(useShallow((s) => s.forPerson(id)));
+  const attendances = useAttendancesForPerson(id);
   const addAttendance = useAttendanceStore((s) => s.add);
   const updateAttendance = useAttendanceStore((s) => s.update);
   const removeAttendance = useAttendanceStore((s) => s.remove);

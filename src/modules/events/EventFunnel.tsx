@@ -1,12 +1,11 @@
 import { useMemo } from "react";
-import { useAttendanceStore } from "@/stores/attendanceStore";
-import { usePeopleStore } from "@/stores/peopleStore";
+import { useVisibleAttendances, useVisibleTeam } from "@/data";
 import { getEventFunnel } from "@/lib/selectors";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export function EventFunnel({ eventId }: { eventId: string }) {
-  const attendances = useAttendanceStore((s) => s.attendances);
-  const peopleCount = usePeopleStore((s) => s.people.length);
+  const attendances = useVisibleAttendances();
+  const peopleCount = useVisibleTeam().length;
   const f = useMemo(
     () => getEventFunnel(eventId, attendances, peopleCount),
     [eventId, attendances, peopleCount],

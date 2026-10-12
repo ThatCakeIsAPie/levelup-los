@@ -1,11 +1,11 @@
-import { useAttendanceStore } from "@/stores/attendanceStore";
+import { useVisibleAttendances } from "@/data";
 import { useEventsStore } from "@/stores/eventsStore";
 import { usePeopleStore } from "@/stores/peopleStore";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link } from "@tanstack/react-router";
 
 export function HelpingFor({ personId }: { personId: string }) {
-  const all = useAttendanceStore((s) => s.attendances);
+  const all = useVisibleAttendances();
   const attendances = all.filter((a) => a.helperId === personId);
   const getEvent = useEventsStore((s) => s.getById);
   const getPerson = usePeopleStore((s) => s.getById);

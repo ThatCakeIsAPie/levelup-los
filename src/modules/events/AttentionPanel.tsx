@@ -1,6 +1,5 @@
-import { useShallow } from "zustand/react/shallow";
 import { useMemo } from "react";
-import { useAttendanceStore } from "@/stores/attendanceStore";
+import { useAttendancesForEvent } from "@/data";
 import { usePeopleStore } from "@/stores/peopleStore";
 import { getUpcomingFollowUps, getRiskFlags } from "@/lib/selectors";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,7 +8,7 @@ import { format } from "date-fns";
 import { parseDate } from "@/lib/dates";
 
 export function AttentionPanel({ eventId }: { eventId: string }) {
-  const attendances = useAttendanceStore(useShallow((s) => s.forEvent(eventId)));
+  const attendances = useAttendancesForEvent(eventId);
   const getPerson = usePeopleStore((s) => s.getById);
 
   const items = useMemo(() => {

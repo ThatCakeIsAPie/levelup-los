@@ -1,9 +1,10 @@
 import { Link } from "@tanstack/react-router";
-import { usePeopleStore } from "@/stores/peopleStore";
+import { useVisiblePeople } from "@/data";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export function SponsorMiniTree({ personId }: { personId: string }) {
-  const people = usePeopleStore((s) => s.people);
+  // Visible people only: the chain stops at the first sponsor the viewer can't see.
+  const people = useVisiblePeople();
   const person = people.find((p) => p.id === personId);
   if (!person) return null;
 

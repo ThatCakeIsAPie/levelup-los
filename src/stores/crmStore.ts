@@ -1,6 +1,13 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { daysFromToday, localDate } from "@/lib/dates";
+import {
+  seedContacts,
+  seedLearning,
+  seedLearningGoals,
+  seedSales,
+  SEED_VERSION,
+} from "@/data/seed";
 
 export interface Sale {
   id: string;
@@ -29,109 +36,71 @@ export interface Settings {
   customerDays: number;
   teamDays: number;
 }
+/** Weekly learning targets for one person. */
+export interface LearningGoal {
+  pages: number;
+  podcasts: number;
+  workshops: number;
+}
 
-const daysAgo = (n: number) => daysFromToday(-n);
-
-const seedSales: Sale[] = [
-  ["c1", "Nutrilite Double X", 5],
-  ["c2", "Artistry Skin Set", 20],
-  ["c3", "XS Energy (case)", 40],
-  ["c4", "eSpring Filter", 70],
-  ["c5", "Nutrilite Daily", 3],
-  ["c6", "SA8 Laundry", 45],
-  ["c7", "Protein Powder", 12],
-  ["c8", "XS Energy (case)", 33],
-  ["c9", "Artistry Serum", 8],
-  ["c10", "Glister Toothpaste", 60],
-].map(([customerId, product, d], i) => ({
-  id: `s${i}`,
-  customerId: customerId as string,
-  product: product as string,
-  date: daysAgo(d as number),
-}));
-
-const customerContactAge: Record<string, [string, number]> = {
-  c1: ["1", 4],
-  c2: ["1", 36],
-  c3: ["1", 12],
-  c4: ["1", 52],
-  c5: ["2", 9],
-  c6: ["2", 41],
-  c7: ["3", 18],
-  c8: ["4", 31],
-  c9: ["8", 6],
-  c10: ["13", 44],
-};
-const teamContactAge: Record<string, number> = {
-  "2": 3,
-  "3": 20,
-  "4": 9,
-  "5": 16,
-  "6": 2,
-  "7": 25,
-  "8": 11,
-  "9": 30,
-  "10": 5,
-};
-
-const seedContacts: Contact[] = [
-  ...Object.entries(customerContactAge).map(([pid, [by, d]]) => ({
-    id: `k-${pid}`,
-    personId: pid,
-    byId: by,
-    date: daysAgo(d),
-  })),
-  ...Object.entries(teamContactAge).map(([pid, d]) => ({
-    id: `t-${pid}`,
-    personId: pid,
-    byId: "1",
-    date: daysAgo(d),
-  })),
-];
-
-const seedLearning: Learning[] = [
-  { personId: "1", kind: "podcast", title: "Leadership Hour #42", amount: 1, date: daysAgo(0) },
-  { personId: "1", kind: "pages", title: "Go-Givers Sell More", amount: 25, date: daysAgo(1) },
-  { personId: "1", kind: "pages", title: "Go-Givers Sell More", amount: 20, date: daysAgo(2) },
-  {
-    personId: "1",
-    kind: "workshop",
-    title: "Spring Leadership Workshop",
-    amount: 1,
-    date: daysAgo(12),
-  },
-  { personId: "2", kind: "podcast", title: "Momentum Daily", amount: 1, date: daysAgo(0) },
-  { personId: "2", kind: "pages", title: "The Slight Edge", amount: 15, date: daysAgo(3) },
-  { personId: "4", kind: "podcast", title: "Momentum Daily", amount: 1, date: daysAgo(6) },
-  { personId: "3", kind: "conference", title: "Summer Conference", amount: 1, date: daysAgo(25) },
-].map((l, i) => ({ ...l, id: `l${i}` }) as Learning);
+export const DEFAULT_LEARNING_GOAL: LearningGoal = { pages: 60, podcasts: 3, workshops: 1 };
+export const DEFAULT_SETTINGS: Settings = { customerDays: 30, teamDays: 14 };
 
 interface CrmState {
   sales: Sale[];
   contacts: Contact[];
   learning: Learning[];
   settings: Settings;
+  /** Weekly learning goals by person id; missing = DEFAULT_LEARNING_GOAL. */
+  goals: Record<string, LearningGoal>;
   logSale: (s: Omit<Sale, "id">) => void;
   logContact: (c: Omit<Contact, "id">) => void;
   logLearning: (l: Omit<Learning, "id">) => void;
   removeLearning: (id: string) => void;
   setSettings: (s: Partial<Settings>) => void;
+  setLearningGoal: (personId: string, goal: Partial<LearningGoal>) => void;
+}
+
+function freshState() {
+  return {
+    sales: seedSales(),
+    contacts: seedContacts(),
+    learning: seedLearning(),
+    settings: { ...DEFAULT_SETTINGS },
+    goals: seedLearningGoals(),
+  };
 }
 
 export const useCrmStore = create<CrmState>()(
   persist(
     (set, get) => ({
-      sales: seedSales,
-      contacts: seedContacts,
-      learning: seedLearning,
-      settings: { customerDays: 30, teamDays: 14 },
+      ...freshState(),
       logSale: (s) => set({ sales: [{ ...s, id: crypto.randomUUID() }, ...get().sales] }),
       logContact: (c) => set({ contacts: [{ ...c, id: crypto.randomUUID() }, ...get().contacts] }),
       logLearning: (l) => set({ learning: [{ ...l, id: crypto.randomUUID() }, ...get().learning] }),
       removeLearning: (id) => set({ learning: get().learning.filter((l) => l.id !== id) }),
       setSettings: (s) => set({ settings: { ...get().settings, ...s } }),
+      setLearningGoal: (personId, goal) =>
+        set({
+          goals: {
+            ...get().goals,
+            [personId]: { ...learningGoalFor(get().goals, personId), ...goal },
+          },
+        }),
     }),
-    { name: "levelup.crm", storage: createJSONStorage(() => localStorage) },
+    {
+      name: "levelup.crm",
+      storage: createJSONStorage(() => localStorage),
+      partialize: (s) => ({
+        sales: s.sales,
+        contacts: s.contacts,
+        learning: s.learning,
+        settings: s.settings,
+        goals: s.goals,
+      }),
+      version: SEED_VERSION,
+      migrate: () => freshState() as unknown as CrmState,
+    },
   ),
 );
 
@@ -149,6 +118,14 @@ export function lastSale(sales: Sale[], customerId: string): Sale | undefined {
 }
 export { daysSince } from "@/lib/dates";
 
+/** A person's weekly goal (falls back to DEFAULT_LEARNING_GOAL). */
+export function learningGoalFor(
+  goals: Record<string, LearningGoal>,
+  personId: string,
+): LearningGoal {
+  return goals[personId] ?? DEFAULT_LEARNING_GOAL;
+}
+
 /** Consecutive days (ending today or yesterday) with any learning logged. */
 export function learningStreak(entries: Learning[]): number {
   const days = new Set(entries.map((e) => e.date));
@@ -159,4 +136,19 @@ export function learningStreak(entries: Learning[]): number {
     offset--;
   }
   return n;
+}
+
+/** Longest run of consecutive days with any learning logged (personal best). */
+export function bestLearningStreak(entries: Learning[]): number {
+  const days = [...new Set(entries.map((e) => e.date))].sort();
+  let best = 0;
+  let run = 0;
+  let prev: number | null = null;
+  for (const d of days) {
+    const t = Date.UTC(+d.slice(0, 4), +d.slice(5, 7) - 1, +d.slice(8, 10)) / 86_400_000;
+    run = prev !== null && t - prev === 1 ? run + 1 : 1;
+    best = Math.max(best, run);
+    prev = t;
+  }
+  return best;
 }

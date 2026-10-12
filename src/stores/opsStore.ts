@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
+import { seedOps, SEED_VERSION } from "@/data/seed";
 
 export interface Logistics {
   ticket: "bought" | "planned";
@@ -71,28 +72,7 @@ interface OpsState {
 export const useOpsStore = create<OpsState>()(
   persist(
     (set) => ({
-      logistics: {
-        "e1:2": { ticket: "bought", mode: "fly", flightBooked: true, carpool: "solo" },
-        "e1:4": {
-          ticket: "planned",
-          planDate: "2026-10-20",
-          mode: "drive",
-          carpool: "van",
-          vanPaid: "planned",
-          vanPayDate: "2026-10-25",
-        },
-      },
-      costs: [
-        {
-          id: "sc1",
-          eventId: "e1",
-          name: "Team van rental",
-          total: 600,
-          ownerId: "1",
-          members: ["1", "2", "4"],
-          overrides: {},
-        },
-      ],
+      ...seedOps(),
       payments: {},
       campaigns: [],
       schedules: [],
@@ -143,7 +123,13 @@ export const useOpsStore = create<OpsState>()(
           schedules: [...s.schedules.filter((x) => x.ownerId !== ownerId), ...(sch ? [sch] : [])],
         })),
     }),
-    { name: "levelup.ops", storage: createJSONStorage(() => localStorage) },
+    {
+      name: "levelup.ops",
+      storage: createJSONStorage(() => localStorage),
+      version: SEED_VERSION,
+      migrate: () =>
+        ({ ...seedOps(), payments: {}, campaigns: [], schedules: [] }) as unknown as OpsState,
+    },
   ),
 );
 

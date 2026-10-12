@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useSessionStore } from "@/stores/sessionStore";
 import { usePeopleStore } from "@/stores/peopleStore";
-import { visibleCustomers } from "@/lib/db";
+import { visibleCustomers } from "@/data";
 import { useOpsStore, type Campaign } from "@/stores/opsStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

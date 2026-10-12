@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useEventsStore, type EventType, type CrmEvent } from "@/stores/eventsStore";
-import { useAttendanceStore } from "@/stores/attendanceStore";
+import { useVisibleAttendances } from "@/data";
 import { localDate } from "@/lib/dates";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,7 +44,7 @@ const typeLabel: Record<EventType, string> = {
 
 function EventsPage() {
   const events = useEventsStore((s) => s.events);
-  const all = useAttendanceStore((s) => s.attendances);
+  const all = useVisibleAttendances();
   const now = localDate();
   const yr = now.slice(0, 4);
   const upcoming = events

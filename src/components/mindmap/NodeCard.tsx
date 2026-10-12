@@ -22,6 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { usePeopleStore, topCustomers, customersOf } from "@/stores/peopleStore";
+import { useVisibleCustomers } from "@/data";
 import { useTreeStore, type NewMemberClass } from "./useTreeStore";
 import { toast } from "sonner";
 import { useNavigate } from "@tanstack/react-router";
@@ -66,6 +67,7 @@ export function NodeCard({ node, selected, onToggle, onSelect }: Props) {
   const rankLabel = `${bonusPct(p.gpv)}%`;
 
   const rosterPeople = usePeopleStore((s) => s.people);
+  const myCustomers = useVisibleCustomers();
   const navigate = useNavigate();
   const openPerson = (edit: boolean) => {
     const rp =
@@ -85,8 +87,9 @@ export function NodeCard({ node, selected, onToggle, onSelect }: Props) {
   const openCustomerPanel = useTreeStore((s) => s.openCustomerPanel);
 
   const roster = rosterPeople.find((rp) => rp.losUid === p.uid);
-  const allCustomers = roster ? customersOf(rosterPeople, roster.id) : [];
-  const top3 = roster ? topCustomers(rosterPeople, roster.id, 3) : [];
+  // Only customers the viewer owns are visible (see src/data/access.ts).
+  const allCustomers = roster ? customersOf(myCustomers, roster.id) : [];
+  const top3 = roster ? topCustomers(myCustomers, roster.id, 3) : [];
   const customersVisible = showAllCustomers || showCustomers.has(p.id);
   const panelOpen = customerPanelId === p.id;
 

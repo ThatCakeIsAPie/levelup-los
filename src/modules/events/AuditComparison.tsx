@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { useEventsStore, type CrmEvent } from "@/stores/eventsStore";
 import { useAttendanceStore } from "@/stores/attendanceStore";
 import { usePeopleStore } from "@/stores/peopleStore";
+import { useVisibleAttendances, useVisiblePeople } from "@/data";
 import { getAuditDelta, attendanceStatusLabel } from "@/lib/selectors";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -47,9 +48,9 @@ export function AuditComparison({ eventId }: { eventId: string }) {
   const current = useEventsStore((s) => s.getById(eventId));
   const allEvents = useEventsStore((s) => s.events);
   const auto = useEventsStore(useShallow((s) => s.getComparisonEvents(eventId)));
-  const attendances = useAttendanceStore((s) => s.attendances);
+  const attendances = useVisibleAttendances();
   const addAttendance = useAttendanceStore((s) => s.add);
-  const people = usePeopleStore((s) => s.people);
+  const people = useVisiblePeople();
 
   const otherEvents = useMemo(
     () => allEvents.filter((e) => e.id !== eventId),
