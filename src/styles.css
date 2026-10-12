@@ -5,18 +5,62 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Design system definition.
+ * LevelUp LOS design tokens
+ * =========================
+ * Source of truth: docs/design/redesign-mockup.html (`:root` + dark block).
+ * Raw values live on :root (light) and .dark (dark; the class is toggled on
+ * <html> by src/lib/theme.ts). @theme inline below exposes them to Tailwind.
+ * Never hard-code hex colors in components; use these utilities.
  *
- * The @theme inline block maps CSS custom properties to Tailwind utility
- * classes (e.g. --color-primary -> bg-primary, text-primary).
+ * Brand (same value in both themes; use for bars, dots, logo, accents)
+ *   bg-navy  #1A365D      bg-teal  #067781      bg-sky  #199BD7
+ *   bg-amber #F2A93B      bg-stone #E0DCD3      (also text-*, border-*, fill-*)
+ *   Sky is a highlight/progress color only: never put white text on it.
  *
- * The :root and .dark blocks define the actual color values using oklch.
- * All colors MUST use oklch format.
+ * Surfaces and lines
+ *   bg-app          page background (warm off-white / deep navy)
+ *   bg-surface      cards, sheets, inputs (white / navy)
+ *   bg-surface-2    subtle fills: KPI tiles, segmented controls, hover rows
+ *   border-line     1px warm hairline used by cards, tables, inputs
+ *   bg-track        empty part of progress bars / rings
+ *   text-foreground body text      text-muted-foreground secondary text
+ *   text-faint      tertiary text (timestamps, hints)
+ *   bg-event        the navy "next event" card (white text on it)
  *
- * To add a new semantic color:
- * 1. Add the variable to :root (light value) and .dark (dark value)
- * 2. Register it in @theme inline as --color-<name>: var(--<name>)
+ * Primary action (teal; dark mode uses a lighter teal with dark text)
+ *   bg-primary text-primary-foreground       solid primary button
+ *   bg-primary-soft text-primary-ink         "soft" button / selected state
+ *   ring-ring / outline-ring                 focus ring (sky)
+ *
+ * Stages (BizClass) - use <StageChip>/<PersonAvatar> where possible
+ *   IBO         bg-stage-ibo text-stage-ibo-fg                 (solid navy chip)
+ *   Apprentice  bg-stage-apprentice-soft text-stage-apprentice-ink
+ *   Prospect    bg-stage-prospect-soft text-stage-prospect-ink
+ *   Customer    bg-stage-customer-soft text-stage-customer-ink
+ *   Solid fills for bars/dots/legends: bg-stage-ibo, bg-stage-apprentice,
+ *   bg-stage-prospect, bg-stage-customer
+ *
+ * Semantic tones - use <ToneChip> where possible
+ *   good  bg-good-soft text-good        (solid: bg-good)
+ *   warn  bg-warn-soft text-warn-ink    (solid: bg-warn; icon: text-warn)
+ *   bad   bg-bad-soft text-bad          (solid: bg-bad = text-destructive)
+ *   info  bg-info-soft text-info-ink    (solid: bg-info)
+ *
+ * Sidebar (navy in BOTH themes)
+ *   bg-sidebar text-sidebar-fg, active item bg-sidebar-active text-white,
+ *   border-sidebar-line. (shadcn's sidebar-* vars are mapped too.)
+ *
+ * Radii: rounded-card (14px, cards/sheets), rounded-lg (9px, controls),
+ *   rounded-md (7px), rounded-sm (5px), rounded-full for chips/avatars.
+ * Font: Plus Jakarta Sans Variable (font-sans, default on body).
+ * Charts: --chart-1..5 = IBO navy, teal, sky, amber, stone (fill-chart-1...).
  */
+
+@theme {
+  --font-sans:
+    "Plus Jakarta Sans Variable", "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", sans-serif;
+}
 
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
@@ -26,6 +70,9 @@
   --radius-2xl: calc(var(--radius) + 8px);
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
+  --radius-card: var(--radius-card-value);
+
+  /* shadcn semantic colors */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -59,77 +106,183 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Brand */
+  --color-navy: var(--brand-navy);
+  --color-teal: var(--brand-teal);
+  --color-sky: var(--brand-sky);
+  --color-amber: var(--brand-amber);
+  --color-stone: var(--brand-stone);
+  --color-amber-strong: var(--amber-strong);
+
+  /* Surfaces */
+  --color-app: var(--app-bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-track: var(--track);
+  --color-faint: var(--faint);
+  --color-event: var(--event-bg);
+  --color-event-fg: var(--event-fg);
+  --color-event-muted: var(--event-muted);
+
+  /* Primary extras */
+  --color-primary-soft: var(--primary-soft);
+  --color-primary-ink: var(--primary-ink);
+
+  /* Stages */
+  --color-stage-ibo: var(--stage-ibo);
+  --color-stage-ibo-fg: var(--stage-ibo-fg);
+  --color-stage-apprentice: var(--stage-apprentice);
+  --color-stage-apprentice-soft: var(--primary-soft);
+  --color-stage-apprentice-ink: var(--primary-ink);
+  --color-stage-prospect: var(--stage-prospect);
+  --color-stage-prospect-soft: var(--sky-soft);
+  --color-stage-prospect-ink: var(--sky-ink);
+  --color-stage-customer: var(--stage-customer);
+  --color-stage-customer-soft: var(--amber-soft);
+  --color-stage-customer-ink: var(--amber-ink);
+
+  /* Semantic tones */
+  --color-good: var(--ok);
+  --color-good-soft: var(--ok-soft);
+  --color-warn: var(--amber-strong);
+  --color-warn-soft: var(--amber-soft);
+  --color-warn-ink: var(--amber-ink);
+  --color-bad: var(--danger);
+  --color-bad-soft: var(--danger-soft);
+  --color-info: var(--brand-sky);
+  --color-info-soft: var(--sky-soft);
+  --color-info-ink: var(--sky-ink);
+
+  /* Sidebar (brand names) */
+  --color-sidebar-fg: var(--side-fg);
+  --color-sidebar-active: var(--side-active-bg);
+  --color-sidebar-line: var(--side-line);
 }
 
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.129 0.042 264.695);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.129 0.042 264.695);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.129 0.042 264.695);
-  --primary: oklch(0.208 0.042 265.755);
-  --primary-foreground: oklch(0.984 0.003 247.858);
-  --secondary: oklch(0.968 0.007 247.896);
-  --secondary-foreground: oklch(0.208 0.042 265.755);
-  --muted: oklch(0.968 0.007 247.896);
-  --muted-foreground: oklch(0.554 0.046 257.417);
-  --accent: oklch(0.968 0.007 247.896);
-  --accent-foreground: oklch(0.208 0.042 265.755);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.984 0.003 247.858);
-  --border: oklch(0.929 0.013 255.508);
-  --input: oklch(0.929 0.013 255.508);
-  --ring: oklch(0.704 0.04 256.788);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.984 0.003 247.858);
-  --sidebar-foreground: oklch(0.129 0.042 264.695);
-  --sidebar-primary: oklch(0.208 0.042 265.755);
-  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-accent: oklch(0.968 0.007 247.896);
-  --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
-  --sidebar-border: oklch(0.929 0.013 255.508);
-  --sidebar-ring: oklch(0.704 0.04 256.788);
+  --radius: 9px;
+  --radius-card-value: 14px;
+
+  /* Brand constants */
+  --brand-navy: #1a365d;
+  --brand-teal: #067781;
+  --brand-sky: #199bd7;
+  --brand-amber: #f2a93b;
+  --brand-stone: #e0dcd3;
+
+  /* Mockup tokens (light) */
+  --app-bg: #f6f4ef;
+  --surface: #ffffff;
+  --surface-2: #f2efe9;
+  --line: #e4dfd5;
+  --track: #e6e1d7;
+  --fg: #13243d;
+  --muted: #5b687b;
+  --faint: #8791a0;
+  --primary-base: #067781;
+  --on-primary: #ffffff;
+  --primary-soft: #ddf0f1;
+  --primary-ink: #045058;
+  --sky-soft: #dceffa;
+  --sky-ink: #0b4f75;
+  --amber-soft: #fcebd0;
+  --amber-ink: #6b3f00;
+  --amber-strong: #c77a0a;
+  --danger: #b42318;
+  --danger-soft: #fbe6e3;
+  --on-danger: #ffffff;
+  --ok: #2f7a3e;
+  --ok-soft: #e1f1e3;
+  --side: #1a365d;
+  --side-fg: #bfcde0;
+  --side-active-bg: rgba(255, 255, 255, 0.12);
+  --side-line: rgba(255, 255, 255, 0.1);
+  --event-bg: #1a365d;
+  --event-fg: #ffffff;
+  --event-muted: #bfd0e6;
+
+  /* Stage solids */
+  --stage-ibo: #1a365d;
+  --stage-ibo-fg: #ffffff;
+  --stage-apprentice: #067781;
+  --stage-prospect: #199bd7;
+  --stage-customer: #f2a93b;
+
+  /* shadcn mapping */
+  --background: var(--app-bg);
+  --foreground: var(--fg);
+  --card: var(--surface);
+  --card-foreground: var(--fg);
+  --popover: var(--surface);
+  --popover-foreground: var(--fg);
+  --primary: var(--primary-base);
+  --primary-foreground: var(--on-primary);
+  --secondary: var(--surface-2);
+  --secondary-foreground: var(--fg);
+  --muted: var(--surface-2);
+  --muted-foreground: var(--muted);
+  --accent: var(--surface-2);
+  --accent-foreground: var(--fg);
+  --destructive: var(--danger);
+  --destructive-foreground: var(--on-danger);
+  --border: var(--line);
+  --input: var(--line);
+  --ring: var(--brand-sky);
+  --chart-1: var(--stage-ibo);
+  --chart-2: var(--stage-apprentice);
+  --chart-3: var(--stage-prospect);
+  --chart-4: var(--stage-customer);
+  --chart-5: var(--brand-stone);
+  --sidebar: var(--side);
+  --sidebar-foreground: var(--side-fg);
+  --sidebar-primary: var(--brand-teal);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: var(--side-active-bg);
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: var(--side-line);
+  --sidebar-ring: var(--brand-sky);
 }
 
 .dark {
-  --background: oklch(0.129 0.042 264.695);
-  --foreground: oklch(0.984 0.003 247.858);
-  --card: oklch(0.208 0.042 265.755);
-  --card-foreground: oklch(0.984 0.003 247.858);
-  --popover: oklch(0.208 0.042 265.755);
-  --popover-foreground: oklch(0.984 0.003 247.858);
-  --primary: oklch(0.929 0.013 255.508);
-  --primary-foreground: oklch(0.208 0.042 265.755);
-  --secondary: oklch(0.279 0.041 260.031);
-  --secondary-foreground: oklch(0.984 0.003 247.858);
-  --muted: oklch(0.279 0.041 260.031);
-  --muted-foreground: oklch(0.704 0.04 256.788);
-  --accent: oklch(0.279 0.041 260.031);
-  --accent-foreground: oklch(0.984 0.003 247.858);
-  --destructive: oklch(0.704 0.191 22.216);
-  --destructive-foreground: oklch(0.984 0.003 247.858);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.551 0.027 264.364);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.208 0.042 265.755);
-  --sidebar-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-accent: oklch(0.279 0.041 260.031);
-  --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.551 0.027 264.364);
+  --app-bg: #0e1b2e;
+  --surface: #14253c;
+  --surface-2: #1a2e4a;
+  --line: #22385a;
+  --track: #22385a;
+  --fg: #e7edf5;
+  --muted: #a1b1c6;
+  --faint: #7487a0;
+  --primary-base: #3bbac4;
+  --on-primary: #05232a;
+  --primary-soft: #103a42;
+  --primary-ink: #93dde3;
+  --sky-soft: #11324b;
+  --sky-ink: #9dd5f3;
+  --amber-soft: #3a2b12;
+  --amber-ink: #f6cc86;
+  --amber-strong: #f2a93b;
+  --danger: #f29185;
+  --danger-soft: #3b1c1c;
+  --on-danger: #2a0b08;
+  --ok: #7bcb88;
+  --ok-soft: #173523;
+  --side: #0a1525;
+  --side-fg: #93a5bc;
+  --side-active-bg: rgba(255, 255, 255, 0.08);
+  --side-line: rgba(255, 255, 255, 0.08);
+  --event-bg: #1b3560;
+  --event-fg: #ffffff;
+  --event-muted: #bfd0e6;
+
+  --stage-ibo: #2d5088;
+  --stage-ibo-fg: #ffffff;
+  --stage-apprentice: #1f9aa4;
+  --stage-prospect: #199bd7;
+  --stage-customer: #f2a93b;
+
+  color-scheme: dark;
 }
 
 @layer base {
@@ -137,8 +290,42 @@
     border-color: var(--color-border);
   }
 
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
+    font-family: var(--font-sans);
+    font-size: 0.875rem;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+
+  :focus-visible {
+    outline-color: var(--color-ring);
+  }
+}
+
+@layer utilities {
+  /* Bottom padding that clears the phone tab bar plus the iOS home indicator. */
+  .pb-tabbar {
+    padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+  }
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
   }
 }
