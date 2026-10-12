@@ -1,8 +1,17 @@
-import { useState } from "react";
-import { Minus, Plus, MoreHorizontal, Users, ShoppingBag } from "lucide-react";
-import { NODE_H, NODE_W } from "./layout";
-import type { PositionedNode } from "./types";
-import { cn } from "@/lib/utils";
+import { memo } from "react";
+import {
+  BadgeCheck,
+  Eye,
+  EyeOff,
+  Minus,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  ShoppingBag,
+  UserPlus,
+  Users,
+} from "lucide-react";
+import { PersonAvatar, StageChip, initials } from "@/components/brand";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,34 +20,39 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { usePeopleStore, topCustomers, customersOf } from "@/stores/peopleStore";
-import { useVisibleCustomers } from "@/data";
-import { useTreeStore, type NewMemberClass } from "./useTreeStore";
-import { toast } from "sonner";
-import { useNavigate } from "@tanstack/react-router";
+import type { BizClass, CrmPerson } from "@/data";
+import { cn } from "@/lib/utils";
+import { NODE_H, NODE_W } from "./layout";
+import type { PositionedNode } from "./types";
 
-interface Props {
+export type CardAction = "apprentice" | "ibo" | "customer" | "view" | "edit";
+
+export interface NodeCardProps {
   node: PositionedNode;
+  /** Stage from the shared roster (IBO when the person isn't on the roster). */
+  stage: BizClass;
+  isViewer: boolean;
   selected: boolean;
+  /** Customers of this person the viewer may see (only ever the viewer's own). */
+  customers: CrmPerson[];
+  /** Total customers this person owns (aggregate; names may be private). */
+  customerCount: number;
+  customersVisible: boolean;
+  /** False while the header's "Show customers" switch overrides per-card toggles. */
+  canToggleCustomers: boolean;
+  /** False for candidates, who can't add people. */
+  canAdd: boolean;
   onToggle: (id: string) => void;
   onSelect: (id: string) => void;
+  onHover: (id: string | null) => void;
+  onAction: (node: PositionedNode, action: CardAction) => void;
+  onToggleCustomers: (id: string) => void;
+  onOpenCustomers: (id: string) => void;
 }
 
-function fmt(n: number | undefined) {
-  if (n === undefined || n === null) return "0.00";
-  return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
+const num = (n: number | undefined) => (n ?? 0).toLocaleString();
 
+/** Performance bonus bracket from GPV. */
 function bonusPct(gpv: number | undefined): number {
   const g = gpv ?? 0;
   if (g >= 7500) return 25;
@@ -53,464 +67,279 @@ function bonusPct(gpv: number | undefined): number {
   return 0;
 }
 
-function initials(name: string) {
-  return name
-    .split(/[\s,]+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((s) => s[0]?.toUpperCase() ?? "")
-    .join("");
-}
-
-export function NodeCard({ node, selected, onToggle, onSelect }: Props) {
+function NodeCardImpl({
+  node,
+  stage,
+  isViewer,
+  selected,
+  customers,
+  customerCount,
+  customersVisible,
+  canToggleCustomers,
+  canAdd,
+  onToggle,
+  onSelect,
+  onHover,
+  onAction,
+  onToggleCustomers,
+  onOpenCustomers,
+}: NodeCardProps) {
   const p = node.person;
-  const rankLabel = `${bonusPct(p.gpv)}%`;
-
-  const rosterPeople = usePeopleStore((s) => s.people);
-  const myCustomers = useVisibleCustomers();
-  const navigate = useNavigate();
-  const openPerson = (edit: boolean) => {
-    const rp =
-      rosterPeople.find((r) => r.losUid === p.uid) ?? rosterPeople.find((r) => r.name === p.name);
-    if (!rp) {
-      toast.error("This person isn't in the roster yet.");
-      return;
-    }
-    navigate({ to: "/people/$id", params: { id: rp.id }, hash: edit ? "edit" : undefined });
-  };
-  const addRosterPerson = usePeopleStore((s) => s.add);
-  const addMember = useTreeStore((s) => s.addMember);
-  const showCustomers = useTreeStore((s) => s.showCustomers);
-  const showAllCustomers = useTreeStore((s) => s.showAllCustomers);
-  const toggleCustomers = useTreeStore((s) => s.toggleCustomers);
-  const customerPanelId = useTreeStore((s) => s.customerPanelId);
-  const openCustomerPanel = useTreeStore((s) => s.openCustomerPanel);
-
-  const roster = rosterPeople.find((rp) => rp.losUid === p.uid);
-  // Only customers the viewer owns are visible (see src/data/access.ts).
-  const allCustomers = roster ? customersOf(myCustomers, roster.id) : [];
-  const top3 = roster ? topCustomers(myCustomers, roster.id, 3) : [];
-  const customersVisible = showAllCustomers || showCustomers.has(p.id);
-  const panelOpen = customerPanelId === p.id;
-
-  const [memberDialog, setMemberDialog] = useState<NewMemberClass | null>(null);
-  const [customerDialog, setCustomerDialog] = useState(false);
+  const members = p.memberCount ?? 1;
+  const downline = members - 1;
+  const rank = bonusPct(p.gpv);
+  const firstName = p.name.split(/[\s,]+/)[0] || p.name;
+  const canHaveCustomers = stage === "apprentice" || stage === "ibo";
 
   return (
-    <>
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={() => onSelect(p.id)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") onSelect(p.id);
-        }}
-        className={cn(
-          "absolute rounded-md border bg-card text-card-foreground shadow-sm transition-shadow",
-          "hover:shadow-md cursor-pointer",
-          selected ? "ring-2 ring-primary border-primary" : "border-border",
-        )}
-        style={{ left: node.x, top: node.y, width: NODE_W, height: NODE_H }}
-      >
-        <div className="flex h-full flex-col px-3 py-2 text-xs">
-          <div className="flex items-start justify-between gap-1">
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-sm font-medium text-foreground">{p.name}</div>
-              <div className="text-muted-foreground">{rankLabel}</div>
-            </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  onClick={(e) => e.stopPropagation()}
-                  className="-mr-1 -mt-1 rounded p-1 text-muted-foreground hover:bg-muted"
-                  aria-label="More"
-                >
-                  <MoreHorizontal className="h-3.5 w-3.5" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-44">
-                <DropdownMenuItem onClick={() => openPerson(false)}>View person</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => openPerson(true)}>Edit person</DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuLabel className="text-xs">Add under {p.name}</DropdownMenuLabel>
-                <DropdownMenuItem onClick={() => setMemberDialog("apprentice")}>
-                  Add Apprentice
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setMemberDialog("ibo")}>Add IBO</DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setCustomerDialog(true)}>
-                  Add Customer
-                </DropdownMenuItem>
-                {allCustomers.length > 0 && (
-                  <DropdownMenuItem onClick={() => toggleCustomers(p.id)}>
-                    {customersVisible ? "Hide customers" : "Show customers"}
-                  </DropdownMenuItem>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
+    <div
+      role="group"
+      tabIndex={0}
+      data-node-id={p.id}
+      aria-label={`${p.name}${isViewer ? " (you)" : ""}, ${stage === "ibo" ? "IBO" : stage}, ${members} ${members === 1 ? "member" : "members"}`}
+      onClick={() => onSelect(p.id)}
+      onKeyDown={(e) => {
+        if (e.target !== e.currentTarget) return;
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onSelect(p.id);
+        }
+      }}
+      onMouseEnter={() => onHover(p.id)}
+      onMouseLeave={() => onHover(null)}
+      className={cn(
+        "group/card absolute flex cursor-pointer flex-col rounded-card border bg-surface px-3 pb-2.5 pt-2.5 text-foreground",
+        "shadow-[0_1px_2px_rgba(19,36,61,.06)] transition-[box-shadow,border-color] hover:shadow-md",
+        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+        selected ? "border-primary ring-2 ring-primary/25" : "border-line",
+      )}
+      style={{ left: node.x, top: node.y, width: NODE_W, height: NODE_H }}
+    >
+      {/* Name row */}
+      <div className="flex items-center gap-2.5">
+        <PersonAvatar name={p.name} stage={stage} />
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-[13px] font-bold leading-tight" title={p.name}>
+            {p.name}
+            {isViewer && <span className="ml-1 font-semibold text-faint">· you</span>}
           </div>
-          <div className="mt-1 space-y-0.5">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">PPV</span>
-              <span className="tabular-nums">{fmt(p.ppv)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">GPV</span>
-              <span className="tabular-nums">{fmt(p.gpv)}</span>
-            </div>
-          </div>
-          <div className="mt-auto flex items-center gap-1 text-muted-foreground">
-            <Users className="h-3 w-3" />
-            <span className="tabular-nums">{p.memberCount ?? 1}</span>
-            {customersVisible && allCustomers.length > 0 && (
-              <div className="ml-auto flex items-center gap-1">
-                <div className="flex -space-x-1.5">
-                  {top3.map((c) => (
-                    <span
-                      key={c.id}
-                      title={`${c.name} · ${c.monthlyVolume ?? 0} PV/mo`}
-                      className="flex h-4 w-4 items-center justify-center rounded-full border border-background bg-primary/15 text-[8px] font-medium text-primary"
-                    >
-                      {initials(c.name)}
-                    </span>
-                  ))}
-                </div>
-                {allCustomers.length > 3 && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openCustomerPanel(panelOpen ? null : p.id);
-                    }}
-                    className="text-[10px] underline hover:text-foreground"
-                  >
-                    +{allCustomers.length - 3} more
-                  </button>
-                )}
-              </div>
-            )}
+          <div className="mt-1 flex items-center gap-1.5">
+            <StageChip stage={stage} className="px-1.5 py-0 text-[10.5px]" />
+            <span
+              className="text-[11px] font-bold tabular-nums text-muted-foreground"
+              title="Performance bonus level from GPV"
+            >
+              {rank}%
+            </span>
           </div>
         </div>
-        {node.hasChildren && (
-          <button
-            type="button"
-            aria-label={node.expanded ? "Collapse" : "Expand"}
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggle(p.id);
-            }}
-            className={cn(
-              "absolute left-1/2 -translate-x-1/2 -bottom-3 z-10",
-              "flex h-6 w-6 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-sm",
-              "hover:text-foreground hover:bg-muted",
-            )}
-          >
-            {node.expanded ? <Minus className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
-          </button>
-        )}
-      </div>
-
-      {panelOpen && (
-        <div
-          className="absolute z-20 w-56 rounded-md border border-border bg-popover p-2 text-xs shadow-lg"
-          style={{ left: node.x + NODE_W + 12, top: node.y }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="mb-1.5 flex items-center gap-1 font-medium">
-            <ShoppingBag className="h-3 w-3" /> Customers of {p.name}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
             <button
               type="button"
-              className="ml-auto text-muted-foreground hover:text-foreground"
-              onClick={() => openCustomerPanel(null)}
-              aria-label="Close"
+              onClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => e.stopPropagation()}
+              className="-mr-1.5 -mt-3 grid size-7 shrink-0 place-items-center self-start rounded-lg text-muted-foreground hover:bg-surface-2 hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring data-[state=open]:bg-surface-2"
+              aria-label={`Actions for ${p.name}`}
             >
-              ×
+              <MoreHorizontal className="size-4" aria-hidden="true" />
             </button>
-          </div>
-          <ul className="max-h-56 space-y-1 overflow-auto">
-            {allCustomers.map((c) => (
-              <li key={c.id} className="flex items-center justify-between gap-2">
-                <span className="truncate">{c.name}</span>
-                <span className="tabular-nums text-muted-foreground">{c.monthlyVolume ?? 0}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      <AddMemberDialog
-        bizClass={memberDialog}
-        parentName={p.name}
-        onClose={() => setMemberDialog(null)}
-        onSubmit={(input) => {
-          addMember(p.id, input);
-          toast.success(`${input.name} added under ${p.name}`);
-          setMemberDialog(null);
-        }}
-      />
-
-      <AddCustomerDialog
-        open={customerDialog}
-        ownerName={p.name}
-        onClose={() => setCustomerDialog(false)}
-        onSubmit={(data) => {
-          if (!roster) {
-            toast.error("This member isn't on the roster yet.");
-            return;
-          }
-          addRosterPerson({
-            name: data.name,
-            bizClass: "customer",
-            ownerId: roster.id,
-            email: data.email || undefined,
-            phone: data.phone || undefined,
-            monthlyVolume: data.monthlyVolume ? Number(data.monthlyVolume) : undefined,
-            joinedDate: data.startDate || undefined,
-            sponsorId: roster.id,
-          });
-          toast.success(`${data.name} added as a customer of ${p.name}`);
-          setCustomerDialog(false);
-          useTreeStore.getState().toggleCustomers(p.id);
-        }}
-      />
-    </>
-  );
-}
-
-function AddMemberDialog({
-  bizClass,
-  parentName,
-  onClose,
-  onSubmit,
-}: {
-  bizClass: NewMemberClass | null;
-  parentName: string;
-  onClose: () => void;
-  onSubmit: (input: {
-    name: string;
-    bizClass: NewMemberClass;
-    businessStartDate?: string;
-    iboNumber?: string;
-    ltdNumber?: string;
-    location?: string;
-  }) => void;
-}) {
-  const [name, setName] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [iboNumber, setIboNumber] = useState("");
-  const [ltdNumber, setLtdNumber] = useState("");
-  const [location, setLocation] = useState("");
-  const [error, setError] = useState<string | null>(null);
-
-  const reset = () => {
-    setName("");
-    setStartDate("");
-    setIboNumber("");
-    setLtdNumber("");
-    setLocation("");
-    setError(null);
-  };
-
-  return (
-    <Dialog
-      open={bizClass !== null}
-      onOpenChange={(o) => {
-        if (!o) {
-          reset();
-          onClose();
-        }
-      }}
-    >
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>
-            Add {bizClass === "apprentice" ? "Apprentice" : "IBO"} under {parentName}
-          </DialogTitle>
-        </DialogHeader>
-        <div className="grid gap-3">
-          <div className="grid gap-1.5">
-            <Label>Name *</Label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} />
-          </div>
-          <div className="grid gap-1.5">
-            <Label>Business start date {bizClass === "apprentice" ? "*" : ""}</Label>
-            <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-            {bizClass === "apprentice" && (
-              <p className="text-[11px] text-muted-foreground">
-                Becomes an IBO automatically one year after this date.
-              </p>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-52" onClick={(e) => e.stopPropagation()}>
+            <DropdownMenuItem onSelect={() => onAction(node, "view")}>
+              <Eye /> View person
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => onAction(node, "edit")}>
+              <Pencil /> Edit person
+            </DropdownMenuItem>
+            {customerCount > 0 && canToggleCustomers && (
+              <DropdownMenuItem onSelect={() => onToggleCustomers(p.id)}>
+                {customersVisible ? <EyeOff /> : <ShoppingBag />}
+                {customersVisible ? "Hide customers" : "Show customers"}
+              </DropdownMenuItem>
             )}
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="grid gap-1.5">
-              <Label>IBO#</Label>
-              <Input value={iboNumber} onChange={(e) => setIboNumber(e.target.value)} />
-            </div>
-            <div className="grid gap-1.5">
-              <Label>LTD#</Label>
-              <Input value={ltdNumber} onChange={(e) => setLtdNumber(e.target.value)} />
-            </div>
-          </div>
-          <div className="grid gap-1.5">
-            <Label>Location</Label>
-            <Input
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              placeholder="City, State"
-            />
-          </div>
-          {error && <p className="text-xs text-destructive">{error}</p>}
+            {canAdd && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel className="truncate text-xs font-normal text-muted-foreground">
+                  Add under {isViewer ? "you" : firstName}
+                </DropdownMenuLabel>
+                <DropdownMenuItem onSelect={() => onAction(node, "apprentice")}>
+                  <UserPlus /> Add apprentice
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => onAction(node, "ibo")}>
+                  <BadgeCheck /> Add IBO
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={!canHaveCustomers}
+                  onSelect={() => onAction(node, "customer")}
+                >
+                  <ShoppingBag />
+                  <span className="grid">
+                    Add customer
+                    {!canHaveCustomers && (
+                      <span className="text-[11px] text-muted-foreground">
+                        Only apprentices and IBOs have customers
+                      </span>
+                    )}
+                  </span>
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      {/* Volume */}
+      <div className="mt-2 grid grid-cols-2 gap-1.5 text-[11.5px]">
+        <div className="flex items-baseline justify-between rounded-lg bg-surface-2 px-2 py-1">
+          <span className="font-semibold text-muted-foreground">PPV</span>
+          <span className="font-bold tabular-nums">{num(p.ppv)}</span>
         </div>
-        <DialogFooter>
-          <Button
-            variant="ghost"
-            onClick={() => {
-              reset();
-              onClose();
-            }}
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={() => {
-              if (!name.trim()) {
-                setError("Name is required.");
-                return;
-              }
-              if (bizClass === "apprentice" && !startDate) {
-                setError("Business start date is required for an apprentice.");
-                return;
-              }
-              onSubmit({
-                name: name.trim(),
-                bizClass: bizClass ?? "ibo",
-                businessStartDate: startDate || undefined,
-                iboNumber: iboNumber.trim() || undefined,
-                ltdNumber: ltdNumber.trim() || undefined,
-                location: location.trim() || undefined,
-              });
-              reset();
-            }}
-          >
-            Add
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        <div className="flex items-baseline justify-between rounded-lg bg-surface-2 px-2 py-1">
+          <span className="font-semibold text-muted-foreground">GPV</span>
+          <span className="font-bold tabular-nums">{num(p.gpv)}</span>
+        </div>
+      </div>
+
+      {/* Members + customers */}
+      <div className="mt-auto flex h-5 items-center gap-1 text-[11.5px] text-muted-foreground">
+        <Users className="size-3.5" aria-hidden="true" />
+        <span className="tabular-nums">
+          {members} {members === 1 ? "member" : "members"}
+        </span>
+        <CustomerSlot
+          personId={p.id}
+          ownerName={firstName}
+          customers={customers}
+          count={customerCount}
+          visible={customersVisible}
+          onToggle={onToggleCustomers}
+          onOpen={onOpenCustomers}
+        />
+      </div>
+
+      {node.hasChildren && (
+        <button
+          type="button"
+          aria-expanded={node.expanded}
+          aria-label={
+            node.expanded
+              ? `Hide the people under ${p.name}`
+              : `Show ${downline} ${downline === 1 ? "person" : "people"} under ${p.name}`
+          }
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggle(p.id);
+          }}
+          onKeyDown={(e) => e.stopPropagation()}
+          className={cn(
+            "absolute -bottom-3 left-1/2 z-10 inline-flex h-6 min-w-6 -translate-x-1/2 items-center justify-center gap-0.5 rounded-full border px-1.5 text-[11px] font-bold tabular-nums shadow-sm transition-colors",
+            "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
+            node.expanded
+              ? "border-line bg-surface text-muted-foreground hover:text-foreground"
+              : "border-primary bg-primary text-primary-foreground hover:bg-primary/90",
+          )}
+        >
+          {node.expanded ? (
+            <Minus className="size-3" aria-hidden="true" />
+          ) : (
+            <>
+              <Plus className="size-3" aria-hidden="true" />
+              {downline}
+            </>
+          )}
+        </button>
+      )}
+    </div>
   );
 }
 
-function AddCustomerDialog({
-  open,
+function CustomerSlot({
+  personId,
   ownerName,
-  onClose,
-  onSubmit,
+  customers,
+  count,
+  visible,
+  onToggle,
+  onOpen,
 }: {
-  open: boolean;
+  personId: string;
   ownerName: string;
-  onClose: () => void;
-  onSubmit: (data: {
-    name: string;
-    email: string;
-    phone: string;
-    monthlyVolume: string;
-    startDate: string;
-  }) => void;
+  customers: CrmPerson[];
+  count: number;
+  visible: boolean;
+  onToggle: (id: string) => void;
+  onOpen: (id: string) => void;
 }) {
-  const [form, setForm] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    monthlyVolume: "",
-    startDate: "",
-  });
-  const [error, setError] = useState<string | null>(null);
-  const reset = () => {
-    setForm({ name: "", email: "", phone: "", monthlyVolume: "", startDate: "" });
-    setError(null);
-  };
+  if (count === 0) return null;
+  const pill =
+    "ml-auto inline-flex h-5 items-center gap-1 rounded-full bg-stage-customer-soft px-1.5 text-[10.5px] font-bold text-stage-customer-ink";
 
+  if (!visible) {
+    return (
+      <button
+        type="button"
+        className={cn(
+          pill,
+          "hover:brightness-95 focus-visible:outline-2 focus-visible:outline-ring",
+        )}
+        aria-label={`Show ${count} ${count === 1 ? "customer" : "customers"}`}
+        title="Show customers"
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggle(personId);
+        }}
+        onKeyDown={(e) => e.stopPropagation()}
+      >
+        <ShoppingBag className="size-3" aria-hidden="true" />
+        <span className="tabular-nums">{count}</span>
+      </button>
+    );
+  }
+
+  // Someone else's customers: the count is shared, names are private.
+  if (customers.length === 0) {
+    return (
+      <span className={pill} title={`Only ${ownerName} sees who their customers are`}>
+        <ShoppingBag className="size-3" aria-hidden="true" />
+        <span className="tabular-nums">
+          {count} {count === 1 ? "customer" : "customers"}
+        </span>
+      </span>
+    );
+  }
+
+  const top = customers.slice(0, 3);
+  const more = customers.length - top.length;
+  const circle =
+    "grid size-5 place-items-center rounded-full border-2 border-surface bg-stage-customer-soft text-[8.5px] font-bold leading-none text-stage-customer-ink";
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(o) => {
-        if (!o) {
-          reset();
-          onClose();
-        }
+    <button
+      type="button"
+      className="-my-0.5 ml-auto flex items-center rounded-full p-0.5 hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-ring"
+      aria-label={`Open ${customers.length} ${customers.length === 1 ? "customer" : "customers"}`}
+      title="Open customer list"
+      onClick={(e) => {
+        e.stopPropagation();
+        onOpen(personId);
       }}
+      onKeyDown={(e) => e.stopPropagation()}
     >
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Add customer of {ownerName}</DialogTitle>
-        </DialogHeader>
-        <div className="grid gap-3">
-          <div className="grid gap-1.5">
-            <Label>Name *</Label>
-            <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="grid gap-1.5">
-              <Label>Email</Label>
-              <Input
-                type="email"
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-              />
-            </div>
-            <div className="grid gap-1.5">
-              <Label>Phone</Label>
-              <Input
-                value={form.phone}
-                onChange={(e) => setForm({ ...form, phone: e.target.value })}
-              />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="grid gap-1.5">
-              <Label>Monthly volume</Label>
-              <Input
-                type="number"
-                value={form.monthlyVolume}
-                onChange={(e) => setForm({ ...form, monthlyVolume: e.target.value })}
-              />
-            </div>
-            <div className="grid gap-1.5">
-              <Label>Start date</Label>
-              <Input
-                type="date"
-                value={form.startDate}
-                onChange={(e) => setForm({ ...form, startDate: e.target.value })}
-              />
-            </div>
-          </div>
-          {error && <p className="text-xs text-destructive">{error}</p>}
-        </div>
-        <DialogFooter>
-          <Button
-            variant="ghost"
-            onClick={() => {
-              reset();
-              onClose();
-            }}
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={() => {
-              if (!form.name.trim()) {
-                setError("Name is required.");
-                return;
-              }
-              onSubmit({ ...form, name: form.name.trim() });
-              reset();
-            }}
-          >
-            Add
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      <span className="flex -space-x-1.5">
+        {top.map((c) => (
+          <span key={c.id} className={circle} title={c.name}>
+            {initials(c.name)}
+          </span>
+        ))}
+        {more > 0 && (
+          <span className={cn(circle, "w-auto min-w-5 bg-amber px-1 text-on-amber tabular-nums")}>
+            +{more}
+          </span>
+        )}
+      </span>
+    </button>
   );
 }
+
+export const NodeCard = memo(NodeCardImpl);

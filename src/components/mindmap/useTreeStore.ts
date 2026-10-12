@@ -15,8 +15,21 @@ export interface NewMemberInput {
   location?: string;
 }
 
+/** Where the current tree came from. */
+export type TreeSource = "roster" | "upload";
+
+export interface LoadOptions {
+  source: TreeSource;
+  /** Roster: signature of the visible team. Upload: the uploader's person id. */
+  key: string;
+  /** Keep expanded/selected nodes (matched by name) across the reload. */
+  keepExpanded?: boolean;
+}
+
 interface TreeState {
   people: Person[];
+  source: TreeSource | null;
+  sourceKey: string | null;
   roots: TreeNode[];
   expanded: Set<string>;
   selectedId: string | null;
@@ -25,7 +38,7 @@ interface TreeState {
   showAllCustomers: boolean;
   /** Node id whose full customer list panel is open. */
   customerPanelId: string | null;
-  loadRows: (rows: Row[], map: FieldMap) => void;
+  loadRows: (rows: Row[], map: FieldMap, opts: LoadOptions) => void;
   toggle: (id: string) => void;
   expandAll: () => void;
   collapseAll: () => void;
@@ -67,17 +80,48 @@ function findNode(roots: TreeNode[], id: string): TreeNode | null {
 
 export const useTreeStore = create<TreeState>((set, get) => ({
   people: [],
+  source: null,
+  sourceKey: null,
   roots: [],
   expanded: new Set(),
   selectedId: null,
   showCustomers: new Set(),
   showAllCustomers: false,
   customerPanelId: null,
-  loadRows: (rows, map) => {
+  loadRows: (rows, map, opts) => {
+    const prev = get();
     const people = rowsToPeople(rows, map);
     const roots = normalizeForest(buildForest(people));
-    const expanded = new Set<string>(roots.map((r) => r.person.id));
-    set({ people: flatten(roots), roots, expanded, selectedId: null });
+    const flat = flatten(roots);
+    let expanded = new Set<string>(roots.map((r) => r.person.id));
+    let showCustomers = new Set<string>();
+    let selectedId: string | null = null;
+    if (opts.keepExpanded) {
+      // Ids are renumbered on every load; carry view state over by name.
+      const nameOf = new Map(prev.people.map((p) => [p.id, p.name] as const));
+      const idsByName = new Map<string, string[]>();
+      flat.forEach((p) => idsByName.set(p.name, [...(idsByName.get(p.name) ?? []), p.id]));
+      const remap = (ids: Iterable<string>, into = new Set<string>()) => {
+        for (const id of ids) {
+          const name = nameOf.get(id);
+          if (name) idsByName.get(name)?.forEach((n) => into.add(n));
+        }
+        return into;
+      };
+      expanded = remap(prev.expanded, expanded);
+      showCustomers = remap(prev.showCustomers);
+      if (prev.selectedId) selectedId = [...remap([prev.selectedId])][0] ?? null;
+    }
+    set({
+      people: flat,
+      roots,
+      expanded,
+      selectedId,
+      showCustomers,
+      customerPanelId: null,
+      source: opts.source,
+      sourceKey: opts.key,
+    });
     usePeopleStore.getState().syncFromLos(syncEntries(roots));
   },
   toggle: (id) => {

@@ -1,7 +1,8 @@
 import type { Edge, PositionedNode, TreeNode } from "./types";
 
-export const NODE_W = 200;
-export const NODE_H = 110;
+// Card size used by both the layout and NodeCard (rendering only).
+export const NODE_W = 216;
+export const NODE_H = 122;
 export const H_GAP = 24; // horizontal gap between sibling column footprints
 export const V_GAP = 28; // vertical gap between a parent and its children row
 export const ROW_GAP = 70; // gap between root row and depth-1 row
