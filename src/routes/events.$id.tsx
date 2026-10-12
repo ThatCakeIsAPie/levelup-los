@@ -24,6 +24,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { toCsv, downloadCsv } from "@/lib/csvExport";
 import { toast } from "sonner";
 import { differenceInDays, format } from "date-fns";
+import { parseDate } from "@/lib/dates";
 
 export const Route = createFileRoute("/events/$id")({
   head: () => ({ meta: [{ title: "Event — LevelUp LOS" }] }),
@@ -49,7 +50,7 @@ function EventDetail() {
     );
   }
 
-  const daysOut = differenceInDays(new Date(event.date), new Date());
+  const daysOut = differenceInDays(parseDate(event.date), new Date());
 
   return (
     <TooltipProvider>
@@ -59,7 +60,7 @@ function EventDetail() {
           <ArrowLeft className="h-3.5 w-3.5" /> Events
         </Link>
         <span className="ml-2 text-sm font-semibold tracking-tight">{event.name}</span>
-        <span className="text-xs text-muted-foreground">{typeLabel[event.type]} · {format(new Date(event.date), "MMM d, yyyy")}</span>
+        <span className="text-xs text-muted-foreground">{typeLabel[event.type]} · {format(parseDate(event.date), "MMM d, yyyy")}</span>
         <span className={`ml-2 rounded px-1.5 py-0.5 text-[10px] ${daysOut >= 0 ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"}`}>
           {daysOut >= 0 ? `${daysOut} days out` : `${Math.abs(daysOut)} days ago`}
         </span>

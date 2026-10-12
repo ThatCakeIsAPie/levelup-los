@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
+import { daysFromToday, localDate } from "@/lib/dates";
 
 export interface Sale { id: string; customerId: string; product: string; date: string; amount?: number }
 export interface Contact { id: string; personId: string; byId: string; date: string; note?: string }
@@ -7,7 +8,7 @@ export type LearningKind = "podcast" | "pages" | "workshop" | "conference";
 export interface Learning { id: string; personId: string; kind: LearningKind; title: string; amount: number; date: string }
 export interface Settings { customerDays: number; teamDays: number }
 
-const daysAgo = (n: number) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
+const daysAgo = (n: number) => daysFromToday(-n);
 
 const seedSales: Sale[] = [
   ["c1", "Nutrilite Double X", 5], ["c2", "Artistry Skin Set", 20], ["c3", "XS Energy (case)", 40],
@@ -66,7 +67,7 @@ export const useCrmStore = create<CrmState>()(
   ),
 );
 
-export const today = () => new Date().toISOString().slice(0, 10);
+export const today = () => localDate();
 
 export function lastContactDate(contacts: Contact[], personId: string): string | undefined {
   let best: string | undefined;
@@ -78,20 +79,16 @@ export function lastSale(sales: Sale[], customerId: string): Sale | undefined {
   for (const s of sales) if (s.customerId === customerId && (!best || s.date > best.date)) best = s;
   return best;
 }
-export function daysSince(date?: string): number | null {
-  if (!date) return null;
-  return Math.floor((Date.now() - new Date(date).getTime()) / 86400000);
-}
+export { daysSince } from "@/lib/dates";
 
 /** Consecutive days (ending today or yesterday) with any learning logged. */
 export function learningStreak(entries: Learning[]): number {
   const days = new Set(entries.map((e) => e.date));
-  let d = new Date();
-  if (!days.has(d.toISOString().slice(0, 10))) d = new Date(Date.now() - 86400000);
+  let offset = days.has(daysFromToday(0)) ? 0 : -1;
   let n = 0;
-  while (days.has(d.toISOString().slice(0, 10))) {
+  while (days.has(daysFromToday(offset))) {
     n++;
-    d = new Date(d.getTime() - 86400000);
+    offset--;
   }
   return n;
 }

@@ -1,6 +1,8 @@
 import type { Attendance } from "@/stores/attendanceStore";
 import type { CrmEvent } from "@/stores/eventsStore";
 import type { CrmPerson } from "@/stores/peopleStore";
+import { addDays } from "date-fns";
+import { localDate } from "@/lib/dates";
 
 export interface ShowRate {
   attended: number;
@@ -14,7 +16,7 @@ export function getPersonShowRate(
   events: CrmEvent[],
   today = new Date(),
 ): ShowRate {
-  const past = events.filter((e) => new Date(e.date) < today);
+  const past = events.filter((e) => e.date < localDate(today));
   const rows = attendances.filter(
     (a) => a.personId === personId && past.some((e) => e.id === a.eventId),
   );
@@ -55,7 +57,7 @@ export interface RiskFlags {
 export function getRiskFlags(a: Attendance, today = new Date()): RiskFlags {
   const red: string[] = [];
   const yellow: string[] = [];
-  if (!a.hasTicket && a.plannedPurchaseDate && new Date(a.plannedPurchaseDate) < today) {
+  if (!a.hasTicket && a.plannedPurchaseDate && a.plannedPurchaseDate < localDate(today)) {
     red.push("Ticket purchase date passed");
   }
   if (a.desireToAttend === "yes" && !a.helperId) {
@@ -72,13 +74,12 @@ export function getUpcomingFollowUps(
   windowDays = 7,
   today = new Date(),
 ): Attendance[] {
-  const end = new Date(today.getTime() + windowDays * 24 * 60 * 60 * 1000);
+  // Compare "YYYY-MM-DD" strings so today's follow-ups count as upcoming.
+  const start = localDate(today);
+  const end = localDate(addDays(today, windowDays));
   return attendances.filter((a) => {
     const dates = [a.followUpDate, a.plannedPurchaseDate].filter(Boolean) as string[];
-    return dates.some((d) => {
-      const dt = new Date(d);
-      return dt >= today && dt <= end;
-    });
+    return dates.some((d) => d.slice(0, 10) >= start && d.slice(0, 10) <= end);
   });
 }
 

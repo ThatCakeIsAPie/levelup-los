@@ -6,6 +6,7 @@ import { getUpcomingFollowUps, getRiskFlags } from "@/lib/selectors";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link } from "@tanstack/react-router";
 import { format } from "date-fns";
+import { parseDate } from "@/lib/dates";
 
 export function AttentionPanel({ eventId }: { eventId: string }) {
   const attendances = useAttendanceStore(useShallow((s) => s.forEvent(eventId)));
@@ -23,7 +24,7 @@ export function AttentionPanel({ eventId }: { eventId: string }) {
       if (ids.has(a.id)) return;
       ids.add(a.id);
       const next = a.followUpDate ?? a.plannedPurchaseDate!;
-      merged.push({ a, reason: `Due ${format(new Date(next), "MMM d")}` });
+      merged.push({ a, reason: `Due ${format(parseDate(next), "MMM d")}` });
     });
     risky.forEach((a) => {
       if (ids.has(a.id)) return;

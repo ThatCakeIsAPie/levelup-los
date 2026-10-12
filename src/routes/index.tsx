@@ -3,6 +3,7 @@ import { useState } from "react";
 import { usePeopleStore } from "@/stores/peopleStore";
 import { useSessionStore } from "@/stores/sessionStore";
 import { downlineIds, visibleCustomers } from "@/lib/db";
+import { daysFromToday } from "@/lib/dates";
 import {
   useCrmStore, lastContactDate, daysSince, learningStreak, today, type LearningKind, type Learning,
 } from "@/stores/crmStore";
@@ -31,7 +32,7 @@ const kindLabel: Record<LearningKind, string> = {
 };
 
 function totals(entries: Learning[], sinceDays: number) {
-  const cutoff = new Date(Date.now() - sinceDays * 86400000).toISOString().slice(0, 10);
+  const cutoff = daysFromToday(-sinceDays);
   const out: Record<LearningKind, number> = { podcast: 0, pages: 0, workshop: 0, conference: 0 };
   for (const e of entries) if (e.date >= cutoff) out[e.kind] += e.amount;
   return out;

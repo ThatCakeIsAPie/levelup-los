@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { logPerson } from "./activityStore";
+import { parseDate } from "@/lib/dates";
 
 /**
  * Two relationship paths:
@@ -77,7 +78,7 @@ export function personPath(p: CrmPerson): PersonPath {
 }
 
 function addOneYear(iso: string): Date {
-  const d = new Date(iso);
+  const d = parseDate(iso);
   return new Date(d.getFullYear() + 1, d.getMonth(), d.getDate());
 }
 

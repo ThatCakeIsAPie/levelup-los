@@ -2,6 +2,7 @@ import { useShallow } from "zustand/react/shallow";
 import { useMemo } from "react";
 import { useAttendanceStore, type Attendance, type DesireLevel } from "@/stores/attendanceStore";
 import { usePeopleStore } from "@/stores/peopleStore";
+import { daysFromToday } from "@/lib/dates";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link } from "@tanstack/react-router";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -45,7 +46,7 @@ export function AttendeeKanban({ eventId }: { eventId: string }) {
         patch.desireToAttend = "yes"; patch.hasTicket = false; patch.attended = undefined; break;
       case "date":
         patch.desireToAttend = a.desireToAttend ?? "yes"; patch.hasTicket = false;
-        patch.plannedPurchaseDate = a.plannedPurchaseDate ?? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+        patch.plannedPurchaseDate = a.plannedPurchaseDate ?? daysFromToday(7);
         patch.attended = undefined; break;
       case "ticket":
         patch.hasTicket = true; patch.attended = undefined; break;

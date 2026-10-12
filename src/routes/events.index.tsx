@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useEventsStore, type EventType, type CrmEvent } from "@/stores/eventsStore";
 import { useAttendanceStore } from "@/stores/attendanceStore";
+import { localDate } from "@/lib/dates";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,7 +22,7 @@ const typeLabel: Record<EventType, string> = { conference: "Conference", team_me
 function EventsPage() {
   const events = useEventsStore((s) => s.events);
   const all = useAttendanceStore((s) => s.attendances);
-  const now = new Date().toISOString().slice(0, 10);
+  const now = localDate();
   const yr = now.slice(0, 4);
   const upcoming = events.filter((e) => e.date >= now && e.date.startsWith(yr)).sort((a, b) => a.date.localeCompare(b.date));
   const past = events.filter((e) => e.date < now).sort((a, b) => b.date.localeCompare(a.date));
@@ -76,13 +77,13 @@ function AddEventDialog() {
   const [form, setForm] = useState<Omit<CrmEvent, "id">>({
     name: "",
     type: "conference",
-    date: new Date().toISOString().slice(0, 10),
+    date: localDate(),
   });
 
   const submit = () => {
     if (!form.name.trim()) return;
     add(form);
-    setForm({ name: "", type: "conference", date: new Date().toISOString().slice(0, 10) });
+    setForm({ name: "", type: "conference", date: localDate() });
     setOpen(false);
   };
 
