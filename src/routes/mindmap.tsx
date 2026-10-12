@@ -1,13 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { Toaster } from "@/components/ui/sonner";
 import { MindmapCanvas } from "@/components/mindmap/MindmapCanvas";
 import { UploadButton } from "@/components/import/UploadButton";
 import { useTreeStore } from "@/components/mindmap/useTreeStore";
 import { autoMap } from "@/lib/parseSpreadsheet";
 import { rosterToRows } from "@/lib/demoData";
 import { usePeopleStore } from "@/stores/peopleStore";
-import { useSession } from "@/lib/db";
+import { useSession } from "@/data";
 import type { TreeNode } from "@/components/mindmap/types";
 
 function findByName(nodes: TreeNode[], name: string): TreeNode | null {
@@ -105,7 +104,6 @@ function MindmapPage() {
           </div>
         )}
       </main>
-      <Toaster richColors position="bottom-right" />
     </div>
   );
 }

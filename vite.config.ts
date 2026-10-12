@@ -15,6 +15,12 @@ export default defineConfig({
     tailwindcss(),
     tsconfigPaths(),
   ],
+  optimizeDeps: {
+    // Scan every source file up front so deps used only by lazily split routes
+    // (recharts, xlsx, ...) are pre-bundled at startup instead of triggering a
+    // mid-session re-optimize + reload (which shows up as "Invalid hook call").
+    entries: ["index.html", "src/**/*.{ts,tsx}", "!src/**/*.test.ts"],
+  },
   test: {
     include: ["src/**/*.test.ts"],
     environment: "node",

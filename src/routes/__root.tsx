@@ -9,8 +9,11 @@ import {
   useRouterState,
 } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { useSessionStore } from "@/stores/sessionStore";
-import { TopNav } from "@/components/TopNav";
+import { AppShell } from "@/components/shell/AppShell";
+import { Toaster } from "@/components/ui/sonner";
+import { useIsDesktop } from "@/hooks/use-media-query";
+import { useTheme } from "@/lib/theme";
+import { useSession } from "@/data";
 
 function NotFoundComponent() {
   return (
@@ -85,22 +88,29 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function RootComponent() {
+  const { resolved } = useTheme();
+  const desktop = useIsDesktop();
   return (
     <>
       {/* Renders route head() tags; React 19 hoists <title>/<meta> into <head>. */}
       <HeadContent />
-      <div className="flex h-dvh w-screen flex-col bg-background">
-        <TopNav />
-        <div className="min-h-0 flex-1">
-          <SessionGate />
-        </div>
-      </div>
+      <SessionGate />
+      <Toaster
+        theme={resolved}
+        position={desktop ? "bottom-right" : "top-center"}
+        richColors
+        closeButton
+      />
     </>
   );
 }
 
+/**
+ * Logged out: only /login renders (without the shell); anything else
+ * redirects there. Logged in: every route renders inside <AppShell>.
+ */
 function SessionGate() {
-  const user = useSessionStore((s) => s.user);
+  const user = useSession();
   // Gate on the rendered matches, not location: during the redirect, location
   // flips to /login before its matches load, and <Outlet /> would briefly
   // render the previous (user-requiring) route with a null user.
@@ -111,6 +121,17 @@ function SessionGate() {
   useEffect(() => {
     if (!user && !onLogin) navigate({ to: "/login", replace: true });
   }, [user, onLogin, navigate]);
-  if (!user && !onLogin) return null;
-  return <Outlet />;
+  if (onLogin) {
+    return (
+      <div className="h-dvh overflow-y-auto bg-app">
+        <Outlet />
+      </div>
+    );
+  }
+  if (!user) return null;
+  return (
+    <AppShell>
+      <Outlet />
+    </AppShell>
+  );
 }

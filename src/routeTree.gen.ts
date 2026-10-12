@@ -15,6 +15,7 @@ import { Route as CustomersRouteImport } from './routes/customers'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as MindmapRouteImport } from './routes/mindmap'
 import { Route as ReportsRouteImport } from './routes/reports'
+import { Route as StyleguideRouteImport } from './routes/styleguide'
 import { Route as WalletRouteImport } from './routes/wallet'
 import { Route as EventsIndexRouteImport } from './routes/events.index'
 import { Route as EventsIdRouteImport } from './routes/events.$id'
@@ -51,6 +52,11 @@ const ReportsRoute = ReportsRouteImport.update({
   path: '/reports',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StyleguideRoute = StyleguideRouteImport.update({
+  id: '/styleguide',
+  path: '/styleguide',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const WalletRoute = WalletRouteImport.update({
   id: '/wallet',
   path: '/wallet',
@@ -84,6 +90,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/mindmap': typeof MindmapRoute
   '/reports': typeof ReportsRoute
+  '/styleguide': typeof StyleguideRoute
   '/wallet': typeof WalletRoute
   '/events/$id': typeof EventsIdRoute
   '/people/$id': typeof PeopleIdRoute
@@ -97,6 +104,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/mindmap': typeof MindmapRoute
   '/reports': typeof ReportsRoute
+  '/styleguide': typeof StyleguideRoute
   '/wallet': typeof WalletRoute
   '/events/$id': typeof EventsIdRoute
   '/people/$id': typeof PeopleIdRoute
@@ -111,6 +119,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/mindmap': typeof MindmapRoute
   '/reports': typeof ReportsRoute
+  '/styleguide': typeof StyleguideRoute
   '/wallet': typeof WalletRoute
   '/events/$id': typeof EventsIdRoute
   '/people/$id': typeof PeopleIdRoute
@@ -126,6 +135,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/mindmap'
     | '/reports'
+    | '/styleguide'
     | '/wallet'
     | '/events/$id'
     | '/people/$id'
@@ -139,6 +149,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/mindmap'
     | '/reports'
+    | '/styleguide'
     | '/wallet'
     | '/events/$id'
     | '/people/$id'
@@ -152,6 +163,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/mindmap'
     | '/reports'
+    | '/styleguide'
     | '/wallet'
     | '/events/$id'
     | '/people/$id'
@@ -166,6 +178,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   MindmapRoute: typeof MindmapRoute
   ReportsRoute: typeof ReportsRoute
+  StyleguideRoute: typeof StyleguideRoute
   WalletRoute: typeof WalletRoute
   EventsIdRoute: typeof EventsIdRoute
   PeopleIdRoute: typeof PeopleIdRoute
@@ -217,6 +230,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReportsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/styleguide': {
+      id: '/styleguide'
+      path: '/styleguide'
+      fullPath: '/styleguide'
+      preLoaderRoute: typeof StyleguideRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/wallet': {
       id: '/wallet'
       path: '/wallet'
@@ -262,6 +282,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   MindmapRoute: MindmapRoute,
   ReportsRoute: ReportsRoute,
+  StyleguideRoute: StyleguideRoute,
   WalletRoute: WalletRoute,
   EventsIdRoute: EventsIdRoute,
   PeopleIdRoute: PeopleIdRoute,

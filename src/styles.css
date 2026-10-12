@@ -16,6 +16,8 @@
  *   bg-navy  #1A365D      bg-teal  #067781      bg-sky  #199BD7
  *   bg-amber #F2A93B      bg-stone #E0DCD3      (also text-*, border-*, fill-*)
  *   Sky is a highlight/progress color only: never put white text on it.
+ *   bg-logo-1 / bg-logo-2: the two shorter logo bars (use <Logo>).
+ *   text-amber-strong: streak flame / win accents. text-on-amber: text on bg-amber.
  *
  * Surfaces and lines
  *   bg-app          page background (warm off-white / deep navy)
@@ -114,6 +116,9 @@
   --color-amber: var(--brand-amber);
   --color-stone: var(--brand-stone);
   --color-amber-strong: var(--amber-strong);
+  --color-logo-1: #2d5088;
+  --color-logo-2: #0a93a0;
+  --color-on-amber: #3a2200;
 
   /* Surfaces */
   --color-app: var(--app-bg);
@@ -179,7 +184,7 @@
   --line: #e4dfd5;
   --track: #e6e1d7;
   --fg: #13243d;
-  --muted: #5b687b;
+  --muted-text: #5b687b;
   --faint: #8791a0;
   --primary-base: #067781;
   --on-primary: #ffffff;
@@ -222,7 +227,7 @@
   --secondary: var(--surface-2);
   --secondary-foreground: var(--fg);
   --muted: var(--surface-2);
-  --muted-foreground: var(--muted);
+  --muted-foreground: var(--muted-text);
   --accent: var(--surface-2);
   --accent-foreground: var(--fg);
   --destructive: var(--danger);
@@ -252,7 +257,7 @@
   --line: #22385a;
   --track: #22385a;
   --fg: #e7edf5;
-  --muted: #a1b1c6;
+  --muted-text: #a1b1c6;
   --faint: #7487a0;
   --primary-base: #3bbac4;
   --on-primary: #05232a;
