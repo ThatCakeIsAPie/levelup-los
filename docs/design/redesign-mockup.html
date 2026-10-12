@@ -1,0 +1,531 @@
+<title>LevelUp LOS Redesign</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style>
+/* Layout: a review sheet. Each screen = desktop frame (scrolls sideways on phones) + phone frame + "what changed" notes. */
+:root {
+  --navy:#1A365D; --teal:#067781; --sky:#199BD7; --amber:#F2A93B;
+  --bg:#ECE8E0; --app-bg:#F6F4EF; --surface:#FFFFFF; --surface-2:#F2EFE9; --line:#E4DFD5; --track:#E6E1D7;
+  --fg:#13243D; --muted:#5B687B; --faint:#8791A0;
+  --primary:#067781; --on-primary:#FFFFFF; --primary-soft:#DDF0F1; --primary-ink:#045058;
+  --sky-soft:#DCEFFA; --sky-ink:#0B4F75;
+  --amber-soft:#FCEBD0; --amber-ink:#6B3F00; --amber-strong:#C77A0A;
+  --danger:#B42318; --danger-soft:#FBE6E3;
+  --ok:#2F7A3E; --ok-soft:#E1F1E3;
+  --side:#1A365D; --side-fg:#BFCDE0; --side-active-bg:rgba(255,255,255,.12);
+  --ibo-bg:#1A365D; --ibo-fg:#FFFFFF; --event-bg:#1A365D;
+  --frame:#D5CFC3; --shadow:0 1px 2px rgba(19,36,61,.05), 0 10px 30px rgba(19,36,61,.08);
+  --font:"Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --r-card:14px; --r-ctl:9px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg:#08111D; --app-bg:#0E1B2E; --surface:#14253C; --surface-2:#1A2E4A; --line:#22385A; --track:#22385A;
+  --fg:#E7EDF5; --muted:#A1B1C6; --faint:#7487A0;
+  --primary:#3BBAC4; --on-primary:#05232A; --primary-soft:#103A42; --primary-ink:#93DDE3;
+  --sky-soft:#11324B; --sky-ink:#9DD5F3;
+  --amber-soft:#3A2B12; --amber-ink:#F6CC86; --amber-strong:#F2A93B;
+  --danger:#F29185; --danger-soft:#3B1C1C; --ok:#7BCB88; --ok-soft:#173523;
+  --side:#0A1525; --side-fg:#93A5BC; --side-active-bg:rgba(255,255,255,.08);
+  --ibo-bg:#2D5088; --ibo-fg:#FFFFFF; --event-bg:#1B3560;
+  --frame:#1F3150; --shadow:0 10px 30px rgba(0,0,0,.35); color-scheme:dark;
+} }
+:root[data-theme="dark"] {
+  --bg:#08111D; --app-bg:#0E1B2E; --surface:#14253C; --surface-2:#1A2E4A; --line:#22385A; --track:#22385A;
+  --fg:#E7EDF5; --muted:#A1B1C6; --faint:#7487A0;
+  --primary:#3BBAC4; --on-primary:#05232A; --primary-soft:#103A42; --primary-ink:#93DDE3;
+  --sky-soft:#11324B; --sky-ink:#9DD5F3;
+  --amber-soft:#3A2B12; --amber-ink:#F6CC86; --amber-strong:#F2A93B;
+  --danger:#F29185; --danger-soft:#3B1C1C; --ok:#7BCB88; --ok-soft:#173523;
+  --side:#0A1525; --side-fg:#93A5BC; --side-active-bg:rgba(255,255,255,.08);
+  --ibo-bg:#2D5088; --ibo-fg:#FFFFFF; --event-bg:#1B3560;
+  --frame:#1F3150; --shadow:0 10px 30px rgba(0,0,0,.35); color-scheme:dark;
+}
+* { box-sizing:border-box; }
+body { background:var(--bg); color:var(--fg); font-family:var(--font); font-size:14px; line-height:1.5; padding:0 16px; }
+.sheet { max-width:1500px; margin:0 auto; padding-block:40px 64px; display:grid; gap:56px; }
+h1,h2,h3,h4 { margin:0; text-wrap:balance; letter-spacing:-.01em; }
+p { margin:0; }
+.intro { display:grid; gap:10px; max-width:70ch; }
+.intro h1 { font-size:30px; font-weight:800; display:flex; align-items:center; gap:12px; }
+.intro p { color:var(--muted); font-size:15px; }
+.eyebrow { font-size:11px; font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:var(--muted); }
+.screen { display:grid; gap:20px; }
+.screen-head { display:flex; flex-wrap:wrap; align-items:baseline; gap:8px 16px; }
+.screen-head h2 { font-size:22px; font-weight:800; }
+.screen-head p { color:var(--muted); }
+.stage { display:grid; grid-template-columns:minmax(0,1fr) 340px; gap:28px; align-items:start; }
+@media (max-width:1100px) { .stage { grid-template-columns:minmax(0,1fr); } }
+.scroller { overflow-x:auto; padding-bottom:6px; min-width:0; }
+.phone-col { display:grid; gap:20px; justify-items:center; }
+.notes { background:var(--surface); border:1px solid var(--line); border-radius:var(--r-card); padding:18px 20px; display:grid; gap:12px; width:100%; max-width:340px; }
+.notes h3 { font-size:14px; font-weight:700; }
+.notes ol { margin:0; padding-left:20px; display:grid; gap:9px; color:var(--muted); font-size:13px; }
+.notes li::marker { color:var(--primary); font-weight:700; }
+.notes b { color:var(--fg); font-weight:600; }
+
+/* ---------- shared app atoms ---------- */
+.logo { display:inline-flex; align-items:flex-end; gap:2px; height:20px; }
+.logo i { display:block; width:6px; border-radius:1.5px; }
+.logo i:nth-child(1){ height:9px; background:#2D5088; } .logo i:nth-child(2){ height:14px; background:#0A93A0; } .logo i:nth-child(3){ height:20px; background:var(--sky); }
+.card { background:var(--surface); border:1px solid var(--line); border-radius:var(--r-card); padding:16px 18px; display:grid; gap:12px; align-content:start; min-width:0; }
+.card-h { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.card-h h3 { font-size:14px; font-weight:700; }
+.link { color:var(--primary); font-weight:600; font-size:12.5px; text-decoration:none; white-space:nowrap; }
+.btn { display:inline-flex; align-items:center; justify-content:center; gap:6px; font:inherit; font-size:12.5px; font-weight:600; border-radius:var(--r-ctl); padding:7px 12px; border:1px solid var(--line); background:var(--surface); color:var(--fg); cursor:pointer; white-space:nowrap; }
+.btn:focus-visible { outline:2px solid var(--sky); outline-offset:2px; }
+.btn.primary { background:var(--primary); border-color:var(--primary); color:var(--on-primary); }
+.btn.soft { background:var(--primary-soft); border-color:transparent; color:var(--primary-ink); }
+.btn svg { width:15px; height:15px; }
+.chip { display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; white-space:nowrap; }
+.chip.ibo { background:var(--ibo-bg); color:var(--ibo-fg); }
+.chip.app { background:var(--primary-soft); color:var(--primary-ink); }
+.chip.pro { background:var(--sky-soft); color:var(--sky-ink); }
+.chip.cus { background:var(--amber-soft); color:var(--amber-ink); }
+.chip.warn { background:var(--amber-soft); color:var(--amber-ink); }
+.chip.bad { background:var(--danger-soft); color:var(--danger); }
+.chip.good { background:var(--ok-soft); color:var(--ok); }
+.av { width:32px; height:32px; border-radius:50%; display:grid; place-items:center; font-size:12px; font-weight:700; flex:none; }
+.av.ibo { background:var(--ibo-bg); color:var(--ibo-fg); } .av.app { background:var(--primary-soft); color:var(--primary-ink); }
+.av.pro { background:var(--sky-soft); color:var(--sky-ink); } .av.cus { background:var(--amber-soft); color:var(--amber-ink); }
+.num { font-variant-numeric:tabular-nums; }
+.muted { color:var(--muted); } .faint { color:var(--faint); }
+.bar { height:8px; border-radius:999px; background:var(--track); overflow:hidden; display:flex; }
+.bar > span { display:block; height:100%; }
+[data-lucide] { width:16px; height:16px; stroke-width:2; flex:none; }
+
+/* ---------- desktop frame ---------- */
+.desk { width:1120px; border:1px solid var(--frame); border-radius:16px; overflow:hidden; box-shadow:var(--shadow); background:var(--app-bg); }
+.chrome { height:34px; display:flex; align-items:center; gap:7px; padding:0 14px; background:var(--surface-2); border-bottom:1px solid var(--line); }
+.chrome b { width:10px; height:10px; border-radius:50%; background:var(--frame); }
+.chrome span { margin-left:14px; font-size:11.5px; color:var(--faint); background:var(--surface); border:1px solid var(--line); border-radius:6px; padding:2px 12px; }
+.shell { display:grid; grid-template-columns:212px minmax(0,1fr); min-height:700px; }
+.side { background:var(--side); color:var(--side-fg); padding:18px 12px; display:flex; flex-direction:column; gap:4px; }
+.brand { display:flex; align-items:center; gap:10px; color:#fff; font-weight:800; font-size:15px; padding:2px 8px 18px; }
+.brand small { display:block; font-size:10.5px; font-weight:500; color:var(--side-fg); letter-spacing:.02em; }
+.nav { display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:8px; font-size:13px; font-weight:500; }
+.nav.on { background:var(--side-active-bg); color:#fff; font-weight:600; }
+.nav .count { margin-left:auto; font-size:11px; font-weight:700; background:var(--amber); color:#3A2200; border-radius:999px; padding:0 7px; }
+.side .grow { flex:1; }
+.me { display:flex; align-items:center; gap:10px; padding:10px 8px 0; border-top:1px solid rgba(255,255,255,.1); margin-top:8px; font-size:12.5px; color:#fff; }
+.me small { display:block; color:var(--side-fg); font-size:11px; }
+.main { padding:22px 26px 28px; display:grid; gap:18px; align-content:start; }
+.top { display:flex; align-items:center; gap:14px; }
+.top h2 { font-size:22px; font-weight:800; }
+.top .sub { color:var(--muted); font-size:13px; }
+.search { margin-left:auto; display:flex; align-items:center; gap:8px; width:240px; padding:7px 12px; border:1px solid var(--line); border-radius:var(--r-ctl); background:var(--surface); color:var(--faint); font-size:12.5px; }
+
+/* dashboard specifics */
+.row3 { display:grid; grid-template-columns:1fr 1fr 1.25fr; gap:16px; }
+.row2 { display:grid; grid-template-columns:1.6fr 1fr; gap:16px; align-items:start; }
+.streak { display:flex; align-items:center; gap:14px; }
+.flame { width:46px; height:46px; border-radius:12px; display:grid; place-items:center; background:var(--amber-soft); color:var(--amber-strong); }
+.flame [data-lucide] { width:24px; height:24px; }
+.big { font-size:28px; font-weight:800; line-height:1.05; letter-spacing:-.02em; }
+.week { display:grid; grid-template-columns:repeat(7,1fr); gap:6px; }
+.week div { display:grid; gap:4px; justify-items:center; font-size:10.5px; color:var(--faint); font-weight:600; }
+.week i { width:100%; height:8px; border-radius:4px; background:var(--track); display:block; }
+.week .on i { background:var(--amber); } .week .today { color:var(--fg); }
+.goal { display:flex; align-items:center; gap:16px; }
+.ring { width:84px; height:84px; flex:none; position:relative; }
+.ring svg { width:84px; height:84px; transform:rotate(-90deg); }
+.ring b { position:absolute; inset:0; display:grid; place-items:center; font-size:18px; font-weight:800; }
+.minis { display:grid; gap:6px; font-size:12.5px; flex:1; }
+.minis div { display:flex; justify-content:space-between; gap:8px; }
+.event { background:var(--event-bg); color:#fff; border-color:transparent; position:relative; overflow:hidden; }
+.event .muted { color:#BFD0E6; }
+.event .bar { background:rgba(255,255,255,.15); }
+.event .count { display:inline-grid; place-items:center; min-width:52px; padding:6px 8px; border-radius:10px; background:rgba(255,255,255,.1); text-align:center; }
+.event .count b { font-size:20px; font-weight:800; display:block; line-height:1.1; }
+.event .count small { font-size:10px; color:#BFD0E6; font-weight:600; letter-spacing:.04em; }
+.event .btn { background:var(--sky); border-color:var(--sky); color:#062338; }
+.event .btn.ghost { background:transparent; border-color:rgba(255,255,255,.25); color:#fff; }
+.actions { display:grid; }
+.act { display:grid; grid-template-columns:32px minmax(0,1fr) auto; gap:12px; align-items:center; padding:11px 0; border-top:1px solid var(--line); }
+.act:first-child { border-top:0; padding-top:2px; }
+.act .t { font-weight:600; font-size:13px; }
+.act .d { font-size:12px; color:var(--muted); display:flex; flex-wrap:wrap; gap:4px 8px; align-items:center; }
+.ico { width:32px; height:32px; border-radius:9px; display:grid; place-items:center; }
+.ico.contact { background:var(--primary-soft); color:var(--primary-ink); }
+.ico.cust { background:var(--amber-soft); color:var(--amber-ink); }
+.ico.rank { background:var(--sky-soft); color:var(--sky-ink); }
+.ico.ticket { background:var(--danger-soft); color:var(--danger); }
+.filters { display:flex; gap:6px; flex-wrap:wrap; }
+.filters span { font-size:11.5px; font-weight:600; padding:4px 10px; border-radius:999px; border:1px solid var(--line); color:var(--muted); }
+.filters span.on { background:var(--fg); color:var(--surface); border-color:var(--fg); }
+.legend { display:flex; flex-wrap:wrap; gap:6px 14px; font-size:12px; color:var(--muted); }
+.legend i { display:inline-block; width:9px; height:9px; border-radius:3px; margin-right:6px; vertical-align:0; }
+.leaders { display:grid; gap:10px; }
+.leader { display:grid; grid-template-columns:32px minmax(0,1fr) auto; gap:10px; align-items:center; font-size:13px; }
+.leader .s { font-size:11.5px; color:var(--muted); }
+.kpis { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+.kpi { background:var(--surface-2); border-radius:10px; padding:10px 12px; }
+.kpi b { display:block; font-size:20px; font-weight:800; }
+.kpi span { font-size:11.5px; color:var(--muted); }
+
+/* profile specifics */
+.crumb { font-size:12.5px; color:var(--muted); display:flex; align-items:center; gap:6px; }
+.hero { display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:18px; align-items:center; }
+.av.xl { width:68px; height:68px; font-size:22px; }
+.hero h2 { font-size:24px; font-weight:800; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.meta { display:flex; flex-wrap:wrap; gap:4px 16px; color:var(--muted); font-size:12.5px; margin-top:4px; }
+.meta span { display:inline-flex; align-items:center; gap:5px; }
+.meta a { color:var(--primary); font-weight:600; text-decoration:none; }
+.qa { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+.stats { display:grid; grid-template-columns:repeat(4,1fr); gap:0; background:var(--surface); border:1px solid var(--line); border-radius:var(--r-card); }
+.stats div { padding:12px 16px; border-left:1px solid var(--line); }
+.stats div:first-child { border-left:0; }
+.stats b { display:block; font-size:18px; font-weight:800; }
+.stats span { font-size:11.5px; color:var(--muted); }
+.cols { display:grid; grid-template-columns:1.55fr 1fr; gap:16px; align-items:start; }
+.stack { display:grid; gap:16px; align-content:start; min-width:0; }
+.tabs { display:flex; gap:4px; border-bottom:1px solid var(--line); }
+.tabs span { font-size:13px; font-weight:600; color:var(--muted); padding:8px 12px; border-bottom:2px solid transparent; margin-bottom:-1px; }
+.tabs span.on { color:var(--fg); border-color:var(--primary); }
+.path { display:grid; grid-template-columns:repeat(3,1fr); gap:0; position:relative; }
+.step { display:grid; gap:4px; justify-items:start; position:relative; padding-top:22px; }
+.step::before { content:""; position:absolute; top:7px; left:0; right:0; height:3px; background:var(--track); }
+.step.done::before { background:var(--primary); }
+.step.half::before { background:linear-gradient(90deg, var(--primary) 0 55%, var(--track) 55% 100%); }
+.dot { position:absolute; top:0; left:0; width:17px; height:17px; border-radius:50%; background:var(--surface); border:3px solid var(--track); }
+.step.done .dot { background:var(--primary); border-color:var(--primary); }
+.step.half .dot { border-color:var(--primary); background:var(--surface); box-shadow:0 0 0 4px var(--primary-soft); }
+.step b { font-size:13px; } .step span { font-size:11.5px; color:var(--muted); }
+.notice { display:flex; gap:10px; align-items:flex-start; background:var(--amber-soft); color:var(--amber-ink); border-radius:10px; padding:10px 12px; font-size:12.5px; }
+.notice [data-lucide] { margin-top:2px; }
+.ev { display:grid; grid-template-columns:52px minmax(0,1fr) auto; gap:14px; align-items:center; padding:12px 0; border-top:1px solid var(--line); }
+.ev:first-of-type { border-top:0; }
+.date { border-radius:10px; background:var(--surface-2); text-align:center; padding:6px 0; }
+.date small { display:block; font-size:10px; font-weight:700; letter-spacing:.08em; color:var(--muted); text-transform:uppercase; }
+.date b { font-size:18px; font-weight:800; line-height:1.1; }
+.ev .t { font-weight:700; font-size:13.5px; }
+.ev .d { display:flex; flex-wrap:wrap; gap:6px; margin-top:4px; align-items:center; font-size:12px; color:var(--muted); }
+.tree { display:grid; gap:8px; font-size:13px; }
+.tnode { display:flex; align-items:center; gap:10px; }
+.tnode.k1 { padding-left:20px; } .tnode.k2 { padding-left:40px; }
+.tnode.self { font-weight:700; }
+.tnode .s { margin-left:auto; }
+.cust { display:grid; grid-template-columns:32px minmax(0,1fr) auto; gap:10px; align-items:center; font-size:13px; }
+.timeline { display:grid; gap:0; }
+.tl { display:grid; grid-template-columns:18px minmax(0,1fr) auto; gap:10px; padding:8px 0; font-size:12.5px; position:relative; }
+.tl::before { content:""; position:absolute; left:8px; top:20px; bottom:-8px; width:1.5px; background:var(--line); }
+.tl:last-child::before { display:none; }
+.tl i.pt { width:10px; height:10px; border-radius:50%; margin:4px 0 0 3px; background:var(--primary); display:block; position:relative; z-index:1; }
+.tl i.pt.a { background:var(--amber); } .tl i.pt.s { background:var(--sky); }
+.tags { display:flex; flex-wrap:wrap; gap:6px; }
+.tags span { font-size:11.5px; font-weight:600; padding:3px 9px; border-radius:999px; background:var(--surface-2); color:var(--muted); }
+
+/* ---------- phone frame ---------- */
+.phone { width:340px; max-width:100%; border:10px solid #101C2C; border-radius:44px; background:var(--app-bg); box-shadow:var(--shadow); overflow:hidden; position:relative; display:flex; flex-direction:column; height:720px; }
+.status { display:flex; justify-content:space-between; align-items:center; padding:10px 22px 4px; font-size:12px; font-weight:700; }
+.status .notch { width:90px; height:22px; border-radius:12px; background:#101C2C; }
+.pbody { flex:1; overflow:hidden; padding:6px 14px 14px; display:grid; gap:12px; align-content:start; }
+.ptop { display:flex; align-items:center; gap:10px; }
+.ptop h3 { font-size:19px; font-weight:800; }
+.ptop .sub { font-size:12px; color:var(--muted); }
+.ptop .av { margin-left:auto; }
+.p2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.pc { background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:12px; display:grid; gap:8px; align-content:start; min-width:0; }
+.pc h4 { font-size:12.5px; font-weight:700; }
+.tabbar { display:grid; grid-template-columns:repeat(5,1fr); align-items:center; background:var(--surface); border-top:1px solid var(--line); padding:8px 6px 14px; position:relative; }
+.tabbar div { display:grid; justify-items:center; gap:3px; font-size:10.5px; font-weight:600; color:var(--faint); }
+.tabbar div.on { color:var(--primary); }
+.tabbar .fab { width:46px; height:46px; border-radius:50%; background:var(--primary); color:var(--on-primary); display:grid; place-items:center; margin-top:-26px; box-shadow:0 6px 16px rgba(6,119,129,.35); }
+.tabbar .fab [data-lucide] { width:22px; height:22px; }
+.phone .act { padding:9px 0; grid-template-columns:30px minmax(0,1fr) auto; gap:10px; }
+.phone .ico { width:30px; height:30px; }
+.phone .btn { padding:6px 10px; font-size:12px; }
+.pqa { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+.pqa div { display:grid; justify-items:center; gap:4px; font-size:11px; font-weight:600; color:var(--muted); }
+.pqa div span { width:42px; height:42px; border-radius:12px; display:grid; place-items:center; background:var(--surface); border:1px solid var(--line); color:var(--fg); }
+.pqa div.p span { background:var(--primary); border-color:var(--primary); color:var(--on-primary); }
+.seg { display:grid; grid-template-columns:repeat(4,1fr); background:var(--surface-2); border-radius:10px; padding:3px; font-size:11.5px; font-weight:600; color:var(--muted); text-align:center; }
+.seg span { padding:6px 0; border-radius:8px; }
+.seg span.on { background:var(--surface); color:var(--fg); box-shadow:0 1px 2px rgba(0,0,0,.08); }
+.themer { display:inline-flex; gap:2px; padding:3px; border-radius:10px; background:var(--surface-2); border:1px solid var(--line); justify-self:start; }
+.themer button { font:inherit; font-size:12.5px; font-weight:600; color:var(--muted); background:transparent; border:0; border-radius:7px; padding:5px 12px; cursor:pointer; }
+.themer button[aria-pressed="true"] { background:var(--surface); color:var(--fg); box-shadow:0 1px 2px rgba(0,0,0,.12); }
+.themer button:focus-visible { outline:2px solid var(--sky); outline-offset:1px; }
+.foot { color:var(--faint); font-size:12.5px; max-width:70ch; }
+@media (prefers-reduced-motion: no-preference) { .btn { transition:transform .12s ease; } .btn:active { transform:scale(.98); } }
+</style>
+
+<div class="sheet">
+  <header class="intro">
+    <span class="eyebrow">Design direction · first pass</span>
+    <h1><span class="logo" aria-hidden="true"><i></i><i></i><i></i></span> LevelUp LOS redesign</h1>
+    <p>Mockups of the Dashboard and a person's profile in the new LTD-based palette, at desktop and phone sizes. Use the switch below to compare the light and dark themes. Names and numbers come from the demo seed data; the upcoming event and a few details are made-up examples.</p>
+    <div class="themer" role="group" aria-label="Theme">
+      <button type="button" id="theme-light" data-t="light" aria-pressed="false">Light</button>
+      <button type="button" id="theme-dark" data-t="dark" aria-pressed="false">Dark</button>
+      <button type="button" id="theme-auto" data-t="auto" aria-pressed="false">Auto</button>
+    </div>
+  </header>
+
+  <!-- ===================== DASHBOARD ===================== -->
+  <section class="screen" aria-labelledby="dash-h">
+    <div class="screen-head"><h2 id="dash-h">Dashboard</h2><p>Logged in as Maria Reyes (leader)</p></div>
+    <div class="stage">
+      <div class="scroller">
+        <div class="desk" role="img" aria-label="Desktop dashboard mockup">
+          <div class="chrome"><b></b><b></b><b></b><span>levelup-los.app</span></div>
+          <div class="shell">
+            <nav class="side" aria-label="Main">
+              <div class="brand"><span class="logo"><i></i><i></i><i></i></span><div>LevelUp LOS<small>LTD · LevelUp team</small></div></div>
+              <div class="nav on"><i data-lucide="layout-dashboard"></i>Home</div>
+              <div class="nav"><i data-lucide="users"></i>People</div>
+              <div class="nav"><i data-lucide="network"></i>Mindmap</div>
+              <div class="nav"><i data-lucide="calendar-days"></i>Events<span class="count">6</span></div>
+              <div class="nav"><i data-lucide="contact"></i>Customers</div>
+              <div class="nav"><i data-lucide="wallet"></i>Wallet</div>
+              <div class="nav"><i data-lucide="megaphone"></i>Campaigns</div>
+              <div class="nav"><i data-lucide="file-bar-chart"></i>Reports</div>
+              <div class="grow"></div>
+              <div class="me"><span class="av ibo">MR</span><div>Maria Reyes<small>Leader</small></div></div>
+            </nav>
+            <main class="main">
+              <div class="top">
+                <div><h2>Good evening, Maria</h2><p class="sub">Monday, October 12 · 7 things need you today</p></div>
+                <div class="search"><i data-lucide="search"></i>Search people, events…</div>
+                <button class="btn primary" type="button"><i data-lucide="plus"></i>Log</button>
+              </div>
+
+              <div class="row3">
+                <div class="card">
+                  <div class="card-h"><h3>Learning streak</h3><span class="chip warn">Personal best: 11</span></div>
+                  <div class="streak"><div class="flame"><i data-lucide="flame"></i></div><div><div class="big num">3 days</div><p class="muted" style="font-size:12.5px">Log today to make it 4</p></div></div>
+                  <div class="week" aria-label="This week">
+                    <div class="on"><i></i>M</div><div class="on"><i></i>T</div><div class="on"><i></i>W</div><div><i></i>T</div><div><i></i>F</div><div><i></i>S</div><div class="today"><i></i>S</div>
+                  </div>
+                </div>
+                <div class="card">
+                  <div class="card-h"><h3>This week's goal</h3><a class="link" href="#dash-h">Edit</a></div>
+                  <div class="goal">
+                    <div class="ring"><svg viewBox="0 0 84 84" aria-hidden="true"><circle cx="42" cy="42" r="34" fill="none" stroke="var(--track)" stroke-width="9"/><circle cx="42" cy="42" r="34" fill="none" stroke="var(--sky)" stroke-width="9" stroke-linecap="round" stroke-dasharray="160 214"/></svg><b class="num">75%</b></div>
+                    <div class="minis">
+                      <div><span class="muted">Pages</span><b class="num">45 / 60</b></div>
+                      <div><span class="muted">Podcasts</span><b class="num">1 / 3</b></div>
+                      <div><span class="muted">Workshops</span><b class="num">0 / 1</b></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="card event">
+                  <div class="card-h"><h3>Fall Leadership Weekend</h3><span class="count"><b class="num">26</b><small>DAYS</small></span></div>
+                  <p class="muted" style="font-size:12.5px; margin-top:-6px">Nov 7–8 · Dallas, TX · 20 invited</p>
+                  <div style="display:grid; gap:6px">
+                    <div style="display:flex; justify-content:space-between; font-size:12.5px"><span>Tickets bought</span><b class="num">12 of 20</b></div>
+                    <div class="bar"><span style="width:60%; background:var(--sky)"></span><span style="width:15%; background:var(--amber)"></span></div>
+                    <div style="font-size:11.5px" class="muted">3 more plan to buy this week</div>
+                  </div>
+                  <div style="display:flex; gap:8px"><button class="btn" type="button">8 need a ticket</button><button class="btn ghost" type="button">Open event</button></div>
+                </div>
+              </div>
+
+              <div class="row2">
+                <div class="card">
+                  <div class="card-h"><h3>Today</h3><div class="filters"><span class="on">All 7</span><span>Team 3</span><span>Customers 2</span><span>Events 2</span></div></div>
+                  <div class="actions">
+                    <div class="act"><span class="ico ticket"><i data-lucide="ticket"></i></span><div><div class="t">Sarah Kim hasn't bought her ticket</div><div class="d"><span class="chip app">Apprentice</span>Planned to buy by Oct 10 · Fall Leadership Weekend</div></div><button class="btn" type="button">Follow up</button></div>
+                    <div class="act"><span class="ico cust"><i data-lucide="shopping-bag"></i></span><div><div class="t">Omar Haddad, 52 days since contact</div><div class="d"><span class="chip cus">Customer</span>Last bought eSpring Filter · Aug 3</div></div><button class="btn soft" type="button"><i data-lucide="check"></i>Log contact</button></div>
+                    <div class="act"><span class="ico rank"><i data-lucide="trending-up"></i></span><div><div class="t">Jamal Brown becomes an IBO on Dec 4</div><div class="d"><span class="chip app">Apprentice</span>53 days left · IBO# and LTD# on file</div></div><button class="btn" type="button">Plan it</button></div>
+                    <div class="act"><span class="ico contact"><i data-lucide="message-circle"></i></span><div><div class="t">Check in with David Chen</div><div class="d"><span class="chip ibo">IBO</span>Last contact 20 days ago · your goal is 14</div></div><button class="btn soft" type="button"><i data-lucide="check"></i>Check in</button></div>
+                    <div class="act"><span class="ico cust"><i data-lucide="shopping-bag"></i></span><div><div class="t">Peter Vargas, 36 days since contact</div><div class="d"><span class="chip cus">Customer</span>Last bought Artistry Skin Set · Sep 22</div></div><button class="btn soft" type="button"><i data-lucide="check"></i>Log contact</button></div>
+                  </div>
+                  <a class="link" href="#dash-h">Show 2 more</a>
+                </div>
+                <div class="stack">
+                  <div class="card">
+                    <div class="card-h"><h3>Your team</h3><a class="link" href="#dash-h">Open mindmap</a></div>
+                    <div class="kpis"><div class="kpi"><b class="num">64</b><span>People</span></div><div class="kpi"><b class="num">+4</b><span>New this month</span></div><div class="kpi"><b class="num">31</b><span>Customers</span></div></div>
+                    <div class="bar" style="height:10px"><span style="width:28%; background:var(--navy)"></span><span style="width:33%; background:var(--teal)"></span><span style="width:39%; background:var(--sky)"></span></div>
+                    <div class="legend"><span><i style="background:var(--navy)"></i>IBO 18</span><span><i style="background:var(--teal)"></i>Apprentice 21</span><span><i style="background:var(--sky)"></i>Prospect 25</span></div>
+                  </div>
+                  <div class="card">
+                    <div class="card-h"><h3>Learning this week</h3><a class="link" href="#dash-h">All</a></div>
+                    <div class="leaders">
+                      <div class="leader"><span class="av ibo">AP</span><div>Anita Patel<div class="s">15 pages · 1 podcast</div></div><span class="chip warn"><i data-lucide="flame"></i>2</span></div>
+                      <div class="leader"><span class="av app">JB</span><div>Jamal Brown<div class="s">1 podcast</div></div><span class="chip warn"><i data-lucide="flame"></i>1</span></div>
+                      <div class="leader"><span class="av ibo">DC</span><div>David Chen<div class="s">Nothing logged yet</div></div><button class="btn" type="button">Nudge</button></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </main>
+          </div>
+        </div>
+      </div>
+
+      <div class="phone-col">
+        <div class="phone" role="img" aria-label="Phone dashboard mockup">
+          <div class="status"><span>7:42</span><span class="notch"></span><span>5G</span></div>
+          <div class="pbody">
+            <div class="ptop"><span class="logo"><i></i><i></i><i></i></span><div><h3>Hi, Maria</h3><p class="sub">7 things need you today</p></div><span class="av ibo">MR</span></div>
+            <div class="p2">
+              <div class="pc"><h4>Streak</h4><div style="display:flex; align-items:center; gap:8px"><span class="flame" style="width:34px;height:34px;border-radius:10px"><i data-lucide="flame"></i></span><b class="big num" style="font-size:22px">3</b></div><p class="faint" style="font-size:11px">Log today to make it 4</p></div>
+              <div class="pc"><h4>Week goal</h4><div style="display:flex; align-items:baseline; gap:6px"><b class="big num" style="font-size:22px">75%</b></div><div class="bar"><span style="width:75%; background:var(--sky)"></span></div><p class="faint" style="font-size:11px">45 of 60 pages</p></div>
+            </div>
+            <div class="pc event card" style="padding:12px; gap:8px"><div class="card-h"><h4 style="font-size:13px">Fall Leadership Weekend</h4><span class="count" style="min-width:44px;padding:4px 6px"><b class="num" style="font-size:16px">26</b><small>DAYS</small></span></div><div class="bar"><span style="width:60%; background:var(--sky)"></span><span style="width:15%; background:var(--amber)"></span></div><p class="muted" style="font-size:11.5px">12 of 20 have tickets · 8 to go</p></div>
+            <div class="pc" style="gap:0">
+              <div class="card-h" style="padding-bottom:6px"><h4>Today</h4><span class="link">See all 7</span></div>
+              <div class="act"><span class="ico ticket"><i data-lucide="ticket"></i></span><div><div class="t" style="font-size:12.5px">Sarah Kim needs a ticket</div><div class="d" style="font-size:11px">Planned by Oct 10</div></div><button class="btn" type="button">Text</button></div>
+              <div class="act"><span class="ico cust"><i data-lucide="shopping-bag"></i></span><div><div class="t" style="font-size:12.5px">Omar Haddad</div><div class="d" style="font-size:11px">Customer · 52 days</div></div><button class="btn soft" type="button" aria-label="Log contact"><i data-lucide="check"></i></button></div>
+              <div class="act"><span class="ico contact"><i data-lucide="message-circle"></i></span><div><div class="t" style="font-size:12.5px">David Chen</div><div class="d" style="font-size:11px">IBO · 20 days</div></div><button class="btn soft" type="button" aria-label="Check in"><i data-lucide="check"></i></button></div>
+            </div>
+          </div>
+          <div class="tabbar"><div class="on"><i data-lucide="house"></i>Home</div><div><i data-lucide="users"></i>People</div><div><span class="fab"><i data-lucide="plus"></i></span></div><div><i data-lucide="calendar-days"></i>Events</div><div><i data-lucide="menu"></i>More</div></div>
+        </div>
+        <aside class="notes">
+          <h3>What changed</h3>
+          <ol>
+            <li><b>One "Today" list</b> replaces the two "Due for contact" lists, where 59 people showed "Never". Items are ranked by urgency and each has a one-tap action.</li>
+            <li><b>Learning becomes a streak and a weekly goal</b> instead of a stats table. Logging moves to the Log button, which is available on every screen.</li>
+            <li><b>The next event gets its own card</b> with a countdown and ticket progress, because tickets are what leaders chase.</li>
+            <li><b>Leaders see their team at a glance:</b> size, stage mix in the stage colors, and who's learning.</li>
+            <li><b>On phones:</b> bottom tabs, a floating Log button, and the same cards stacked.</li>
+          </ol>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== PROFILE ===================== -->
+  <section class="screen" aria-labelledby="prof-h">
+    <div class="screen-head"><h2 id="prof-h">Person profile</h2><p>Jamal Brown, apprentice, viewed by his upline</p></div>
+    <div class="stage">
+      <div class="scroller">
+        <div class="desk" role="img" aria-label="Desktop profile mockup">
+          <div class="chrome"><b></b><b></b><b></b><span>levelup-los.app/people/4</span></div>
+          <div class="shell">
+            <nav class="side" aria-label="Main">
+              <div class="brand"><span class="logo"><i></i><i></i><i></i></span><div>LevelUp LOS<small>LTD · LevelUp team</small></div></div>
+              <div class="nav"><i data-lucide="layout-dashboard"></i>Home</div>
+              <div class="nav on"><i data-lucide="users"></i>People</div>
+              <div class="nav"><i data-lucide="network"></i>Mindmap</div>
+              <div class="nav"><i data-lucide="calendar-days"></i>Events<span class="count">6</span></div>
+              <div class="nav"><i data-lucide="contact"></i>Customers</div>
+              <div class="nav"><i data-lucide="wallet"></i>Wallet</div>
+              <div class="nav"><i data-lucide="megaphone"></i>Campaigns</div>
+              <div class="nav"><i data-lucide="file-bar-chart"></i>Reports</div>
+              <div class="grow"></div>
+              <div class="me"><span class="av ibo">MR</span><div>Maria Reyes<small>Leader</small></div></div>
+            </nav>
+            <main class="main">
+              <div class="crumb"><i data-lucide="chevron-left"></i>People <span class="faint">/</span> <span style="color:var(--fg); font-weight:600">Jamal Brown</span></div>
+              <div class="hero">
+                <span class="av app xl">JB</span>
+                <div>
+                  <h2>Jamal Brown <span class="chip app">Apprentice</span></h2>
+                  <div class="meta"><span><i data-lucide="git-branch"></i>Sponsored by <a href="#prof-h">Anita Patel</a></span><span><i data-lucide="map-pin"></i>Dallas, TX</span><span><i data-lucide="phone"></i>(214) 555-0148</span><span><i data-lucide="id-card"></i>IBO# 7734-1102 · LTD# 55120</span></div>
+                </div>
+                <div class="qa"><button class="btn" type="button"><i data-lucide="phone"></i>Call</button><button class="btn" type="button"><i data-lucide="message-square"></i>Text</button><button class="btn" type="button"><i data-lucide="mail"></i>Email</button><button class="btn primary" type="button"><i data-lucide="check"></i>Check in</button></div>
+              </div>
+              <div class="stats">
+                <div><b class="num">9 days</b><span>Since last contact</span></div>
+                <div><b class="num">50%</b><span>Event show rate (1 of 2)</span></div>
+                <div><b class="num">1</b><span>Customer · $85/mo</span></div>
+                <div><b class="num">6 days</b><span>Since learning logged</span></div>
+              </div>
+              <div class="tabs"><span class="on">Overview</span><span>Events</span><span>Customers</span><span>Details</span><span>Activity</span></div>
+              <div class="cols">
+                <div class="stack">
+                  <div class="card">
+                    <div class="card-h"><h3>Business path</h3><span class="faint" style="font-size:12px">Started Dec 4, 2025</span></div>
+                    <div class="path">
+                      <div class="step done"><span class="dot"></span><b>Prospect</b><span>Mar 2025</span></div>
+                      <div class="step half"><span class="dot"></span><b>Apprentice</b><span>Since Dec 4, 2025</span></div>
+                      <div class="step"><span class="dot"></span><b>IBO</b><span>Dec 4, 2026 · in 53 days</span></div>
+                    </div>
+                    <div class="notice"><i data-lucide="bell-ring"></i><div><b>90-day notice.</b> Jamal becomes an IBO automatically on Dec 4. His IBO# and LTD# are on file, so nothing is blocking it.</div></div>
+                  </div>
+                  <div class="card">
+                    <div class="card-h"><h3>Events</h3><a class="link" href="#prof-h">Assign to event</a></div>
+                    <div>
+                      <div class="ev"><div class="date"><small>Nov</small><b>7</b></div><div><div class="t">Fall Leadership Weekend</div><div class="d"><span class="chip good">Wants to go</span><span class="chip warn">No ticket yet</span>Plans to buy by Oct 20 · helper Anita Patel</div></div><button class="btn primary" type="button">Mark bought</button></div>
+                      <div class="ev"><div class="date"><small>Sep</small><b>15</b></div><div><div class="t">SpringConference26</div><div class="d"><span class="chip bad">Missed</span>Wanted to go, never bought a ticket</div></div><button class="btn" type="button">Add note</button></div>
+                      <div class="ev"><div class="date"><small>Jun</small><b>8</b></div><div><div class="t">June Team Meeting</div><div class="d"><span class="chip good">Attended</span>In person</div></div><span></span></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="stack">
+                  <div class="card">
+                    <div class="card-h"><h3>Team</h3><a class="link" href="#prof-h">Mindmap</a></div>
+                    <div class="tree">
+                      <div class="tnode"><span class="av ibo" style="width:26px;height:26px;font-size:10px">AP</span>Anita Patel<span class="s chip ibo">IBO</span></div>
+                      <div class="tnode k1 self"><span class="av app" style="width:26px;height:26px;font-size:10px">JB</span>Jamal Brown<span class="s chip app">Apprentice</span></div>
+                      <div class="tnode k2"><span class="av pro" style="width:26px;height:26px;font-size:10px">KR</span>Kevin Ross<span class="s chip pro">Prospect</span></div>
+                      <div class="tnode k2"><span class="av pro" style="width:26px;height:26px;font-size:10px">DL</span>Dana Lee<span class="s chip pro">Prospect</span></div>
+                    </div>
+                  </div>
+                  <div class="card">
+                    <div class="card-h"><h3>Customers</h3><a class="link" href="#prof-h">Add</a></div>
+                    <div class="cust"><span class="av cus">RD</span><div>Rosa Delgado<div class="faint" style="font-size:11.5px">XS Energy (case) · $85/mo</div></div><span class="chip warn">31 days</span></div>
+                  </div>
+                  <div class="card">
+                    <div class="card-h"><h3>Recent activity</h3><a class="link" href="#prof-h">All</a></div>
+                    <div class="timeline">
+                      <div class="tl"><i class="pt"></i><span>Anita checked in by phone</span><span class="faint">Oct 3</span></div>
+                      <div class="tl"><i class="pt s"></i><span>Logged a podcast: Momentum Daily</span><span class="faint">Oct 6</span></div>
+                      <div class="tl"><i class="pt a"></i><span>Assigned to Fall Leadership Weekend</span><span class="faint">Sep 28</span></div>
+                    </div>
+                    <div class="tags"><span>Fast start</span><span>Bilingual</span><span>Evenings only</span></div>
+                  </div>
+                </div>
+              </div>
+            </main>
+          </div>
+        </div>
+      </div>
+
+      <div class="phone-col">
+        <div class="phone" role="img" aria-label="Phone profile mockup">
+          <div class="status"><span>7:42</span><span class="notch"></span><span>5G</span></div>
+          <div class="pbody">
+            <div class="crumb"><i data-lucide="chevron-left"></i>People</div>
+            <div style="display:flex; gap:12px; align-items:center"><span class="av app xl" style="width:56px;height:56px;font-size:18px">JB</span><div><h3 style="font-size:19px; font-weight:800">Jamal Brown</h3><div style="display:flex; gap:6px; align-items:center; margin-top:3px"><span class="chip app">Apprentice</span><span class="faint" style="font-size:11.5px">under Anita Patel</span></div></div></div>
+            <div class="pqa"><div><span><i data-lucide="phone"></i></span>Call</div><div><span><i data-lucide="message-square"></i></span>Text</div><div><span><i data-lucide="mail"></i></span>Email</div><div class="p"><span><i data-lucide="check"></i></span>Check in</div></div>
+            <div class="seg"><span class="on">Overview</span><span>Events</span><span>Customers</span><span>Details</span></div>
+            <div class="pc"><h4>Business path</h4>
+              <div class="path" style="margin-top:2px"><div class="step done"><span class="dot"></span><b style="font-size:11.5px">Prospect</b></div><div class="step half"><span class="dot"></span><b style="font-size:11.5px">Apprentice</b></div><div class="step"><span class="dot"></span><b style="font-size:11.5px">IBO</b></div></div>
+              <div class="notice" style="font-size:11.5px; padding:8px 10px"><i data-lucide="bell-ring"></i><div>Becomes an IBO on <b>Dec 4</b>, in 53 days</div></div>
+            </div>
+            <div class="pc"><h4>Next event</h4>
+              <div class="ev" style="grid-template-columns:44px minmax(0,1fr); padding:0; border:0"><div class="date"><small>Nov</small><b style="font-size:16px">7</b></div><div><div class="t" style="font-size:12.5px">Fall Leadership Weekend</div><div class="d" style="font-size:11px"><span class="chip warn">No ticket yet</span>by Oct 20</div></div></div>
+              <button class="btn primary" type="button" style="width:100%">Mark ticket bought</button>
+            </div>
+            <div class="p2"><div class="pc"><b class="num" style="font-size:17px; font-weight:800">9 days</b><span class="faint" style="font-size:11px">Since contact</span></div><div class="pc"><b class="num" style="font-size:17px; font-weight:800">50%</b><span class="faint" style="font-size:11px">Show rate</span></div></div>
+          </div>
+          <div class="tabbar"><div><i data-lucide="house"></i>Home</div><div class="on"><i data-lucide="users"></i>People</div><div><span class="fab"><i data-lucide="plus"></i></span></div><div><i data-lucide="calendar-days"></i>Events</div><div><i data-lucide="menu"></i>More</div></div>
+        </div>
+        <aside class="notes">
+          <h3>What changed</h3>
+          <ol>
+            <li><b>Read first, edit when needed.</b> Today's page is a form of 10 always-editable fields. It becomes a summary, and the fields move to a Details tab with an Edit button.</li>
+            <li><b>Call, Text, Email and Check in sit at the top,</b> where your thumb is on a phone.</li>
+            <li><b>The business path shows where they are</b> and when they become an IBO. The 90- and 30-day notices appear here, explained in context.</li>
+            <li><b>The 10-column event table becomes one card per event,</b> each with status chips and the next step as a button.</li>
+            <li><b>Team and customers are summarized beside it,</b> in the same stage colors used everywhere else.</li>
+          </ol>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <p class="foot">Not covered yet: the People list, Mindmap, Events and the Log sheet. Those come after we agree on this direction.</p>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<script>
+try { lucide.createIcons(); } catch (e) { /* icons are decorative; page reads fine without them */ }
+(function () {
+  var root = document.documentElement, btns = document.querySelectorAll(".themer button");
+  function apply(t) {
+    if (t === "auto") root.removeAttribute("data-theme"); else root.setAttribute("data-theme", t);
+    btns.forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.t === t)); });
+    try { localStorage.setItem("levelup-mock-theme", t); } catch (e) {}
+  }
+  var saved = null;
+  try { saved = localStorage.getItem("levelup-mock-theme"); } catch (e) {}
+  apply(saved || root.getAttribute("data-theme") || "auto");
+  btns.forEach(function (b) { b.addEventListener("click", function () { apply(b.dataset.t); }); });
+})();
+</script>
