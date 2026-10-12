@@ -1,203 +1,414 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
-import { useEventsStore, type EventType, type CrmEvent } from "@/stores/eventsStore";
-import { useVisibleAttendances } from "@/data";
-import { localDate } from "@/lib/dates";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useMemo } from "react";
+import { AlertTriangle, CalendarDays, CalendarPlus, MapPin, Plus } from "lucide-react";
+import {
+  DateBadge,
+  EmptyState,
+  PageHeader,
+  SectionCard,
+  SegmentedBar,
+  ToneChip,
+} from "@/components/brand";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  localDate,
+  useCurrentUser,
+  usePastEvents,
+  useUpcomingEvents,
+  useVisibleAttendances,
+  useVisiblePeople,
+  type Attendance,
+  type CrmEvent,
+  type CrmPerson,
+} from "@/data";
+import { cn } from "@/lib/utils";
+import { AvatarStack } from "@/modules/events/AvatarStack";
+import { EventFormTrigger } from "@/modules/events/EventFormDialog";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import {
-  Table,
-  TableHeader,
-  TableBody,
-  TableHead,
-  TableRow,
-  TableCell,
-} from "@/components/ui/table";
-import { Plus } from "lucide-react";
+  EVENT_TYPE_LABEL,
+  attendanceStatus,
+  attentionItems,
+  canManageEvents,
+  eventTiming,
+  formatEventRange,
+  timingLabel,
+} from "@/modules/events/lib";
 
 export const Route = createFileRoute("/events/")({
   head: () => ({ meta: [{ title: "Events — LevelUp LOS" }] }),
   component: EventsPage,
 });
 
-const typeLabel: Record<EventType, string> = {
-  conference: "Conference",
-  team_meeting: "Team Meeting",
-};
+interface EventSummary {
+  event: CrmEvent;
+  rows: Attendance[];
+  people: CrmPerson[];
+  invited: number;
+  bought: number;
+  planned: number;
+  plannedThisWeek: number;
+  attention: number;
+  attended: number;
+  showRate: number | null;
+  mine?: Attendance;
+}
+
+function useEventSummaries(events: CrmEvent[]): EventSummary[] {
+  const all = useVisibleAttendances();
+  const people = useVisiblePeople();
+  const user = useCurrentUser();
+  return useMemo(() => {
+    const byId = new Map(people.map((p) => [p.id, p]));
+    const today = localDate();
+    const weekOut = localDate(new Date(Date.now() + 7 * 86_400_000));
+    return events.map((event) => {
+      const rows = all.filter((a) => a.eventId === event.id);
+      const bought = rows.filter((a) => a.hasTicket).length;
+      const plannedRows = rows.filter((a) => !a.hasTicket && a.plannedPurchaseDate);
+      const eligible = rows.filter((a) => a.hasTicket || a.desireToAttend === "yes").length;
+      const attended = rows.filter((a) => a.attended === true).length;
+      // Avatars: ticket holders first, then everyone else on the roster.
+      const ordered = [...rows].sort((a, b) => Number(b.hasTicket) - Number(a.hasTicket));
+      return {
+        event,
+        rows,
+        people: ordered.map((a) => byId.get(a.personId)).filter((p): p is CrmPerson => !!p),
+        invited: rows.length,
+        bought,
+        planned: plannedRows.length,
+        plannedThisWeek: plannedRows.filter(
+          (a) => a.plannedPurchaseDate! >= today && a.plannedPurchaseDate! <= weekOut,
+        ).length,
+        attention: attentionItems(event, rows).length,
+        attended,
+        showRate: eligible ? Math.round((attended / eligible) * 100) : null,
+        mine: rows.find((a) => a.personId === user.personId),
+      };
+    });
+  }, [events, all, people, user.personId]);
+}
 
 function EventsPage() {
-  const events = useEventsStore((s) => s.events);
-  const all = useVisibleAttendances();
-  const now = localDate();
-  const yr = now.slice(0, 4);
-  const upcoming = events
-    .filter((e) => e.date >= now && e.date.startsWith(yr))
-    .sort((a, b) => a.date.localeCompare(b.date));
-  const past = events.filter((e) => e.date < now).sort((a, b) => b.date.localeCompare(a.date));
+  const user = useCurrentUser();
+  const navigate = useNavigate();
+  const upcoming = useEventSummaries(useUpcomingEvents());
+  const past = useEventSummaries(usePastEvents());
+  const manage = canManageEvents(user.role);
+  const candidate = user.role === "candidate";
+
+  // The next conference gets the navy feature card; the rest are regular cards.
+  const featured = upcoming.find((s) => s.event.type === "conference");
+  const others = upcoming.filter((s) => s !== featured);
+
+  const newEvent = (label = "New event") =>
+    manage ? (
+      <EventFormTrigger onCreated={(e) => navigate({ to: "/events/$id", params: { id: e.id } })}>
+        {(open) => (
+          <Button onClick={open}>
+            <Plus /> {label}
+          </Button>
+        )}
+      </EventFormTrigger>
+    ) : null;
 
   return (
-    <div className="flex h-full flex-col">
-      <header className="flex h-11 shrink-0 items-center justify-between border-b border-border px-4">
-        <h1 className="text-sm font-semibold tracking-tight">Events</h1>
-        <AddEventDialog />
-      </header>
-      <div className="flex-1 overflow-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead>Location</TableHead>
-              <TableHead className="text-right">Attendees</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow>
-              <TableCell colSpan={5} className="bg-muted text-xs font-semibold">
-                Upcoming (this year)
-              </TableCell>
-            </TableRow>
-            {[...upcoming, null, ...past].map((e) => {
-              if (!e)
-                return (
-                  <TableRow key="sep">
-                    <TableCell colSpan={5} className="bg-muted text-xs font-semibold">
-                      Past events
-                    </TableCell>
-                  </TableRow>
-                );
-              const count = all.filter((a) => a.eventId === e.id).length;
-              return (
-                <TableRow key={e.id}>
-                  <TableCell>
-                    <Link
-                      to="/events/$id"
-                      params={{ id: e.id }}
-                      className="font-medium hover:underline"
-                    >
-                      {e.name}
-                    </Link>
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {typeLabel[e.type]}
-                  </TableCell>
-                  <TableCell className="text-sm">{e.date}</TableCell>
-                  <TableCell className="text-sm">{e.location ?? "—"}</TableCell>
-                  <TableCell className="text-right text-sm">{count}</TableCell>
-                </TableRow>
-              );
-            })}
-            {events.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center text-sm text-muted-foreground">
-                  No events yet.
-                </TableCell>
-              </TableRow>
+    <div className="grid gap-5 px-4 py-5 lg:px-[26px] lg:py-[22px]">
+      <PageHeader
+        title="Events"
+        subtitle={`${upcoming.length} upcoming · ${past.length} past`}
+        actions={newEvent()}
+      />
+
+      <section aria-labelledby="upcoming-h" className="grid gap-3">
+        <h2 id="upcoming-h" className="text-sm font-bold">
+          Upcoming
+        </h2>
+        {upcoming.length === 0 ? (
+          <EmptyState
+            icon={<CalendarPlus />}
+            title="No upcoming events"
+            body={
+              manage
+                ? "Add the next conference or team meeting so your team can plan tickets and travel."
+                : "When your team adds the next conference or meeting, it shows up here."
+            }
+            action={newEvent("Add an event")}
+          />
+        ) : (
+          <div className="grid gap-4 lg:grid-cols-2">
+            {featured && (
+              <FeaturedCard s={featured} candidate={candidate} className="lg:col-span-2" />
             )}
-          </TableBody>
-        </Table>
-      </div>
+            {others.map((s) => (
+              <UpcomingCard key={s.event.id} s={s} candidate={candidate} />
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section aria-labelledby="past-h" className="grid gap-3">
+        <h2 id="past-h" className="text-sm font-bold">
+          Past
+        </h2>
+        {past.length === 0 ? (
+          <EmptyState
+            icon={<CalendarDays />}
+            title="No past events yet"
+            body="Finished events move here with their attendance and show rate."
+          />
+        ) : (
+          <SectionCard className="py-2 sm:py-2">
+            <ul>
+              {past.map((s) => (
+                <PastRow key={s.event.id} s={s} candidate={candidate} />
+              ))}
+            </ul>
+          </SectionCard>
+        )}
+      </section>
     </div>
   );
 }
 
-function AddEventDialog() {
-  const add = useEventsStore((s) => s.add);
-  const [open, setOpen] = useState(false);
-  const [form, setForm] = useState<Omit<CrmEvent, "id">>({
-    name: "",
-    type: "conference",
-    date: localDate(),
-  });
-
-  const submit = () => {
-    if (!form.name.trim()) return;
-    add(form);
-    setForm({ name: "", type: "conference", date: localDate() });
-    setOpen(false);
-  };
-
+function MetaLine({ event, className }: { event: CrmEvent; className?: string }) {
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button size="sm">
-          <Plus className="h-3.5 w-3.5" /> Add event
+    <p
+      className={cn(
+        "flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[12.5px] text-muted-foreground",
+        className,
+      )}
+    >
+      <span>{formatEventRange(event)}</span>
+      {event.location && (
+        <>
+          <span aria-hidden="true">·</span>
+          <span className="inline-flex items-center gap-1">
+            <MapPin className="size-3" aria-hidden="true" />
+            {event.location}
+          </span>
+        </>
+      )}
+    </p>
+  );
+}
+
+/** Navy card for the next conference: countdown, ticket progress, who's going. */
+function FeaturedCard({
+  s,
+  candidate,
+  className,
+}: {
+  s: EventSummary;
+  candidate: boolean;
+  className?: string;
+}) {
+  const { event } = s;
+  const t = eventTiming(event);
+  const toGo = s.invited - s.bought;
+  return (
+    <SectionCard variant="event" className={cn("relative gap-4", className)}>
+      <div className="flex items-start gap-3">
+        <DateBadge date={event.date} className="bg-white/10" />
+        <div className="min-w-0 flex-1">
+          <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
+            Next {EVENT_TYPE_LABEL[event.type].toLowerCase()}
+          </p>
+          <h3 className="text-[17px] font-extrabold leading-snug lg:text-lg">
+            <Link
+              to="/events/$id"
+              params={{ id: event.id }}
+              className="rounded-sm hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky"
+            >
+              {event.name}
+            </Link>
+          </h3>
+          <MetaLine event={event} className="mt-0.5" />
+        </div>
+        <div
+          className="grid min-w-[56px] shrink-0 place-items-center rounded-[10px] bg-white/10 px-2 py-1.5 text-center"
+          aria-label={timingLabel(t)}
+        >
+          {t.kind === "upcoming" ? (
+            <>
+              <b className="text-xl font-extrabold leading-tight tabular-nums">{t.days}</b>
+              <small className="text-[10px] font-semibold tracking-[0.04em] text-muted-foreground">
+                {t.days === 1 ? "DAY" : "DAYS"}
+              </small>
+            </>
+          ) : (
+            <small className="text-[11px] font-bold">Now</small>
+          )}
+        </div>
+      </div>
+
+      {candidate ? (
+        <CandidateStatus mine={s.mine} onNavy />
+      ) : (
+        <div className="grid gap-1.5">
+          <div className="flex items-baseline justify-between gap-2 text-[12.5px]">
+            <span>Tickets bought</span>
+            <b className="tabular-nums">
+              {s.bought} of {s.invited}
+            </b>
+          </div>
+          <SegmentedBar
+            className="bg-white/15"
+            total={Math.max(s.invited, 1)}
+            segments={[
+              { value: s.bought, className: "bg-sky", label: "Bought" },
+              { value: s.planned, className: "bg-amber", label: "Planned" },
+            ]}
+          />
+          <p className="text-[11.5px] text-muted-foreground">
+            {s.invited === 0
+              ? "Nobody invited yet"
+              : toGo === 0
+                ? "Everyone invited has a ticket"
+                : `${toGo} still need a ticket${
+                    s.plannedThisWeek ? ` · ${s.plannedThisWeek} plan to buy this week` : ""
+                  }`}
+          </p>
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        {!candidate && <AvatarStack people={s.people} ringClassName="ring-white/35" />}
+        {!candidate && s.attention > 0 && (
+          <ToneChip tone="warn" icon={AlertTriangle}>
+            {s.attention} need attention
+          </ToneChip>
+        )}
+        <Button
+          asChild
+          size="sm"
+          className="ml-auto bg-sky text-navy hover:bg-sky/90 focus-visible:ring-offset-event"
+        >
+          <Link to="/events/$id" params={{ id: event.id }}>
+            Open event
+          </Link>
         </Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Add event</DialogTitle>
-        </DialogHeader>
-        <div className="grid gap-3">
-          <div className="grid gap-1.5">
-            <Label>Name *</Label>
-            <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="grid gap-1.5">
-              <Label>Type</Label>
-              <Select
-                value={form.type}
-                onValueChange={(v) => setForm({ ...form, type: v as EventType })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="conference">Conference</SelectItem>
-                  <SelectItem value="team_meeting">Team Meeting</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-1.5">
-              <Label>Date</Label>
-              <Input
-                type="date"
-                value={form.date}
-                onChange={(e) => setForm({ ...form, date: e.target.value })}
-              />
-            </div>
-          </div>
-          <div className="grid gap-1.5">
-            <Label>Location</Label>
-            <Input
-              value={form.location ?? ""}
-              onChange={(e) => setForm({ ...form, location: e.target.value })}
-            />
-          </div>
-          <div className="grid gap-1.5">
-            <Label>Notes</Label>
-            <Textarea
-              value={form.notes ?? ""}
-              onChange={(e) => setForm({ ...form, notes: e.target.value })}
-            />
+      </div>
+    </SectionCard>
+  );
+}
+
+function CandidateStatus({ mine, onNavy }: { mine?: Attendance; onNavy?: boolean }) {
+  if (!mine)
+    return (
+      <p className={cn("text-[12.5px]", onNavy ? "text-event-muted" : "text-muted-foreground")}>
+        You're not on the list yet. Open the event to let your sponsor know you want to go.
+      </p>
+    );
+  const st = attendanceStatus(mine);
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-[12.5px]">
+      <span className={onNavy ? "text-event-muted" : "text-muted-foreground"}>Your status</span>
+      <ToneChip tone={st.tone}>{st.label}</ToneChip>
+    </div>
+  );
+}
+
+function UpcomingCard({ s, candidate }: { s: EventSummary; candidate: boolean }) {
+  const { event } = s;
+  const t = eventTiming(event);
+  return (
+    <SectionCard className="relative gap-3.5">
+      <div className="flex items-start gap-3">
+        <DateBadge date={event.date} />
+        <div className="min-w-0 flex-1">
+          <h3 className="text-[15px] font-bold leading-snug">
+            <Link
+              to="/events/$id"
+              params={{ id: event.id }}
+              className="rounded-sm after:absolute after:inset-0 after:rounded-card hover:underline focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:outline-ring"
+            >
+              {event.name}
+            </Link>
+          </h3>
+          <MetaLine event={event} className="mt-0.5" />
+          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+            <ToneChip tone="neutral">{EVENT_TYPE_LABEL[event.type]}</ToneChip>
+            <ToneChip tone={t.kind === "now" || t.days <= 7 ? "warn" : "info"}>
+              {timingLabel(t)}
+            </ToneChip>
           </div>
         </div>
-        <DialogFooter>
-          <Button variant="ghost" onClick={() => setOpen(false)}>
-            Cancel
-          </Button>
-          <Button onClick={submit}>Add</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      </div>
+
+      {candidate ? (
+        <CandidateStatus mine={s.mine} />
+      ) : s.invited > 0 ? (
+        <div className="grid gap-1.5">
+          <div className="flex items-baseline justify-between gap-2 text-[12.5px]">
+            <span className="text-muted-foreground">Tickets</span>
+            <b className="tabular-nums">
+              {s.bought} of {s.invited}
+            </b>
+          </div>
+          <SegmentedBar
+            total={s.invited}
+            segments={[
+              { value: s.bought, className: "bg-sky", label: "Bought" },
+              { value: s.planned, className: "bg-amber", label: "Planned" },
+            ]}
+          />
+        </div>
+      ) : (
+        <p className="text-[12.5px] text-muted-foreground">Nobody invited yet.</p>
+      )}
+
+      {!candidate && (s.people.length > 0 || s.attention > 0) && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <AvatarStack people={s.people} />
+          {s.attention > 0 && (
+            <ToneChip tone="warn" icon={AlertTriangle} className="relative">
+              {s.attention} need attention
+            </ToneChip>
+          )}
+        </div>
+      )}
+    </SectionCard>
+  );
+}
+
+function PastRow({ s, candidate }: { s: EventSummary; candidate: boolean }) {
+  const { event } = s;
+  const t = eventTiming(event);
+  const mine = candidate ? attendanceStatus(s.mine) : null;
+  return (
+    <li className="relative grid grid-cols-[44px_minmax(0,1fr)] items-center gap-3 border-t border-line py-3 first:border-t-0 sm:grid-cols-[44px_minmax(0,1fr)_auto]">
+      <DateBadge date={event.date} className="w-11 py-1 [&>span:last-child]:text-base" />
+      <div className="min-w-0">
+        <Link
+          to="/events/$id"
+          params={{ id: event.id }}
+          className="block truncate rounded-sm text-[13.5px] font-semibold after:absolute after:inset-0 hover:underline focus-visible:outline-none focus-visible:after:rounded-lg focus-visible:after:outline-2 focus-visible:after:outline-ring"
+        >
+          {event.name}
+        </Link>
+        <p className="truncate text-xs text-muted-foreground">
+          {EVENT_TYPE_LABEL[event.type]}
+          {event.location ? ` · ${event.location}` : ""} · {timingLabel(t)}
+        </p>
+      </div>
+      <div className="col-start-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs sm:col-start-3 sm:justify-end">
+        {mine ? (
+          <ToneChip tone={mine.tone}>{s.mine ? mine.label : "Not on the list"}</ToneChip>
+        ) : (
+          <>
+            <span className="text-muted-foreground">
+              <b className="text-[13px] font-bold tabular-nums text-foreground">{s.attended}</b>{" "}
+              attended
+            </span>
+            <span className="text-muted-foreground">
+              Show rate{" "}
+              <b className="text-[13px] font-bold tabular-nums text-foreground">
+                {s.showRate === null ? "–" : `${s.showRate}%`}
+              </b>
+            </span>
+          </>
+        )}
+      </div>
+    </li>
   );
 }

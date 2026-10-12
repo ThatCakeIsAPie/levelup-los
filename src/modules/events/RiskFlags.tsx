@@ -1,28 +1,31 @@
-import { getRiskFlags } from "@/lib/selectors";
-import type { Attendance } from "@/stores/attendanceStore";
-import { AlertTriangle, AlertCircle } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { AlertCircle, AlertTriangle } from "lucide-react";
+import type { Attendance } from "@/data";
+import { cn } from "@/lib/utils";
+import { riskReasons } from "./lib";
 
-export function RiskBadge({ attendance }: { attendance: Attendance }) {
-  const { red, yellow } = getRiskFlags(attendance);
-  if (!red.length && !yellow.length) return null;
-  const reasons = [...red, ...yellow];
-  const Icon = red.length ? AlertCircle : AlertTriangle;
-  const color = red.length ? "text-destructive" : "text-amber-600 dark:text-amber-400";
+/** Small red/amber icon when a row has risk reasons (full text in title + screen readers). */
+export function RiskBadge({
+  attendance,
+  className,
+  finished,
+}: {
+  attendance: Attendance;
+  className?: string;
+  /** Risks only matter before the event; past events show nothing. */
+  finished?: boolean;
+}) {
+  const reasons = finished ? [] : riskReasons(attendance);
+  if (!reasons.length) return null;
+  const bad = reasons.some((r) => r.tone === "bad");
+  const Icon = bad ? AlertCircle : AlertTriangle;
+  const text = reasons.map((r) => r.label).join(". ");
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <span className={`inline-flex ${color}`}>
-          <Icon className="h-3.5 w-3.5" />
-        </span>
-      </TooltipTrigger>
-      <TooltipContent>
-        <ul className="text-xs">
-          {reasons.map((r) => (
-            <li key={r}>• {r}</li>
-          ))}
-        </ul>
-      </TooltipContent>
-    </Tooltip>
+    <span
+      className={cn("inline-flex shrink-0", bad ? "text-bad" : "text-warn", className)}
+      title={text}
+    >
+      <Icon className="size-3.5" aria-hidden="true" />
+      <span className="sr-only">{text}</span>
+    </span>
   );
 }
