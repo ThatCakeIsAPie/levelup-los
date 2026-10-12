@@ -58,12 +58,13 @@ export function AuditComparison({ eventId }: { eventId: string }) {
   const [priorId, setPriorId] = useState<string | undefined>(auto.prior?.id);
   const [lastYearId, setLastYearId] = useState<string | undefined>(auto.lastYear?.id);
 
-  if (!current) return null;
-
   const prior = otherEvents.find((e) => e.id === priorId);
   const lastYear = otherEvents.find((e) => e.id === lastYearId);
-  const eventIds = [prior?.id, lastYear?.id, current.id].filter(Boolean) as string[];
+  const eventIds = [prior?.id, lastYear?.id, current?.id].filter(Boolean) as string[];
+  // Hooks must run before the early return below.
   const rows = useMemoDelta(eventIds, attendances, people);
+
+  if (!current) return null;
 
   const count = (e?: CrmEvent) => (e ? attendances.filter((a) => a.eventId === e.id).length : 0);
   const currentCount = count(current);

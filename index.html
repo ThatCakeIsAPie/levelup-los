@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta
+      name="description"
+      content="Team, customer, and event management for direct sales leaders."
+    />
+    <meta name="theme-color" content="#1A365D" />
+    <title>LevelUp LOS</title>
+    <script>
+      // Apply the saved theme before first paint so there is no light flash.
+      // Keep in sync with src/lib/theme.ts (key "levelup.theme").
+      (function () {
+        var pref = "auto";
+        try {
+          var v = localStorage.getItem("levelup.theme");
+          if (v === "light" || v === "dark" || v === "auto") pref = v;
+        } catch (e) {}
+        var dark =
+          pref === "dark" ||
+          (pref === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+        var root = document.documentElement;
+        if (dark) root.classList.add("dark");
+        root.style.colorScheme = dark ? "dark" : "light";
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
