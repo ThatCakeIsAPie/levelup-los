@@ -135,13 +135,16 @@ function RootComponent() {
 function SessionGate() {
   const [mounted, setMounted] = useState(false);
   const user = useSessionStore((s) => s.user);
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  // Gate on the rendered matches, not location: during the redirect, location
+  // flips to /login before its matches load, and <Outlet /> would briefly
+  // render the previous (user-requiring) route with a null user.
+  const onLogin = useRouterState({ select: (s) => s.matches.some((m) => m.routeId === "/login") });
   const navigate = useNavigate();
   useEffect(() => setMounted(true), []);
   useEffect(() => {
-    if (mounted && !user && pathname !== "/login") navigate({ to: "/login", replace: true });
-  }, [mounted, user, pathname, navigate]);
+    if (mounted && !user && !onLogin) navigate({ to: "/login", replace: true });
+  }, [mounted, user, onLogin, navigate]);
   if (!mounted) return null;
-  if (!user && pathname !== "/login") return null;
+  if (!user && !onLogin) return null;
   return <Outlet />;
 }
