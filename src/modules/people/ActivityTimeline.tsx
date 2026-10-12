@@ -41,11 +41,16 @@ export function ActivityTimeline({ personId }: { personId: string }) {
                 <div className="flex flex-wrap items-baseline gap-x-2">
                   <span className="text-xs font-medium">{KIND_LABEL[e.kind] ?? e.kind}</span>
                   {ev && <span className="text-xs text-muted-foreground">on {ev.name}</span>}
-                  <span className="ml-auto text-[11px] text-muted-foreground" title={format(new Date(e.timestamp), "PPpp")}>
+                  <span
+                    className="ml-auto text-[11px] text-muted-foreground"
+                    title={format(new Date(e.timestamp), "PPpp")}
+                  >
                     {formatDistanceToNow(new Date(e.timestamp), { addSuffix: true })}
                   </span>
                 </div>
-                <div className="text-xs text-muted-foreground">{e.summary} · by {e.actorName}</div>
+                <div className="text-xs text-muted-foreground">
+                  {e.summary} · by {e.actorName}
+                </div>
               </li>
             );
           })}

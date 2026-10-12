@@ -61,7 +61,9 @@ export function MindmapCanvas({ root }: Props) {
     if (!dragging.current) return;
     setPan({ x: e.clientX - dragging.current.x, y: e.clientY - dragging.current.y });
   };
-  const stopDrag = () => { dragging.current = null; };
+  const stopDrag = () => {
+    dragging.current = null;
+  };
 
   return (
     <div
@@ -99,23 +101,31 @@ export function MindmapCanvas({ root }: Props) {
         </svg>
         {laid.nodes.map((n) => (
           <div data-node key={n.id}>
-            <NodeCard
-              node={n}
-              selected={selectedId === n.id}
-              onToggle={toggle}
-              onSelect={select}
-            />
+            <NodeCard node={n} selected={selectedId === n.id} onToggle={toggle} onSelect={select} />
           </div>
         ))}
       </div>
 
       <div className="absolute bottom-16 right-3 flex items-center gap-1 rounded-md border bg-background/90 px-2 py-1 text-xs shadow-sm backdrop-blur">
-        <button className="px-1.5 hover:text-primary" onClick={() => setScale((s) => Math.max(0.25, s - 0.1))}>−</button>
+        <button
+          className="px-1.5 hover:text-primary"
+          onClick={() => setScale((s) => Math.max(0.25, s - 0.1))}
+        >
+          −
+        </button>
         <span className="tabular-nums w-10 text-center">{Math.round(scale * 100)}%</span>
-        <button className="px-1.5 hover:text-primary" onClick={() => setScale((s) => Math.min(2, s + 0.1))}>+</button>
+        <button
+          className="px-1.5 hover:text-primary"
+          onClick={() => setScale((s) => Math.min(2, s + 0.1))}
+        >
+          +
+        </button>
         <button
           className="ml-2 rounded px-1.5 hover:bg-muted"
-          onClick={() => { setScale(1); setPan({ x: 40, y: 40 }); }}
+          onClick={() => {
+            setScale(1);
+            setPan({ x: 40, y: 40 });
+          }}
         >
           Reset
         </button>

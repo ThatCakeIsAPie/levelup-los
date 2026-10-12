@@ -19,7 +19,7 @@ export function AttentionPanel({ eventId }: { eventId: string }) {
       return f.red.length || f.yellow.length;
     });
     const ids = new Set<string>();
-    const merged: { a: typeof attendances[number]; reason: string }[] = [];
+    const merged: { a: (typeof attendances)[number]; reason: string }[] = [];
     followUps.forEach((a) => {
       if (ids.has(a.id)) return;
       ids.add(a.id);
@@ -52,10 +52,16 @@ export function AttentionPanel({ eventId }: { eventId: string }) {
               return (
                 <li key={a.id} className="flex items-center justify-between gap-2">
                   {p ? (
-                    <Link to="/people/$id" params={{ id: p.id }} className="font-medium hover:underline">
+                    <Link
+                      to="/people/$id"
+                      params={{ id: p.id }}
+                      className="font-medium hover:underline"
+                    >
                       {p.name}
                     </Link>
-                  ) : <span>—</span>}
+                  ) : (
+                    <span>—</span>
+                  )}
                   <span className="text-xs text-muted-foreground">{reason}</span>
                 </li>
               );

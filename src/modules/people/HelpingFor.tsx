@@ -28,7 +28,15 @@ export function HelpingFor({ personId }: { personId: string }) {
               return (
                 <li key={a.id} className="flex items-center justify-between">
                   <span>
-                    {p && <Link to="/people/$id" params={{ id: p.id }} className="font-medium hover:underline">{p.name}</Link>}
+                    {p && (
+                      <Link
+                        to="/people/$id"
+                        params={{ id: p.id }}
+                        className="font-medium hover:underline"
+                      >
+                        {p.name}
+                      </Link>
+                    )}
                     {ev && <span className="text-xs text-muted-foreground"> · {ev.name}</span>}
                   </span>
                   <span className="text-xs text-muted-foreground">

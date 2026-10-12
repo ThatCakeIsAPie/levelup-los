@@ -25,9 +25,16 @@ export const Route = createFileRoute("/mindmap")({
   head: () => ({
     meta: [
       { title: "Mindmap — LevelUp LOS" },
-      { name: "description", content: "Visualize your downline, expand branches, and manage your direct sales team from a single mindmap." },
+      {
+        name: "description",
+        content:
+          "Visualize your downline, expand branches, and manage your direct sales team from a single mindmap.",
+      },
       { property: "og:title", content: "Mindmap — LevelUp LOS" },
-      { property: "og:description", content: "Visualize your downline and manage your team from a single mindmap." },
+      {
+        property: "og:description",
+        content: "Visualize your downline and manage your team from a single mindmap.",
+      },
     ],
   }),
   component: MindmapPage,
@@ -50,7 +57,9 @@ function MindmapPage() {
   }, []);
 
   const user = useSession();
-  const root = user ? findByName(roots, user.name) ?? (user.role === "leader" ? roots[0] : undefined) : undefined;
+  const root = user
+    ? (findByName(roots, user.name) ?? (user.role === "leader" ? roots[0] : undefined))
+    : undefined;
 
   return (
     <div className="flex h-full w-full flex-col bg-background">

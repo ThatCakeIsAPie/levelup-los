@@ -36,30 +36,38 @@ interface ActivityState {
 
 const ACTOR = "You";
 
-export const useActivityStore = create<ActivityState>()(persist((set, get) => ({
-  events: [],
-  log: (e) => {
-    const entry: ActivityEvent = {
-      ...e,
-      id: crypto.randomUUID(),
-      timestamp: new Date().toISOString(),
-      actorName: ACTOR,
-    };
-    set({ events: [entry, ...get().events] });
-  },
-  forPerson: (personId) =>
-    get().events.filter(
-      (e) =>
-        (e.entityType === "person" && e.entityId === personId) ||
-        e.relatedPersonId === personId,
-    ),
-  forEvent: (eventId) =>
-    get().events.filter(
-      (e) =>
-        (e.entityType === "event" && e.entityId === eventId) ||
-        e.relatedEventId === eventId,
-    ),
-}), { name: "levelup.activity", storage: createJSONStorage(() => localStorage), partialize: (s) => ({ events: s.events }) }));
+export const useActivityStore = create<ActivityState>()(
+  persist(
+    (set, get) => ({
+      events: [],
+      log: (e) => {
+        const entry: ActivityEvent = {
+          ...e,
+          id: crypto.randomUUID(),
+          timestamp: new Date().toISOString(),
+          actorName: ACTOR,
+        };
+        set({ events: [entry, ...get().events] });
+      },
+      forPerson: (personId) =>
+        get().events.filter(
+          (e) =>
+            (e.entityType === "person" && e.entityId === personId) ||
+            e.relatedPersonId === personId,
+        ),
+      forEvent: (eventId) =>
+        get().events.filter(
+          (e) =>
+            (e.entityType === "event" && e.entityId === eventId) || e.relatedEventId === eventId,
+        ),
+    }),
+    {
+      name: "levelup.activity",
+      storage: createJSONStorage(() => localStorage),
+      partialize: (s) => ({ events: s.events }),
+    },
+  ),
+);
 
 // Convenience helpers (call outside of stores to avoid circular import)
 export function logPerson(

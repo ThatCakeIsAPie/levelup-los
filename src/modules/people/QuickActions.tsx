@@ -10,16 +10,22 @@ export function QuickActions({ person }: { person: CrmPerson }) {
     <div className="flex flex-wrap gap-2">
       {person.email && (
         <Button asChild size="sm" variant="outline">
-          <a href={`mailto:${person.email}`}><Mail className="h-3.5 w-3.5" /> Email</a>
+          <a href={`mailto:${person.email}`}>
+            <Mail className="h-3.5 w-3.5" /> Email
+          </a>
         </Button>
       )}
       {person.phone && (
         <>
           <Button asChild size="sm" variant="outline">
-            <a href={`tel:${person.phone}`}><Phone className="h-3.5 w-3.5" /> Call</a>
+            <a href={`tel:${person.phone}`}>
+              <Phone className="h-3.5 w-3.5" /> Call
+            </a>
           </Button>
           <Button asChild size="sm" variant="outline">
-            <a href={`sms:${person.phone}`}><MessageSquare className="h-3.5 w-3.5" /> SMS</a>
+            <a href={`sms:${person.phone}`}>
+              <MessageSquare className="h-3.5 w-3.5" /> SMS
+            </a>
           </Button>
         </>
       )}

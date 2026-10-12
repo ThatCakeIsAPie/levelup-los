@@ -5,21 +5,39 @@ import { useSessionStore } from "@/stores/sessionStore";
 import { downlineIds, visibleCustomers } from "@/lib/db";
 import { daysFromToday } from "@/lib/dates";
 import {
-  useCrmStore, lastContactDate, daysSince, learningStreak, today, type LearningKind, type Learning,
+  useCrmStore,
+  lastContactDate,
+  daysSince,
+  learningStreak,
+  today,
+  type LearningKind,
+  type Learning,
 } from "@/stores/crmStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "Dashboard — LevelUp LOS" },
-      { name: "description", content: "Log learning, track streaks, and see who needs a check-in." },
+      {
+        name: "description",
+        content: "Log learning, track streaks, and see who needs a check-in.",
+      },
       { property: "og:title", content: "Dashboard — LevelUp LOS" },
-      { property: "og:description", content: "Log learning, track streaks, and see who needs a check-in." },
+      {
+        property: "og:description",
+        content: "Log learning, track streaks, and see who needs a check-in.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -28,7 +46,10 @@ export const Route = createFileRoute("/")({
 });
 
 const kindLabel: Record<LearningKind, string> = {
-  podcast: "Podcasts", pages: "Pages read", workshop: "Workshops", conference: "Conferences",
+  podcast: "Podcasts",
+  pages: "Pages read",
+  workshop: "Workshops",
+  conference: "Conferences",
 };
 
 function totals(entries: Learning[], sinceDays: number) {
@@ -49,10 +70,13 @@ function Dashboard() {
 
   const team = [...downlineIds(people, user.personId)].filter((id) => id !== user.personId);
   const teamPeople = people.filter((p) => team.includes(p.id));
-  const dueTeam = user.role === "candidate" ? [] : teamPeople
-    .map((p) => ({ p, age: daysSince(lastContactDate(contacts, p.id)) }))
-    .filter((x) => x.age === null || x.age > settings.teamDays)
-    .sort((a, b) => (b.age ?? 9999) - (a.age ?? 9999));
+  const dueTeam =
+    user.role === "candidate"
+      ? []
+      : teamPeople
+          .map((p) => ({ p, age: daysSince(lastContactDate(contacts, p.id)) }))
+          .filter((x) => x.age === null || x.age > settings.teamDays)
+          .sort((a, b) => (b.age ?? 9999) - (a.age ?? 9999));
   const dueCustomers = visibleCustomers(people, user)
     .map((p) => ({ p, age: daysSince(lastContactDate(contacts, p.id)) }))
     .filter((x) => x.age === null || x.age > settings.customerDays);
@@ -62,17 +86,29 @@ function Dashboard() {
       <h1 className="mb-4 text-sm font-semibold">Welcome back, {user.name.split(" ")[0]}</h1>
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="rounded-md border border-border p-4">
-          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">My learning</h2>
+          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            My learning
+          </h2>
           <div className="mb-3 grid grid-cols-3 gap-2 text-center">
             <Stat label="Streak (days)" value={streak} />
             <Stat label="Pages this week" value={week.pages} />
             <Stat label="Podcasts this week" value={week.podcast} />
           </div>
           <table className="mb-4 w-full text-xs">
-            <thead><tr className="text-muted-foreground"><th className="text-left font-normal">Type</th><th className="text-right font-normal">This week</th><th className="text-right font-normal">This month</th></tr></thead>
+            <thead>
+              <tr className="text-muted-foreground">
+                <th className="text-left font-normal">Type</th>
+                <th className="text-right font-normal">This week</th>
+                <th className="text-right font-normal">This month</th>
+              </tr>
+            </thead>
             <tbody>
               {(Object.keys(kindLabel) as LearningKind[]).map((k) => (
-                <tr key={k}><td>{kindLabel[k]}</td><td className="text-right tabular-nums">{week[k]}</td><td className="text-right tabular-nums">{month[k]}</td></tr>
+                <tr key={k}>
+                  <td>{kindLabel[k]}</td>
+                  <td className="text-right tabular-nums">{week[k]}</td>
+                  <td className="text-right tabular-nums">{month[k]}</td>
+                </tr>
               ))}
             </tbody>
           </table>
@@ -80,32 +116,82 @@ function Dashboard() {
         </section>
 
         <section className="rounded-md border border-border p-4">
-          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Due for contact</h2>
+          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Due for contact
+          </h2>
           <div className="mb-3 flex flex-wrap gap-3 text-xs">
-            <label className="flex items-center gap-1">Team after
-              <Input type="number" className="h-7 w-16" value={settings.teamDays} onChange={(e) => setSettings({ teamDays: Number(e.target.value) || 1 })} /> days
+            <label className="flex items-center gap-1">
+              Team after
+              <Input
+                type="number"
+                className="h-7 w-16"
+                value={settings.teamDays}
+                onChange={(e) => setSettings({ teamDays: Number(e.target.value) || 1 })}
+              />{" "}
+              days
             </label>
-            <label className="flex items-center gap-1">Customers after
-              <Input type="number" className="h-7 w-16" value={settings.customerDays} onChange={(e) => setSettings({ customerDays: Number(e.target.value) || 1 })} /> days
+            <label className="flex items-center gap-1">
+              Customers after
+              <Input
+                type="number"
+                className="h-7 w-16"
+                value={settings.customerDays}
+                onChange={(e) => setSettings({ customerDays: Number(e.target.value) || 1 })}
+              />{" "}
+              days
             </label>
           </div>
-          <DueList title="Team members" items={dueTeam} onCheck={(id) => { logContact({ personId: id, byId: user.personId, date: today() }); toast.success("Check-in logged"); }} />
-          <DueList title="Customers" items={dueCustomers} onCheck={(id) => { logContact({ personId: id, byId: user.personId, date: today() }); toast.success("Contact logged"); }} />
+          <DueList
+            title="Team members"
+            items={dueTeam}
+            onCheck={(id) => {
+              logContact({ personId: id, byId: user.personId, date: today() });
+              toast.success("Check-in logged");
+            }}
+          />
+          <DueList
+            title="Customers"
+            items={dueCustomers}
+            onCheck={(id) => {
+              logContact({ personId: id, byId: user.personId, date: today() });
+              toast.success("Contact logged");
+            }}
+          />
         </section>
 
         {user.role === "leader" && (
           <section className="rounded-md border border-border p-4 lg:col-span-2">
-            <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Team learning (last 7 days)</h2>
+            <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Team learning (last 7 days)
+            </h2>
             <table className="w-full text-xs">
-              <thead><tr className="text-muted-foreground"><th className="text-left font-normal">Person</th>{(Object.keys(kindLabel) as LearningKind[]).map((k) => <th key={k} className="text-right font-normal">{kindLabel[k]}</th>)}<th className="text-right font-normal">Streak</th></tr></thead>
+              <thead>
+                <tr className="text-muted-foreground">
+                  <th className="text-left font-normal">Person</th>
+                  {(Object.keys(kindLabel) as LearningKind[]).map((k) => (
+                    <th key={k} className="text-right font-normal">
+                      {kindLabel[k]}
+                    </th>
+                  ))}
+                  <th className="text-right font-normal">Streak</th>
+                </tr>
+              </thead>
               <tbody>
                 {teamPeople.map((p) => {
                   const e = learning.filter((l) => l.personId === p.id);
                   const t = totals(e, 7);
                   return (
                     <tr key={p.id} className="border-t border-border">
-                      <td className="py-1"><Link to="/people/$id" params={{ id: p.id }} className="hover:underline">{p.name}</Link></td>
-                      {(Object.keys(kindLabel) as LearningKind[]).map((k) => <td key={k} className="text-right tabular-nums">{t[k]}</td>)}
+                      <td className="py-1">
+                        <Link to="/people/$id" params={{ id: p.id }} className="hover:underline">
+                          {p.name}
+                        </Link>
+                      </td>
+                      {(Object.keys(kindLabel) as LearningKind[]).map((k) => (
+                        <td key={k} className="text-right tabular-nums">
+                          {t[k]}
+                        </td>
+                      ))}
                       <td className="text-right tabular-nums">{learningStreak(e)}</td>
                     </tr>
                   );
@@ -128,18 +214,39 @@ function Stat({ label, value }: { label: string; value: number }) {
   );
 }
 
-function DueList({ title, items, onCheck }: { title: string; items: { p: { id: string; name: string }; age: number | null }[]; onCheck: (id: string) => void }) {
+function DueList({
+  title,
+  items,
+  onCheck,
+}: {
+  title: string;
+  items: { p: { id: string; name: string }; age: number | null }[];
+  onCheck: (id: string) => void;
+}) {
   return (
     <div className="mb-3">
-      <div className="mb-1 text-xs font-medium">{title} ({items.length})</div>
-      {items.length === 0 ? <div className="text-xs text-muted-foreground">All caught up.</div> : (
+      <div className="mb-1 text-xs font-medium">
+        {title} ({items.length})
+      </div>
+      {items.length === 0 ? (
+        <div className="text-xs text-muted-foreground">All caught up.</div>
+      ) : (
         <ul className="space-y-1">
           {items.map(({ p, age }) => (
             <li key={p.id} className="flex items-center justify-between text-xs">
-              <Link to="/people/$id" params={{ id: p.id }} className="hover:underline">{p.name}</Link>
+              <Link to="/people/$id" params={{ id: p.id }} className="hover:underline">
+                {p.name}
+              </Link>
               <span className="flex items-center gap-2">
                 <span className="text-destructive">{age === null ? "Never" : `${age}d ago`}</span>
-                <Button size="sm" variant="outline" className="h-6 px-2 text-[11px]" onClick={() => onCheck(p.id)}>Check in</Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-6 px-2 text-[11px]"
+                  onClick={() => onCheck(p.id)}
+                >
+                  Check in
+                </Button>
               </span>
             </li>
           ))}
@@ -157,7 +264,13 @@ function LogLearningForm({ personId }: { personId: string }) {
   const [date, setDate] = useState(today());
   const save = () => {
     if (!title.trim()) return;
-    logLearning({ personId, kind, title: title.trim(), amount: kind === "pages" ? amount : 1, date });
+    logLearning({
+      personId,
+      kind,
+      title: title.trim(),
+      amount: kind === "pages" ? amount : 1,
+      date,
+    });
     toast.success("Learning logged");
     setTitle("");
   };
@@ -166,7 +279,9 @@ function LogLearningForm({ personId }: { personId: string }) {
       <div className="text-xs font-medium">Log learning</div>
       <div className="grid grid-cols-2 gap-2">
         <Select value={kind} onValueChange={(v) => setKind(v as LearningKind)}>
-          <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="h-8">
+            <SelectValue />
+          </SelectTrigger>
           <SelectContent>
             <SelectItem value="podcast">Podcast</SelectItem>
             <SelectItem value="pages">Pages read</SelectItem>
@@ -177,10 +292,28 @@ function LogLearningForm({ personId }: { personId: string }) {
         <Input type="date" className="h-8" value={date} onChange={(e) => setDate(e.target.value)} />
       </div>
       <div className="grid grid-cols-[1fr_auto] gap-2">
-        <div className="grid gap-1"><Label className="sr-only">Title</Label><Input className="h-8" placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} /></div>
-        {kind === "pages" && <Input type="number" className="h-8 w-20" value={amount} onChange={(e) => setAmount(Number(e.target.value) || 0)} aria-label="Pages" />}
+        <div className="grid gap-1">
+          <Label className="sr-only">Title</Label>
+          <Input
+            className="h-8"
+            placeholder="Title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+          />
+        </div>
+        {kind === "pages" && (
+          <Input
+            type="number"
+            className="h-8 w-20"
+            value={amount}
+            onChange={(e) => setAmount(Number(e.target.value) || 0)}
+            aria-label="Pages"
+          />
+        )}
       </div>
-      <Button size="sm" onClick={save} disabled={!title.trim()}>Save</Button>
+      <Button size="sm" onClick={save} disabled={!title.trim()}>
+        Save
+      </Button>
     </div>
   );
 }

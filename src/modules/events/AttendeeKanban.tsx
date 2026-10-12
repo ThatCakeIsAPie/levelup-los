@@ -5,7 +5,13 @@ import { usePeopleStore } from "@/stores/peopleStore";
 import { daysFromToday } from "@/lib/dates";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link } from "@tanstack/react-router";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 
 type ColKey = "potential" | "desire" | "date" | "ticket" | "attended";
@@ -32,7 +38,13 @@ export function AttendeeKanban({ eventId }: { eventId: string }) {
   const getPerson = usePeopleStore((s) => s.getById);
 
   const grouped = useMemo(() => {
-    const g: Record<ColKey, Attendance[]> = { potential: [], desire: [], date: [], ticket: [], attended: [] };
+    const g: Record<ColKey, Attendance[]> = {
+      potential: [],
+      desire: [],
+      date: [],
+      ticket: [],
+      attended: [],
+    };
     attendances.forEach((a) => g[classify(a)].push(a));
     return g;
   }, [attendances]);
@@ -41,17 +53,30 @@ export function AttendeeKanban({ eventId }: { eventId: string }) {
     const patch: Partial<Attendance> = {};
     switch (target) {
       case "potential":
-        patch.desireToAttend = undefined; patch.plannedPurchaseDate = undefined; patch.hasTicket = false; patch.attended = undefined; break;
+        patch.desireToAttend = undefined;
+        patch.plannedPurchaseDate = undefined;
+        patch.hasTicket = false;
+        patch.attended = undefined;
+        break;
       case "desire":
-        patch.desireToAttend = "yes"; patch.hasTicket = false; patch.attended = undefined; break;
+        patch.desireToAttend = "yes";
+        patch.hasTicket = false;
+        patch.attended = undefined;
+        break;
       case "date":
-        patch.desireToAttend = a.desireToAttend ?? "yes"; patch.hasTicket = false;
+        patch.desireToAttend = a.desireToAttend ?? "yes";
+        patch.hasTicket = false;
         patch.plannedPurchaseDate = a.plannedPurchaseDate ?? daysFromToday(7);
-        patch.attended = undefined; break;
+        patch.attended = undefined;
+        break;
       case "ticket":
-        patch.hasTicket = true; patch.attended = undefined; break;
+        patch.hasTicket = true;
+        patch.attended = undefined;
+        break;
       case "attended":
-        patch.hasTicket = true; patch.attended = true; break;
+        patch.hasTicket = true;
+        patch.attended = true;
+        break;
     }
     update(a.id, patch);
   };
@@ -62,7 +87,10 @@ export function AttendeeKanban({ eventId }: { eventId: string }) {
         <Card key={c.key}>
           <CardHeader className="pb-2">
             <CardTitle className="text-xs uppercase tracking-wide text-muted-foreground">
-              {c.label} <span className="ml-1 rounded bg-muted px-1.5 py-0.5 text-[10px]">{grouped[c.key].length}</span>
+              {c.label}{" "}
+              <span className="ml-1 rounded bg-muted px-1.5 py-0.5 text-[10px]">
+                {grouped[c.key].length}
+              </span>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
@@ -73,13 +101,26 @@ export function AttendeeKanban({ eventId }: { eventId: string }) {
                 <div key={a.id} className="rounded border border-border p-2 text-xs">
                   <div className="flex items-center justify-between">
                     {p ? (
-                      <Link to="/people/$id" params={{ id: p.id }} className="font-medium hover:underline">{p.name}</Link>
-                    ) : "—"}
+                      <Link
+                        to="/people/$id"
+                        params={{ id: p.id }}
+                        className="font-medium hover:underline"
+                      >
+                        {p.name}
+                      </Link>
+                    ) : (
+                      "—"
+                    )}
                   </div>
                   {c.key === "desire" && (
                     <div className="mt-1 flex items-center gap-1">
-                      <Select value={a.desireToAttend ?? ""} onValueChange={(v) => update(a.id, { desireToAttend: v as DesireLevel })}>
-                        <SelectTrigger className="h-6 w-full text-[11px]"><SelectValue placeholder="—" /></SelectTrigger>
+                      <Select
+                        value={a.desireToAttend ?? ""}
+                        onValueChange={(v) => update(a.id, { desireToAttend: v as DesireLevel })}
+                      >
+                        <SelectTrigger className="h-6 w-full text-[11px]">
+                          <SelectValue placeholder="—" />
+                        </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="yes">Yes</SelectItem>
                           <SelectItem value="maybe">Maybe</SelectItem>
@@ -90,15 +131,23 @@ export function AttendeeKanban({ eventId }: { eventId: string }) {
                   )}
                   {c.key === "attended" && (
                     <label className="mt-1 flex items-center gap-1 text-[11px]">
-                      <Checkbox checked={a.attended === true} onCheckedChange={(v) => update(a.id, { attended: !!v })} /> Attended
+                      <Checkbox
+                        checked={a.attended === true}
+                        onCheckedChange={(v) => update(a.id, { attended: !!v })}
+                      />{" "}
+                      Attended
                     </label>
                   )}
                   <div className="mt-1.5">
                     <Select value="" onValueChange={(v) => moveTo(a, v as ColKey)}>
-                      <SelectTrigger className="h-6 w-full text-[10px]"><SelectValue placeholder="Move →" /></SelectTrigger>
+                      <SelectTrigger className="h-6 w-full text-[10px]">
+                        <SelectValue placeholder="Move →" />
+                      </SelectTrigger>
                       <SelectContent>
                         {COLS.filter((x) => x.key !== c.key).map((x) => (
-                          <SelectItem key={x.key} value={x.key}>{x.label}</SelectItem>
+                          <SelectItem key={x.key} value={x.key}>
+                            {x.label}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>

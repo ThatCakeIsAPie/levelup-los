@@ -12,10 +12,16 @@ export function RiskBadge({ attendance }: { attendance: Attendance }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <span className={`inline-flex ${color}`}><Icon className="h-3.5 w-3.5" /></span>
+        <span className={`inline-flex ${color}`}>
+          <Icon className="h-3.5 w-3.5" />
+        </span>
       </TooltipTrigger>
       <TooltipContent>
-        <ul className="text-xs">{reasons.map((r) => <li key={r}>• {r}</li>)}</ul>
+        <ul className="text-xs">
+          {reasons.map((r) => (
+            <li key={r}>• {r}</li>
+          ))}
+        </ul>
       </TooltipContent>
     </Tooltip>
   );

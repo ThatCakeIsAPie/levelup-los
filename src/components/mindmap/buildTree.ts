@@ -21,15 +21,16 @@ export function rowsToPeople(rows: Row[], map: FieldMap): Person[] {
       }
       if (!name) name = id;
       const sponsorRaw = map.sponsorId ? r[map.sponsorId] : null;
-      const sponsorId = sponsorRaw === null || sponsorRaw === undefined || sponsorRaw === ""
-        ? null
-        : String(sponsorRaw).trim();
+      const sponsorId =
+        sponsorRaw === null || sponsorRaw === undefined || sponsorRaw === ""
+          ? null
+          : String(sponsorRaw).trim();
       return {
         id,
         uid: crypto.randomUUID(),
         name,
         sponsorId,
-        rank: map.rank ? r[map.rank] as string | number | undefined : undefined,
+        rank: map.rank ? (r[map.rank] as string | number | undefined) : undefined,
         ppv: map.ppv ? toNum(r[map.ppv]) : undefined,
         gpv: map.gpv ? toNum(r[map.gpv]) : undefined,
         customers: map.customers ? toNum(r[map.customers]) : undefined,
@@ -121,4 +122,3 @@ export function normalizeForest(roots: TreeNode[]): TreeNode[] {
 
   return sortedRoots;
 }
-

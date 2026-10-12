@@ -68,8 +68,12 @@ export function NodeCard({ node, selected, onToggle, onSelect }: Props) {
   const rosterPeople = usePeopleStore((s) => s.people);
   const navigate = useNavigate();
   const openPerson = (edit: boolean) => {
-    const rp = rosterPeople.find((r) => r.losUid === p.uid) ?? rosterPeople.find((r) => r.name === p.name);
-    if (!rp) { toast.error("This person isn't in the roster yet."); return; }
+    const rp =
+      rosterPeople.find((r) => r.losUid === p.uid) ?? rosterPeople.find((r) => r.name === p.name);
+    if (!rp) {
+      toast.error("This person isn't in the roster yet.");
+      return;
+    }
     navigate({ to: "/people/$id", params: { id: rp.id }, hash: edit ? "edit" : undefined });
   };
   const addRosterPerson = usePeopleStore((s) => s.add);
@@ -95,7 +99,9 @@ export function NodeCard({ node, selected, onToggle, onSelect }: Props) {
         role="button"
         tabIndex={0}
         onClick={() => onSelect(p.id)}
-        onKeyDown={(e) => { if (e.key === "Enter") onSelect(p.id); }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") onSelect(p.id);
+        }}
         className={cn(
           "absolute rounded-md border bg-card text-card-foreground shadow-sm transition-shadow",
           "hover:shadow-md cursor-pointer",
@@ -125,10 +131,14 @@ export function NodeCard({ node, selected, onToggle, onSelect }: Props) {
                 <DropdownMenuItem onClick={() => openPerson(true)}>Edit person</DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuLabel className="text-xs">Add under {p.name}</DropdownMenuLabel>
-                <DropdownMenuItem onClick={() => setMemberDialog("apprentice")}>Add Apprentice</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setMemberDialog("apprentice")}>
+                  Add Apprentice
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setMemberDialog("ibo")}>Add IBO</DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setCustomerDialog(true)}>Add Customer</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setCustomerDialog(true)}>
+                  Add Customer
+                </DropdownMenuItem>
                 {allCustomers.length > 0 && (
                   <DropdownMenuItem onClick={() => toggleCustomers(p.id)}>
                     {customersVisible ? "Hide customers" : "Show customers"}
@@ -166,7 +176,10 @@ export function NodeCard({ node, selected, onToggle, onSelect }: Props) {
                 {allCustomers.length > 3 && (
                   <button
                     type="button"
-                    onClick={(e) => { e.stopPropagation(); openCustomerPanel(panelOpen ? null : p.id); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openCustomerPanel(panelOpen ? null : p.id);
+                    }}
                     className="text-[10px] underline hover:text-foreground"
                   >
                     +{allCustomers.length - 3} more
@@ -180,7 +193,10 @@ export function NodeCard({ node, selected, onToggle, onSelect }: Props) {
           <button
             type="button"
             aria-label={node.expanded ? "Collapse" : "Expand"}
-            onClick={(e) => { e.stopPropagation(); onToggle(p.id); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggle(p.id);
+            }}
             className={cn(
               "absolute left-1/2 -translate-x-1/2 -bottom-3 z-10",
               "flex h-6 w-6 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-sm",
@@ -260,12 +276,22 @@ export function NodeCard({ node, selected, onToggle, onSelect }: Props) {
 }
 
 function AddMemberDialog({
-  bizClass, parentName, onClose, onSubmit,
+  bizClass,
+  parentName,
+  onClose,
+  onSubmit,
 }: {
   bizClass: NewMemberClass | null;
   parentName: string;
   onClose: () => void;
-  onSubmit: (input: { name: string; bizClass: NewMemberClass; businessStartDate?: string; iboNumber?: string; ltdNumber?: string; location?: string }) => void;
+  onSubmit: (input: {
+    name: string;
+    bizClass: NewMemberClass;
+    businessStartDate?: string;
+    iboNumber?: string;
+    ltdNumber?: string;
+    location?: string;
+  }) => void;
 }) {
   const [name, setName] = useState("");
   const [startDate, setStartDate] = useState("");
@@ -274,10 +300,25 @@ function AddMemberDialog({
   const [location, setLocation] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  const reset = () => { setName(""); setStartDate(""); setIboNumber(""); setLtdNumber(""); setLocation(""); setError(null); };
+  const reset = () => {
+    setName("");
+    setStartDate("");
+    setIboNumber("");
+    setLtdNumber("");
+    setLocation("");
+    setError(null);
+  };
 
   return (
-    <Dialog open={bizClass !== null} onOpenChange={(o) => { if (!o) { reset(); onClose(); } }}>
+    <Dialog
+      open={bizClass !== null}
+      onOpenChange={(o) => {
+        if (!o) {
+          reset();
+          onClose();
+        }
+      }}
+    >
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
@@ -310,16 +351,34 @@ function AddMemberDialog({
           </div>
           <div className="grid gap-1.5">
             <Label>Location</Label>
-            <Input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="City, State" />
+            <Input
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              placeholder="City, State"
+            />
           </div>
           {error && <p className="text-xs text-destructive">{error}</p>}
         </div>
         <DialogFooter>
-          <Button variant="ghost" onClick={() => { reset(); onClose(); }}>Cancel</Button>
+          <Button
+            variant="ghost"
+            onClick={() => {
+              reset();
+              onClose();
+            }}
+          >
+            Cancel
+          </Button>
           <Button
             onClick={() => {
-              if (!name.trim()) { setError("Name is required."); return; }
-              if (bizClass === "apprentice" && !startDate) { setError("Business start date is required for an apprentice."); return; }
+              if (!name.trim()) {
+                setError("Name is required.");
+                return;
+              }
+              if (bizClass === "apprentice" && !startDate) {
+                setError("Business start date is required for an apprentice.");
+                return;
+              }
               onSubmit({
                 name: name.trim(),
                 bizClass: bizClass ?? "ibo",
@@ -340,21 +399,49 @@ function AddMemberDialog({
 }
 
 function AddCustomerDialog({
-  open, ownerName, onClose, onSubmit,
+  open,
+  ownerName,
+  onClose,
+  onSubmit,
 }: {
   open: boolean;
   ownerName: string;
   onClose: () => void;
-  onSubmit: (data: { name: string; email: string; phone: string; monthlyVolume: string; startDate: string }) => void;
+  onSubmit: (data: {
+    name: string;
+    email: string;
+    phone: string;
+    monthlyVolume: string;
+    startDate: string;
+  }) => void;
 }) {
-  const [form, setForm] = useState({ name: "", email: "", phone: "", monthlyVolume: "", startDate: "" });
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    monthlyVolume: "",
+    startDate: "",
+  });
   const [error, setError] = useState<string | null>(null);
-  const reset = () => { setForm({ name: "", email: "", phone: "", monthlyVolume: "", startDate: "" }); setError(null); };
+  const reset = () => {
+    setForm({ name: "", email: "", phone: "", monthlyVolume: "", startDate: "" });
+    setError(null);
+  };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) { reset(); onClose(); } }}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) {
+          reset();
+          onClose();
+        }
+      }}
+    >
       <DialogContent>
-        <DialogHeader><DialogTitle>Add customer of {ownerName}</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>Add customer of {ownerName}</DialogTitle>
+        </DialogHeader>
         <div className="grid gap-3">
           <div className="grid gap-1.5">
             <Label>Name *</Label>
@@ -363,30 +450,56 @@ function AddCustomerDialog({
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-1.5">
               <Label>Email</Label>
-              <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+              <Input
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+              />
             </div>
             <div className="grid gap-1.5">
               <Label>Phone</Label>
-              <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+              <Input
+                value={form.phone}
+                onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-1.5">
               <Label>Monthly volume</Label>
-              <Input type="number" value={form.monthlyVolume} onChange={(e) => setForm({ ...form, monthlyVolume: e.target.value })} />
+              <Input
+                type="number"
+                value={form.monthlyVolume}
+                onChange={(e) => setForm({ ...form, monthlyVolume: e.target.value })}
+              />
             </div>
             <div className="grid gap-1.5">
               <Label>Start date</Label>
-              <Input type="date" value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })} />
+              <Input
+                type="date"
+                value={form.startDate}
+                onChange={(e) => setForm({ ...form, startDate: e.target.value })}
+              />
             </div>
           </div>
           {error && <p className="text-xs text-destructive">{error}</p>}
         </div>
         <DialogFooter>
-          <Button variant="ghost" onClick={() => { reset(); onClose(); }}>Cancel</Button>
+          <Button
+            variant="ghost"
+            onClick={() => {
+              reset();
+              onClose();
+            }}
+          >
+            Cancel
+          </Button>
           <Button
             onClick={() => {
-              if (!form.name.trim()) { setError("Name is required."); return; }
+              if (!form.name.trim()) {
+                setError("Name is required.");
+                return;
+              }
               onSubmit({ ...form, name: form.name.trim() });
               reset();
             }}

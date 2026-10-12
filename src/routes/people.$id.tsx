@@ -8,8 +8,21 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell,
+} from "@/components/ui/table";
 import { ArrowLeft, Plus, Trash2, AlertCircle } from "lucide-react";
 import { PipelineAndTags } from "@/modules/people/PipelineAndTags";
 import { EngagementStats } from "@/modules/people/EngagementStats";
@@ -48,7 +61,9 @@ function PersonDetail() {
     return (
       <div className="p-6">
         <p className="text-sm text-muted-foreground">Person not found.</p>
-        <Link to="/people" className="text-sm underline">Back to people</Link>
+        <Link to="/people" className="text-sm underline">
+          Back to people
+        </Link>
       </div>
     );
   }
@@ -61,7 +76,10 @@ function PersonDetail() {
   return (
     <div className="flex h-full flex-col">
       <header className="flex h-11 shrink-0 items-center gap-2 border-b border-border px-4">
-        <Link to="/people" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+        <Link
+          to="/people"
+          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+        >
           <ArrowLeft className="h-3.5 w-3.5" /> People
         </Link>
         <span className="ml-2 text-sm font-semibold tracking-tight">{person.name}</span>
@@ -76,7 +94,14 @@ function PersonDetail() {
           </span>
         )}
         <span className="ml-auto" />
-        <Button variant="ghost" size="sm" onClick={() => { remove(person.id); nav({ to: "/people" }); }}>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => {
+            remove(person.id);
+            nav({ to: "/people" });
+          }}
+        >
           <Trash2 className="h-3.5 w-3.5" /> Delete
         </Button>
       </header>
@@ -90,47 +115,112 @@ function PersonDetail() {
         </div>
 
         <section className="space-y-4">
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Details</h2>
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Details
+          </h2>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-            <Field label="Name"><Input value={person.name} onChange={(e) => update(person.id, { name: e.target.value })} /></Field>
+            <Field label="Name">
+              <Input
+                value={person.name}
+                onChange={(e) => update(person.id, { name: e.target.value })}
+              />
+            </Field>
             <Field label="Biz Class">
-              <Select value={person.bizClass} onValueChange={(v) => update(person.id, { bizClass: v as BizClass })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Select
+                value={person.bizClass}
+                onValueChange={(v) => update(person.id, { bizClass: v as BizClass })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
-                  {bizClassOptions.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                  {bizClassOptions.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>
+                      {o.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </Field>
-            <Field label="Location"><Input value={person.location ?? ""} onChange={(e) => update(person.id, { location: e.target.value })} placeholder="City, State" /></Field>
-
-            <Field label={`IBO#${requiresIds ? " *" : ""}`} error={missingIbo ? "Required for IBOs and Apprentices" : undefined}>
-              <Input value={person.iboNumber ?? ""} onChange={(e) => update(person.id, { iboNumber: e.target.value })} />
+            <Field label="Location">
+              <Input
+                value={person.location ?? ""}
+                onChange={(e) => update(person.id, { location: e.target.value })}
+                placeholder="City, State"
+              />
             </Field>
-            <Field label={`LTD#${requiresIds ? " *" : ""}`} error={missingLtd ? "Required for IBOs and Apprentices" : undefined}>
-              <Input value={person.ltdNumber ?? ""} onChange={(e) => update(person.id, { ltdNumber: e.target.value })} />
-            </Field>
-            <Field label="Joined date"><Input type="date" value={person.joinedDate ?? ""} onChange={(e) => update(person.id, { joinedDate: e.target.value })} /></Field>
 
-            <Field label="Email"><Input value={person.email ?? ""} onChange={(e) => update(person.id, { email: e.target.value })} /></Field>
-            <Field label="Phone"><Input value={person.phone ?? ""} onChange={(e) => update(person.id, { phone: e.target.value })} /></Field>
+            <Field
+              label={`IBO#${requiresIds ? " *" : ""}`}
+              error={missingIbo ? "Required for IBOs and Apprentices" : undefined}
+            >
+              <Input
+                value={person.iboNumber ?? ""}
+                onChange={(e) => update(person.id, { iboNumber: e.target.value })}
+              />
+            </Field>
+            <Field
+              label={`LTD#${requiresIds ? " *" : ""}`}
+              error={missingLtd ? "Required for IBOs and Apprentices" : undefined}
+            >
+              <Input
+                value={person.ltdNumber ?? ""}
+                onChange={(e) => update(person.id, { ltdNumber: e.target.value })}
+              />
+            </Field>
+            <Field label="Joined date">
+              <Input
+                type="date"
+                value={person.joinedDate ?? ""}
+                onChange={(e) => update(person.id, { joinedDate: e.target.value })}
+              />
+            </Field>
+
+            <Field label="Email">
+              <Input
+                value={person.email ?? ""}
+                onChange={(e) => update(person.id, { email: e.target.value })}
+              />
+            </Field>
+            <Field label="Phone">
+              <Input
+                value={person.phone ?? ""}
+                onChange={(e) => update(person.id, { phone: e.target.value })}
+              />
+            </Field>
             <Field label="Sponsor">
               <Select
                 value={person.sponsorId ?? "none"}
                 onValueChange={(v) => update(person.id, { sponsorId: v === "none" ? null : v })}
               >
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">— None —</SelectItem>
-                  {people.filter((p) => p.id !== person.id).map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                  {people
+                    .filter((p) => p.id !== person.id)
+                    .map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.name}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </Field>
           </div>
-          <Field label="Notes"><Textarea value={person.notes ?? ""} onChange={(e) => update(person.id, { notes: e.target.value })} /></Field>
+          <Field label="Notes">
+            <Textarea
+              value={person.notes ?? ""}
+              onChange={(e) => update(person.id, { notes: e.target.value })}
+            />
+          </Field>
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Event Attendance</h2>
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Event Attendance
+          </h2>
           <div className="overflow-x-auto rounded-md border border-border">
             <Table>
               <TableHeader>
@@ -154,12 +244,24 @@ function PersonDetail() {
                     return (
                       <TableRow key={ev.id}>
                         <TableCell>
-                          <Link to="/events/$id" params={{ id: ev.id }} className="font-medium hover:underline">{ev.name}</Link>
+                          <Link
+                            to="/events/$id"
+                            params={{ id: ev.id }}
+                            className="font-medium hover:underline"
+                          >
+                            {ev.name}
+                          </Link>
                           <div className="text-xs text-muted-foreground">{ev.date}</div>
                         </TableCell>
-                        <TableCell colSpan={8} className="text-xs text-muted-foreground">Not assigned</TableCell>
+                        <TableCell colSpan={8} className="text-xs text-muted-foreground">
+                          Not assigned
+                        </TableCell>
                         <TableCell>
-                          <Button size="sm" variant="ghost" onClick={() => addAttendance(ev.id, person.id)}>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => addAttendance(ev.id, person.id)}
+                          >
                             <Plus className="h-3.5 w-3.5" /> Assign
                           </Button>
                         </TableCell>
@@ -169,12 +271,25 @@ function PersonDetail() {
                   return (
                     <TableRow key={ev.id}>
                       <TableCell>
-                        <Link to="/events/$id" params={{ id: ev.id }} className="font-medium hover:underline">{ev.name}</Link>
+                        <Link
+                          to="/events/$id"
+                          params={{ id: ev.id }}
+                          className="font-medium hover:underline"
+                        >
+                          {ev.name}
+                        </Link>
                         <div className="text-xs text-muted-foreground">{ev.date}</div>
                       </TableCell>
                       <TableCell>
-                        <Select value={a.desireToAttend ?? ""} onValueChange={(v) => updateAttendance(a.id, { desireToAttend: v as DesireLevel })}>
-                          <SelectTrigger className="h-8 w-[100px]"><SelectValue placeholder="—" /></SelectTrigger>
+                        <Select
+                          value={a.desireToAttend ?? ""}
+                          onValueChange={(v) =>
+                            updateAttendance(a.id, { desireToAttend: v as DesireLevel })
+                          }
+                        >
+                          <SelectTrigger className="h-8 w-[100px]">
+                            <SelectValue placeholder="—" />
+                          </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="yes">Yes ✅</SelectItem>
                             <SelectItem value="no">No ❌ (Out)</SelectItem>
@@ -183,11 +298,22 @@ function PersonDetail() {
                         </Select>
                       </TableCell>
                       <TableCell className="text-center">
-                        <Checkbox checked={a.hasTicket} onCheckedChange={(v) => updateAttendance(a.id, { hasTicket: !!v })} />
+                        <Checkbox
+                          checked={a.hasTicket}
+                          onCheckedChange={(v) => updateAttendance(a.id, { hasTicket: !!v })}
+                        />
                       </TableCell>
                       <TableCell>
-                        <Select value={a.ticketType ?? ""} onValueChange={(v) => updateAttendance(a.id, { ticketType: v as TicketType })} disabled={!a.hasTicket}>
-                          <SelectTrigger className="h-8 w-[120px]"><SelectValue placeholder="—" /></SelectTrigger>
+                        <Select
+                          value={a.ticketType ?? ""}
+                          onValueChange={(v) =>
+                            updateAttendance(a.id, { ticketType: v as TicketType })
+                          }
+                          disabled={!a.hasTicket}
+                        >
+                          <SelectTrigger className="h-8 w-[120px]">
+                            <SelectValue placeholder="—" />
+                          </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="in_person">In person</SelectItem>
                             <SelectItem value="stream">Stream</SelectItem>
@@ -196,29 +322,69 @@ function PersonDetail() {
                       </TableCell>
                       <TableCell>
                         {!a.hasTicket ? (
-                          <Input type="date" className="h-8 w-[140px]" value={a.plannedPurchaseDate ?? ""} onChange={(e) => updateAttendance(a.id, { plannedPurchaseDate: e.target.value })} />
-                        ) : <span className="text-xs text-muted-foreground">—</span>}
+                          <Input
+                            type="date"
+                            className="h-8 w-[140px]"
+                            value={a.plannedPurchaseDate ?? ""}
+                            onChange={(e) =>
+                              updateAttendance(a.id, { plannedPurchaseDate: e.target.value })
+                            }
+                          />
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
                       </TableCell>
                       <TableCell>
-                        <Input type="date" className="h-8 w-[140px]" value={a.followUpDate ?? ""} onChange={(e) => updateAttendance(a.id, { followUpDate: e.target.value })} />
+                        <Input
+                          type="date"
+                          className="h-8 w-[140px]"
+                          value={a.followUpDate ?? ""}
+                          onChange={(e) => updateAttendance(a.id, { followUpDate: e.target.value })}
+                        />
                       </TableCell>
                       <TableCell>
-                        <Select value={a.helperId ?? "none"} onValueChange={(v) => updateAttendance(a.id, { helperId: v === "none" ? null : v })}>
-                          <SelectTrigger className="h-8 w-[140px]"><SelectValue /></SelectTrigger>
+                        <Select
+                          value={a.helperId ?? "none"}
+                          onValueChange={(v) =>
+                            updateAttendance(a.id, { helperId: v === "none" ? null : v })
+                          }
+                        >
+                          <SelectTrigger className="h-8 w-[140px]">
+                            <SelectValue />
+                          </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="none">— None —</SelectItem>
-                            {people.filter((p) => p.id !== person.id).map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                            {people
+                              .filter((p) => p.id !== person.id)
+                              .map((p) => (
+                                <SelectItem key={p.id} value={p.id}>
+                                  {p.name}
+                                </SelectItem>
+                              ))}
                           </SelectContent>
                         </Select>
                       </TableCell>
                       <TableCell className="text-center">
-                        <Checkbox checked={!!a.attended} onCheckedChange={(v) => updateAttendance(a.id, { attended: !!v })} disabled={!a.hasTicket} />
+                        <Checkbox
+                          checked={!!a.attended}
+                          onCheckedChange={(v) => updateAttendance(a.id, { attended: !!v })}
+                          disabled={!a.hasTicket}
+                        />
                       </TableCell>
                       <TableCell>
-                        <Input className="h-8 w-40" value={a.notes ?? ""} onChange={(e) => updateAttendance(a.id, { notes: e.target.value })} />
+                        <Input
+                          className="h-8 w-40"
+                          value={a.notes ?? ""}
+                          onChange={(e) => updateAttendance(a.id, { notes: e.target.value })}
+                        />
                       </TableCell>
                       <TableCell>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeAttendance(a.id)}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => removeAttendance(a.id)}
+                        >
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </TableCell>
@@ -226,7 +392,11 @@ function PersonDetail() {
                   );
                 })}
                 {events.length === 0 && (
-                  <TableRow><TableCell colSpan={10} className="text-center text-sm text-muted-foreground">No events yet.</TableCell></TableRow>
+                  <TableRow>
+                    <TableCell colSpan={10} className="text-center text-sm text-muted-foreground">
+                      No events yet.
+                    </TableCell>
+                  </TableRow>
                 )}
               </TableBody>
             </Table>
@@ -244,7 +414,15 @@ function PersonDetail() {
   );
 }
 
-function Field({ label, children, error }: { label: string; children: React.ReactNode; error?: string }) {
+function Field({
+  label,
+  children,
+  error,
+}: {
+  label: string;
+  children: React.ReactNode;
+  error?: string;
+}) {
   return (
     <div className="grid gap-1.5">
       <Label className="text-xs">{label}</Label>

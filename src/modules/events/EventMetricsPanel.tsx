@@ -18,8 +18,12 @@ export function EventMetricsPanel({ eventId }: { eventId: string }) {
   const getPerson = usePeopleStore((s) => s.getById);
 
   const ibos = attendances.filter((a) => getPerson(a.personId)?.bizClass === "ibo").length;
-  const apprentices = attendances.filter((a) => getPerson(a.personId)?.bizClass === "apprentice").length;
-  const candidates = attendances.filter((a) => getPerson(a.personId)?.bizClass === "prospect").length;
+  const apprentices = attendances.filter(
+    (a) => getPerson(a.personId)?.bizClass === "apprentice",
+  ).length;
+  const candidates = attendances.filter(
+    (a) => getPerson(a.personId)?.bizClass === "prospect",
+  ).length;
 
   const potential = people.length;
   const desire = attendances.filter((a) => a.desireToAttend === "yes").length;
@@ -39,7 +43,11 @@ export function EventMetricsPanel({ eventId }: { eventId: string }) {
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
       <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-xs uppercase tracking-wide text-muted-foreground">Roster mix</CardTitle></CardHeader>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-xs uppercase tracking-wide text-muted-foreground">
+            Roster mix
+          </CardTitle>
+        </CardHeader>
         <CardContent className="space-y-1.5">
           <Stat label="IBOs" value={ibos} />
           <Stat label="Apprentices" value={apprentices} />
@@ -47,7 +55,11 @@ export function EventMetricsPanel({ eventId }: { eventId: string }) {
         </CardContent>
       </Card>
       <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-xs uppercase tracking-wide text-muted-foreground">Pipeline</CardTitle></CardHeader>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-xs uppercase tracking-wide text-muted-foreground">
+            Pipeline
+          </CardTitle>
+        </CardHeader>
         <CardContent className="space-y-1.5">
           <Stat label="Potential" value={potential} />
           <Stat label="Desire" value={desire} />
@@ -55,7 +67,11 @@ export function EventMetricsPanel({ eventId }: { eventId: string }) {
         </CardContent>
       </Card>
       <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-xs uppercase tracking-wide text-muted-foreground">Ticketing</CardTitle></CardHeader>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-xs uppercase tracking-wide text-muted-foreground">
+            Ticketing
+          </CardTitle>
+        </CardHeader>
         <CardContent className="space-y-1.5">
           <Stat label="In Person" value={inPerson} />
           <Stat label="Stream" value={stream} />
@@ -63,7 +79,11 @@ export function EventMetricsPanel({ eventId }: { eventId: string }) {
         </CardContent>
       </Card>
       <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-xs uppercase tracking-wide text-muted-foreground">Engagement</CardTitle></CardHeader>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-xs uppercase tracking-wide text-muted-foreground">
+            Engagement
+          </CardTitle>
+        </CardHeader>
         <CardContent className="space-y-1.5">
           <Stat label="Follow Ups" value={followUps} />
           <Stat label="Dates" value={dates} />
@@ -71,7 +91,11 @@ export function EventMetricsPanel({ eventId }: { eventId: string }) {
         </CardContent>
       </Card>
       <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-xs uppercase tracking-wide text-muted-foreground">Qualifications</CardTitle></CardHeader>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-xs uppercase tracking-wide text-muted-foreground">
+            Qualifications
+          </CardTitle>
+        </CardHeader>
         <CardContent className="space-y-1.5">
           <Stat label="Leadership" value={leadership} />
           <Stat label="Additional Event" value={special} />

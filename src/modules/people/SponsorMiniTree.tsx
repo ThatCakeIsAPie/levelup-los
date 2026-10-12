@@ -30,7 +30,9 @@ export function SponsorMiniTree({ personId }: { personId: string }) {
           <div className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
             {chain.map((p) => (
               <span key={p.id} className="flex items-center gap-1">
-                <Link to="/people/$id" params={{ id: p.id }} className="hover:underline">{p.name}</Link>
+                <Link to="/people/$id" params={{ id: p.id }} className="hover:underline">
+                  {p.name}
+                </Link>
                 <span>›</span>
               </span>
             ))}

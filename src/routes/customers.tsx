@@ -4,20 +4,39 @@ import { usePeopleStore } from "@/stores/peopleStore";
 import { useSessionStore } from "@/stores/sessionStore";
 import { visibleCustomers } from "@/lib/db";
 import { useCrmStore, lastContactDate, lastSale, daysSince, today } from "@/stores/crmStore";
-import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell,
+} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/customers")({
   head: () => ({
     meta: [
       { title: "Customers — LevelUp LOS" },
-      { name: "description", content: "Your private customer list with purchases and last contact." },
+      {
+        name: "description",
+        content: "Your private customer list with purchases and last contact.",
+      },
       { property: "og:title", content: "Customers — LevelUp LOS" },
-      { property: "og:description", content: "Your private customer list with purchases and last contact." },
+      {
+        property: "og:description",
+        content: "Your private customer list with purchases and last contact.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -33,7 +52,11 @@ function CustomersPage() {
   const [saleFor, setSaleFor] = useState<string | null>(null);
 
   if (user?.role === "candidate") {
-    return <div className="p-6 text-sm text-muted-foreground">Customers become available once you start your business.</div>;
+    return (
+      <div className="p-6 text-sm text-muted-foreground">
+        Customers become available once you start your business.
+      </div>
+    );
   }
 
   return (
@@ -66,19 +89,39 @@ function CustomersPage() {
             return (
               <TableRow key={c.id}>
                 <TableCell>
-                  <Link to="/people/$id" params={{ id: c.id }} className="font-medium hover:underline">{c.name}</Link>
+                  <Link
+                    to="/people/$id"
+                    params={{ id: c.id }}
+                    className="font-medium hover:underline"
+                  >
+                    {c.name}
+                  </Link>
                 </TableCell>
                 <TableCell className="text-xs">{c.phone ?? "—"}</TableCell>
                 <TableCell className="text-xs">{c.email ?? "—"}</TableCell>
                 <TableCell className="text-xs">{sale?.product ?? "—"}</TableCell>
                 <TableCell className="text-xs">{sale?.date ?? "—"}</TableCell>
                 <TableCell className="text-xs">{c.joinedDate ?? "—"}</TableCell>
-                <TableCell className={`text-xs ${overdue ? "text-destructive" : ""}`}>{lc ? `${lc} (${age}d)` : "Never"}</TableCell>
+                <TableCell className={`text-xs ${overdue ? "text-destructive" : ""}`}>
+                  {lc ? `${lc} (${age}d)` : "Never"}
+                </TableCell>
                 <TableCell className="whitespace-nowrap text-right">
-                  <Button size="sm" variant="outline" className="h-7" onClick={() => setSaleFor(c.id)}>Log sale</Button>
                   <Button
-                    size="sm" variant="outline" className="ml-2 h-7"
-                    onClick={() => { logContact({ personId: c.id, byId: user?.personId ?? "", date: today() }); toast.success(`Contact logged for ${c.name}`); }}
+                    size="sm"
+                    variant="outline"
+                    className="h-7"
+                    onClick={() => setSaleFor(c.id)}
+                  >
+                    Log sale
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="ml-2 h-7"
+                    onClick={() => {
+                      logContact({ personId: c.id, byId: user?.personId ?? "", date: today() });
+                      toast.success(`Contact logged for ${c.name}`);
+                    }}
                   >
                     Log contact
                   </Button>
@@ -87,7 +130,11 @@ function CustomersPage() {
             );
           })}
           {customers.length === 0 && (
-            <TableRow><TableCell colSpan={8} className="text-center text-sm text-muted-foreground">No customers yet. Add one from People or the Mindmap.</TableCell></TableRow>
+            <TableRow>
+              <TableCell colSpan={8} className="text-center text-sm text-muted-foreground">
+                No customers yet. Add one from People or the Mindmap.
+              </TableCell>
+            </TableRow>
           )}
         </TableBody>
       </Table>
@@ -110,12 +157,24 @@ function SaleDialog({ customerId, onClose }: { customerId: string | null; onClos
   return (
     <Dialog open={!!customerId} onOpenChange={(o) => !o && onClose()}>
       <DialogContent>
-        <DialogHeader><DialogTitle>Log sale</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>Log sale</DialogTitle>
+        </DialogHeader>
         <div className="grid gap-3">
-          <div className="grid gap-1.5"><Label>Product *</Label><Input value={product} onChange={(e) => setProduct(e.target.value)} /></div>
-          <div className="grid gap-1.5"><Label>Date</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
+          <div className="grid gap-1.5">
+            <Label>Product *</Label>
+            <Input value={product} onChange={(e) => setProduct(e.target.value)} />
+          </div>
+          <div className="grid gap-1.5">
+            <Label>Date</Label>
+            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          </div>
         </div>
-        <DialogFooter><Button onClick={save} disabled={!product.trim()}>Save</Button></DialogFooter>
+        <DialogFooter>
+          <Button onClick={save} disabled={!product.trim()}>
+            Save
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

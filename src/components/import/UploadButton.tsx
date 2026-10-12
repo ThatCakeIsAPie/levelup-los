@@ -18,7 +18,9 @@ export function UploadButton({ label = "Upload spreadsheet" }: { label?: string 
       const headers = Object.keys(rows[0]);
       const map = autoMap(headers);
       if (!map.id || !map.sponsorId) {
-        toast.error("Could not detect ID / SponsorID columns. Expected headers like 'ID' and 'SponsorID'.");
+        toast.error(
+          "Could not detect ID / SponsorID columns. Expected headers like 'ID' and 'SponsorID'.",
+        );
         return;
       }
       loadRows(rows, map);

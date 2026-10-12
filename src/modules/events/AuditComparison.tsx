@@ -5,8 +5,21 @@ import { useAttendanceStore } from "@/stores/attendanceStore";
 import { usePeopleStore } from "@/stores/peopleStore";
 import { getAuditDelta, attendanceStatusLabel } from "@/lib/selectors";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell,
+} from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Link } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
@@ -21,7 +34,13 @@ function statusBadge(label: string) {
     Tracked: "bg-muted text-muted-foreground",
     "—": "text-muted-foreground",
   };
-  return <span className={`inline-flex rounded px-1.5 py-0.5 text-[10px] font-medium ${map[label] ?? "bg-muted"}`}>{label}</span>;
+  return (
+    <span
+      className={`inline-flex rounded px-1.5 py-0.5 text-[10px] font-medium ${map[label] ?? "bg-muted"}`}
+    >
+      {label}
+    </span>
+  );
 }
 
 export function AuditComparison({ eventId }: { eventId: string }) {
@@ -32,7 +51,10 @@ export function AuditComparison({ eventId }: { eventId: string }) {
   const addAttendance = useAttendanceStore((s) => s.add);
   const people = usePeopleStore((s) => s.people);
 
-  const otherEvents = useMemo(() => allEvents.filter((e) => e.id !== eventId), [allEvents, eventId]);
+  const otherEvents = useMemo(
+    () => allEvents.filter((e) => e.id !== eventId),
+    [allEvents, eventId],
+  );
   const [priorId, setPriorId] = useState<string | undefined>(auto.prior?.id);
   const [lastYearId, setLastYearId] = useState<string | undefined>(auto.lastYear?.id);
 
@@ -52,13 +74,20 @@ export function AuditComparison({ eventId }: { eventId: string }) {
     ? rows.filter((r) => r.byEvent[lastYear.id] && r.byEvent[current.id]).length
     : 0;
   const retention = lastYearCount ? Math.round((returningFromLast / lastYearCount) * 100) : 0;
-  const yoy = lastYearCount ? Math.round(((currentCount - lastYearCount) / lastYearCount) * 100) : 0;
+  const yoy = lastYearCount
+    ? Math.round(((currentCount - lastYearCount) / lastYearCount) * 100)
+    : 0;
 
   return (
     <div className="space-y-4 p-4">
       <div className="grid gap-3 md:grid-cols-3">
         <Picker label="Prior event" value={priorId} onChange={setPriorId} events={otherEvents} />
-        <Picker label="Same event last year" value={lastYearId} onChange={setLastYearId} events={otherEvents} />
+        <Picker
+          label="Same event last year"
+          value={lastYearId}
+          onChange={setLastYearId}
+          events={otherEvents}
+        />
         <div />
       </div>
 
@@ -66,12 +95,18 @@ export function AuditComparison({ eventId }: { eventId: string }) {
         <SummaryStat label="Current" value={currentCount} sub={current.name} />
         <SummaryStat label="Prior" value={priorCount} sub={prior?.name ?? "—"} />
         <SummaryStat label="Last year" value={lastYearCount} sub={lastYear?.name ?? "—"} />
-        <SummaryStat label="Retention / YoY" value={`${retention}% · ${yoy >= 0 ? "+" : ""}${yoy}%`} sub="vs. last year" />
+        <SummaryStat
+          label="Retention / YoY"
+          value={`${retention}% · ${yoy >= 0 ? "+" : ""}${yoy}%`}
+          sub="vs. last year"
+        />
       </div>
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-xs uppercase tracking-wide text-muted-foreground">Per-person comparison</CardTitle>
+          <CardTitle className="text-xs uppercase tracking-wide text-muted-foreground">
+            Per-person comparison
+          </CardTitle>
         </CardHeader>
         <CardContent className="overflow-x-auto p-0">
           <Table>
@@ -90,13 +125,27 @@ export function AuditComparison({ eventId }: { eventId: string }) {
                 return (
                   <TableRow key={r.personId}>
                     <TableCell>
-                      <Link to="/people/$id" params={{ id: r.personId }} className="font-medium hover:underline">
+                      <Link
+                        to="/people/$id"
+                        params={{ id: r.personId }}
+                        className="font-medium hover:underline"
+                      >
                         {r.personName}
                       </Link>
                     </TableCell>
-                    {lastYear && <TableCell>{statusBadge(attendanceStatusLabel(r.byEvent[lastYear.id]))}</TableCell>}
-                    {prior && <TableCell>{statusBadge(attendanceStatusLabel(r.byEvent[prior.id]))}</TableCell>}
-                    <TableCell>{statusBadge(attendanceStatusLabel(r.byEvent[current.id]))}</TableCell>
+                    {lastYear && (
+                      <TableCell>
+                        {statusBadge(attendanceStatusLabel(r.byEvent[lastYear.id]))}
+                      </TableCell>
+                    )}
+                    {prior && (
+                      <TableCell>
+                        {statusBadge(attendanceStatusLabel(r.byEvent[prior.id]))}
+                      </TableCell>
+                    )}
+                    <TableCell>
+                      {statusBadge(attendanceStatusLabel(r.byEvent[current.id]))}
+                    </TableCell>
                     <TableCell className="text-right">
                       {!inCurrent && (
                         <Button
@@ -115,7 +164,11 @@ export function AuditComparison({ eventId }: { eventId: string }) {
                 );
               })}
               {rows.length === 0 && (
-                <TableRow><TableCell colSpan={5} className="text-center text-sm text-muted-foreground">No comparable attendees yet.</TableCell></TableRow>
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center text-sm text-muted-foreground">
+                    No comparable attendees yet.
+                  </TableCell>
+                </TableRow>
               )}
             </TableBody>
           </Table>
@@ -125,22 +178,46 @@ export function AuditComparison({ eventId }: { eventId: string }) {
   );
 }
 
-function Picker({ label, value, onChange, events }: { label: string; value?: string; onChange: (v?: string) => void; events: CrmEvent[] }) {
+function Picker({
+  label,
+  value,
+  onChange,
+  events,
+}: {
+  label: string;
+  value?: string;
+  onChange: (v?: string) => void;
+  events: CrmEvent[];
+}) {
   return (
     <div className="grid gap-1">
       <span className="text-xs text-muted-foreground">{label}</span>
       <Select value={value ?? "none"} onValueChange={(v) => onChange(v === "none" ? undefined : v)}>
-        <SelectTrigger className="h-8"><SelectValue placeholder="—" /></SelectTrigger>
+        <SelectTrigger className="h-8">
+          <SelectValue placeholder="—" />
+        </SelectTrigger>
         <SelectContent>
           <SelectItem value="none">— None —</SelectItem>
-          {events.map((e) => <SelectItem key={e.id} value={e.id}>{e.name} ({e.date})</SelectItem>)}
+          {events.map((e) => (
+            <SelectItem key={e.id} value={e.id}>
+              {e.name} ({e.date})
+            </SelectItem>
+          ))}
         </SelectContent>
       </Select>
     </div>
   );
 }
 
-function SummaryStat({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
+function SummaryStat({
+  label,
+  value,
+  sub,
+}: {
+  label: string;
+  value: string | number;
+  sub?: string;
+}) {
   return (
     <Card>
       <CardContent className="pt-4">
@@ -153,6 +230,13 @@ function SummaryStat({ label, value, sub }: { label: string; value: string | num
 }
 
 // Memoize delta computation locally
-function useMemoDelta(eventIds: string[], attendances: ReturnType<typeof useAttendanceStore.getState>["attendances"], people: ReturnType<typeof usePeopleStore.getState>["people"]) {
-  return useMemo(() => getAuditDelta(eventIds, attendances, people), [eventIds.join(","), attendances, people]);
+function useMemoDelta(
+  eventIds: string[],
+  attendances: ReturnType<typeof useAttendanceStore.getState>["attendances"],
+  people: ReturnType<typeof usePeopleStore.getState>["people"],
+) {
+  return useMemo(
+    () => getAuditDelta(eventIds, attendances, people),
+    [eventIds.join(","), attendances, people],
+  );
 }

@@ -39,14 +39,8 @@ interface SizedNode {
   isExpanded: boolean;
 }
 
-function build(
-  node: TreeNode,
-  depth: number,
-  expanded: Set<string>,
-  maxDepth: number,
-): SizedNode {
-  const isExpanded =
-    expanded.has(node.person.id) && node.children.length > 0 && depth < maxDepth;
+function build(node: TreeNode, depth: number, expanded: Set<string>, maxDepth: number): SizedNode {
+  const isExpanded = expanded.has(node.person.id) && node.children.length > 0 && depth < maxDepth;
   const kids = isExpanded
     ? sortedChildren(node).map((c) => build(c, depth + 1, expanded, maxDepth))
     : [];
@@ -87,13 +81,7 @@ export function layout(root: TreeNode, expanded: Set<string>, maxDepth = 64): La
   const yOf = new Map<string, number>();
   const bottomYOf = new Map<string, number>();
 
-  function place(
-    sn: SizedNode,
-    x: number,
-    y: number,
-    depth: number,
-    parentId: string | null,
-  ) {
+  function place(sn: SizedNode, x: number, y: number, depth: number, parentId: string | null) {
     const { node, isExpanded, kids } = sn;
     yOf.set(node.person.id, y);
 

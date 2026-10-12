@@ -7,7 +7,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 export function EventFunnel({ eventId }: { eventId: string }) {
   const attendances = useAttendanceStore((s) => s.attendances);
   const peopleCount = usePeopleStore((s) => s.people.length);
-  const f = useMemo(() => getEventFunnel(eventId, attendances, peopleCount), [eventId, attendances, peopleCount]);
+  const f = useMemo(
+    () => getEventFunnel(eventId, attendances, peopleCount),
+    [eventId, attendances, peopleCount],
+  );
 
   const stages: { key: keyof typeof f; label: string }[] = [
     { key: "potential", label: "Potential" },
@@ -22,7 +25,9 @@ export function EventFunnel({ eventId }: { eventId: string }) {
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-xs uppercase tracking-wide text-muted-foreground">Conversion funnel</CardTitle>
+        <CardTitle className="text-xs uppercase tracking-wide text-muted-foreground">
+          Conversion funnel
+        </CardTitle>
       </CardHeader>
       <CardContent className="space-y-2">
         {stages.map((s, i) => {
@@ -35,11 +40,17 @@ export function EventFunnel({ eventId }: { eventId: string }) {
               <div className="mb-1 flex items-center justify-between text-xs">
                 <span className="font-medium">{s.label}</span>
                 <span className="tabular-nums text-muted-foreground">
-                  {v}{stepPct !== null && <span className="ml-2 text-[10px]">({stepPct}% of prior)</span>}
+                  {v}
+                  {stepPct !== null && (
+                    <span className="ml-2 text-[10px]">({stepPct}% of prior)</span>
+                  )}
                 </span>
               </div>
               <div className="h-2 overflow-hidden rounded bg-muted">
-                <div className="h-full rounded bg-primary transition-all" style={{ width: `${pct}%` }} />
+                <div
+                  className="h-full rounded bg-primary transition-all"
+                  style={{ width: `${pct}%` }}
+                />
               </div>
             </div>
           );

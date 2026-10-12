@@ -2,36 +2,104 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { daysFromToday, localDate } from "@/lib/dates";
 
-export interface Sale { id: string; customerId: string; product: string; date: string; amount?: number }
-export interface Contact { id: string; personId: string; byId: string; date: string; note?: string }
+export interface Sale {
+  id: string;
+  customerId: string;
+  product: string;
+  date: string;
+  amount?: number;
+}
+export interface Contact {
+  id: string;
+  personId: string;
+  byId: string;
+  date: string;
+  note?: string;
+}
 export type LearningKind = "podcast" | "pages" | "workshop" | "conference";
-export interface Learning { id: string; personId: string; kind: LearningKind; title: string; amount: number; date: string }
-export interface Settings { customerDays: number; teamDays: number }
+export interface Learning {
+  id: string;
+  personId: string;
+  kind: LearningKind;
+  title: string;
+  amount: number;
+  date: string;
+}
+export interface Settings {
+  customerDays: number;
+  teamDays: number;
+}
 
 const daysAgo = (n: number) => daysFromToday(-n);
 
 const seedSales: Sale[] = [
-  ["c1", "Nutrilite Double X", 5], ["c2", "Artistry Skin Set", 20], ["c3", "XS Energy (case)", 40],
-  ["c4", "eSpring Filter", 70], ["c5", "Nutrilite Daily", 3], ["c6", "SA8 Laundry", 45],
-  ["c7", "Protein Powder", 12], ["c8", "XS Energy (case)", 33], ["c9", "Artistry Serum", 8], ["c10", "Glister Toothpaste", 60],
-].map(([customerId, product, d], i) => ({ id: `s${i}`, customerId: customerId as string, product: product as string, date: daysAgo(d as number) }));
+  ["c1", "Nutrilite Double X", 5],
+  ["c2", "Artistry Skin Set", 20],
+  ["c3", "XS Energy (case)", 40],
+  ["c4", "eSpring Filter", 70],
+  ["c5", "Nutrilite Daily", 3],
+  ["c6", "SA8 Laundry", 45],
+  ["c7", "Protein Powder", 12],
+  ["c8", "XS Energy (case)", 33],
+  ["c9", "Artistry Serum", 8],
+  ["c10", "Glister Toothpaste", 60],
+].map(([customerId, product, d], i) => ({
+  id: `s${i}`,
+  customerId: customerId as string,
+  product: product as string,
+  date: daysAgo(d as number),
+}));
 
 const customerContactAge: Record<string, [string, number]> = {
-  c1: ["1", 4], c2: ["1", 36], c3: ["1", 12], c4: ["1", 52], c5: ["2", 9], c6: ["2", 41],
-  c7: ["3", 18], c8: ["4", 31], c9: ["8", 6], c10: ["13", 44],
+  c1: ["1", 4],
+  c2: ["1", 36],
+  c3: ["1", 12],
+  c4: ["1", 52],
+  c5: ["2", 9],
+  c6: ["2", 41],
+  c7: ["3", 18],
+  c8: ["4", 31],
+  c9: ["8", 6],
+  c10: ["13", 44],
 };
-const teamContactAge: Record<string, number> = { "2": 3, "3": 20, "4": 9, "5": 16, "6": 2, "7": 25, "8": 11, "9": 30, "10": 5 };
+const teamContactAge: Record<string, number> = {
+  "2": 3,
+  "3": 20,
+  "4": 9,
+  "5": 16,
+  "6": 2,
+  "7": 25,
+  "8": 11,
+  "9": 30,
+  "10": 5,
+};
 
 const seedContacts: Contact[] = [
-  ...Object.entries(customerContactAge).map(([pid, [by, d]]) => ({ id: `k-${pid}`, personId: pid, byId: by, date: daysAgo(d) })),
-  ...Object.entries(teamContactAge).map(([pid, d]) => ({ id: `t-${pid}`, personId: pid, byId: "1", date: daysAgo(d) })),
+  ...Object.entries(customerContactAge).map(([pid, [by, d]]) => ({
+    id: `k-${pid}`,
+    personId: pid,
+    byId: by,
+    date: daysAgo(d),
+  })),
+  ...Object.entries(teamContactAge).map(([pid, d]) => ({
+    id: `t-${pid}`,
+    personId: pid,
+    byId: "1",
+    date: daysAgo(d),
+  })),
 ];
 
 const seedLearning: Learning[] = [
   { personId: "1", kind: "podcast", title: "Leadership Hour #42", amount: 1, date: daysAgo(0) },
   { personId: "1", kind: "pages", title: "Go-Givers Sell More", amount: 25, date: daysAgo(1) },
   { personId: "1", kind: "pages", title: "Go-Givers Sell More", amount: 20, date: daysAgo(2) },
-  { personId: "1", kind: "workshop", title: "Spring Leadership Workshop", amount: 1, date: daysAgo(12) },
+  {
+    personId: "1",
+    kind: "workshop",
+    title: "Spring Leadership Workshop",
+    amount: 1,
+    date: daysAgo(12),
+  },
   { personId: "2", kind: "podcast", title: "Momentum Daily", amount: 1, date: daysAgo(0) },
   { personId: "2", kind: "pages", title: "The Slight Edge", amount: 15, date: daysAgo(3) },
   { personId: "4", kind: "podcast", title: "Momentum Daily", amount: 1, date: daysAgo(6) },

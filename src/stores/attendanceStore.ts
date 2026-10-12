@@ -35,58 +35,69 @@ interface AttendanceState {
   bulkUpdate: (ids: string[], patch: Partial<Attendance>) => void;
 }
 
-export const useAttendanceStore = create<AttendanceState>()(persist((set, get) => ({
-  attendances: makeSeed(),
-  forEvent: (eventId) => get().attendances.filter((a) => a.eventId === eventId),
-  forPerson: (personId) => get().attendances.filter((a) => a.personId === personId),
-  forEventAndPerson: (eventId, personId) =>
-    get().attendances.find((a) => a.eventId === eventId && a.personId === personId),
-  add: (eventId, personId) => {
-    const existing = get().attendances.find((a) => a.eventId === eventId && a.personId === personId);
-    if (existing) return existing;
-    const a: Attendance = {
-      id: crypto.randomUUID(),
-      eventId,
-      personId,
-      hasTicket: false,
-      leadershipQualified: false,
-      specialEventQualified: false,
-      updatedAt: new Date().toISOString(),
-    };
-    set({ attendances: [...get().attendances, a] });
-    logAttendance("assigned_event", a.id, personId, eventId, "Assigned to event");
-    return a;
-  },
-  update: (id, patch) => {
-    const prev = get().attendances.find((a) => a.id === id);
-    if (!prev) return;
-    const next = { ...prev, ...patch, updatedAt: new Date().toISOString() };
-    set({ attendances: get().attendances.map((a) => (a.id === id ? next : a)) });
+export const useAttendanceStore = create<AttendanceState>()(
+  persist(
+    (set, get) => ({
+      attendances: makeSeed(),
+      forEvent: (eventId) => get().attendances.filter((a) => a.eventId === eventId),
+      forPerson: (personId) => get().attendances.filter((a) => a.personId === personId),
+      forEventAndPerson: (eventId, personId) =>
+        get().attendances.find((a) => a.eventId === eventId && a.personId === personId),
+      add: (eventId, personId) => {
+        const existing = get().attendances.find(
+          (a) => a.eventId === eventId && a.personId === personId,
+        );
+        if (existing) return existing;
+        const a: Attendance = {
+          id: crypto.randomUUID(),
+          eventId,
+          personId,
+          hasTicket: false,
+          leadershipQualified: false,
+          specialEventQualified: false,
+          updatedAt: new Date().toISOString(),
+        };
+        set({ attendances: [...get().attendances, a] });
+        logAttendance("assigned_event", a.id, personId, eventId, "Assigned to event");
+        return a;
+      },
+      update: (id, patch) => {
+        const prev = get().attendances.find((a) => a.id === id);
+        if (!prev) return;
+        const next = { ...prev, ...patch, updatedAt: new Date().toISOString() };
+        set({ attendances: get().attendances.map((a) => (a.id === id ? next : a)) });
 
-    if (patch.hasTicket === true && !prev.hasTicket) {
-      logAttendance("ticket_purchased", id, prev.personId, prev.eventId, "Ticket purchased");
-    }
-    if (patch.attended === true && !prev.attended) {
-      logAttendance("marked_attended", id, prev.personId, prev.eventId, "Attended");
-    }
-    if (patch.attended === false && prev.attended !== false && prev.hasTicket) {
-      logAttendance("marked_no_show", id, prev.personId, prev.eventId, "No-show");
-    }
-  },
-  remove: (id) => {
-    const prev = get().attendances.find((a) => a.id === id);
-    set({ attendances: get().attendances.filter((a) => a.id !== id) });
-    if (prev) logAttendance("deleted", id, prev.personId, prev.eventId, "Removed from event");
-  },
-  bulkUpdate: (ids, patch) => {
-    const now = new Date().toISOString();
-    set({
-      attendances: get().attendances.map((a) =>
-        ids.includes(a.id) ? { ...a, ...patch, updatedAt: now } : a,
-      ),
-    });
-  },
-}), { name: "levelup.attendance", storage: createJSONStorage(() => localStorage), partialize: (s) => ({ attendances: s.attendances }) }));
+        if (patch.hasTicket === true && !prev.hasTicket) {
+          logAttendance("ticket_purchased", id, prev.personId, prev.eventId, "Ticket purchased");
+        }
+        if (patch.attended === true && !prev.attended) {
+          logAttendance("marked_attended", id, prev.personId, prev.eventId, "Attended");
+        }
+        if (patch.attended === false && prev.attended !== false && prev.hasTicket) {
+          logAttendance("marked_no_show", id, prev.personId, prev.eventId, "No-show");
+        }
+      },
+      remove: (id) => {
+        const prev = get().attendances.find((a) => a.id === id);
+        set({ attendances: get().attendances.filter((a) => a.id !== id) });
+        if (prev) logAttendance("deleted", id, prev.personId, prev.eventId, "Removed from event");
+      },
+      bulkUpdate: (ids, patch) => {
+        const now = new Date().toISOString();
+        set({
+          attendances: get().attendances.map((a) =>
+            ids.includes(a.id) ? { ...a, ...patch, updatedAt: now } : a,
+          ),
+        });
+      },
+    }),
+    {
+      name: "levelup.attendance",
+      storage: createJSONStorage(() => localStorage),
+      partialize: (s) => ({ attendances: s.attendances }),
+    },
+  ),
+);
 
 function makeSeed(): Attendance[] {
   // Seeded combos so funnel / audit / engagement views have data to show.
@@ -107,22 +118,67 @@ function makeSeed(): Attendance[] {
   });
   return [
     // SpringConference26 (upcoming, e1)
-    mk("a1", "e1", "1", { desireToAttend: "yes", hasTicket: true, ticketType: "in_person", leadershipQualified: true }),
+    mk("a1", "e1", "1", {
+      desireToAttend: "yes",
+      hasTicket: true,
+      ticketType: "in_person",
+      leadershipQualified: true,
+    }),
     mk("a2", "e1", "2", { desireToAttend: "yes", hasTicket: true, ticketType: "in_person" }),
-    mk("a3", "e1", "3", { desireToAttend: "yes", hasTicket: false, plannedPurchaseDate: "2026-05-15", followUpDate: "2026-06-03", helperId: "1" }),
-    mk("a4", "e1", "4", { desireToAttend: "yes", hasTicket: false, plannedPurchaseDate: "2026-05-30", helperId: "2" }),
+    mk("a3", "e1", "3", {
+      desireToAttend: "yes",
+      hasTicket: false,
+      plannedPurchaseDate: "2026-05-15",
+      followUpDate: "2026-06-03",
+      helperId: "1",
+    }),
+    mk("a4", "e1", "4", {
+      desireToAttend: "yes",
+      hasTicket: false,
+      plannedPurchaseDate: "2026-05-30",
+      helperId: "2",
+    }),
     mk("a5", "e1", "5", { desireToAttend: "maybe", hasTicket: false, followUpDate: "2026-06-05" }),
     mk("a6", "e1", "6", { desireToAttend: "yes", hasTicket: true, ticketType: "stream" }),
-    mk("a7", "e1", "7", { desireToAttend: "yes", hasTicket: false, plannedPurchaseDate: "2025-05-15" }),
+    mk("a7", "e1", "7", {
+      desireToAttend: "yes",
+      hasTicket: false,
+      plannedPurchaseDate: "2025-05-15",
+    }),
     mk("a8", "e1", "8", { desireToAttend: "yes", hasTicket: true, ticketType: "in_person" }),
     mk("a9", "e1", "9", { desireToAttend: "no" }),
     mk("a10", "e1", "11", { desireToAttend: "yes", hasTicket: false, helperId: "7" }),
     // SpringConference25 (last year, e2)
-    mk("b1", "e2", "1", { desireToAttend: "yes", hasTicket: true, attended: true, ticketType: "in_person" }),
-    mk("b2", "e2", "2", { desireToAttend: "yes", hasTicket: true, attended: true, ticketType: "in_person" }),
-    mk("b3", "e2", "3", { desireToAttend: "yes", hasTicket: true, attended: false, ticketType: "in_person" }),
-    mk("b4", "e2", "6", { desireToAttend: "yes", hasTicket: true, attended: true, ticketType: "stream" }),
-    mk("b5", "e2", "8", { desireToAttend: "yes", hasTicket: true, attended: true, ticketType: "in_person" }),
+    mk("b1", "e2", "1", {
+      desireToAttend: "yes",
+      hasTicket: true,
+      attended: true,
+      ticketType: "in_person",
+    }),
+    mk("b2", "e2", "2", {
+      desireToAttend: "yes",
+      hasTicket: true,
+      attended: true,
+      ticketType: "in_person",
+    }),
+    mk("b3", "e2", "3", {
+      desireToAttend: "yes",
+      hasTicket: true,
+      attended: false,
+      ticketType: "in_person",
+    }),
+    mk("b4", "e2", "6", {
+      desireToAttend: "yes",
+      hasTicket: true,
+      attended: true,
+      ticketType: "stream",
+    }),
+    mk("b5", "e2", "8", {
+      desireToAttend: "yes",
+      hasTicket: true,
+      attended: true,
+      ticketType: "in_person",
+    }),
     mk("b6", "e2", "13", { desireToAttend: "yes", hasTicket: true, attended: true }),
     mk("b7", "e2", "17", { desireToAttend: "yes", hasTicket: true, attended: false }),
     // SummerConference25 (prior, e3)
@@ -136,4 +192,3 @@ function makeSeed(): Attendance[] {
     mk("d3", "e4", "11", { desireToAttend: "maybe" }),
   ];
 }
-

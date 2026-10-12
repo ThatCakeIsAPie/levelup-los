@@ -78,13 +78,22 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "LevelUp LOS" },
-      { name: "description", content: "Team, customer, and event management for direct sales leaders." },
+      {
+        name: "description",
+        content: "Team, customer, and event management for direct sales leaders.",
+      },
       { property: "og:title", content: "LevelUp LOS" },
-      { property: "og:description", content: "Team, customer, and event management for direct sales leaders." },
+      {
+        property: "og:description",
+        content: "Team, customer, and event management for direct sales leaders.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:title", content: "LevelUp LOS" },
-      { name: "twitter:description", content: "Team, customer, and event management for direct sales leaders." },
+      {
+        name: "twitter:description",
+        content: "Team, customer, and event management for direct sales leaders.",
+      },
     ],
     links: [
       {
