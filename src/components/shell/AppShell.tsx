@@ -67,8 +67,10 @@ const THEME_ICON: Record<ThemePreference, typeof Sun> = { light: Sun, dark: Moon
  * Renders the global LogSheet and the reset-demo confirmation once.
  *
  * Pages render inside <main>, which is the scroll container (full height
- * minus the tab bar on phones). Pages should not set their own h-screen; use
- * `h-full` only for full-bleed canvases like the mindmap.
+ * minus the tab bar on phones) and a flex column: the apprentice notice (if
+ * shown) sits on top and the page below it. Normal pages just flow and scroll;
+ * a full-screen page (the mindmap) uses `flex min-h-0 flex-1 flex-col` to take
+ * exactly the space that's left. Pages never set their own h-screen.
  */
 export function AppShell({ children }: { children: ReactNode }) {
   const [resetOpen, setResetOpen] = useState(false);
@@ -78,7 +80,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="flex h-dvh flex-col bg-app lg:pl-[212px]">
       <Sidebar onReset={() => setResetOpen(true)} />
       <main
-        className="relative min-h-0 flex-1 overflow-y-auto pt-safe lg:pt-0"
+        className="relative flex min-h-0 flex-1 flex-col overflow-y-auto pt-safe lg:pt-0"
         data-scroll-restoration-id="app-main"
         id="main"
       >
@@ -417,7 +419,7 @@ function ApprenticeNotice() {
   const [dismissed, setDismissed] = useState(readDismissed);
   if (user.role !== "apprentice" || dismissed) return null;
   return (
-    <div className="flex items-start gap-2 border-b border-line bg-info-soft px-4 py-2 text-[12px] text-info-ink lg:px-[26px]">
+    <div className="flex shrink-0 items-start gap-2 border-b border-line bg-info-soft px-4 py-2 text-[12px] text-info-ink lg:px-[26px]">
       <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
       <p className="flex-1">
         Apprentice account (first contract year): you can't create shared costs or send invoices,

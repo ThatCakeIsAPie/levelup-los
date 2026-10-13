@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo } from "react";
 import {
   ChevronsDownUp,
   ChevronsUpDown,
@@ -53,33 +53,6 @@ function findByName(nodes: TreeNode[], name: string): TreeNode | null {
   return null;
 }
 
-/**
- * Size the page to the space left in <main> below anything the shell renders
- * above it (the apprentice notice), so the canvas never scrolls the page.
- */
-function useFillMain() {
-  const ref = useRef<HTMLDivElement>(null);
-  const [top, setTop] = useState(0);
-  useLayoutEffect(() => {
-    const el = ref.current;
-    const main = el?.parentElement;
-    if (!el || !main) return;
-    const measure = () => {
-      const pad = parseFloat(getComputedStyle(main).paddingTop) || 0;
-      setTop(Math.max(0, el.offsetTop - pad));
-    };
-    measure();
-    const mo = new MutationObserver(measure);
-    mo.observe(main, { childList: true });
-    window.addEventListener("resize", measure);
-    return () => {
-      mo.disconnect();
-      window.removeEventListener("resize", measure);
-    };
-  }, []);
-  return { ref, style: { height: top ? `calc(100% - ${top}px)` : "100%" } };
-}
-
 function MindmapPage() {
   const user = useCurrentUser();
   const me = useMe();
@@ -89,7 +62,6 @@ function MindmapPage() {
   const sourceKey = useTreeStore((s) => s.sourceKey);
   const loadRows = useTreeStore((s) => s.loadRows);
   const isCandidate = user.role === "candidate";
-  const fill = useFillMain();
 
   // The map is built from the people this user may see (their own downline).
   // Rebuild when that roster changes, unless this user uploaded a spreadsheet.
@@ -125,7 +97,8 @@ function MindmapPage() {
   const ready = source !== null;
 
   return (
-    <div ref={fill.ref} style={fill.style} className="flex flex-col">
+    // <main> is a flex column: take whatever is left below the apprentice notice.
+    <div className="flex min-h-0 flex-1 flex-col">
       <Toolbar
         root={root}
         rootCount={roots.length}

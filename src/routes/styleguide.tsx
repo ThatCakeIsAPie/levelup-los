@@ -77,7 +77,7 @@ const chartConfig = {
 
 function StyleguidePage() {
   return (
-    <div className="mx-auto grid max-w-6xl gap-5 px-4 py-5 lg:px-[26px] lg:py-[22px]">
+    <div className="mx-auto grid w-full max-w-6xl gap-5 px-4 py-5 lg:px-[26px] lg:py-[22px]">
       <PageHeader
         title="Styleguide"
         subtitle="Every brand component in each variant. Toggle the theme to check dark mode."
