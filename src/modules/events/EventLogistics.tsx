@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
-import { format } from "date-fns";
-import { Bus, Car, CreditCard, Pencil, Plane, Plus, Receipt, Info } from "lucide-react";
+import { Bus, Car, Pencil, Plane, Plus, Info } from "lucide-react";
 import { toast } from "sonner";
 import {
   EmptyState,
@@ -30,28 +29,19 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  addSharedCost,
   effectiveBizClass,
-  parseDate,
-  paySandbox,
-  setCostOverride,
   setLogistics,
-  splitCost,
-  toggleCostOptIn,
   updateAttendance,
   useCurrentUser,
   useLogistics,
-  useSharedCosts,
-  useVisibleInvoices,
-  useMyInvoices,
   type Attendance,
   type CrmEvent,
   type Logistics,
-  type SharedCost,
 } from "@/data";
 import { usePeopleMap } from "./hooks";
 import { shortDate, ticketStatus } from "./lib";
 import { Segmented } from "./Segmented";
+import { SharedCostsCard } from "@/components/costs/SharedCosts";
 
 const CARPOOL_LABEL: Record<Logistics["carpool"], string> = {
   teammate: "Carpool with a teammate",
@@ -60,17 +50,10 @@ const CARPOOL_LABEL: Record<Logistics["carpool"], string> = {
   van: "Van or bus with the organizer",
 };
 
-const money = (n: number) =>
-  n.toLocaleString(undefined, {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: Number.isInteger(n) ? 0 : 2,
-  });
-
 /**
  * Tickets and travel tab: per-attendee travel plans (ticket status comes from
- * the attendance row), plus shared costs with opt-in, per-person overrides and
- * sandbox payments. Tickets are tracked here, never sold.
+ * the attendance row), plus the event's shared costs (the same component the
+ * Wallet uses). Tickets are tracked here, never sold.
  */
 export function EventLogistics({ event, rows }: { event: CrmEvent; rows: Attendance[] }) {
   const user = useCurrentUser();
@@ -200,7 +183,7 @@ export function EventLogistics({ event, rows }: { event: CrmEvent; rows: Attenda
         )}
       </SectionCard>
 
-      <SharedCosts event={event} />
+      <SharedCostsCard eventId={event.id} />
 
       <TravelDialog
         attendance={editing}
@@ -393,289 +376,5 @@ function TravelForm({
         <Button type="submit">Save plan</Button>
       </DialogFooter>
     </form>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Shared costs
-// ---------------------------------------------------------------------------
-
-function SharedCosts({ event }: { event: CrmEvent }) {
-  const user = useCurrentUser();
-  const costs = useSharedCosts(event.id);
-  const [creating, setCreating] = useState(false);
-  const canCreate = user.role === "leader" || user.role === "ibo";
-
-  return (
-    <SectionCard
-      title="Shared costs"
-      action={
-        canCreate ? (
-          <Button size="sm" variant="soft" onClick={() => setCreating(true)}>
-            <Plus /> New shared cost
-          </Button>
-        ) : undefined
-      }
-    >
-      {!canCreate && (
-        <p className="-mt-1 flex items-start gap-2 text-[12.5px] text-muted-foreground">
-          <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-          {user.role === "apprentice"
-            ? "Apprentices can't create shared costs in their first contract year. You can still opt in and pay your share."
-            : "Your sponsor sets up shared costs. Opt in to the ones you're part of."}
-        </p>
-      )}
-      {costs.length === 0 ? (
-        <EmptyState
-          icon={<Receipt />}
-          title="No shared costs yet"
-          body="Split things like a hotel block or the team van. People opt in and each share is invoiced in the wallet."
-        />
-      ) : (
-        <div className="grid gap-3">
-          {costs.map((c) => (
-            <CostCard key={c.id} cost={c} />
-          ))}
-        </div>
-      )}
-      <NewCostDialog eventId={event.id} open={creating} onOpenChange={setCreating} />
-    </SectionCard>
-  );
-}
-
-function CostCard({ cost: c }: { cost: SharedCost }) {
-  const user = useCurrentUser();
-  const people = usePeopleMap();
-  const invoices = useVisibleInvoices();
-  const mine = useMyInvoices().find((i) => i.costId === c.id);
-  const split = splitCost(c);
-  const owner = c.ownerId === user.personId;
-  const member = c.members.includes(user.personId);
-  const nameOf = (id: string) =>
-    id === user.personId ? "You" : (people.get(id)?.name ?? "Someone outside your team");
-  // Non-owners only see named rows for people they can see; the rest are summed.
-  const known = (id: string) => owner || id === user.personId || people.has(id);
-  const hidden = c.members.filter((m) => !known(m));
-  const hiddenTotal = hidden.reduce((sum, m) => sum + split[m], 0);
-  const statusOf = (id: string) => invoices.find((i) => i.costId === c.id && i.personId === id);
-  const assigned = Object.values(split).reduce((s, v) => s + v, 0);
-  const off = Math.round((c.total - assigned) * 100) / 100;
-
-  return (
-    <article className="grid gap-3 rounded-[12px] border border-line bg-surface-2/50 p-3.5">
-      <header className="flex flex-wrap items-start justify-between gap-2">
-        <div className="min-w-0">
-          <h3 className="text-[13.5px] font-bold">{c.name}</h3>
-          <p className="text-xs text-muted-foreground">
-            {money(c.total)} total · set up by{" "}
-            {known(c.ownerId) ? nameOf(c.ownerId) : "a team leader"} · split {c.members.length}{" "}
-            {c.members.length === 1 ? "way" : "ways"}
-          </p>
-        </div>
-        <Button
-          size="sm"
-          variant={member ? "outline" : "default"}
-          onClick={() => {
-            toggleCostOptIn(c.id, user.personId);
-            toast.success(member ? `You left ${c.name}` : `You joined ${c.name}`);
-          }}
-        >
-          {member ? "Opt out" : "Opt in"}
-        </Button>
-      </header>
-
-      {member && mine && (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-[10px] bg-card px-3 py-2.5">
-          <CreditCard className="size-4 text-muted-foreground" aria-hidden="true" />
-          <span className="text-[13px]">
-            Your share <b className="tabular-nums">{money(mine.amount)}</b>
-          </span>
-          {mine.status === "paid" ? (
-            <ToneChip tone="good" className="ml-auto">
-              Paid (sandbox){mine.paidAt ? ` · ${format(parseDate(mine.paidAt), "MMM d")}` : ""}
-            </ToneChip>
-          ) : (
-            <Button
-              size="sm"
-              className="ml-auto"
-              onClick={() => {
-                paySandbox(c.id, user.personId);
-                toast.success(`Paid ${money(mine.amount)} (sandbox). No card was charged.`);
-              }}
-            >
-              Pay now (sandbox)
-            </Button>
-          )}
-          {mine.paymentReference && (
-            <span className="w-full text-[11.5px] text-faint">
-              Reference {mine.paymentReference}
-            </span>
-          )}
-        </div>
-      )}
-
-      <ul className="grid gap-1.5">
-        {c.members.filter(known).map((m) => {
-          const p = people.get(m);
-          const inv = statusOf(m);
-          const custom = m in c.overrides;
-          return (
-            <li key={m} className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px]">
-              <PersonAvatar
-                name={p?.name ?? "?"}
-                stage={p ? effectiveBizClass(p) : undefined}
-                size="sm"
-              />
-              <span className="min-w-0 flex-1 truncate">{nameOf(m)}</span>
-              {inv && (
-                <ToneChip tone={inv.status === "paid" ? "good" : "warn"}>
-                  {inv.status === "paid" ? "Paid" : "Owes"}
-                </ToneChip>
-              )}
-              {owner ? (
-                <span className="flex items-center gap-1.5">
-                  <span className="text-muted-foreground" aria-hidden="true">
-                    $
-                  </span>
-                  <Input
-                    type="number"
-                    inputMode="decimal"
-                    min={0}
-                    step="0.01"
-                    className="h-8 w-24 text-right tabular-nums"
-                    aria-label={`Amount for ${nameOf(m)}`}
-                    value={split[m]}
-                    onChange={(e) =>
-                      setCostOverride(
-                        c.id,
-                        m,
-                        e.target.value === "" ? null : Number(e.target.value),
-                      )
-                    }
-                  />
-                  {custom && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 px-2 text-xs"
-                      onClick={() => setCostOverride(c.id, m, null)}
-                    >
-                      Even split
-                    </Button>
-                  )}
-                </span>
-              ) : (
-                <b className="w-20 text-right tabular-nums">{money(split[m])}</b>
-              )}
-            </li>
-          );
-        })}
-        {hidden.length > 0 && (
-          <li className="flex items-center gap-x-2.5 text-[13px] text-muted-foreground">
-            <span className="inline-grid size-6 place-items-center rounded-full bg-surface-2 text-[10px] font-bold">
-              +{hidden.length}
-            </span>
-            <span className="min-w-0 flex-1 truncate">
-              {hidden.length === 1 ? "1 person" : `${hidden.length} people`} outside your team
-            </span>
-            <b className="w-20 text-right tabular-nums text-foreground">{money(hiddenTotal)}</b>
-          </li>
-        )}
-      </ul>
-      {owner && off !== 0 && (
-        <p className="text-xs text-warn-ink">
-          The shares add up to {money(assigned)}, {money(Math.abs(off))} {off > 0 ? "less" : "more"}{" "}
-          than the total.
-        </p>
-      )}
-      {owner && (
-        <p className="text-[11.5px] text-faint">
-          Shares split evenly by default. Change anyone's amount; the rest split what's left.
-        </p>
-      )}
-    </article>
-  );
-}
-
-function NewCostDialog({
-  eventId,
-  open,
-  onOpenChange,
-}: {
-  eventId: string;
-  open: boolean;
-  onOpenChange: (o: boolean) => void;
-}) {
-  const user = useCurrentUser();
-  const [name, setName] = useState("");
-  const [total, setTotal] = useState("");
-  const amount = Number(total);
-  const valid = name.trim() && amount > 0;
-
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={(o) => {
-        onOpenChange(o);
-        if (!o) {
-          setName("");
-          setTotal("");
-        }
-      }}
-    >
-      <DialogContent className="w-[calc(100%-2rem)] rounded-card">
-        <form
-          className="grid gap-4"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (!valid) return;
-            addSharedCost({ eventId, name: name.trim(), total: amount, ownerId: user.personId });
-            toast.success(`${name.trim()} created. You're opted in.`);
-            onOpenChange(false);
-            setName("");
-            setTotal("");
-          }}
-        >
-          <DialogHeader className="text-left">
-            <DialogTitle>New shared cost</DialogTitle>
-            <DialogDescription>
-              People opt in and the total splits evenly. You can change anyone's share later.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-1.5">
-            <Label htmlFor="sc-name">What it's for</Label>
-            <Input
-              id="sc-name"
-              autoFocus
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Hotel block"
-            />
-          </div>
-          <div className="grid gap-1.5">
-            <Label htmlFor="sc-total">Total</Label>
-            <Input
-              id="sc-total"
-              type="number"
-              inputMode="decimal"
-              min={0}
-              step="0.01"
-              value={total}
-              onChange={(e) => setTotal(e.target.value)}
-              placeholder="600"
-            />
-          </div>
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={!valid}>
-              Create
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
   );
 }

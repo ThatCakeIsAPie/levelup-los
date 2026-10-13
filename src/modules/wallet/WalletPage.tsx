@@ -1,6 +1,5 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { CircleCheck, CircleDollarSign, Receipt, ShieldCheck } from "lucide-react";
-import { toast } from "sonner";
 import {
   DateBadge,
   EmptyState,
@@ -9,19 +8,8 @@ import {
   SegmentedBar,
   ToneChip,
 } from "@/components/brand";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
-  paySandbox,
   useEvents,
   useMyInvoices,
   useSharedCosts,
@@ -30,7 +18,7 @@ import {
   type SharedCost,
 } from "@/data";
 import { fullDate, money } from "./format";
-import { SharedCostsCard } from "./SharedCosts";
+import { PaySandboxDialog, SharedCostsCard } from "@/components/costs/SharedCosts";
 
 export function WalletPage() {
   const invoices = useMyInvoices();
@@ -131,10 +119,10 @@ export function WalletPage() {
           </SectionCard>
         </div>
 
-        <SharedCostsCard />
+        <SharedCostsCard showPay={false} />
       </div>
 
-      <PayDialog
+      <PaySandboxDialog
         invoice={paying}
         costName={paying ? (costById.get(paying.costId)?.name ?? "Shared cost") : ""}
         onClose={() => setPaying(null)}
@@ -189,7 +177,9 @@ function InvoiceCard({
       <div className="flex items-start gap-3">
         {event ? <DateBadge date={event.date} /> : null}
         <div className="min-w-0 flex-1">
-          <h3 className="truncate text-[13.5px] font-bold">{cost?.name ?? "Shared cost"}</h3>
+          <h3 className="truncate text-[13.5px] font-bold">
+            {invoice.costName ?? cost?.name ?? "Shared cost"}
+          </h3>
           <p className="truncate text-xs text-muted-foreground">{event?.name ?? "Event removed"}</p>
           <div className="mt-1.5">
             {isPaid ? (
@@ -222,44 +212,5 @@ function InvoiceCard({
         </Button>
       )}
     </article>
-  );
-}
-
-function PayDialog({
-  invoice,
-  costName,
-  onClose,
-}: {
-  invoice: Invoice | null;
-  costName: string;
-  onClose: () => void;
-}) {
-  return (
-    <AlertDialog open={!!invoice} onOpenChange={(o) => !o && onClose()}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>
-            Pay {invoice ? money(invoice.amount) : ""} for {costName}?
-          </AlertDialogTitle>
-          <AlertDialogDescription>
-            This is a sandbox payment. No card is charged and no payment details are collected. The
-            invoice is marked paid with a sandbox reference you can see in your wallet and in
-            reports.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction
-            onClick={() => {
-              if (!invoice) return;
-              paySandbox(invoice.costId, invoice.personId);
-              toast.success(`Paid (sandbox): ${costName}`);
-            }}
-          >
-            Mark as paid
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
   );
 }

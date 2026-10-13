@@ -116,7 +116,7 @@ function useReports(): Report[] {
       const c = costById.get(i.costId);
       return {
         person: name(i.personId),
-        cost: c?.name ?? "",
+        cost: i.costName ?? c?.name ?? "",
         event: c ? (eventById.get(c.eventId)?.name ?? "") : "",
         amount: i.amount,
         status: i.status,
