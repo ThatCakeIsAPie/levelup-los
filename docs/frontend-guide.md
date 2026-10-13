@@ -12,23 +12,26 @@ How the LevelUp LOS front end is put together, and the rules for building pages 
 
 ## Commands
 
-| Command                                                    | What it does                         |
-| ---------------------------------------------------------- | ------------------------------------ |
-| `npm run dev -- --port 5173 --strictPort --host localhost` | Dev server                           |
-| `npm run typecheck`                                        | `tsc --noEmit`                       |
-| `npm run lint`                                             | ESLint (includes Prettier)           |
-| `npm test`                                                 | Vitest unit tests (visibility rules) |
-| `npm run build`                                            | Production build                     |
+| Command                                                    | What it does                   |
+| ---------------------------------------------------------- | ------------------------------ |
+| `npm run dev -- --port 5173 --strictPort --host localhost` | Dev server                     |
+| `npm run typecheck`                                        | `tsc --noEmit`                 |
+| `npm run lint`                                             | ESLint (includes Prettier)     |
+| `npm test`                                                 | Vitest unit tests (pure rules) |
+| `npm run build`                                            | Production build               |
 
 `.npmrc` pins `before=2026-10-11` as a release-age guard; bump it deliberately. npm 10.9 can crash resolving vitest from scratch; if adding a package fails with `reading 'edgesOut'`, use `npx npm@11.6.2 install <pkg>`.
 
 ## Page conventions
 
-- Title: `head: () => ({ meta: [{ title: "People — LevelUp LOS" }] })`.
+- Title: `head: () => ({ meta: [{ title: "People — LevelUp LOS" }] })`. For a title that depends on data, add a `loader` that reads through a non-reactive `@/data` getter and use `head: ({ loaderData }) => ...` (see `people.$id.tsx`, which uses `getPerson`); call `router.invalidate()` after a write that changes it.
+- Search params: declare them with the route's `validateSearch` (all optional) so links stay type-checked, e.g. `/events/$id?tab=attendees&filter=no-ticket` opens the Attendees tab showing only people who still need a ticket.
 - Export only `Route` from a route file; keep helper components unexported (automatic code splitting).
-- `<main id="main">` in the shell is the scroll container. Pages render plain content with padding `px-4 py-5 lg:px-[26px] lg:py-[22px]`. Use `h-full` only for full-screen canvases (the mindmap).
+- `<main id="main">` in the shell is the scroll container and a flex column (the apprentice notice, when shown, sits above the page). Pages render plain content with padding `px-4 py-5 lg:px-[26px] lg:py-[22px]`; a centered `mx-auto max-w-*` page root also needs `w-full`. A full-screen page (the mindmap) uses `flex min-h-0 flex-1 flex-col` on its root to take exactly the space left; never measure offsets or set `h-screen`.
 - Every page must work at 375px wide with no horizontal page scroll. Wide tables become card lists on phones (`useIsDesktop()` or responsive classes); only a deliberately wide table may scroll inside its own `overflow-x-auto` box.
-- One `<Toaster>` lives in the root; don't add another. Confirmations use `AlertDialog`, never `window.confirm`.
+- One `<Toaster>` and one `<TooltipProvider>` live in the root; don't add another. Use `Tooltip` (not `title`) for real tooltips, keeping an `sr-only` copy of the text when the trigger isn't focusable. Confirmations use `AlertDialog`, never `window.confirm`.
+- Quick logs get an Undo on their toast: `quickCheckIn(personId, message, { note?, description?, onUndo? })` and `toastWithUndo(message, undo)` from `@/components/log/quickLog`.
+- Shared costs render with `SharedCostsCard` (`eventId?` for one event, `showPay?`) and `PaySandboxDialog` from `@/components/costs/SharedCosts`, used by the Wallet and the event page. Don't build another cost UI.
 - Dates are `"YYYY-MM-DD"` strings. Use `parseDate`, `localDate`, `daysFromToday`, `daysSince` from `@/data`. Never `new Date("YYYY-MM-DD")` (UTC shift) or `toISOString().slice(0, 10)` (UTC date).
 - Run `npx prettier --write <files you touched>`, not the whole repo.
 
@@ -44,7 +47,7 @@ The full list is documented at the top of `src/styles.css`. Light and dark value
 - Sidebar: `bg-sidebar text-sidebar-fg bg-sidebar-active border-sidebar-line`.
 - Shape: `rounded-card` (14px cards), `rounded-lg` (9px controls). Safe areas: `pb-safe`, `pt-safe`, `pb-tabbar`.
 - Sky is for highlights, bars and rings only: never white text on sky.
-- shadcn `Button` has `variant="soft"` in addition to the defaults; default is the teal primary.
+- shadcn `Button` has `variant="soft"` in addition to the defaults; default is the teal primary. `Checkbox` accepts `checked="indeterminate"` (dash) for "select all" headers.
 
 ## Brand components — `@/components/brand`
 
@@ -72,17 +75,23 @@ Also exported: `STAGE_LABEL`, `STAGE_CHIP_CLASS`, `STAGE_SOLID_CLASS`, `TONE_CLA
 
 **Session**: `useSession()` (nullable), `useCurrentUser()` (non-null inside the shell), `useMe()`, `useViewer()`, `getViewer()`, `login(user)`, `logout()`, `resetDemo()` (clears every `levelup.*` key, reloads at `/login`).
 
-**People**: `useVisibleIds()`, `useVisiblePeople()`, `useVisibleTeam()` (no customers), `usePerson(id)` (undefined if missing or not visible), `useVisibleCustomers()` (by monthly volume), `useCustomersOf(personId)` (only the viewer's own customers), `useCustomerCounts()` (`Record<ownerId, number>` for team totals), `useSponsorChain(personId, max?)` (root-first, stops at the viewer), `useDownline(personId, { directOnly? })`; writes `addPerson`, `updatePerson`, `removePerson`.
+**People**: `useVisibleIds()`, `useVisiblePeople()`, `useVisibleTeam()` (no customers), `usePerson(id)` (undefined if missing or not visible), `useVisibleCustomers()` (by monthly volume), `useCustomersOf(personId)` (only the viewer's own customers), `useCustomerCounts()` (`Record<ownerId, number>` for team totals), `useSponsorChain(personId, max?)` (root-first, stops at the viewer), `useDownline(personId, { directOnly? })`, `getPerson(id)` (like `usePerson`, non-reactive, for route loaders); writes `addPerson`, `updatePerson`, `removePerson`.
 
-**Events**: `useEvents()` (oldest first), `useUpcomingEvents()`, `usePastEvents()`, `useNextEvent(type?)`, `useEvent(id)`, `isUpcoming(e)`, `useAttendancesForEvent(eventId)`, `useAttendancesForPerson(personId)`, `useVisibleAttendances()`, `useEventsAttentionCount()`; writes `addEvent`, `updateEvent`, `removeEvent`, `assignToEvent(eventId, personId)`, `updateAttendance`, `removeAttendance`, `bulkUpdateAttendances(ids, patch)`. `CrmEvent` has optional `endDate`.
+`removePerson` cascades (pure rules in `src/data/cascade.ts`): the person's direct downline and the customers they own move to the deleted person's sponsor (so nobody drops out of view); their attendance rows, travel plans, shared-cost memberships, overrides and payments are removed; shared costs they organized pass to that sponsor (who is not opted in). Each moved person gets an activity entry.
 
-**Contacts, sales, learning**: `useContacts(personId?)`, `useLastContactMap()`, `useLastContact(id)`, `useContactSettings()` (`{customerDays: 30, teamDays: 14}`), `useSales(customerId?)`, `useLearning(personId)`, `useTeamLearning()`, `useLearningGoal(personId)` (default 60 pages / 3 podcasts / 1 workshop per week); writes `logContact({personId, byId?, date?, note?})`, `logLearning({kind, title, amount?, date?, personId?})`, `logSale({customerId, product, date?, amount?})`, `removeLearning`, `setLearningGoal(personId, patch)`, `setContactSettings(patch)`.
+**Mind map sync** (used only by `src/components/mindmap/useTreeStore.ts`): `syncPeopleFromLos(entries)`, `getPersonByLosUid(uid)`, pure `syncLosEntries(people, entries)`, type `LosSyncEntry`. Matching (`src/data/losSync.ts`): by `losUid`; else by name only when exactly one business person has it, they have no `losUid` yet and the name appears once in the upload; else a new IBO is created. An existing person is never re-sponsored under someone created from an ambiguous name. Maps drawn from the roster use node uids `roster:<id>` and never sync back (people added on such a map go straight to `addPerson`); uploads use stable per-sheet uids (`sheet:<member id>:<name>`) so re-uploading the same file matches by `losUid`.
+
+**Events**: `useEvents()` (oldest first), `useUpcomingEvents()`, `usePastEvents()`, `useNextEvent(type?)`, `useEvent(id)`, `isUpcoming(e)`, `useAttendancesForEvent(eventId)`, `useAttendancesForPerson(personId)`, `useVisibleAttendances()`, `useEventsAttentionCount()`; writes `addEvent`, `updateEvent`, `removeEvent`, `assignToEvent(eventId, personId)`, `updateAttendance`, `removeAttendance`, `bulkUpdateAttendances(ids, patch)` (logs ticket / attended / no-show activity like single updates). `removeEvent` also removes the event's attendance rows, travel plans, shared costs and their payments. `CrmEvent` has optional `endDate`.
+
+**Needs attention** (one rule, `src/data/attention.ts`): `attentionItems(event, rows)` (one item per person, most urgent first: planned ticket date passed, buying or follow-up due within a week, wants to go with no helper / no follow-up; finished events only flag unrecorded attendance), `upcomingAttentionCount(events, rows)` (sum over unfinished events; the nav badge via `useEventsAttentionCount()`), `needsTicket(a)` (no ticket and not "not going"). The nav badge, the Events list cards, the Dashboard event card and the event page all use these.
+
+**Contacts, sales, learning**: `useContacts(personId?)`, `useLastContactMap()`, `useLastContact(id)`, `useContactSettings()` (`{customerDays: 30, teamDays: 14}`), `useSales(customerId?)`, `useLearning(personId)`, `useTeamLearning()`, `useLearningGoal(personId)` (default 60 pages / 3 podcasts / 1 workshop per week); writes `logContact({personId, byId?, date?, note?})` (returns the `Contact`), `removeContact(id)`, `logLearning({kind, title, amount?, date?, personId?})`, `logSale({customerId, product, date?, amount?})` (returns the `Sale`), `removeSale(id)`, `removeLearning`, `setLearningGoal(personId, patch)`, `setContactSettings(patch)`.
 
 **Activity**: `useActivity(personId)`, `useEventActivity(eventId)`.
 
-**Wallet / ops**: `useSharedCosts(eventId?)`, `useMyInvoices()`, `useVisibleInvoices()`, `useLogistics(eventId)`, `useMyCampaigns()`, `useMyReportSchedule()`; writes `setLogistics`, `addSharedCost`, `toggleCostOptIn`, `setCostOverride`, `paySandbox`, `addCampaign`, `setReportSchedule`; helpers `splitCost`, `invoicesFor`.
+**Wallet / ops**: `useSharedCosts(eventId?)`, `useCostSplit(cost)` (each member's current share), `useCostOrganizerName(cost)` ("You", their name when visible, else "a team leader"), `useMyInvoices()`, `useVisibleInvoices()`, `useLogistics(eventId)`, `useMyCampaigns()`, `useMyReportSchedule()`; writes `setLogistics`, `addSharedCost`, `toggleCostOptIn`, `setCostOverride`, `paySandbox`, `addCampaign`, `setReportSchedule`; helpers `splitCost(cost, paid?)`, `invoicesFor`; type `Payment`. Rules: `paySandbox` stores the amount paid and the cost name at payment time (paid invoices show them); a paid share is fixed in the split and can't be overridden; a member who has paid can't opt out; only leaders and IBOs create costs; only the organizer edits shares.
 
-**Re-exported helpers**: `lastContactDate`, `lastSale`, `learningStreak`, `bestLearningStreak`, `learningGoalFor`, `daysSince`, `daysFromToday`, `localDate`, `parseDate`, `bizClassLabel`, `effectiveBizClass`, `apprenticeAlertLevel`, `apprenticeAlertLabel`, `missingRequiredFields`, `DEMO_USERS`, `roleLabel`, `getPersonShowRate`, `getEventFunnel`, `getRiskFlags`, `getUpcomingFollowUps`, `attendanceStatusLabel`, and the main types (`CrmPerson`, `BizClass`, `CrmEvent`, `Attendance`, …).
+**Re-exported helpers**: `lastContactDate`, `lastSale`, `learningStreak`, `bestLearningStreak`, `learningGoalFor`, `daysSince`, `daysFromToday`, `localDate`, `parseDate`, `bizClassLabel`, `effectiveBizClass`, `apprenticeAlertLevel`, `apprenticeAlertLabel`, `missingRequiredFields`, `DEMO_USERS`, `roleLabel`, `getPersonShowRate`, `getEventFunnel`, `getRiskFlags`, `getUpcomingFollowUps`, `getComparisonEvents(event, events)` (previous same-type event and the one about a year earlier), `getAuditDelta(eventIds, attendances, people, unknownName?)`, `attendanceStatusLabel`, the cascade helpers `rosterWithout`, `opsWithoutPerson`, `opsWithoutEvent`, and the main types (`CrmPerson`, `BizClass`, `CrmEvent`, `Attendance`, …).
 
 Writes don't enforce visibility yet; only reads are filtered. Supabase row-level security will enforce both.
 
@@ -93,4 +102,4 @@ Writes don't enforce visibility yet; only reads are filtered. Supabase row-level
 
 ## Seed data
 
-Seed dates are relative to today (`src/data/seed.ts`, `SEED_VERSION` — bump it to reset everyone's stored demo data). Useful facts: e1 Fall Leadership Weekend is 26 days out (20 invited, 12 tickets, Sarah Kim's planned purchase date passed 2 days ago); e5 team meeting 10 days out; e2, e3, e4, e6 are past. Jamal Brown (id 4) becomes an IBO in 53 days; his prospects are ids 9 and 21, his customer c8. Demo users: Maria Reyes (leader, 1), Anita Patel (IBO, 2), Jamal Brown (apprentice, 4), Beau Foster (candidate, 20).
+Seed dates are relative to today (`src/data/seed.ts`, `SEED_VERSION`, now 3 — bump it to reset everyone's stored demo data, also when a persisted store's shape changes). Every sponsor is an apprentice or IBO (prospects never have a downline; `src/data/seed.test.ts` checks this and the facts below). The generated downlines hang under David Chen (3, ids 100–114), Jamal Brown (4, ids 200–214) and Ed Miller (17, ids 300–314); Beau Foster is sponsored by Marcus Hill (6). Useful facts: e1 Fall Leadership Weekend is 26 days out (20 invited, 12 tickets, Sarah Kim's planned purchase date passed 2 days ago); e5 team meeting 10 days out; e2, e3, e4, e6 are past. Jamal Brown (id 4) becomes an IBO in 53 days; his named prospects are ids 9 and 21 (generated people 200–214 sit under him too), his only customer c8. Demo users: Maria Reyes (leader, 1), Anita Patel (IBO, 2), Jamal Brown (apprentice, 4), Beau Foster (candidate, 20).
