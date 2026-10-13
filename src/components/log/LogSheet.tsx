@@ -29,7 +29,7 @@ import { useIsDesktop } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
 import { EventFormDialog } from "@/modules/events/EventFormDialog";
 import {
-  CHAT_IDS,
+  getTeamChatId,
   openLog,
   sendMessage,
   useChatAccess,
@@ -116,7 +116,7 @@ export function LogSheet() {
         label: "Post in Main chat",
         onClick: () => {
           const r = sendMessage({
-            conversationId: CHAT_IDS.main,
+            conversationId: getTeamChatId("main"),
             card: { type: "event", eventId: e.id },
           });
           if (r) toast.success("Posted in Main chat");
