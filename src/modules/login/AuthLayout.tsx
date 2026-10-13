@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import { Loader2 } from "lucide-react";
-import { Logo } from "@/components/brand";
+import { Logo, LogoMark } from "@/components/brand";
 import { IS_LOCAL_DEMO } from "@/lib/config";
 import { cn } from "@/lib/utils";
 
@@ -108,22 +108,20 @@ function BrandPanel({ headline, blurb }: { headline?: ReactNode; blurb?: ReactNo
       </div>
 
       <p className="mt-10 hidden text-xs text-sidebar-fg lg:block">
-        {IS_LOCAL_DEMO ? "Sandbox demo · LTD · LevelUp team" : "LTD · LevelUp team"}
+        {IS_LOCAL_DEMO ? "Sandbox demo · LevelUp Leadership · LTD" : "LevelUp Leadership · LTD"}
       </p>
     </aside>
   );
 }
 
-/** The three rising logo bars, large and faint, anchored to the panel's corner. */
+/** The logo mark, large and faint, anchored to the panel's corner. */
 function LogoMotif() {
   return (
     <div
-      className="pointer-events-none absolute -bottom-6 -right-4 -z-10 flex items-end gap-3 opacity-[0.14] lg:-bottom-10 lg:right-10 lg:gap-6 lg:opacity-[0.16]"
+      className="pointer-events-none absolute -bottom-10 -right-10 -z-10 opacity-[0.14] lg:-bottom-24 lg:-right-16 lg:opacity-[0.16]"
       aria-hidden="true"
     >
-      <i className="block h-16 w-7 rounded-md bg-logo-1 lg:h-44 lg:w-16 lg:rounded-xl" />
-      <i className="block h-24 w-7 rounded-md bg-logo-2 lg:h-72 lg:w-16 lg:rounded-xl" />
-      <i className="block h-32 w-7 rounded-md bg-sky lg:h-[26rem] lg:w-16 lg:rounded-xl" />
+      <LogoMark className="size-48 lg:size-[30rem]" />
     </div>
   );
 }

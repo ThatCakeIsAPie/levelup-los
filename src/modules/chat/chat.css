@@ -4,10 +4,10 @@
  * light blue in dark mode). Used as border-[var(--win-line)].
  */
 :root {
-  --win-line: #1a365d;
+  --win-line: #1e2421;
 }
 .dark {
-  --win-line: #9dd5f3;
+  --win-line: #9ae6b6;
 }
 
 /* Brief highlight when jumping to a message (reply quote, pinned bar, links). */

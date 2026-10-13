@@ -99,11 +99,11 @@ function StyleguidePage() {
 
       <Block title="Colors">
         <div className="grid grid-cols-3 gap-3 sm:grid-cols-5 lg:grid-cols-10">
-          <Swatch cls="bg-navy" name="navy" />
-          <Swatch cls="bg-teal" name="teal" />
-          <Swatch cls="bg-sky" name="sky" />
+          <Swatch cls="bg-navy" name="navy (charcoal)" />
+          <Swatch cls="bg-teal" name="teal (deep green)" />
+          <Swatch cls="bg-sky" name="sky (logo green)" />
           <Swatch cls="bg-amber" name="amber" />
-          <Swatch cls="bg-stone" name="stone" />
+          <Swatch cls="bg-stone" name="stone (grey)" />
           <Swatch cls="bg-app" name="app" />
           <Swatch cls="bg-surface" name="surface" />
           <Swatch cls="bg-surface-2" name="surface-2" />

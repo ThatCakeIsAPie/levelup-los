@@ -22,7 +22,7 @@ export const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
 ];
 
 /** Browser chrome color per theme (matches --app-bg). */
-const THEME_COLOR: Record<ResolvedTheme, string> = { light: "#F6F4EF", dark: "#0E1B2E" };
+const THEME_COLOR: Record<ResolvedTheme, string> = { light: "#F4F5F3", dark: "#101411" };
 
 const isPref = (v: unknown): v is ThemePreference => v === "light" || v === "dark" || v === "auto";
 
