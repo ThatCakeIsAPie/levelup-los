@@ -1,0 +1,657 @@
+<title>LevelUp LOS Chats</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style>
+/* Layout: a review sheet. Each screen = desktop frame (scrolls sideways on phones) + phone frame + "what changed" notes. */
+:root {
+  --navy:#1A365D; --teal:#067781; --sky:#199BD7; --amber:#F2A93B;
+  --bg:#ECE8E0; --app-bg:#F6F4EF; --surface:#FFFFFF; --surface-2:#F2EFE9; --line:#E4DFD5; --track:#E6E1D7;
+  --fg:#13243D; --muted:#5B687B; --faint:#8791A0;
+  --primary:#067781; --on-primary:#FFFFFF; --primary-soft:#DDF0F1; --primary-ink:#045058;
+  --sky-soft:#DCEFFA; --sky-ink:#0B4F75;
+  --amber-soft:#FCEBD0; --amber-ink:#6B3F00; --amber-strong:#C77A0A;
+  --danger:#B42318; --danger-soft:#FBE6E3;
+  --ok:#2F7A3E; --ok-soft:#E1F1E3;
+  --side:#1A365D; --side-fg:#BFCDE0; --side-active-bg:rgba(255,255,255,.12);
+  --ibo-bg:#1A365D; --ibo-fg:#FFFFFF; --event-bg:#1A365D;
+  --frame:#D5CFC3; --shadow:0 1px 2px rgba(19,36,61,.05), 0 10px 30px rgba(19,36,61,.08);
+  --font:"Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --r-card:14px; --r-ctl:9px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg:#08111D; --app-bg:#0E1B2E; --surface:#14253C; --surface-2:#1A2E4A; --line:#22385A; --track:#22385A;
+  --fg:#E7EDF5; --muted:#A1B1C6; --faint:#7487A0;
+  --primary:#3BBAC4; --on-primary:#05232A; --primary-soft:#103A42; --primary-ink:#93DDE3;
+  --sky-soft:#11324B; --sky-ink:#9DD5F3;
+  --amber-soft:#3A2B12; --amber-ink:#F6CC86; --amber-strong:#F2A93B;
+  --danger:#F29185; --danger-soft:#3B1C1C; --ok:#7BCB88; --ok-soft:#173523;
+  --side:#0A1525; --side-fg:#93A5BC; --side-active-bg:rgba(255,255,255,.08);
+  --ibo-bg:#2D5088; --ibo-fg:#FFFFFF; --event-bg:#1B3560;
+  --frame:#1F3150; --shadow:0 10px 30px rgba(0,0,0,.35); color-scheme:dark;
+} }
+:root[data-theme="dark"] {
+  --bg:#08111D; --app-bg:#0E1B2E; --surface:#14253C; --surface-2:#1A2E4A; --line:#22385A; --track:#22385A;
+  --fg:#E7EDF5; --muted:#A1B1C6; --faint:#7487A0;
+  --primary:#3BBAC4; --on-primary:#05232A; --primary-soft:#103A42; --primary-ink:#93DDE3;
+  --sky-soft:#11324B; --sky-ink:#9DD5F3;
+  --amber-soft:#3A2B12; --amber-ink:#F6CC86; --amber-strong:#F2A93B;
+  --danger:#F29185; --danger-soft:#3B1C1C; --ok:#7BCB88; --ok-soft:#173523;
+  --side:#0A1525; --side-fg:#93A5BC; --side-active-bg:rgba(255,255,255,.08);
+  --ibo-bg:#2D5088; --ibo-fg:#FFFFFF; --event-bg:#1B3560;
+  --frame:#1F3150; --shadow:0 10px 30px rgba(0,0,0,.35); color-scheme:dark;
+}
+* { box-sizing:border-box; }
+body { background:var(--bg); color:var(--fg); font-family:var(--font); font-size:14px; line-height:1.5; padding:0 16px; }
+.sheet { max-width:1500px; margin:0 auto; padding-block:40px 64px; display:grid; gap:56px; }
+h1,h2,h3,h4 { margin:0; text-wrap:balance; letter-spacing:-.01em; }
+p { margin:0; }
+.intro { display:grid; gap:10px; max-width:70ch; }
+.intro h1 { font-size:30px; font-weight:800; display:flex; align-items:center; gap:12px; }
+.intro p { color:var(--muted); font-size:15px; }
+.eyebrow { font-size:11px; font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:var(--muted); }
+.screen { display:grid; gap:20px; }
+.screen-head { display:flex; flex-wrap:wrap; align-items:baseline; gap:8px 16px; }
+.screen-head h2 { font-size:22px; font-weight:800; }
+.screen-head p { color:var(--muted); }
+.stage { display:grid; grid-template-columns:minmax(0,1fr) 340px; gap:28px; align-items:start; }
+@media (max-width:1100px) { .stage { grid-template-columns:minmax(0,1fr); } }
+.scroller { overflow-x:auto; padding-bottom:6px; min-width:0; }
+.phone-col { display:grid; gap:20px; justify-items:center; }
+.notes { background:var(--surface); border:1px solid var(--line); border-radius:var(--r-card); padding:18px 20px; display:grid; gap:12px; width:100%; max-width:340px; }
+.notes h3 { font-size:14px; font-weight:700; }
+.notes ol { margin:0; padding-left:20px; display:grid; gap:9px; color:var(--muted); font-size:13px; }
+.notes li::marker { color:var(--primary); font-weight:700; }
+.notes b { color:var(--fg); font-weight:600; }
+
+/* ---------- shared app atoms ---------- */
+.logo { display:inline-flex; align-items:flex-end; gap:2px; height:20px; }
+.logo i { display:block; width:6px; border-radius:1.5px; }
+.logo i:nth-child(1){ height:9px; background:#2D5088; } .logo i:nth-child(2){ height:14px; background:#0A93A0; } .logo i:nth-child(3){ height:20px; background:var(--sky); }
+.card { background:var(--surface); border:1px solid var(--line); border-radius:var(--r-card); padding:16px 18px; display:grid; gap:12px; align-content:start; min-width:0; }
+.card-h { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.card-h h3 { font-size:14px; font-weight:700; }
+.link { color:var(--primary); font-weight:600; font-size:12.5px; text-decoration:none; white-space:nowrap; }
+.btn { display:inline-flex; align-items:center; justify-content:center; gap:6px; font:inherit; font-size:12.5px; font-weight:600; border-radius:var(--r-ctl); padding:7px 12px; border:1px solid var(--line); background:var(--surface); color:var(--fg); cursor:pointer; white-space:nowrap; }
+.btn:focus-visible { outline:2px solid var(--sky); outline-offset:2px; }
+.btn.primary { background:var(--primary); border-color:var(--primary); color:var(--on-primary); }
+.btn.soft { background:var(--primary-soft); border-color:transparent; color:var(--primary-ink); }
+.btn svg { width:15px; height:15px; }
+.chip { display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; white-space:nowrap; }
+.chip.ibo { background:var(--ibo-bg); color:var(--ibo-fg); }
+.chip.app { background:var(--primary-soft); color:var(--primary-ink); }
+.chip.pro { background:var(--sky-soft); color:var(--sky-ink); }
+.chip.cus { background:var(--amber-soft); color:var(--amber-ink); }
+.chip.warn { background:var(--amber-soft); color:var(--amber-ink); }
+.chip.bad { background:var(--danger-soft); color:var(--danger); }
+.chip.good { background:var(--ok-soft); color:var(--ok); }
+.av { width:32px; height:32px; border-radius:50%; display:grid; place-items:center; font-size:12px; font-weight:700; flex:none; }
+.av.ibo { background:var(--ibo-bg); color:var(--ibo-fg); } .av.app { background:var(--primary-soft); color:var(--primary-ink); }
+.av.pro { background:var(--sky-soft); color:var(--sky-ink); } .av.cus { background:var(--amber-soft); color:var(--amber-ink); }
+.num { font-variant-numeric:tabular-nums; }
+.muted { color:var(--muted); } .faint { color:var(--faint); }
+.bar { height:8px; border-radius:999px; background:var(--track); overflow:hidden; display:flex; }
+.bar > span { display:block; height:100%; }
+[data-lucide] { width:16px; height:16px; stroke-width:2; flex:none; }
+
+/* ---------- desktop frame ---------- */
+.desk { width:1120px; border:1px solid var(--frame); border-radius:16px; overflow:hidden; box-shadow:var(--shadow); background:var(--app-bg); }
+.chrome { height:34px; display:flex; align-items:center; gap:7px; padding:0 14px; background:var(--surface-2); border-bottom:1px solid var(--line); }
+.chrome b { width:10px; height:10px; border-radius:50%; background:var(--frame); }
+.chrome span { margin-left:14px; font-size:11.5px; color:var(--faint); background:var(--surface); border:1px solid var(--line); border-radius:6px; padding:2px 12px; }
+.shell { display:grid; grid-template-columns:212px minmax(0,1fr); min-height:700px; }
+.side { background:var(--side); color:var(--side-fg); padding:18px 12px; display:flex; flex-direction:column; gap:4px; }
+.brand { display:flex; align-items:center; gap:10px; color:#fff; font-weight:800; font-size:15px; padding:2px 8px 18px; }
+.brand small { display:block; font-size:10.5px; font-weight:500; color:var(--side-fg); letter-spacing:.02em; }
+.nav { display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:8px; font-size:13px; font-weight:500; }
+.nav.on { background:var(--side-active-bg); color:#fff; font-weight:600; }
+.nav .count { margin-left:auto; font-size:11px; font-weight:700; background:var(--amber); color:#3A2200; border-radius:999px; padding:0 7px; }
+.side .grow { flex:1; }
+.me { display:flex; align-items:center; gap:10px; padding:10px 8px 0; border-top:1px solid rgba(255,255,255,.1); margin-top:8px; font-size:12.5px; color:#fff; }
+.me small { display:block; color:var(--side-fg); font-size:11px; }
+.main { padding:22px 26px 28px; display:grid; gap:18px; align-content:start; }
+.top { display:flex; align-items:center; gap:14px; }
+.top h2 { font-size:22px; font-weight:800; }
+.top .sub { color:var(--muted); font-size:13px; }
+.search { margin-left:auto; display:flex; align-items:center; gap:8px; width:240px; padding:7px 12px; border:1px solid var(--line); border-radius:var(--r-ctl); background:var(--surface); color:var(--faint); font-size:12.5px; }
+
+/* dashboard specifics */
+.row3 { display:grid; grid-template-columns:1fr 1fr 1.25fr; gap:16px; }
+.row2 { display:grid; grid-template-columns:1.6fr 1fr; gap:16px; align-items:start; }
+.streak { display:flex; align-items:center; gap:14px; }
+.flame { width:46px; height:46px; border-radius:12px; display:grid; place-items:center; background:var(--amber-soft); color:var(--amber-strong); }
+.flame [data-lucide] { width:24px; height:24px; }
+.big { font-size:28px; font-weight:800; line-height:1.05; letter-spacing:-.02em; }
+.week { display:grid; grid-template-columns:repeat(7,1fr); gap:6px; }
+.week div { display:grid; gap:4px; justify-items:center; font-size:10.5px; color:var(--faint); font-weight:600; }
+.week i { width:100%; height:8px; border-radius:4px; background:var(--track); display:block; }
+.week .on i { background:var(--amber); } .week .today { color:var(--fg); }
+.goal { display:flex; align-items:center; gap:16px; }
+.ring { width:84px; height:84px; flex:none; position:relative; }
+.ring svg { width:84px; height:84px; transform:rotate(-90deg); }
+.ring b { position:absolute; inset:0; display:grid; place-items:center; font-size:18px; font-weight:800; }
+.minis { display:grid; gap:6px; font-size:12.5px; flex:1; }
+.minis div { display:flex; justify-content:space-between; gap:8px; }
+.event { background:var(--event-bg); color:#fff; border-color:transparent; position:relative; overflow:hidden; }
+.event .muted { color:#BFD0E6; }
+.event .bar { background:rgba(255,255,255,.15); }
+.event .count { display:inline-grid; place-items:center; min-width:52px; padding:6px 8px; border-radius:10px; background:rgba(255,255,255,.1); text-align:center; }
+.event .count b { font-size:20px; font-weight:800; display:block; line-height:1.1; }
+.event .count small { font-size:10px; color:#BFD0E6; font-weight:600; letter-spacing:.04em; }
+.event .btn { background:var(--sky); border-color:var(--sky); color:#062338; }
+.event .btn.ghost { background:transparent; border-color:rgba(255,255,255,.25); color:#fff; }
+.actions { display:grid; }
+.act { display:grid; grid-template-columns:32px minmax(0,1fr) auto; gap:12px; align-items:center; padding:11px 0; border-top:1px solid var(--line); }
+.act:first-child { border-top:0; padding-top:2px; }
+.act .t { font-weight:600; font-size:13px; }
+.act .d { font-size:12px; color:var(--muted); display:flex; flex-wrap:wrap; gap:4px 8px; align-items:center; }
+.ico { width:32px; height:32px; border-radius:9px; display:grid; place-items:center; }
+.ico.contact { background:var(--primary-soft); color:var(--primary-ink); }
+.ico.cust { background:var(--amber-soft); color:var(--amber-ink); }
+.ico.rank { background:var(--sky-soft); color:var(--sky-ink); }
+.ico.ticket { background:var(--danger-soft); color:var(--danger); }
+.filters { display:flex; gap:6px; flex-wrap:wrap; }
+.filters span { font-size:11.5px; font-weight:600; padding:4px 10px; border-radius:999px; border:1px solid var(--line); color:var(--muted); }
+.filters span.on { background:var(--fg); color:var(--surface); border-color:var(--fg); }
+.legend { display:flex; flex-wrap:wrap; gap:6px 14px; font-size:12px; color:var(--muted); }
+.legend i { display:inline-block; width:9px; height:9px; border-radius:3px; margin-right:6px; vertical-align:0; }
+.leaders { display:grid; gap:10px; }
+.leader { display:grid; grid-template-columns:32px minmax(0,1fr) auto; gap:10px; align-items:center; font-size:13px; }
+.leader .s { font-size:11.5px; color:var(--muted); }
+.kpis { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+.kpi { background:var(--surface-2); border-radius:10px; padding:10px 12px; }
+.kpi b { display:block; font-size:20px; font-weight:800; }
+.kpi span { font-size:11.5px; color:var(--muted); }
+
+/* profile specifics */
+.crumb { font-size:12.5px; color:var(--muted); display:flex; align-items:center; gap:6px; }
+.hero { display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:18px; align-items:center; }
+.av.xl { width:68px; height:68px; font-size:22px; }
+.hero h2 { font-size:24px; font-weight:800; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.meta { display:flex; flex-wrap:wrap; gap:4px 16px; color:var(--muted); font-size:12.5px; margin-top:4px; }
+.meta span { display:inline-flex; align-items:center; gap:5px; }
+.meta a { color:var(--primary); font-weight:600; text-decoration:none; }
+.qa { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+.stats { display:grid; grid-template-columns:repeat(4,1fr); gap:0; background:var(--surface); border:1px solid var(--line); border-radius:var(--r-card); }
+.stats div { padding:12px 16px; border-left:1px solid var(--line); }
+.stats div:first-child { border-left:0; }
+.stats b { display:block; font-size:18px; font-weight:800; }
+.stats span { font-size:11.5px; color:var(--muted); }
+.cols { display:grid; grid-template-columns:1.55fr 1fr; gap:16px; align-items:start; }
+.stack { display:grid; gap:16px; align-content:start; min-width:0; }
+.tabs { display:flex; gap:4px; border-bottom:1px solid var(--line); }
+.tabs span { font-size:13px; font-weight:600; color:var(--muted); padding:8px 12px; border-bottom:2px solid transparent; margin-bottom:-1px; }
+.tabs span.on { color:var(--fg); border-color:var(--primary); }
+.path { display:grid; grid-template-columns:repeat(3,1fr); gap:0; position:relative; }
+.step { display:grid; gap:4px; justify-items:start; position:relative; padding-top:22px; }
+.step::before { content:""; position:absolute; top:7px; left:0; right:0; height:3px; background:var(--track); }
+.step.done::before { background:var(--primary); }
+.step.half::before { background:linear-gradient(90deg, var(--primary) 0 55%, var(--track) 55% 100%); }
+.dot { position:absolute; top:0; left:0; width:17px; height:17px; border-radius:50%; background:var(--surface); border:3px solid var(--track); }
+.step.done .dot { background:var(--primary); border-color:var(--primary); }
+.step.half .dot { border-color:var(--primary); background:var(--surface); box-shadow:0 0 0 4px var(--primary-soft); }
+.step b { font-size:13px; } .step span { font-size:11.5px; color:var(--muted); }
+.notice { display:flex; gap:10px; align-items:flex-start; background:var(--amber-soft); color:var(--amber-ink); border-radius:10px; padding:10px 12px; font-size:12.5px; }
+.notice [data-lucide] { margin-top:2px; }
+.ev { display:grid; grid-template-columns:52px minmax(0,1fr) auto; gap:14px; align-items:center; padding:12px 0; border-top:1px solid var(--line); }
+.ev:first-of-type { border-top:0; }
+.date { border-radius:10px; background:var(--surface-2); text-align:center; padding:6px 0; }
+.date small { display:block; font-size:10px; font-weight:700; letter-spacing:.08em; color:var(--muted); text-transform:uppercase; }
+.date b { font-size:18px; font-weight:800; line-height:1.1; }
+.ev .t { font-weight:700; font-size:13.5px; }
+.ev .d { display:flex; flex-wrap:wrap; gap:6px; margin-top:4px; align-items:center; font-size:12px; color:var(--muted); }
+.tree { display:grid; gap:8px; font-size:13px; }
+.tnode { display:flex; align-items:center; gap:10px; }
+.tnode.k1 { padding-left:20px; } .tnode.k2 { padding-left:40px; }
+.tnode.self { font-weight:700; }
+.tnode .s { margin-left:auto; }
+.cust { display:grid; grid-template-columns:32px minmax(0,1fr) auto; gap:10px; align-items:center; font-size:13px; }
+.timeline { display:grid; gap:0; }
+.tl { display:grid; grid-template-columns:18px minmax(0,1fr) auto; gap:10px; padding:8px 0; font-size:12.5px; position:relative; }
+.tl::before { content:""; position:absolute; left:8px; top:20px; bottom:-8px; width:1.5px; background:var(--line); }
+.tl:last-child::before { display:none; }
+.tl i.pt { width:10px; height:10px; border-radius:50%; margin:4px 0 0 3px; background:var(--primary); display:block; position:relative; z-index:1; }
+.tl i.pt.a { background:var(--amber); } .tl i.pt.s { background:var(--sky); }
+.tags { display:flex; flex-wrap:wrap; gap:6px; }
+.tags span { font-size:11.5px; font-weight:600; padding:3px 9px; border-radius:999px; background:var(--surface-2); color:var(--muted); }
+
+/* ---------- phone frame ---------- */
+.phone { width:340px; max-width:100%; border:10px solid #101C2C; border-radius:44px; background:var(--app-bg); box-shadow:var(--shadow); overflow:hidden; position:relative; display:flex; flex-direction:column; height:720px; }
+.status { display:flex; justify-content:space-between; align-items:center; padding:10px 22px 4px; font-size:12px; font-weight:700; }
+.status .notch { width:90px; height:22px; border-radius:12px; background:#101C2C; }
+.pbody { flex:1; overflow:hidden; padding:6px 14px 14px; display:grid; gap:12px; align-content:start; }
+.ptop { display:flex; align-items:center; gap:10px; }
+.ptop h3 { font-size:19px; font-weight:800; }
+.ptop .sub { font-size:12px; color:var(--muted); }
+.ptop .av { margin-left:auto; }
+.p2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.pc { background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:12px; display:grid; gap:8px; align-content:start; min-width:0; }
+.pc h4 { font-size:12.5px; font-weight:700; }
+.tabbar { display:grid; grid-template-columns:repeat(5,1fr); align-items:center; background:var(--surface); border-top:1px solid var(--line); padding:8px 6px 14px; position:relative; }
+.tabbar div { display:grid; justify-items:center; gap:3px; font-size:10.5px; font-weight:600; color:var(--faint); }
+.tabbar div.on { color:var(--primary); }
+.tabbar .fab { width:46px; height:46px; border-radius:50%; background:var(--primary); color:var(--on-primary); display:grid; place-items:center; margin-top:-26px; box-shadow:0 6px 16px rgba(6,119,129,.35); }
+.tabbar .fab [data-lucide] { width:22px; height:22px; }
+.phone .act { padding:9px 0; grid-template-columns:30px minmax(0,1fr) auto; gap:10px; }
+.phone .ico { width:30px; height:30px; }
+.phone .btn { padding:6px 10px; font-size:12px; }
+.pqa { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+.pqa div { display:grid; justify-items:center; gap:4px; font-size:11px; font-weight:600; color:var(--muted); }
+.pqa div span { width:42px; height:42px; border-radius:12px; display:grid; place-items:center; background:var(--surface); border:1px solid var(--line); color:var(--fg); }
+.pqa div.p span { background:var(--primary); border-color:var(--primary); color:var(--on-primary); }
+.seg { display:grid; grid-template-columns:repeat(4,1fr); background:var(--surface-2); border-radius:10px; padding:3px; font-size:11.5px; font-weight:600; color:var(--muted); text-align:center; }
+.seg span { padding:6px 0; border-radius:8px; }
+.seg span.on { background:var(--surface); color:var(--fg); box-shadow:0 1px 2px rgba(0,0,0,.08); }
+.themer { display:inline-flex; gap:2px; padding:3px; border-radius:10px; background:var(--surface-2); border:1px solid var(--line); justify-self:start; }
+.themer button { font:inherit; font-size:12.5px; font-weight:600; color:var(--muted); background:transparent; border:0; border-radius:7px; padding:5px 12px; cursor:pointer; }
+.themer button[aria-pressed="true"] { background:var(--surface); color:var(--fg); box-shadow:0 1px 2px rgba(0,0,0,.12); }
+.themer button:focus-visible { outline:2px solid var(--sky); outline-offset:1px; }
+.foot { color:var(--faint); font-size:12.5px; max-width:70ch; }
+@media (prefers-reduced-motion: no-preference) { .btn { transition:transform .12s ease; } .btn:active { transform:scale(.98); } }
+
+/* ---------- chat additions ---------- */
+.phones { display:grid; grid-template-columns:repeat(auto-fit, minmax(340px, 1fr)); gap:28px 20px; justify-items:center; }
+.pwrap { display:grid; gap:12px; justify-items:center; width:100%; max-width:340px; }
+.pcap { font-size:13px; color:var(--muted); text-align:center; max-width:32ch; }
+.pcap b { color:var(--fg); }
+.tabbar.five { grid-template-columns:repeat(5,1fr); }
+.tbadge { position:absolute; top:-4px; right:-9px; min-width:16px; height:16px; padding:0 4px; border-radius:999px; background:var(--amber); color:#3A2200; font-size:10px; font-weight:800; display:grid; place-items:center; }
+.tabbar .ti { position:relative; display:inline-block; }
+.chathead { display:flex; align-items:center; gap:10px; padding:4px 0 2px; }
+.chathead h3 { font-size:19px; font-weight:800; }
+.chathead .sp { flex:1; }
+.iconbtn { width:34px; height:34px; border-radius:10px; display:grid; place-items:center; border:1px solid var(--line); background:var(--surface); color:var(--fg); }
+.search2 { display:flex; align-items:center; gap:8px; padding:8px 12px; border-radius:var(--r-ctl); background:var(--surface-2); color:var(--faint); font-size:12.5px; }
+.chips { display:flex; gap:6px; flex-wrap:wrap; }
+.chips span { font-size:11.5px; font-weight:600; padding:4px 10px; border-radius:999px; border:1px solid var(--line); color:var(--muted); }
+.chips span.on { background:var(--fg); color:var(--surface); border-color:var(--fg); }
+.clist { display:grid; }
+.clabel { font-size:10.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--faint); padding:10px 0 4px; }
+.crow { display:grid; grid-template-columns:40px minmax(0,1fr) auto; gap:10px; align-items:center; padding:8px 0; }
+.crow + .crow { border-top:1px solid var(--line); }
+.crow.sel { background:var(--primary-soft); border-radius:10px; padding:8px; margin:0 -8px; border-top-color:transparent; }
+.crow.sel + .crow { border-top-color:transparent; }
+.gav { width:40px; height:40px; border-radius:12px; display:grid; place-items:center; flex:none; }
+.gav [data-lucide] { width:19px; height:19px; }
+.gav.ann { background:var(--event-bg); color:#fff; }
+.gav.main { background:var(--primary); color:var(--on-primary); }
+.gav.wins { background:var(--amber-soft); color:var(--amber-strong); }
+.gav.sig { background:var(--sky-soft); color:var(--sky-ink); }
+.gav.grp { background:var(--surface-2); color:var(--muted); }
+.crow .av { width:40px; height:40px; font-size:13px; }
+.cname { font-weight:700; font-size:13.5px; display:flex; align-items:center; gap:6px; min-width:0; }
+.cname span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.cname [data-lucide] { width:13px; height:13px; color:var(--faint); }
+.cprev { font-size:12px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.cprev b { color:var(--fg); font-weight:600; }
+.cmeta { display:grid; justify-items:end; gap:4px; font-size:11px; color:var(--faint); }
+.unread { min-width:20px; height:20px; padding:0 6px; border-radius:999px; background:var(--primary); color:var(--on-primary); font-size:11px; font-weight:800; display:grid; place-items:center; }
+.cmeta.new { color:var(--primary); font-weight:700; }
+/* conversation */
+.convhead { display:flex; align-items:center; gap:10px; padding-bottom:10px; border-bottom:1px solid var(--line); }
+.convhead .t { font-weight:800; font-size:15px; }
+.convhead .s { font-size:11.5px; color:var(--muted); }
+.convhead .sp { flex:1; }
+.thread { display:grid; gap:10px; align-content:start; }
+.day { justify-self:center; font-size:10.5px; font-weight:700; color:var(--faint); background:var(--surface-2); padding:3px 10px; border-radius:999px; letter-spacing:.04em; }
+.msg { display:grid; grid-template-columns:28px minmax(0,1fr); gap:8px; align-items:end; }
+.msg .av { width:28px; height:28px; font-size:10px; }
+.msg.me { grid-template-columns:minmax(0,1fr); justify-items:end; }
+.bub { background:var(--surface); border:1px solid var(--line); border-radius:14px 14px 14px 4px; padding:8px 11px; font-size:13px; max-width:100%; display:grid; gap:6px; min-width:0; }
+.msg.me .bub { background:var(--primary-soft); border-color:transparent; color:var(--fg); border-radius:14px 14px 4px 14px; }
+.who { font-size:11.5px; font-weight:700; display:flex; gap:6px; align-items:center; }
+.who.ibo { color:var(--fg); } .who.app { color:var(--primary-ink); }
+.who small { font-weight:500; color:var(--faint); }
+.time { font-size:10.5px; color:var(--faint); justify-self:end; display:flex; align-items:center; gap:3px; }
+.time [data-lucide] { width:13px; height:13px; color:var(--sky); }
+.reacts { display:flex; gap:4px; flex-wrap:wrap; }
+.reacts span { font-size:11px; font-weight:700; background:var(--surface); border:1px solid var(--line); border-radius:999px; padding:1px 8px; }
+.reacts span.mine { background:var(--primary-soft); border-color:var(--primary); color:var(--primary-ink); }
+.quote { border:1px solid var(--line); background:var(--surface-2); border-radius:10px; padding:7px 9px; font-size:12px; display:grid; gap:2px; }
+.msg.me .quote { background:var(--surface); }
+.quote .qh { font-size:11px; font-weight:700; color:var(--primary-ink); display:flex; gap:5px; align-items:center; }
+.quote .qh [data-lucide] { width:12px; height:12px; }
+.quote .qb { color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.media { display:grid; grid-template-columns:36px minmax(0,1fr); gap:10px; align-items:center; border:1px solid var(--line); background:var(--surface-2); border-radius:10px; padding:8px 10px; }
+.play { width:36px; height:36px; border-radius:50%; background:var(--primary); color:var(--on-primary); display:grid; place-items:center; }
+.play [data-lucide] { width:16px; height:16px; }
+.media .mt { font-weight:700; font-size:12.5px; }
+.media .ms { font-size:11px; color:var(--muted); }
+.voice { display:grid; grid-template-columns:32px minmax(0,1fr) auto; gap:9px; align-items:center; }
+.voice .play { width:32px; height:32px; }
+.wave { display:flex; align-items:center; gap:2px; height:26px; }
+.wave i { display:block; width:3px; border-radius:2px; background:var(--faint); }
+.wave i.done { background:var(--primary); }
+.voice small { font-size:11px; color:var(--muted); font-variant-numeric:tabular-nums; }
+.evcard { background:var(--event-bg); color:#fff; border-radius:12px; padding:11px 12px; display:grid; gap:9px; }
+.evcard .et { font-weight:800; font-size:13.5px; }
+.evcard .es { font-size:11.5px; color:#BFD0E6; }
+.rsvp { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
+.rsvp span { text-align:center; font-size:11.5px; font-weight:700; padding:6px 4px; border-radius:8px; background:rgba(255,255,255,.1); color:#fff; }
+.rsvp span.on { background:var(--sky); color:#062338; }
+.evfoot { display:flex; justify-content:space-between; align-items:center; font-size:11px; color:#BFD0E6; gap:8px; }
+.evfoot a { color:#fff; font-weight:700; text-decoration:none; display:inline-flex; gap:4px; align-items:center; }
+.evfoot [data-lucide] { width:13px; height:13px; }
+.wincard { background:var(--amber-soft); color:var(--amber-ink); border-radius:12px; padding:10px 12px; display:grid; grid-template-columns:34px minmax(0,1fr); gap:10px; align-items:center; }
+.wincard .wi { width:34px; height:34px; border-radius:10px; background:var(--amber); color:#3A2200; display:grid; place-items:center; }
+.wincard .wt { font-weight:800; font-size:13px; color:var(--fg); }
+.wincard .ws { font-size:11.5px; }
+.wincard.sale .wi { background:var(--primary); color:var(--on-primary); }
+.wincard.contact .wi { background:var(--sky); color:#062338; }
+.compose { display:flex; align-items:center; gap:8px; padding:8px 0 0; border-top:1px solid var(--line); }
+.compose .field { flex:1; min-width:0; padding:9px 12px; border-radius:999px; background:var(--surface-2); color:var(--faint); font-size:12.5px; }
+.compose .rnd { width:36px; height:36px; border-radius:50%; display:grid; place-items:center; flex:none; }
+.compose .rnd.plus { background:var(--surface-2); color:var(--fg); }
+.compose .rnd.mic { background:var(--primary); color:var(--on-primary); }
+.pinned { display:flex; gap:8px; align-items:center; font-size:11.5px; background:var(--surface-2); border-radius:10px; padding:7px 10px; color:var(--muted); }
+.pinned [data-lucide] { width:13px; height:13px; color:var(--amber-strong); }
+.pinned b { color:var(--fg); }
+.typing { font-size:11.5px; color:var(--muted); font-style:italic; }
+/* desktop chat */
+.chatdesk { display:grid; grid-template-columns:300px minmax(0,1fr) 260px; height:700px; }
+.cpane { border-right:1px solid var(--line); padding:16px 14px; display:grid; grid-template-rows:auto auto auto minmax(0,1fr); gap:10px; background:var(--surface); min-width:0; overflow:hidden; }
+.tpane { padding:14px 20px 16px; display:grid; grid-template-rows:auto minmax(0,1fr) auto; gap:12px; min-width:0; overflow:hidden; }
+.ipane { border-left:1px solid var(--line); padding:16px 14px; display:grid; gap:14px; align-content:start; background:var(--surface); min-width:0; }
+.ipane h4 { font-size:12.5px; font-weight:700; }
+.mlist { display:grid; gap:8px; }
+.mrow { display:flex; align-items:center; gap:8px; font-size:12.5px; }
+.mrow .av { width:26px; height:26px; font-size:10px; }
+.mrow .sp { flex:1; }
+.tiles { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
+.tiles span { aspect-ratio:1; max-width:100%; border-radius:8px; background:var(--surface-2); display:grid; place-items:center; color:var(--faint); }
+/* log sheet */
+.sheetbg { position:absolute; inset:0; background:rgba(8,17,29,.45); display:flex; align-items:flex-end; }
+.sheet2 { width:100%; background:var(--surface); border-radius:20px 20px 0 0; padding:10px 16px 18px; display:grid; gap:12px; }
+.grab { width:40px; height:4px; border-radius:2px; background:var(--line); justify-self:center; }
+.steps { display:flex; gap:6px; align-items:center; font-size:11.5px; color:var(--muted); flex-wrap:wrap; }
+.steps b { color:var(--fg); }
+.steps [data-lucide] { width:12px; height:12px; }
+.optgrid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.opt { border:1px solid var(--line); border-radius:12px; padding:10px; display:grid; gap:3px; font-size:12px; color:var(--muted); }
+.opt b { color:var(--fg); font-size:13px; display:flex; gap:6px; align-items:center; }
+.opt.on { border-color:var(--primary); background:var(--primary-soft); color:var(--primary-ink); }
+.fld { display:grid; gap:4px; font-size:11.5px; font-weight:600; color:var(--muted); }
+.fld div { border:1px solid var(--line); border-radius:9px; padding:8px 10px; color:var(--fg); font-weight:500; font-size:12.5px; display:flex; align-items:center; gap:8px; }
+.toggle { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px; align-items:center; border:1px solid var(--line); border-radius:12px; padding:10px 12px; }
+.toggle .tt { font-weight:700; font-size:12.5px; }
+.toggle .ts { font-size:11px; color:var(--muted); }
+.sw { width:38px; height:22px; border-radius:999px; background:var(--primary); position:relative; }
+.sw::after { content:""; position:absolute; top:3px; right:3px; width:16px; height:16px; border-radius:50%; background:#fff; }
+.preview { border:1px dashed var(--line); border-radius:12px; padding:9px 10px; display:grid; gap:6px; }
+.preview small { font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--faint); }
+/* inbox */
+.nrow { display:grid; grid-template-columns:32px minmax(0,1fr) auto; gap:10px; align-items:start; padding:10px 0; border-top:1px solid var(--line); font-size:12.5px; }
+.nrow:first-child { border-top:0; }
+.nrow.unr .nt { font-weight:700; }
+.nrow .ns { font-size:11.5px; color:var(--muted); margin-top:2px; }
+.nrow .nact { display:flex; gap:6px; margin-top:7px; }
+.nrow .ntime { font-size:10.5px; color:var(--faint); display:grid; justify-items:end; gap:5px; }
+.dot2 { width:8px; height:8px; border-radius:50%; background:var(--primary); }
+.ico.flag { background:var(--danger-soft); color:var(--danger); }
+.ico.ann { background:var(--event-bg); color:#fff; }
+.ico.at { background:var(--sky-soft); color:var(--sky-ink); }
+.ico.win { background:var(--amber-soft); color:var(--amber-strong); }
+.inboxcard .nrow { padding:8px 0; }
+</style>
+
+<div class="sheet">
+  <header class="intro">
+    <span class="eyebrow">Design direction · chats</span>
+    <h1><span class="logo" aria-hidden="true"><i></i><i></i><i></i></span> LevelUp LOS chats</h1>
+    <p>Mockups of team messaging: the chat list, conversations with event and win posts, quick logging that shares a win, and the notifications inbox. Shown as Maria Reyes (leader). People and numbers come from the demo data; the messages are made-up examples.</p>
+    <div class="themer" role="group" aria-label="Theme">
+      <button type="button" id="theme-light" data-t="light" aria-pressed="false">Light</button>
+      <button type="button" id="theme-dark" data-t="dark" aria-pressed="false">Dark</button>
+      <button type="button" id="theme-auto" data-t="auto" aria-pressed="false">Auto</button>
+    </div>
+  </header>
+
+  <!-- ===================== DESKTOP ===================== -->
+  <section class="screen" aria-labelledby="desk-h">
+    <div class="screen-head"><h2 id="desk-h">Chats on desktop</h2><p>Chat list, the High signal chat, and chat details side by side</p></div>
+    <div class="scroller">
+      <div class="desk" role="img" aria-label="Desktop chats mockup">
+        <div class="chrome"><b></b><b></b><b></b><span>levelup-los.app/chats/high-signal</span></div>
+        <div class="shell">
+          <nav class="side" aria-label="Main">
+            <div class="brand"><span class="logo"><i></i><i></i><i></i></span><div>LevelUp LOS<small>LTD · LevelUp team</small></div></div>
+            <div class="nav"><i data-lucide="layout-dashboard"></i>Home</div>
+            <div class="nav on"><i data-lucide="message-circle"></i>Chats<span class="count">5</span></div>
+            <div class="nav"><i data-lucide="bell"></i>Inbox<span class="count">4</span></div>
+            <div class="nav"><i data-lucide="users"></i>People</div>
+            <div class="nav"><i data-lucide="network"></i>Mindmap</div>
+            <div class="nav"><i data-lucide="calendar-days"></i>Events</div>
+            <div class="nav"><i data-lucide="contact"></i>Customers</div>
+            <div class="nav"><i data-lucide="wallet"></i>Wallet</div>
+            <div class="nav"><i data-lucide="file-bar-chart"></i>Reports</div>
+            <div class="grow"></div>
+            <div class="me"><span class="av ibo">MR</span><div>Maria Reyes<small>Leader</small></div></div>
+          </nav>
+          <div class="chatdesk">
+            <div class="cpane">
+              <div class="chathead"><h3>Chats</h3><span class="sp"></span><span class="iconbtn" aria-label="New chat"><i data-lucide="square-pen"></i></span></div>
+              <div class="search2"><i data-lucide="search"></i>Search chats and messages</div>
+              <div class="chips"><span class="on">All</span><span>Unread 5</span><span>Groups</span><span>Direct</span></div>
+              <div class="clist">
+                <div class="clabel">Team</div>
+                <div class="crow"><span class="gav ann"><i data-lucide="megaphone"></i></span><div style="min-width:0"><div class="cname"><span>Announcements</span><i data-lucide="pin"></i></div><div class="cprev">You: Fall Leadership Weekend tickets…</div></div><div class="cmeta">2h<span class="chip warn">1 draft</span></div></div>
+                <div class="crow"><span class="gav main"><i data-lucide="users"></i></span><div style="min-width:0"><div class="cname"><span>Main chat</span><i data-lucide="pin"></i></div><div class="cprev"><b>Priya:</b> Who's bringing the projector?</div></div><div class="cmeta new">6:41 PM<span class="unread">2</span></div></div>
+                <div class="crow"><span class="gav wins"><i data-lucide="trophy"></i></span><div style="min-width:0"><div class="cname"><span>Daily wins</span><i data-lucide="pin"></i></div><div class="cprev"><b>Jamal:</b> Made a sale · XS Energy</div></div><div class="cmeta new">7:02 PM<span class="unread">3</span></div></div>
+                <div class="crow sel"><span class="gav sig"><i data-lucide="sparkles"></i></span><div style="min-width:0"><div class="cname"><span>High signal</span><i data-lucide="pin"></i></div><div class="cprev"><b>Anita:</b> Voice note (0:42)</div></div><div class="cmeta">7:15 PM</div></div>
+                <div class="clabel">Groups and direct</div>
+                <div class="crow"><span class="gav grp"><i data-lucide="car"></i></span><div style="min-width:0"><div class="cname"><span>Fall Weekend carpool</span></div><div class="cprev"><b>David:</b> I can take 3 from Plano</div></div><div class="cmeta">Yesterday</div></div>
+                <div class="crow"><span class="av ibo">AP</span><div style="min-width:0"><div class="cname"><span>Anita Patel</span></div><div class="cprev">Sounds good, talk tomorrow</div></div><div class="cmeta">Yesterday</div></div>
+                <div class="crow"><span class="av app">SK</span><div style="min-width:0"><div class="cname"><span>Sarah Kim</span><i data-lucide="bell-off"></i></div><div class="cprev">You: Did you grab your ticket yet?</div></div><div class="cmeta">Mon</div></div>
+              </div>
+            </div>
+            <div class="tpane">
+              <div class="convhead"><span class="gav sig"><i data-lucide="sparkles"></i></span><div><div class="t">High signal</div><div class="s">Questions and important discussion only · 38 members</div></div><span class="sp"></span><span class="iconbtn" aria-label="Search in chat"><i data-lucide="search"></i></span><span class="iconbtn" aria-label="Chat details"><i data-lucide="panel-right"></i></span></div>
+              <div class="thread" style="overflow:hidden">
+                <div class="pinned"><i data-lucide="pin"></i><span><b>Pinned:</b> How to set up your first home meeting</span></div>
+                <span class="day">TODAY</span>
+                <div class="msg"><span class="av ibo">MR</span><div class="bub" style="max-width:440px"><div class="who ibo">Maria Reyes <small>Leader</small></div>
+                  <div class="evcard"><div class="et">Fall Leadership Weekend</div><div class="es">Nov 7–8 · Dallas, TX · tickets close Oct 31</div>
+                    <div class="rsvp"><span>Going</span><span>Maybe</span><span class="on">Bought ticket</span></div>
+                    <div class="evfoot"><span>12 bought · 5 going · 3 maybe</span><a href="#desk-h"><i data-lucide="calendar-plus"></i>Add to calendar</a></div></div>
+                  <span class="time">5:30 PM</span></div></div>
+                <div class="msg"><span class="av app">JB</span><div class="bub" style="max-width:440px"><div class="who app">Jamal Brown <small>Apprentice</small></div>
+                  <div class="quote"><div class="qh"><i data-lucide="corner-up-left"></i>Maria · Sep 22</div><div class="qb">Bring two guests to every open meeting, even if they say maybe…</div></div>
+                  Does this still apply for the Fall Weekend? I have two prospects who might come.<span class="time">6:12 PM</span></div></div>
+                <div class="msg"><span class="av ibo">AP</span><div class="bub" style="max-width:440px"><div class="who ibo">Anita Patel <small>IBO</small></div>
+                  <div class="voice"><span class="play"><i data-lucide="play"></i></span><div class="wave" data-n="34" data-done="0"></div><small>0:42</small></div>
+                  <div class="media"><span class="play"><i data-lucide="headphones"></i></span><div style="min-width:0"><div class="mt">Talk: Inviting without pressure</div><div class="ms">Audio · 18 min · from the library</div></div></div>
+                  <span class="time">7:15 PM</span></div></div>
+                <div class="reacts" style="padding-left:36px"><span class="mine">🔥 4</span><span>👍 2</span></div>
+              </div>
+              <div class="typing">David is typing…</div>
+              <div class="compose"><span class="rnd plus" aria-label="Attach or post"><i data-lucide="plus"></i></span><span class="field">Message High signal</span><span class="rnd mic" aria-label="Record voice note"><i data-lucide="mic"></i></span></div>
+            </div>
+            <aside class="ipane">
+              <div><h4>About</h4><p class="muted" style="font-size:12px; margin-top:4px">Questions and important discussion only. Wins go in Daily wins.</p></div>
+              <div class="mlist"><h4>Admins</h4>
+                <div class="mrow"><span class="av ibo">MR</span><span>Maria Reyes</span><span class="sp"></span><span class="chip ibo">Leader</span></div>
+                <div class="mrow"><span class="av ibo">AP</span><span>Anita Patel</span><span class="sp"></span><span class="chip app">Moderator</span></div>
+              </div>
+              <div><h4 style="margin-bottom:8px">Shared media</h4><div class="tiles"><span><i data-lucide="image"></i></span><span><i data-lucide="headphones"></i></span><span><i data-lucide="video"></i></span><span><i data-lucide="file-text"></i></span><span><i data-lucide="image"></i></span><span><i data-lucide="mic"></i></span></div></div>
+              <div class="mlist"><h4>Settings</h4>
+                <div class="mrow"><i data-lucide="bell"></i><span>Notifications</span><span class="sp"></span><span class="faint">Mentions only</span></div>
+                <div class="mrow"><i data-lucide="history"></i><span>Message history</span><span class="sp"></span><span class="faint">Keep forever</span></div>
+              </div>
+            </aside>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== PHONE ===================== -->
+  <section class="screen" aria-labelledby="phone-h">
+    <div class="screen-head"><h2 id="phone-h">On a phone</h2><p>The app opens on Home; Chats opens straight to the chat list</p></div>
+    <div class="phones">
+
+      <div class="pwrap">
+        <div class="phone" role="img" aria-label="Home with inbox">
+          <div class="status"><span>7:42</span><span class="notch"></span><span>5G</span></div>
+          <div class="pbody">
+            <div class="ptop"><span class="logo"><i></i><i></i><i></i></span><div><h3>Hi, Maria</h3><p class="sub">12 things need you today</p></div><span class="av ibo">MR</span></div>
+            <div class="p2">
+              <div class="pc"><h4>Streak</h4><div style="display:flex; align-items:center; gap:8px"><span class="flame" style="width:34px;height:34px;border-radius:10px"><i data-lucide="flame"></i></span><b class="big num" style="font-size:22px">3</b></div></div>
+              <div class="pc"><h4>Week goal</h4><b class="big num" style="font-size:22px">36%</b><div class="bar"><span style="width:36%; background:var(--sky)"></span></div></div>
+            </div>
+            <div class="pc inboxcard" style="gap:0">
+              <div class="card-h" style="padding-bottom:4px"><h4>Inbox</h4><span class="link">See all 4</span></div>
+              <div class="nrow unr"><span class="ico ann"><i data-lucide="megaphone"></i></span><div><div class="nt">Sarah drafted an announcement</div><div class="ns">Waiting for your approval</div></div><div class="ntime">5m<span class="dot2"></span></div></div>
+              <div class="nrow unr"><span class="ico at"><i data-lucide="at-sign"></i></span><div><div class="nt">Jamal mentioned you</div><div class="ns">High signal · "Does this still apply…"</div></div><div class="ntime">1h<span class="dot2"></span></div></div>
+              <div class="nrow"><span class="ico win"><i data-lucide="trophy"></i></span><div><div class="nt">3 new wins today</div><div class="ns">Daily wins</div></div><div class="ntime">2h</div></div>
+            </div>
+            <div class="pc" style="gap:0">
+              <div class="card-h" style="padding-bottom:6px"><h4>Today</h4><span class="link">See all 12</span></div>
+              <div class="act"><span class="ico ticket"><i data-lucide="ticket"></i></span><div><div class="t" style="font-size:12.5px">Sarah Kim needs a ticket</div><div class="d" style="font-size:11px">Planned by Oct 10</div></div><button class="btn" type="button">Text</button></div>
+              <div class="act"><span class="ico contact"><i data-lucide="message-circle"></i></span><div><div class="t" style="font-size:12.5px">Finley Underwood</div><div class="d" style="font-size:11px">Prospect · 22 days</div></div><button class="btn soft" type="button" aria-label="Check in"><i data-lucide="check"></i></button></div>
+            </div>
+          </div>
+          <div class="tabbar five"><div class="on"><i data-lucide="house"></i>Home</div><div><span class="ti"><i data-lucide="message-circle"></i><span class="tbadge">5</span></span>Chats</div><div><span class="fab"><i data-lucide="plus"></i></span></div><div><i data-lucide="users"></i>People</div><div><i data-lucide="menu"></i>More</div></div>
+        </div>
+        <p class="pcap"><b>Home first.</b> A new Inbox card sits above the Today list, so notifications and to-dos are in one place.</p>
+      </div>
+
+      <div class="pwrap">
+        <div class="phone" role="img" aria-label="Chat list">
+          <div class="status"><span>7:42</span><span class="notch"></span><span>5G</span></div>
+          <div class="pbody">
+            <div class="chathead"><h3>Chats</h3><span class="sp"></span><span class="iconbtn" aria-label="New chat"><i data-lucide="square-pen"></i></span></div>
+            <div class="search2"><i data-lucide="search"></i>Search</div>
+            <div class="chips"><span class="on">All</span><span>Unread 5</span><span>Groups</span><span>Direct</span></div>
+            <div class="clist">
+              <div class="crow"><span class="gav ann"><i data-lucide="megaphone"></i></span><div style="min-width:0"><div class="cname"><span>Announcements</span><i data-lucide="pin"></i></div><div class="cprev">You: Fall Weekend tickets close…</div></div><div class="cmeta">2h<span class="chip warn">1 draft</span></div></div>
+              <div class="crow"><span class="gav main"><i data-lucide="users"></i></span><div style="min-width:0"><div class="cname"><span>Main chat</span><i data-lucide="pin"></i></div><div class="cprev"><b>Priya:</b> Who's bringing the projector?</div></div><div class="cmeta new">6:41<span class="unread">2</span></div></div>
+              <div class="crow"><span class="gav wins"><i data-lucide="trophy"></i></span><div style="min-width:0"><div class="cname"><span>Daily wins</span><i data-lucide="pin"></i></div><div class="cprev"><b>Jamal:</b> Made a sale · XS Energy</div></div><div class="cmeta new">7:02<span class="unread">3</span></div></div>
+              <div class="crow"><span class="gav sig"><i data-lucide="sparkles"></i></span><div style="min-width:0"><div class="cname"><span>High signal</span><i data-lucide="pin"></i></div><div class="cprev"><b>Anita:</b> Voice note (0:42)</div></div><div class="cmeta">7:15</div></div>
+              <div class="crow"><span class="gav grp"><i data-lucide="car"></i></span><div style="min-width:0"><div class="cname"><span>Fall Weekend carpool</span></div><div class="cprev"><b>David:</b> I can take 3 from Plano</div></div><div class="cmeta">Yest.</div></div>
+              <div class="crow"><span class="av ibo">AP</span><div style="min-width:0"><div class="cname"><span>Anita Patel</span></div><div class="cprev">Sounds good, talk tomorrow</div></div><div class="cmeta">Yest.</div></div>
+              <div class="crow"><span class="av app">SK</span><div style="min-width:0"><div class="cname"><span>Sarah Kim</span><i data-lucide="bell-off"></i></div><div class="cprev">You: Did you grab your ticket yet?</div></div><div class="cmeta">Mon</div></div>
+              <div class="crow"><span class="av ibo">DC</span><div style="min-width:0"><div class="cname"><span>David Chen</span></div><div class="cprev">Voice note (1:05)</div></div><div class="cmeta">Sun</div></div>
+            </div>
+          </div>
+          <div class="tabbar five"><div><i data-lucide="house"></i>Home</div><div class="on"><span class="ti"><i data-lucide="message-circle"></i><span class="tbadge">5</span></span>Chats</div><div><span class="fab"><i data-lucide="plus"></i></span></div><div><i data-lucide="users"></i>People</div><div><i data-lucide="menu"></i>More</div></div>
+        </div>
+        <p class="pcap"><b>Chats, WhatsApp-style.</b> The four team chats are pinned on top, then side groups and direct messages by most recent.</p>
+      </div>
+
+      <div class="pwrap">
+        <div class="phone" role="img" aria-label="Daily wins chat">
+          <div class="status"><span>7:42</span><span class="notch"></span><span>5G</span></div>
+          <div class="pbody" style="grid-template-rows:auto minmax(0,1fr) auto; height:100%">
+            <div class="convhead"><i data-lucide="chevron-left"></i><span class="gav wins" style="width:34px;height:34px"><i data-lucide="trophy"></i></span><div><div class="t">Daily wins</div><div class="s">41 members</div></div></div>
+            <div class="thread">
+              <span class="day">TODAY</span>
+              <div class="msg"><span class="av app">JB</span><div class="bub"><div class="who app">Jamal Brown</div>
+                <div class="wincard sale"><span class="wi"><i data-lucide="shopping-bag"></i></span><div><div class="wt">Made a sale</div><div class="ws">XS Energy (case) to a new customer</div></div></div>
+                Third one this week<span class="time">7:02 PM</span></div></div>
+              <div class="reacts" style="padding-left:36px"><span class="mine">🎉 6</span><span>🔥 3</span></div>
+              <div class="msg"><span class="av ibo">PS</span><div class="bub"><div class="who ibo">Priya Singh</div>
+                <div class="wincard contact"><span class="wi"><i data-lucide="user-plus"></i></span><div><div class="wt">Just made a new contact</div><div class="ws">Recruiting · met at the gym</div></div></div>
+                <span class="time">6:20 PM</span></div></div>
+              <div class="msg me"><div class="bub">
+                <div class="wincard"><span class="wi"><i data-lucide="ticket"></i></span><div><div class="wt">Bought my ticket</div><div class="ws">Fall Leadership Weekend</div></div></div>
+                <span class="time">5:41 PM <i data-lucide="check-check"></i></span></div></div>
+              <div class="reacts" style="justify-self:end"><span>🙌 9</span></div>
+            </div>
+            <div class="compose"><span class="rnd plus" aria-label="Attach or post"><i data-lucide="plus"></i></span><span class="field">Share a win</span><span class="rnd mic" aria-label="Record voice note"><i data-lucide="mic"></i></span></div>
+          </div>
+        </div>
+        <p class="pcap"><b>Daily wins.</b> Every card here is also logged data: the sale, the new contact and the ticket are recorded once, here and in the CRM.</p>
+      </div>
+
+      <div class="pwrap">
+        <div class="phone" role="img" aria-label="Log activity sheet">
+          <div class="status"><span>7:42</span><span class="notch"></span><span>5G</span></div>
+          <div class="pbody" style="opacity:.35">
+            <div class="ptop"><div><h3>Hi, Maria</h3><p class="sub">12 things need you today</p></div></div>
+            <div class="pc" style="height:120px"></div><div class="pc" style="height:160px"></div>
+          </div>
+          <div class="sheetbg">
+            <div class="sheet2">
+              <span class="grab"></span>
+              <div class="steps"><span>Log</span><i data-lucide="chevron-right"></i><span>Activity</span><i data-lucide="chevron-right"></i><b>Recruiting</b></div>
+              <div class="optgrid">
+                <div class="opt on"><b><i data-lucide="user-plus"></i>New contact</b>Met someone new</div>
+                <div class="opt"><b><i data-lucide="presentation"></i>Showed the plan</b>Plan or meeting</div>
+                <div class="opt"><b><i data-lucide="phone"></i>Follow-up</b>Called or met again</div>
+                <div class="opt"><b><i data-lucide="calendar-check"></i>Booked a meeting</b>Date set</div>
+              </div>
+              <div class="fld">Who<div><span class="av pro" style="width:22px;height:22px;font-size:9px">TR</span>Tasha Reed · new prospect</div></div>
+              <div class="toggle"><div><div class="tt">Share as a win</div><div class="ts">Posts to Daily wins</div></div><span class="sw" aria-hidden="true"></span></div>
+              <div class="preview"><small>Preview · you can edit it</small><div class="wincard contact" style="padding:8px 10px"><span class="wi"><i data-lucide="user-plus"></i></span><div><div class="wt">Just made a new contact</div><div class="ws">Recruiting</div></div></div></div>
+              <button class="btn primary" type="button" style="width:100%">Log and share</button>
+            </div>
+          </div>
+        </div>
+        <p class="pcap"><b>The + button.</b> Log activity → Recruiting or Selling → what happened. One switch shares it to Daily wins with ready-made text. Names stay out of the post.</p>
+      </div>
+
+      <div class="pwrap">
+        <div class="phone" role="img" aria-label="Notifications inbox">
+          <div class="status"><span>7:42</span><span class="notch"></span><span>5G</span></div>
+          <div class="pbody">
+            <div class="chathead"><i data-lucide="chevron-left"></i><h3>Inbox</h3><span class="sp"></span><span class="link">Mark all read</span></div>
+            <div class="chips"><span class="on">All</span><span>Needs you 2</span><span>Mentions</span></div>
+            <div class="pc" style="gap:0">
+              <div class="nrow unr"><span class="ico ann"><i data-lucide="megaphone"></i></span><div><div class="nt">Sarah Kim drafted an announcement</div><div class="ns">"Carpool sign-up for the Fall Weekend is open…"</div><div class="nact"><button class="btn primary" type="button">Approve</button><button class="btn" type="button">Review</button></div></div><div class="ntime">5m<span class="dot2"></span></div></div>
+              <div class="nrow unr"><span class="ico flag"><i data-lucide="flag"></i></span><div><div class="nt">A message in Main chat was reported</div><div class="ns">Reported for spam · only leaders see this</div><div class="nact"><button class="btn" type="button">Review report</button></div></div><div class="ntime">40m<span class="dot2"></span></div></div>
+              <div class="nrow unr"><span class="ico at"><i data-lucide="at-sign"></i></span><div><div class="nt">Jamal mentioned you in High signal</div><div class="ns">"Does this still apply for the Fall Weekend?"</div></div><div class="ntime">1h<span class="dot2"></span></div></div>
+              <div class="nrow unr"><span class="ico win"><i data-lucide="trophy"></i></span><div><div class="nt">Jamal made a sale</div><div class="ns">Daily wins · 6 reactions</div></div><div class="ntime">1h<span class="dot2"></span></div></div>
+              <div class="nrow"><span class="ico rank"><i data-lucide="calendar-days"></i></span><div><div class="nt">5 people said Going to Fall Leadership Weekend</div><div class="ns">From your event post</div></div><div class="ntime">3h</div></div>
+              <div class="nrow"><span class="ico contact"><i data-lucide="message-circle"></i></span><div><div class="nt">Check-in with Anita logged</div><div class="ns">From your conversation yesterday</div></div><div class="ntime">1d</div></div>
+            </div>
+          </div>
+          <div class="tabbar five"><div class="on"><i data-lucide="house"></i>Home</div><div><span class="ti"><i data-lucide="message-circle"></i><span class="tbadge">5</span></span>Chats</div><div><span class="fab"><i data-lucide="plus"></i></span></div><div><i data-lucide="users"></i>People</div><div><i data-lucide="menu"></i>More</div></div>
+        </div>
+        <p class="pcap"><b>Inbox.</b> Approvals and reports come first. "Check-in logged" shows the automatic contact from a conversation.</p>
+      </div>
+
+    </div>
+  </section>
+
+  <section class="screen" aria-labelledby="notes-h">
+    <div class="screen-head"><h2 id="notes-h">How it fits the decisions</h2></div>
+    <aside class="notes" style="max-width:760px">
+      <ol>
+        <li><b>Four team chats are pinned:</b> Announcements (drafts need approval; leaders skip it), Main chat, Daily wins and High signal. Anyone on the team can start a side group and becomes its admin.</li>
+        <li><b>Only apprentices, IBOs and leaders use chat.</b> Prospects and candidates don't see the Chats tab.</li>
+        <li><b>Direct messages</b> go to anyone you share a chat with. Report and block are in every message's menu; reports notify the leader.</li>
+        <li><b>Posts write data.</b> Event cards record Going, Maybe and Bought ticket; win cards are the logged sale, contact or ticket; a conversation in both directions logs a check-in for both people.</li>
+        <li><b>Links to older posts and material</b> show as a quote or a playable card, as in Jamal's reply and Anita's shared talk.</li>
+        <li><b>Message history is kept forever</b> by default; each chat can be set to auto-delete.</li>
+      </ol>
+    </aside>
+  </section>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<script>
+try { lucide.createIcons(); } catch (e) { /* icons are decorative */ }
+document.querySelectorAll(".wave").forEach(function (w) {
+  var n = +w.dataset.n || 30, done = +w.dataset.done || 0, seed = 7;
+  for (var i = 0; i < n; i++) {
+    seed = (seed * 9301 + 49297) % 233280;
+    var h = 5 + Math.round((seed / 233280) * 19 * (0.55 + 0.45 * Math.sin(i / 3)));
+    var b = document.createElement("i");
+    b.style.height = Math.max(4, h) + "px";
+    if (i < done) b.className = "done";
+    w.appendChild(b);
+  }
+});
+(function () {
+  var root = document.documentElement, btns = document.querySelectorAll(".themer button");
+  function apply(t) {
+    if (t === "auto") root.removeAttribute("data-theme"); else root.setAttribute("data-theme", t);
+    btns.forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.t === t)); });
+    try { localStorage.setItem("levelup-mock-theme", t); } catch (e) {}
+  }
+  var saved = null;
+  try { saved = localStorage.getItem("levelup-mock-theme"); } catch (e) {}
+  apply(saved || root.getAttribute("data-theme") || "auto");
+  btns.forEach(function (b) { b.addEventListener("click", function () { apply(b.dataset.t); }); });
+})();
+</script>
