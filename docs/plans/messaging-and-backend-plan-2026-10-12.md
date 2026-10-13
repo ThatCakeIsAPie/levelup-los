@@ -125,6 +125,45 @@ Existing CRM data (people, events, attendance, contacts, learning, sales, costs)
 
 Realtime: Supabase Realtime for new messages, reactions, read state and notifications. Storage: Supabase Storage buckets with the same membership rules.
 
+## Chat data contract
+
+The exact shape shared by the browser-storage implementation (TypeScript, camelCase) and the database (Postgres, snake_case: `conversationId` ↔ `conversation_id`). Both must match field for field. Ids are text (client-generated UUIDs; seed rows keep readable ids). Timestamps are ISO strings / `timestamptz`. Person ids are the existing CRM person ids.
+
+| Entity (TS / table)                           | Fields                                                                                                                                                                                                                                               |
+| --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `WorkspaceMember` / `members`                 | `workspaceId`, `personId`, `role` (`leader` \| `moderator` \| `member`), `userId` (auth user, db only), `joinedAt`                                                                                                                                   |
+| `Conversation` / `conversations`              | `id`, `workspaceId`, `kind` (`announcements` \| `main` \| `group` \| `dm`), `title` (null for DMs), `description`, `icon` (lucide name, optional), `pinned` (team chats), `retentionDays` (null = keep forever), `createdBy`, `createdAt`            |
+| `ConversationMember` / `conversation_members` | `conversationId`, `personId`, `role` (`admin` \| `moderator` \| `member`), `lastReadAt`, `muted`, `joinedAt`                                                                                                                                         |
+| `Message` / `messages`                        | `id`, `conversationId`, `authorId`, `body`, `replyToId`, `card` (JSON, below), `createdAt`, `editedAt`, `deletedAt`                                                                                                                                  |
+| `Attachment` / `attachments`                  | `id`, `messageId`, `kind` (`image` \| `voice` \| `file`), `storagePath`, `mime`, `size`, `durationMs`, `width`, `height`                                                                                                                             |
+| `Reaction` / `reactions`                      | `messageId`, `personId`, `emoji`, `createdAt`                                                                                                                                                                                                        |
+| `Mention` / `mentions`                        | `messageId`, `personId`                                                                                                                                                                                                                              |
+| `AnnouncementDraft` / `announcement_drafts`   | `id`, `conversationId`, `authorId`, `body`, `card`, `status` (`pending` \| `approved` \| `rejected`), `reviewerId`, `reviewedAt`, `createdAt`                                                                                                        |
+| `Notification` / `notifications`              | `id`, `recipientId`, `type` (`mention` \| `reply` \| `announcement_draft` \| `announcement_posted` \| `report` \| `event_post` \| `win` \| `checkin_logged` \| `reaction`), `actorId`, `conversationId`, `messageId`, `refId`, `createdAt`, `readAt` |
+| `Report` / `reports`                          | `id`, `messageId`, `reporterId`, `reason`, `createdAt`, `resolvedAt`, `resolvedBy`                                                                                                                                                                   |
+| `Block` / `blocks`                            | `blockerId`, `blockedId`, `createdAt`                                                                                                                                                                                                                |
+| `LibraryItem` / `library_items`               | `id`, `workspaceId`, `kind` (`audio` \| `video` \| `document`), `title`, `durationSec`, `url`, `createdBy`, `createdAt`                                                                                                                              |
+| `Contact` (existing) / `contacts`             | gains `source` (`manual` \| `message` \| `event`)                                                                                                                                                                                                    |
+
+`card` JSON (`MessageCard`):
+
+- `{ "type": "event", "eventId": "e1" }` — RSVP buttons write attendance.
+- `{ "type": "win", "winKind": "sale" | "contact" | "plan" | "ticket" | "rank" | "other", "refId": "<id of the logged record>", "title": "Made a sale", "detail": "XS Energy (case)" }` — the logged record is the source of truth; the card points at it.
+- `{ "type": "learning", "learningId": "<id>", "title": "Momentum Daily" }`
+- `{ "type": "link", "target": { "kind": "message" | "event" | "person" | "material", "id": "<id>" } }` — preview card that opens the original.
+
+Rules (implemented as pure functions on the client and as row-level security / triggers in the database; both tested):
+
+- **Chat eligibility:** people whose effective stage is apprentice or IBO, plus leaders. Prospects, customers and the candidate demo role have no chat.
+- **Team chats:** every eligible member belongs to `announcements` and `main`; `Daily wins` and `High signal` are `group` chats with `pinned = true` created for the workspace.
+- **Group chats:** any eligible member can create one and becomes its `admin`; admins make others `moderator`.
+- **Direct messages:** allowed between two eligible people who share at least one conversation and haven't blocked each other.
+- **Announcements:** leaders and workspace moderators post directly; anyone else creates an `AnnouncementDraft` that a leader or moderator approves (approval posts the message and notifies the author). Leaders' own posts skip approval.
+- **Reports** notify every workspace leader (`report` notification).
+- **Mentions and replies** notify the mentioned / replied-to person.
+- **Conversation check-in:** when person A posts in a DM (or replies to B in a group) and B posted to A in that conversation within the previous 24 hours, record one `contacts` row for each direction (`source = "message"`), at most once per pair per local day, and notify both (`checkin_logged`).
+- **Retention:** `retentionDays` null keeps forever; otherwise messages older than that are deleted.
+
 ## Phases
 
 0. **Database and accounts.** Local Supabase in Docker; schema and row-level security for the existing CRM data; `@/data` hooks re-implemented on Supabase; real sign-in with invite links that place new people under their sponsor; seed data for development. The demo-user picker stays available in development and in the browser-storage demo build (GitHub Pages), which keeps working without a database.
