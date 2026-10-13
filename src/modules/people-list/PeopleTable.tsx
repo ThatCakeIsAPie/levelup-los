@@ -44,10 +44,7 @@ export function PeopleTable({
                 onCheckedChange={onToggleAll}
                 disabled={selectable.length === 0}
                 aria-label={allState === true ? "Clear selection" : "Select everyone in this list"}
-                className={cn(
-                  CHECKBOX_FOCUS,
-                  "data-[state=indeterminate]:[&_svg]:hidden data-[state=indeterminate]:after:block data-[state=indeterminate]:after:h-0.5 data-[state=indeterminate]:after:w-2 data-[state=indeterminate]:after:rounded-full data-[state=indeterminate]:after:bg-primary",
-                )}
+                className={CHECKBOX_FOCUS}
               />
             </th>
             <th className={TH}>{customers ? "Customer" : "Person"}</th>

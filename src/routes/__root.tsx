@@ -11,6 +11,7 @@ import {
 import { useEffect } from "react";
 import { AppShell } from "@/components/shell/AppShell";
 import { Toaster } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { useIsDesktop } from "@/hooks/use-media-query";
 import { useTheme } from "@/lib/theme";
 import { useSession } from "@/data";
@@ -94,7 +95,10 @@ function RootComponent() {
     <>
       {/* Renders route head() tags; React 19 hoists <title>/<meta> into <head>. */}
       <HeadContent />
-      <SessionGate />
+      {/* One provider for every Tooltip in the app. */}
+      <TooltipProvider delayDuration={200}>
+        <SessionGate />
+      </TooltipProvider>
       <Toaster
         theme={resolved}
         position={desktop ? "bottom-right" : "top-center"}

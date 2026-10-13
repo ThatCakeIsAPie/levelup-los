@@ -24,6 +24,7 @@ import type { BizClass, CrmPerson } from "@/data";
 import { cn } from "@/lib/utils";
 import { NODE_H, NODE_W } from "./layout";
 import type { PositionedNode } from "./types";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 export type CardAction = "apprentice" | "ibo" | "customer" | "view" | "edit";
 
@@ -301,12 +302,20 @@ function CustomerSlot({
   // Someone else's customers: the count is shared, names are private.
   if (customers.length === 0) {
     return (
-      <span className={pill} title={`Only ${ownerName} sees who their customers are`}>
-        <ShoppingBag className="size-3" aria-hidden="true" />
-        <span className="tabular-nums">
-          {count} {count === 1 ? "customer" : "customers"}
-        </span>
-      </span>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className={pill}>
+            <ShoppingBag className="size-3" aria-hidden="true" />
+            <span className="tabular-nums">
+              {count} {count === 1 ? "customer" : "customers"}
+            </span>
+            <span className="sr-only"> (only {ownerName} sees who they are)</span>
+          </span>
+        </TooltipTrigger>
+        <TooltipContent aria-hidden="true">
+          Only {ownerName} sees who their customers are
+        </TooltipContent>
+      </Tooltip>
     );
   }
 
