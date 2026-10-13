@@ -62,5 +62,5 @@ export function resetDemo(): void {
   } catch {
     // Storage unavailable: a reload still resets in-memory state.
   }
-  window.location.assign("/login");
+  window.location.assign(`${import.meta.env.BASE_URL}login`);
 }

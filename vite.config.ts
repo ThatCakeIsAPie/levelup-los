@@ -9,6 +9,9 @@ import { tanstackRouter } from "@tanstack/router-plugin/vite";
 // plugin regenerates src/routeTree.gen.ts on dev/build (it must run before
 // the React plugin).
 export default defineConfig({
+  // Served from the domain root locally; GitHub Pages builds set BASE_PATH to
+  // "/levelup-los/" (see .github/workflows/pages.yml).
+  base: process.env.BASE_PATH ?? "/",
   plugins: [
     tanstackRouter({ target: "react", autoCodeSplitting: true }),
     react(),
