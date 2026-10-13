@@ -332,10 +332,13 @@ p { margin:0; }
 .evfoot { display:flex; justify-content:space-between; align-items:center; font-size:11px; color:#BFD0E6; gap:8px; }
 .evfoot a { color:#fff; font-weight:700; text-decoration:none; display:inline-flex; gap:4px; align-items:center; }
 .evfoot [data-lucide] { width:13px; height:13px; }
-.wincard { position:relative; background:transparent; border:1.5px solid var(--win-line); color:var(--muted); border-radius:12px; padding:10px 18px 10px 12px; display:grid; grid-template-columns:34px minmax(0,1fr); gap:10px; align-items:center; }
-.wincard::after { content:""; position:absolute; top:9px; bottom:9px; right:7px; width:4px; border-radius:2px; background:var(--amber); }
-.msg.me .wincard, .preview .wincard { padding:10px 12px 10px 18px; }
-.msg.me .wincard::after, .preview .wincard::after { right:auto; left:7px; }
+.wincard { background:transparent; border:1.5px solid var(--win-line); color:var(--muted); border-radius:12px; padding:10px 12px; display:grid; grid-template-columns:34px minmax(0,1fr); gap:10px; align-items:center; }
+/* Activity messages: a plain gold line outside the bubble, on the side away from the screen edge. */
+.msg.activity .bub { position:relative; }
+.msg.activity .bub::after { content:""; position:absolute; top:0; bottom:0; right:-12px; width:3px; background:var(--amber); }
+.msg.me.activity .bub::after { right:auto; left:-12px; }
+.msg.activity { padding-right:14px; }
+.msg.me.activity { padding-right:0; padding-left:14px; }
 .wincard .wi { width:34px; height:34px; border-radius:10px; background:var(--amber-soft); color:var(--amber-strong); display:grid; place-items:center; }
 .wincard .wt { font-weight:800; font-size:13px; color:var(--fg); }
 .wincard .ws { font-size:11.5px; }
@@ -594,14 +597,14 @@ p { margin:0; }
             <div class="convhead"><i data-lucide="chevron-left"></i><span class="gav wins" style="width:34px;height:34px"><i data-lucide="trophy"></i></span><div><div class="t">Daily wins</div><div class="s">41 members</div></div></div>
             <div class="thread">
               <span class="day">TODAY</span>
-              <div class="msg"><span class="av app">JB</span><div class="bub"><div class="who app">Jamal Brown</div>
+              <div class="msg activity"><span class="av app">JB</span><div class="bub"><div class="who app">Jamal Brown</div>
                 <div class="wincard sale"><span class="wi"><i data-lucide="shopping-bag"></i></span><div><div class="wt">Made a sale</div><div class="ws">XS Energy (case) to a new customer</div></div></div>
                 Third one this week<span class="time">7:02 PM</span></div></div>
               <div class="reacts" style="padding-left:36px"><span class="mine">🎉 6</span><span>🔥 3</span></div>
-              <div class="msg"><span class="av ibo">PS</span><div class="bub"><div class="who ibo">Priya Singh</div>
+              <div class="msg activity"><span class="av ibo">PS</span><div class="bub"><div class="who ibo">Priya Singh</div>
                 <div class="wincard contact"><span class="wi"><i data-lucide="user-plus"></i></span><div><div class="wt">Just made a new contact</div><div class="ws">Recruiting · met at the gym</div></div></div>
                 <span class="time">6:20 PM</span></div></div>
-              <div class="msg me"><div class="bub">
+              <div class="msg me activity"><div class="bub">
                 <div class="wincard"><span class="wi"><i data-lucide="ticket"></i></span><div><div class="wt">Bought my ticket</div><div class="ws">Fall Leadership Weekend</div></div></div>
                 <span class="time">5:41 PM <i data-lucide="check-check"></i></span></div></div>
               <div class="reacts" style="justify-self:end"><span>🙌 9</span></div>
