@@ -524,7 +524,8 @@ em.up { color:var(--ok); } em.dn { color:var(--danger); } em.flat { color:var(--
 .colh .stepby { color:var(--faint); font-weight:600; }
 .colh .conv:empty { display:none; }
 .kpis5.four { grid-template-columns:repeat(4,minmax(0,1fr)); }
-.pboard { display:flex; gap:10px; overflow-x:auto; scroll-snap-type:x mandatory; margin:0 -14px; padding:0 14px 4px; }
+.pboard { display:flex; gap:10px; overflow-x:auto; scroll-snap-type:x mandatory; scrollbar-width:none; -ms-overflow-style:none; margin:0 -14px; padding:0 14px 4px; }
+.pboard::-webkit-scrollbar { display:none; }
 .pcol { flex:0 0 84%; scroll-snap-align:start; background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:10px 12px; display:grid; gap:0; align-content:start; }
 .pband { font-size:10px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--faint); }
 .pcolh { display:flex; align-items:center; gap:6px; padding:2px 0 6px; font-size:14px; }
