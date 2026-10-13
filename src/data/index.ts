@@ -26,6 +26,9 @@ export {
   type Viewer,
 } from "./access";
 
+// Navigation badges (chat feature)
+export { useUnreadChatsCount, useUnreadInboxCount } from "./badges";
+
 // Session
 export {
   useSession,

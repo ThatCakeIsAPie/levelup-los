@@ -10,21 +10,32 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as BusinessRouteImport } from './routes/business'
 import { Route as CampaignsRouteImport } from './routes/campaigns'
 import { Route as CustomersRouteImport } from './routes/customers'
+import { Route as InboxRouteImport } from './routes/inbox'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as MindmapRouteImport } from './routes/mindmap'
 import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as StyleguideRouteImport } from './routes/styleguide'
 import { Route as WalletRouteImport } from './routes/wallet'
+import { Route as ChatsIndexRouteImport } from './routes/chats.index'
+import { Route as ChatsIdRouteImport } from './routes/chats.$id'
 import { Route as EventsIndexRouteImport } from './routes/events.index'
 import { Route as EventsIdRouteImport } from './routes/events.$id'
 import { Route as PeopleIndexRouteImport } from './routes/people.index'
 import { Route as PeopleIdRouteImport } from './routes/people.$id'
+import { Route as SettingsIndexRouteImport } from './routes/settings.index'
+import { Route as SettingsTeamRouteImport } from './routes/settings.team'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BusinessRoute = BusinessRouteImport.update({
+  id: '/business',
+  path: '/business',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CampaignsRoute = CampaignsRouteImport.update({
@@ -35,6 +46,11 @@ const CampaignsRoute = CampaignsRouteImport.update({
 const CustomersRoute = CustomersRouteImport.update({
   id: '/customers',
   path: '/customers',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InboxRoute = InboxRouteImport.update({
+  id: '/inbox',
+  path: '/inbox',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -62,6 +78,16 @@ const WalletRoute = WalletRouteImport.update({
   path: '/wallet',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ChatsIndexRoute = ChatsIndexRouteImport.update({
+  id: '/chats/',
+  path: '/chats/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ChatsIdRoute = ChatsIdRouteImport.update({
+  id: '/chats/$id',
+  path: '/chats/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EventsIndexRoute = EventsIndexRouteImport.update({
   id: '/events/',
   path: '/events/',
@@ -82,108 +108,160 @@ const PeopleIdRoute = PeopleIdRouteImport.update({
   path: '/people/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsIndexRoute = SettingsIndexRouteImport.update({
+  id: '/settings/',
+  path: '/settings/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsTeamRoute = SettingsTeamRouteImport.update({
+  id: '/settings/team',
+  path: '/settings/team',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/business': typeof BusinessRoute
   '/campaigns': typeof CampaignsRoute
   '/customers': typeof CustomersRoute
+  '/inbox': typeof InboxRoute
   '/login': typeof LoginRoute
   '/mindmap': typeof MindmapRoute
   '/reports': typeof ReportsRoute
   '/styleguide': typeof StyleguideRoute
   '/wallet': typeof WalletRoute
+  '/chats/$id': typeof ChatsIdRoute
   '/events/$id': typeof EventsIdRoute
   '/people/$id': typeof PeopleIdRoute
+  '/settings/team': typeof SettingsTeamRoute
+  '/chats/': typeof ChatsIndexRoute
   '/events/': typeof EventsIndexRoute
   '/people/': typeof PeopleIndexRoute
+  '/settings/': typeof SettingsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/business': typeof BusinessRoute
   '/campaigns': typeof CampaignsRoute
   '/customers': typeof CustomersRoute
+  '/inbox': typeof InboxRoute
   '/login': typeof LoginRoute
   '/mindmap': typeof MindmapRoute
   '/reports': typeof ReportsRoute
   '/styleguide': typeof StyleguideRoute
   '/wallet': typeof WalletRoute
+  '/chats/$id': typeof ChatsIdRoute
   '/events/$id': typeof EventsIdRoute
   '/people/$id': typeof PeopleIdRoute
+  '/settings/team': typeof SettingsTeamRoute
+  '/chats': typeof ChatsIndexRoute
   '/events': typeof EventsIndexRoute
   '/people': typeof PeopleIndexRoute
+  '/settings': typeof SettingsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/business': typeof BusinessRoute
   '/campaigns': typeof CampaignsRoute
   '/customers': typeof CustomersRoute
+  '/inbox': typeof InboxRoute
   '/login': typeof LoginRoute
   '/mindmap': typeof MindmapRoute
   '/reports': typeof ReportsRoute
   '/styleguide': typeof StyleguideRoute
   '/wallet': typeof WalletRoute
+  '/chats/$id': typeof ChatsIdRoute
   '/events/$id': typeof EventsIdRoute
   '/people/$id': typeof PeopleIdRoute
+  '/settings/team': typeof SettingsTeamRoute
+  '/chats/': typeof ChatsIndexRoute
   '/events/': typeof EventsIndexRoute
   '/people/': typeof PeopleIndexRoute
+  '/settings/': typeof SettingsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/business'
     | '/campaigns'
     | '/customers'
+    | '/inbox'
     | '/login'
     | '/mindmap'
     | '/reports'
     | '/styleguide'
     | '/wallet'
+    | '/chats/$id'
     | '/events/$id'
     | '/people/$id'
+    | '/settings/team'
+    | '/chats/'
     | '/events/'
     | '/people/'
+    | '/settings/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/business'
     | '/campaigns'
     | '/customers'
+    | '/inbox'
     | '/login'
     | '/mindmap'
     | '/reports'
     | '/styleguide'
     | '/wallet'
+    | '/chats/$id'
     | '/events/$id'
     | '/people/$id'
+    | '/settings/team'
+    | '/chats'
     | '/events'
     | '/people'
+    | '/settings'
   id:
     | '__root__'
     | '/'
+    | '/business'
     | '/campaigns'
     | '/customers'
+    | '/inbox'
     | '/login'
     | '/mindmap'
     | '/reports'
     | '/styleguide'
     | '/wallet'
+    | '/chats/$id'
     | '/events/$id'
     | '/people/$id'
+    | '/settings/team'
+    | '/chats/'
     | '/events/'
     | '/people/'
+    | '/settings/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  BusinessRoute: typeof BusinessRoute
   CampaignsRoute: typeof CampaignsRoute
   CustomersRoute: typeof CustomersRoute
+  InboxRoute: typeof InboxRoute
   LoginRoute: typeof LoginRoute
   MindmapRoute: typeof MindmapRoute
   ReportsRoute: typeof ReportsRoute
   StyleguideRoute: typeof StyleguideRoute
   WalletRoute: typeof WalletRoute
+  ChatsIdRoute: typeof ChatsIdRoute
   EventsIdRoute: typeof EventsIdRoute
   PeopleIdRoute: typeof PeopleIdRoute
+  SettingsTeamRoute: typeof SettingsTeamRoute
+  ChatsIndexRoute: typeof ChatsIndexRoute
   EventsIndexRoute: typeof EventsIndexRoute
   PeopleIndexRoute: typeof PeopleIndexRoute
+  SettingsIndexRoute: typeof SettingsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -193,6 +271,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/business': {
+      id: '/business'
+      path: '/business'
+      fullPath: '/business'
+      preLoaderRoute: typeof BusinessRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/campaigns': {
@@ -207,6 +292,13 @@ declare module '@tanstack/react-router' {
       path: '/customers'
       fullPath: '/customers'
       preLoaderRoute: typeof CustomersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/inbox': {
+      id: '/inbox'
+      path: '/inbox'
+      fullPath: '/inbox'
+      preLoaderRoute: typeof InboxRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -244,6 +336,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WalletRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/chats/': {
+      id: '/chats/'
+      path: '/chats'
+      fullPath: '/chats/'
+      preLoaderRoute: typeof ChatsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/chats/$id': {
+      id: '/chats/$id'
+      path: '/chats/$id'
+      fullPath: '/chats/$id'
+      preLoaderRoute: typeof ChatsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/events/': {
       id: '/events/'
       path: '/events'
@@ -272,22 +378,42 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PeopleIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings/': {
+      id: '/settings/'
+      path: '/settings'
+      fullPath: '/settings/'
+      preLoaderRoute: typeof SettingsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings/team': {
+      id: '/settings/team'
+      path: '/settings/team'
+      fullPath: '/settings/team'
+      preLoaderRoute: typeof SettingsTeamRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  BusinessRoute: BusinessRoute,
   CampaignsRoute: CampaignsRoute,
   CustomersRoute: CustomersRoute,
+  InboxRoute: InboxRoute,
   LoginRoute: LoginRoute,
   MindmapRoute: MindmapRoute,
   ReportsRoute: ReportsRoute,
   StyleguideRoute: StyleguideRoute,
   WalletRoute: WalletRoute,
+  ChatsIdRoute: ChatsIdRoute,
   EventsIdRoute: EventsIdRoute,
   PeopleIdRoute: PeopleIdRoute,
+  SettingsTeamRoute: SettingsTeamRoute,
+  ChatsIndexRoute: ChatsIndexRoute,
   EventsIndexRoute: EventsIndexRoute,
   PeopleIndexRoute: PeopleIndexRoute,
+  SettingsIndexRoute: SettingsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
