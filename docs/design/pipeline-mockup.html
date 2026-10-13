@@ -1,0 +1,774 @@
+<title>LevelUp LOS Pipeline</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style>
+/* Layout: a review sheet. Each screen = desktop frame (scrolls sideways on phones) + phone frame + "what changed" notes. */
+:root {
+  --navy:#1A365D; --teal:#067781; --sky:#199BD7; --amber:#F2A93B;
+  --bg:#ECE8E0; --app-bg:#F6F4EF; --surface:#FFFFFF; --surface-2:#F2EFE9; --line:#E4DFD5; --track:#E6E1D7;
+  --fg:#13243D; --muted:#5B687B; --faint:#8791A0;
+  --primary:#067781; --on-primary:#FFFFFF; --primary-soft:#DDF0F1; --primary-ink:#045058;
+  --sky-soft:#DCEFFA; --sky-ink:#0B4F75;
+  --amber-soft:#FCEBD0; --amber-ink:#6B3F00; --amber-strong:#C77A0A;
+  --danger:#B42318; --danger-soft:#FBE6E3;
+  --ok:#2F7A3E; --ok-soft:#E1F1E3;
+  --side:#1A365D; --side-fg:#BFCDE0; --side-active-bg:rgba(255,255,255,.12);
+  --ibo-bg:#1A365D; --ibo-fg:#FFFFFF; --event-bg:#1A365D; --win-line:#1A365D;
+  --frame:#D5CFC3; --shadow:0 1px 2px rgba(19,36,61,.05), 0 10px 30px rgba(19,36,61,.08);
+  --font:"Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --r-card:14px; --r-ctl:9px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg:#08111D; --app-bg:#0E1B2E; --surface:#14253C; --surface-2:#1A2E4A; --line:#22385A; --track:#22385A;
+  --fg:#E7EDF5; --muted:#A1B1C6; --faint:#7487A0;
+  --primary:#3BBAC4; --on-primary:#05232A; --primary-soft:#103A42; --primary-ink:#93DDE3;
+  --sky-soft:#11324B; --sky-ink:#9DD5F3;
+  --amber-soft:#3A2B12; --amber-ink:#F6CC86; --amber-strong:#F2A93B;
+  --danger:#F29185; --danger-soft:#3B1C1C; --ok:#7BCB88; --ok-soft:#173523;
+  --side:#0A1525; --side-fg:#93A5BC; --side-active-bg:rgba(255,255,255,.08);
+  --ibo-bg:#2D5088; --ibo-fg:#FFFFFF; --event-bg:#1B3560; --win-line:#9DD5F3;
+  --frame:#1F3150; --shadow:0 10px 30px rgba(0,0,0,.35); color-scheme:dark;
+} }
+:root[data-theme="dark"] {
+  --bg:#08111D; --app-bg:#0E1B2E; --surface:#14253C; --surface-2:#1A2E4A; --line:#22385A; --track:#22385A;
+  --fg:#E7EDF5; --muted:#A1B1C6; --faint:#7487A0;
+  --primary:#3BBAC4; --on-primary:#05232A; --primary-soft:#103A42; --primary-ink:#93DDE3;
+  --sky-soft:#11324B; --sky-ink:#9DD5F3;
+  --amber-soft:#3A2B12; --amber-ink:#F6CC86; --amber-strong:#F2A93B;
+  --danger:#F29185; --danger-soft:#3B1C1C; --ok:#7BCB88; --ok-soft:#173523;
+  --side:#0A1525; --side-fg:#93A5BC; --side-active-bg:rgba(255,255,255,.08);
+  --ibo-bg:#2D5088; --ibo-fg:#FFFFFF; --event-bg:#1B3560; --win-line:#9DD5F3;
+  --frame:#1F3150; --shadow:0 10px 30px rgba(0,0,0,.35); color-scheme:dark;
+}
+* { box-sizing:border-box; }
+body { background:var(--bg); color:var(--fg); font-family:var(--font); font-size:14px; line-height:1.5; padding:0 16px; }
+.sheet { max-width:1500px; margin:0 auto; padding-block:40px 64px; display:grid; gap:56px; }
+h1,h2,h3,h4 { margin:0; text-wrap:balance; letter-spacing:-.01em; }
+p { margin:0; }
+.intro { display:grid; gap:10px; max-width:70ch; }
+.intro h1 { font-size:30px; font-weight:800; display:flex; align-items:center; gap:12px; }
+.intro p { color:var(--muted); font-size:15px; }
+.eyebrow { font-size:11px; font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:var(--muted); }
+.screen { display:grid; gap:20px; }
+.screen-head { display:flex; flex-wrap:wrap; align-items:baseline; gap:8px 16px; }
+.screen-head h2 { font-size:22px; font-weight:800; }
+.screen-head p { color:var(--muted); }
+.stage { display:grid; grid-template-columns:minmax(0,1fr) 340px; gap:28px; align-items:start; }
+@media (max-width:1100px) { .stage { grid-template-columns:minmax(0,1fr); } }
+.scroller { overflow-x:auto; padding-bottom:6px; min-width:0; }
+.phone-col { display:grid; gap:20px; justify-items:center; }
+.notes { background:var(--surface); border:1px solid var(--line); border-radius:var(--r-card); padding:18px 20px; display:grid; gap:12px; width:100%; max-width:340px; }
+.notes h3 { font-size:14px; font-weight:700; }
+.notes ol { margin:0; padding-left:20px; display:grid; gap:9px; color:var(--muted); font-size:13px; }
+.notes li::marker { color:var(--primary); font-weight:700; }
+.notes b { color:var(--fg); font-weight:600; }
+
+/* ---------- shared app atoms ---------- */
+.logo { display:inline-flex; align-items:flex-end; gap:2px; height:20px; }
+.logo i { display:block; width:6px; border-radius:1.5px; }
+.logo i:nth-child(1){ height:9px; background:#2D5088; } .logo i:nth-child(2){ height:14px; background:#0A93A0; } .logo i:nth-child(3){ height:20px; background:var(--sky); }
+.card { background:var(--surface); border:1px solid var(--line); border-radius:var(--r-card); padding:16px 18px; display:grid; gap:12px; align-content:start; min-width:0; }
+.card-h { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.card-h h3 { font-size:14px; font-weight:700; }
+.link { color:var(--primary); font-weight:600; font-size:12.5px; text-decoration:none; white-space:nowrap; }
+.btn { display:inline-flex; align-items:center; justify-content:center; gap:6px; font:inherit; font-size:12.5px; font-weight:600; border-radius:var(--r-ctl); padding:7px 12px; border:1px solid var(--line); background:var(--surface); color:var(--fg); cursor:pointer; white-space:nowrap; }
+.btn:focus-visible { outline:2px solid var(--sky); outline-offset:2px; }
+.btn.primary { background:var(--primary); border-color:var(--primary); color:var(--on-primary); }
+.btn.soft { background:var(--primary-soft); border-color:transparent; color:var(--primary-ink); }
+.btn svg { width:15px; height:15px; }
+.chip { display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; white-space:nowrap; }
+.chip.ibo { background:var(--ibo-bg); color:var(--ibo-fg); }
+.chip.app { background:var(--primary-soft); color:var(--primary-ink); }
+.chip.pro { background:var(--sky-soft); color:var(--sky-ink); }
+.chip.cus { background:var(--amber-soft); color:var(--amber-ink); }
+.chip.warn { background:var(--amber-soft); color:var(--amber-ink); }
+.chip.bad { background:var(--danger-soft); color:var(--danger); }
+.chip.good { background:var(--ok-soft); color:var(--ok); }
+.av { width:32px; height:32px; border-radius:50%; display:grid; place-items:center; font-size:12px; font-weight:700; flex:none; }
+.av.ibo { background:var(--ibo-bg); color:var(--ibo-fg); } .av.app { background:var(--primary-soft); color:var(--primary-ink); }
+.av.pro { background:var(--sky-soft); color:var(--sky-ink); } .av.cus { background:var(--amber-soft); color:var(--amber-ink); }
+.num { font-variant-numeric:tabular-nums; }
+.muted { color:var(--muted); } .faint { color:var(--faint); }
+.bar { height:8px; border-radius:999px; background:var(--track); overflow:hidden; display:flex; }
+.bar > span { display:block; height:100%; }
+[data-lucide] { width:16px; height:16px; stroke-width:2; flex:none; }
+
+/* ---------- desktop frame ---------- */
+.desk { width:1120px; border:1px solid var(--frame); border-radius:16px; overflow:hidden; box-shadow:var(--shadow); background:var(--app-bg); }
+.chrome { height:34px; display:flex; align-items:center; gap:7px; padding:0 14px; background:var(--surface-2); border-bottom:1px solid var(--line); }
+.chrome b { width:10px; height:10px; border-radius:50%; background:var(--frame); }
+.chrome span { margin-left:14px; font-size:11.5px; color:var(--faint); background:var(--surface); border:1px solid var(--line); border-radius:6px; padding:2px 12px; }
+.shell { display:grid; grid-template-columns:212px minmax(0,1fr); min-height:700px; }
+.side { background:var(--side); color:var(--side-fg); padding:18px 12px; display:flex; flex-direction:column; gap:4px; }
+.brand { display:flex; align-items:center; gap:10px; color:#fff; font-weight:800; font-size:15px; padding:2px 8px 18px; }
+.brand small { display:block; font-size:10.5px; font-weight:500; color:var(--side-fg); letter-spacing:.02em; }
+.nav { display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:8px; font-size:13px; font-weight:500; }
+.nav.on { background:var(--side-active-bg); color:#fff; font-weight:600; }
+.nav .count { margin-left:auto; font-size:11px; font-weight:700; background:var(--amber); color:#3A2200; border-radius:999px; padding:0 7px; }
+.side .grow { flex:1; }
+.me { display:flex; align-items:center; gap:10px; padding:10px 8px 0; border-top:1px solid rgba(255,255,255,.1); margin-top:8px; font-size:12.5px; color:#fff; }
+.me small { display:block; color:var(--side-fg); font-size:11px; }
+.main { padding:22px 26px 28px; display:grid; gap:18px; align-content:start; }
+.top { display:flex; align-items:center; gap:14px; }
+.top h2 { font-size:22px; font-weight:800; }
+.top .sub { color:var(--muted); font-size:13px; }
+.search { margin-left:auto; display:flex; align-items:center; gap:8px; width:240px; padding:7px 12px; border:1px solid var(--line); border-radius:var(--r-ctl); background:var(--surface); color:var(--faint); font-size:12.5px; }
+
+/* dashboard specifics */
+.row3 { display:grid; grid-template-columns:1fr 1fr 1.25fr; gap:16px; }
+.row2 { display:grid; grid-template-columns:1.6fr 1fr; gap:16px; align-items:start; }
+.streak { display:flex; align-items:center; gap:14px; }
+.flame { width:46px; height:46px; border-radius:12px; display:grid; place-items:center; background:var(--amber-soft); color:var(--amber-strong); }
+.flame [data-lucide] { width:24px; height:24px; }
+.big { font-size:28px; font-weight:800; line-height:1.05; letter-spacing:-.02em; }
+.week { display:grid; grid-template-columns:repeat(7,1fr); gap:6px; }
+.week div { display:grid; gap:4px; justify-items:center; font-size:10.5px; color:var(--faint); font-weight:600; }
+.week i { width:100%; height:8px; border-radius:4px; background:var(--track); display:block; }
+.week .on i { background:var(--amber); } .week .today { color:var(--fg); }
+.goal { display:flex; align-items:center; gap:16px; }
+.ring { width:84px; height:84px; flex:none; position:relative; }
+.ring svg { width:84px; height:84px; transform:rotate(-90deg); }
+.ring b { position:absolute; inset:0; display:grid; place-items:center; font-size:18px; font-weight:800; }
+.minis { display:grid; gap:6px; font-size:12.5px; flex:1; }
+.minis div { display:flex; justify-content:space-between; gap:8px; }
+.event { background:var(--event-bg); color:#fff; border-color:transparent; position:relative; overflow:hidden; }
+.event .muted { color:#BFD0E6; }
+.event .bar { background:rgba(255,255,255,.15); }
+.event .count { display:inline-grid; place-items:center; min-width:52px; padding:6px 8px; border-radius:10px; background:rgba(255,255,255,.1); text-align:center; }
+.event .count b { font-size:20px; font-weight:800; display:block; line-height:1.1; }
+.event .count small { font-size:10px; color:#BFD0E6; font-weight:600; letter-spacing:.04em; }
+.event .btn { background:var(--sky); border-color:var(--sky); color:#062338; }
+.event .btn.ghost { background:transparent; border-color:rgba(255,255,255,.25); color:#fff; }
+.actions { display:grid; }
+.act { display:grid; grid-template-columns:32px minmax(0,1fr) auto; gap:12px; align-items:center; padding:11px 0; border-top:1px solid var(--line); }
+.act:first-child { border-top:0; padding-top:2px; }
+.act .t { font-weight:600; font-size:13px; }
+.act .d { font-size:12px; color:var(--muted); display:flex; flex-wrap:wrap; gap:4px 8px; align-items:center; }
+.ico { width:32px; height:32px; border-radius:9px; display:grid; place-items:center; }
+.ico.contact { background:var(--primary-soft); color:var(--primary-ink); }
+.ico.cust { background:var(--amber-soft); color:var(--amber-ink); }
+.ico.rank { background:var(--sky-soft); color:var(--sky-ink); }
+.ico.ticket { background:var(--danger-soft); color:var(--danger); }
+.filters { display:flex; gap:6px; flex-wrap:wrap; }
+.filters span { font-size:11.5px; font-weight:600; padding:4px 10px; border-radius:999px; border:1px solid var(--line); color:var(--muted); }
+.filters span.on { background:var(--fg); color:var(--surface); border-color:var(--fg); }
+.legend { display:flex; flex-wrap:wrap; gap:6px 14px; font-size:12px; color:var(--muted); }
+.legend i { display:inline-block; width:9px; height:9px; border-radius:3px; margin-right:6px; vertical-align:0; }
+.leaders { display:grid; gap:10px; }
+.leader { display:grid; grid-template-columns:32px minmax(0,1fr) auto; gap:10px; align-items:center; font-size:13px; }
+.leader .s { font-size:11.5px; color:var(--muted); }
+.kpis { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+.kpi { background:var(--surface-2); border-radius:10px; padding:10px 12px; }
+.kpi b { display:block; font-size:20px; font-weight:800; }
+.kpi span { font-size:11.5px; color:var(--muted); }
+
+/* profile specifics */
+.crumb { font-size:12.5px; color:var(--muted); display:flex; align-items:center; gap:6px; }
+.hero { display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:18px; align-items:center; }
+.av.xl { width:68px; height:68px; font-size:22px; }
+.hero h2 { font-size:24px; font-weight:800; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.meta { display:flex; flex-wrap:wrap; gap:4px 16px; color:var(--muted); font-size:12.5px; margin-top:4px; }
+.meta span { display:inline-flex; align-items:center; gap:5px; }
+.meta a { color:var(--primary); font-weight:600; text-decoration:none; }
+.qa { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+.stats { display:grid; grid-template-columns:repeat(4,1fr); gap:0; background:var(--surface); border:1px solid var(--line); border-radius:var(--r-card); }
+.stats div { padding:12px 16px; border-left:1px solid var(--line); }
+.stats div:first-child { border-left:0; }
+.stats b { display:block; font-size:18px; font-weight:800; }
+.stats span { font-size:11.5px; color:var(--muted); }
+.cols { display:grid; grid-template-columns:1.55fr 1fr; gap:16px; align-items:start; }
+.stack { display:grid; gap:16px; align-content:start; min-width:0; }
+.tabs { display:flex; gap:4px; border-bottom:1px solid var(--line); }
+.tabs span { font-size:13px; font-weight:600; color:var(--muted); padding:8px 12px; border-bottom:2px solid transparent; margin-bottom:-1px; }
+.tabs span.on { color:var(--fg); border-color:var(--primary); }
+.path { display:grid; grid-template-columns:repeat(3,1fr); gap:0; position:relative; }
+.step { display:grid; gap:4px; justify-items:start; position:relative; padding-top:22px; }
+.step::before { content:""; position:absolute; top:7px; left:0; right:0; height:3px; background:var(--track); }
+.step.done::before { background:var(--primary); }
+.step.half::before { background:linear-gradient(90deg, var(--primary) 0 55%, var(--track) 55% 100%); }
+.dot { position:absolute; top:0; left:0; width:17px; height:17px; border-radius:50%; background:var(--surface); border:3px solid var(--track); }
+.step.done .dot { background:var(--primary); border-color:var(--primary); }
+.step.half .dot { border-color:var(--primary); background:var(--surface); box-shadow:0 0 0 4px var(--primary-soft); }
+.step b { font-size:13px; } .step span { font-size:11.5px; color:var(--muted); }
+.notice { display:flex; gap:10px; align-items:flex-start; background:var(--amber-soft); color:var(--amber-ink); border-radius:10px; padding:10px 12px; font-size:12.5px; }
+.notice [data-lucide] { margin-top:2px; }
+.ev { display:grid; grid-template-columns:52px minmax(0,1fr) auto; gap:14px; align-items:center; padding:12px 0; border-top:1px solid var(--line); }
+.ev:first-of-type { border-top:0; }
+.date { border-radius:10px; background:var(--surface-2); text-align:center; padding:6px 0; }
+.date small { display:block; font-size:10px; font-weight:700; letter-spacing:.08em; color:var(--muted); text-transform:uppercase; }
+.date b { font-size:18px; font-weight:800; line-height:1.1; }
+.ev .t { font-weight:700; font-size:13.5px; }
+.ev .d { display:flex; flex-wrap:wrap; gap:6px; margin-top:4px; align-items:center; font-size:12px; color:var(--muted); }
+.tree { display:grid; gap:8px; font-size:13px; }
+.tnode { display:flex; align-items:center; gap:10px; }
+.tnode.k1 { padding-left:20px; } .tnode.k2 { padding-left:40px; }
+.tnode.self { font-weight:700; }
+.tnode .s { margin-left:auto; }
+.cust { display:grid; grid-template-columns:32px minmax(0,1fr) auto; gap:10px; align-items:center; font-size:13px; }
+.timeline { display:grid; gap:0; }
+.tl { display:grid; grid-template-columns:18px minmax(0,1fr) auto; gap:10px; padding:8px 0; font-size:12.5px; position:relative; }
+.tl::before { content:""; position:absolute; left:8px; top:20px; bottom:-8px; width:1.5px; background:var(--line); }
+.tl:last-child::before { display:none; }
+.tl i.pt { width:10px; height:10px; border-radius:50%; margin:4px 0 0 3px; background:var(--primary); display:block; position:relative; z-index:1; }
+.tl i.pt.a { background:var(--amber); } .tl i.pt.s { background:var(--sky); }
+.tags { display:flex; flex-wrap:wrap; gap:6px; }
+.tags span { font-size:11.5px; font-weight:600; padding:3px 9px; border-radius:999px; background:var(--surface-2); color:var(--muted); }
+
+/* ---------- phone frame ---------- */
+.phone { width:340px; max-width:100%; border:10px solid #101C2C; border-radius:44px; background:var(--app-bg); box-shadow:var(--shadow); overflow:hidden; position:relative; display:flex; flex-direction:column; height:720px; }
+.status { display:flex; justify-content:space-between; align-items:center; padding:10px 22px 4px; font-size:12px; font-weight:700; }
+.status .notch { width:90px; height:22px; border-radius:12px; background:#101C2C; }
+.pbody { flex:1; overflow:hidden; padding:6px 14px 14px; display:grid; gap:12px; align-content:start; }
+.ptop { display:flex; align-items:center; gap:10px; }
+.ptop h3 { font-size:19px; font-weight:800; }
+.ptop .sub { font-size:12px; color:var(--muted); }
+.ptop .av { margin-left:auto; }
+.p2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.pc { background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:12px; display:grid; gap:8px; align-content:start; min-width:0; }
+.pc h4 { font-size:12.5px; font-weight:700; }
+.tabbar { display:grid; grid-template-columns:repeat(5,1fr); align-items:center; background:var(--surface); border-top:1px solid var(--line); padding:8px 6px 14px; position:relative; }
+.tabbar div { display:grid; justify-items:center; gap:3px; font-size:10.5px; font-weight:600; color:var(--faint); }
+.tabbar div.on { color:var(--primary); }
+.tabbar .fab { width:46px; height:46px; border-radius:50%; background:var(--primary); color:var(--on-primary); display:grid; place-items:center; margin-top:-26px; box-shadow:0 6px 16px rgba(6,119,129,.35); }
+.tabbar .fab [data-lucide] { width:22px; height:22px; }
+.phone .act { padding:9px 0; grid-template-columns:30px minmax(0,1fr) auto; gap:10px; }
+.phone .ico { width:30px; height:30px; }
+.phone .btn { padding:6px 10px; font-size:12px; }
+.pqa { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+.pqa div { display:grid; justify-items:center; gap:4px; font-size:11px; font-weight:600; color:var(--muted); }
+.pqa div span { width:42px; height:42px; border-radius:12px; display:grid; place-items:center; background:var(--surface); border:1px solid var(--line); color:var(--fg); }
+.pqa div.p span { background:var(--primary); border-color:var(--primary); color:var(--on-primary); }
+.seg { display:grid; grid-template-columns:repeat(4,1fr); background:var(--surface-2); border-radius:10px; padding:3px; font-size:11.5px; font-weight:600; color:var(--muted); text-align:center; }
+.seg span { padding:6px 0; border-radius:8px; }
+.seg span.on { background:var(--surface); color:var(--fg); box-shadow:0 1px 2px rgba(0,0,0,.08); }
+.themer { display:inline-flex; gap:2px; padding:3px; border-radius:10px; background:var(--surface-2); border:1px solid var(--line); justify-self:start; }
+.themer button { font:inherit; font-size:12.5px; font-weight:600; color:var(--muted); background:transparent; border:0; border-radius:7px; padding:5px 12px; cursor:pointer; }
+.themer button[aria-pressed="true"] { background:var(--surface); color:var(--fg); box-shadow:0 1px 2px rgba(0,0,0,.12); }
+.themer button:focus-visible { outline:2px solid var(--sky); outline-offset:1px; }
+.foot { color:var(--faint); font-size:12.5px; max-width:70ch; }
+@media (prefers-reduced-motion: no-preference) { .btn { transition:transform .12s ease; } .btn:active { transform:scale(.98); } }
+
+/* ---------- chat additions ---------- */
+.phones { display:grid; grid-template-columns:repeat(auto-fit, minmax(340px, 1fr)); gap:28px 20px; justify-items:center; }
+.pwrap { display:grid; gap:12px; justify-items:center; width:100%; max-width:340px; }
+.pcap { font-size:13px; color:var(--muted); text-align:center; max-width:32ch; }
+.pcap b { color:var(--fg); }
+.tabbar.five { grid-template-columns:repeat(5,1fr); }
+.tbadge { position:absolute; top:-4px; right:-9px; min-width:16px; height:16px; padding:0 4px; border-radius:999px; background:var(--amber); color:#3A2200; font-size:10px; font-weight:800; display:grid; place-items:center; }
+.tabbar .ti { position:relative; display:inline-block; }
+.chathead { display:flex; align-items:center; gap:10px; padding:4px 0 2px; }
+.chathead h3 { font-size:19px; font-weight:800; }
+.chathead .sp { flex:1; }
+.iconbtn { width:34px; height:34px; border-radius:10px; display:grid; place-items:center; border:1px solid var(--line); background:var(--surface); color:var(--fg); }
+.search2 { display:flex; align-items:center; gap:8px; padding:8px 12px; border-radius:var(--r-ctl); background:var(--surface-2); color:var(--faint); font-size:12.5px; }
+.chips { display:flex; gap:6px; flex-wrap:wrap; }
+.chips span { font-size:11.5px; font-weight:600; padding:4px 10px; border-radius:999px; border:1px solid var(--line); color:var(--muted); }
+.chips span.on { background:var(--fg); color:var(--surface); border-color:var(--fg); }
+.clist { display:grid; }
+.clabel { font-size:10.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--faint); padding:10px 0 4px; }
+.crow { display:grid; grid-template-columns:40px minmax(0,1fr) auto; gap:10px; align-items:center; padding:8px 0; }
+.crow + .crow { border-top:1px solid var(--line); }
+.crow.sel { background:var(--primary-soft); border-radius:10px; padding:8px; margin:0 -8px; border-top-color:transparent; }
+.crow.sel + .crow { border-top-color:transparent; }
+.gav { width:40px; height:40px; border-radius:12px; display:grid; place-items:center; flex:none; }
+.gav [data-lucide] { width:19px; height:19px; }
+.gav.ann { background:var(--event-bg); color:#fff; }
+.gav.main { background:var(--primary); color:var(--on-primary); }
+.gav.wins { background:var(--amber-soft); color:var(--amber-strong); }
+.gav.sig { background:var(--sky-soft); color:var(--sky-ink); }
+.gav.grp { background:var(--surface-2); color:var(--muted); }
+.crow .av { width:40px; height:40px; font-size:13px; }
+.cname { font-weight:700; font-size:13.5px; display:flex; align-items:center; gap:6px; min-width:0; }
+.cname span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.cname [data-lucide] { width:13px; height:13px; color:var(--faint); }
+.cprev { font-size:12px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.cprev b { color:var(--fg); font-weight:600; }
+.cmeta { display:grid; justify-items:end; gap:4px; font-size:11px; color:var(--faint); }
+.unread { min-width:20px; height:20px; padding:0 6px; border-radius:999px; background:var(--primary); color:var(--on-primary); font-size:11px; font-weight:800; display:grid; place-items:center; }
+.cmeta.new { color:var(--primary); font-weight:700; }
+/* conversation */
+.convhead { display:flex; align-items:center; gap:10px; padding-bottom:10px; border-bottom:1px solid var(--line); }
+.convhead .t { font-weight:800; font-size:15px; }
+.convhead .s { font-size:11.5px; color:var(--muted); }
+.convhead .sp { flex:1; }
+.thread { display:grid; gap:10px; align-content:start; }
+.day { justify-self:center; font-size:10.5px; font-weight:700; color:var(--faint); background:var(--surface-2); padding:3px 10px; border-radius:999px; letter-spacing:.04em; }
+.msg { display:grid; grid-template-columns:28px minmax(0,1fr); gap:8px; align-items:end; }
+.msg .av { width:28px; height:28px; font-size:10px; }
+.msg.me { grid-template-columns:minmax(0,1fr); justify-items:end; }
+.bub { background:var(--surface); border:1px solid var(--line); border-radius:14px 14px 14px 4px; padding:8px 11px; font-size:13px; max-width:100%; display:grid; gap:6px; min-width:0; }
+.msg.me .bub { background:var(--primary-soft); border-color:transparent; color:var(--fg); border-radius:14px 14px 4px 14px; }
+.who { font-size:11.5px; font-weight:700; display:flex; gap:6px; align-items:center; }
+.who.ibo { color:var(--fg); } .who.app { color:var(--primary-ink); }
+.who small { font-weight:500; color:var(--faint); }
+.time { font-size:10.5px; color:var(--faint); justify-self:end; display:flex; align-items:center; gap:3px; }
+.time [data-lucide] { width:13px; height:13px; color:var(--sky); }
+.reacts { display:flex; gap:4px; flex-wrap:wrap; }
+.reacts span { font-size:11px; font-weight:700; background:var(--surface); border:1px solid var(--line); border-radius:999px; padding:1px 8px; }
+.reacts span.mine { background:var(--primary-soft); border-color:var(--primary); color:var(--primary-ink); }
+.quote { border:1px solid var(--line); background:var(--surface-2); border-radius:10px; padding:7px 9px; font-size:12px; display:grid; gap:2px; }
+.msg.me .quote { background:var(--surface); }
+.quote .qh { font-size:11px; font-weight:700; color:var(--primary-ink); display:flex; gap:5px; align-items:center; }
+.quote .qh [data-lucide] { width:12px; height:12px; }
+.quote .qb { color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.media { display:grid; grid-template-columns:36px minmax(0,1fr); gap:10px; align-items:center; border:1px solid var(--line); background:var(--surface-2); border-radius:10px; padding:8px 10px; }
+.play { width:36px; height:36px; border-radius:50%; background:var(--primary); color:var(--on-primary); display:grid; place-items:center; }
+.play [data-lucide] { width:16px; height:16px; }
+.media .mt { font-weight:700; font-size:12.5px; }
+.media .ms { font-size:11px; color:var(--muted); }
+.voice { display:grid; grid-template-columns:32px minmax(0,1fr) auto; gap:9px; align-items:center; }
+.voice .play { width:32px; height:32px; }
+.wave { display:flex; align-items:center; gap:2px; height:26px; }
+.wave i { display:block; width:3px; border-radius:2px; background:var(--faint); }
+.wave i.done { background:var(--primary); }
+.voice small { font-size:11px; color:var(--muted); font-variant-numeric:tabular-nums; }
+.evcard { background:var(--event-bg); color:#fff; border-radius:12px; padding:11px 12px; display:grid; gap:9px; }
+.evcard .et { font-weight:800; font-size:13.5px; }
+.evcard .es { font-size:11.5px; color:#BFD0E6; }
+.rsvp { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
+.rsvp span { text-align:center; font-size:11.5px; font-weight:700; padding:6px 4px; border-radius:8px; background:rgba(255,255,255,.1); color:#fff; }
+.rsvp span.on { background:var(--sky); color:#062338; }
+.evfoot { display:flex; justify-content:space-between; align-items:center; font-size:11px; color:#BFD0E6; gap:8px; }
+.evfoot a { color:#fff; font-weight:700; text-decoration:none; display:inline-flex; gap:4px; align-items:center; }
+.evfoot [data-lucide] { width:13px; height:13px; }
+.wincard { background:transparent; border:1.5px solid var(--win-line); color:var(--muted); border-radius:12px; padding:10px 12px; display:grid; grid-template-columns:34px minmax(0,1fr); gap:10px; align-items:center; }
+/* Activity messages: the bubble's own edge becomes a 5px gold band on the side away from the screen edge. */
+.msg.activity .bub { position:relative; overflow:hidden; padding-right:16px; }
+.msg.activity .bub::after { content:""; position:absolute; top:0; bottom:0; right:0; width:5px; background:var(--amber); }
+.msg.me.activity .bub { padding-right:11px; padding-left:16px; }
+.msg.me.activity .bub::after { right:auto; left:0; }
+.wincard .wi { width:34px; height:34px; border-radius:10px; background:var(--amber-soft); color:var(--amber-strong); display:grid; place-items:center; }
+.wincard .wt { font-weight:800; font-size:13px; color:var(--fg); }
+.wincard .ws { font-size:11.5px; }
+.wincard.sale .wi { background:var(--primary); color:var(--on-primary); }
+.wincard.contact .wi { background:var(--sky); color:#062338; }
+.compose { display:flex; align-items:center; gap:8px; padding:8px 0 0; border-top:1px solid var(--line); }
+.compose .field { flex:1; min-width:0; padding:9px 12px; border-radius:999px; background:var(--surface-2); color:var(--faint); font-size:12.5px; }
+.compose .rnd { width:36px; height:36px; border-radius:50%; display:grid; place-items:center; flex:none; }
+.compose .rnd.plus { background:var(--surface-2); color:var(--fg); }
+.compose .rnd.mic { background:var(--primary); color:var(--on-primary); }
+.pinned { display:flex; gap:8px; align-items:center; font-size:11.5px; background:var(--surface-2); border-radius:10px; padding:7px 10px; color:var(--muted); }
+.pinned [data-lucide] { width:13px; height:13px; color:var(--amber-strong); }
+.pinned b { color:var(--fg); }
+.typing { font-size:11.5px; color:var(--muted); font-style:italic; }
+/* desktop chat */
+.chatdesk { display:grid; grid-template-columns:300px minmax(0,1fr) 260px; height:700px; }
+.cpane { border-right:1px solid var(--line); padding:16px 14px; display:grid; grid-template-rows:auto auto auto minmax(0,1fr); gap:10px; background:var(--surface); min-width:0; overflow:hidden; }
+.tpane { padding:14px 20px 16px; display:grid; grid-template-rows:auto minmax(0,1fr) auto; gap:12px; min-width:0; overflow:hidden; }
+.ipane { border-left:1px solid var(--line); padding:16px 14px; display:grid; gap:14px; align-content:start; background:var(--surface); min-width:0; }
+.ipane h4 { font-size:12.5px; font-weight:700; }
+.mlist { display:grid; gap:8px; }
+.mrow { display:flex; align-items:center; gap:8px; font-size:12.5px; }
+.mrow .av { width:26px; height:26px; font-size:10px; }
+.mrow .sp { flex:1; }
+.tiles { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
+.tiles span { aspect-ratio:1; max-width:100%; border-radius:8px; background:var(--surface-2); display:grid; place-items:center; color:var(--faint); }
+/* log sheet */
+.sheetbg { position:absolute; inset:0; background:rgba(8,17,29,.45); display:flex; align-items:flex-end; }
+.sheet2 { width:100%; background:var(--surface); border-radius:20px 20px 0 0; padding:10px 16px 18px; display:grid; gap:12px; }
+.grab { width:40px; height:4px; border-radius:2px; background:var(--line); justify-self:center; }
+.steps { display:flex; gap:6px; align-items:center; font-size:11.5px; color:var(--muted); flex-wrap:wrap; }
+.steps b { color:var(--fg); }
+.steps [data-lucide] { width:12px; height:12px; }
+.optgrid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.opt { border:1px solid var(--line); border-radius:12px; padding:10px; display:grid; gap:3px; font-size:12px; color:var(--muted); }
+.opt b { color:var(--fg); font-size:13px; display:flex; gap:6px; align-items:center; }
+.opt.on { border-color:var(--primary); background:var(--primary-soft); color:var(--primary-ink); }
+.fld { display:grid; gap:4px; font-size:11.5px; font-weight:600; color:var(--muted); }
+.fld div { border:1px solid var(--line); border-radius:9px; padding:8px 10px; color:var(--fg); font-weight:500; font-size:12.5px; display:flex; align-items:center; gap:8px; }
+.toggle { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px; align-items:center; border:1px solid var(--line); border-radius:12px; padding:10px 12px; }
+.toggle .tt { font-weight:700; font-size:12.5px; }
+.toggle .ts { font-size:11px; color:var(--muted); }
+.sw { width:38px; height:22px; border-radius:999px; background:var(--primary); position:relative; }
+.sw::after { content:""; position:absolute; top:3px; right:3px; width:16px; height:16px; border-radius:50%; background:#fff; }
+.preview { border:1px dashed var(--line); border-radius:12px; padding:9px 10px; display:grid; gap:6px; }
+.preview small { font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--faint); }
+/* inbox */
+.nrow { display:grid; grid-template-columns:32px minmax(0,1fr) auto; gap:10px; align-items:start; padding:10px 0; border-top:1px solid var(--line); font-size:12.5px; }
+.nrow:first-child { border-top:0; }
+.nrow.unr .nt { font-weight:700; }
+.nrow .ns { font-size:11.5px; color:var(--muted); margin-top:2px; }
+.nrow .nact { display:flex; gap:6px; margin-top:7px; }
+.nrow .ntime { font-size:10.5px; color:var(--faint); display:grid; justify-items:end; gap:5px; }
+.dot2 { width:8px; height:8px; border-radius:50%; background:var(--primary); }
+.ico.flag { background:var(--danger-soft); color:var(--danger); }
+.ico.ann { background:var(--event-bg); color:#fff; }
+.ico.at { background:var(--sky-soft); color:var(--sky-ink); }
+.ico.win { background:var(--amber-soft); color:var(--amber-strong); }
+.inboxcard .nrow { padding:8px 0; }
+
+/* my business hub + grouped sidebar */
+.navlabel { font-size:10px; font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:var(--side-fg); opacity:.7; padding:12px 10px 4px; }
+.hub { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.tile { background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:11px 12px; display:grid; gap:7px; align-content:start; min-width:0; }
+.tile.wide { grid-column:span 2; }
+.tile .th { display:flex; align-items:center; gap:8px; font-size:12.5px; }
+.tile .chev { margin-left:auto; color:var(--faint); width:15px; height:15px; }
+.tile .tv { display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; font-size:12px; }
+.tile .big { font-size:22px; }
+.tile .chip { justify-self:start; }
+.tic { width:28px; height:28px; border-radius:8px; display:grid; place-items:center; }
+.tic [data-lucide] { width:15px; height:15px; }
+.tic.team { background:var(--ibo-bg); color:var(--ibo-fg); }
+.tic.ppl { background:var(--primary-soft); color:var(--primary-ink); }
+.tic.cus { background:var(--amber-soft); color:var(--amber-ink); }
+.tic.evi { background:rgba(255,255,255,.12); color:#fff; }
+.tic.wal { background:var(--sky-soft); color:var(--sky-ink); }
+.tic.cam { background:var(--surface-2); color:var(--muted); }
+.tile.ev { background:var(--event-bg); border-color:transparent; color:#fff; }
+.tile.ev .chev { color:#BFD0E6; }
+.tile.ev .evm { color:#BFD0E6; font-size:11.5px; }
+.tile.ev .bar { background:rgba(255,255,255,.15); }
+
+/* ---------- pipeline ---------- */
+.desk.wide { width:1360px; }
+.selectish { display:inline-flex; align-items:center; gap:6px; padding:7px 10px; border:1px solid var(--line); border-radius:var(--r-ctl); background:var(--surface); font-size:12.5px; font-weight:600; }
+.chip.info { background:var(--sky-soft); color:var(--sky-ink); }
+.pulse { display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,1.6fr); gap:16px; align-items:stretch; }
+.goalrow { display:grid; grid-template-columns:auto minmax(0,1fr); gap:20px; align-items:end; }
+.goalcard .big { font-size:34px; }
+.of { font-size:18px; color:var(--faint); font-weight:700; }
+.trend { position:relative; height:72px; display:grid; grid-template-columns:repeat(6,1fr); gap:8px; align-items:end; padding-top:4px; }
+.tb { height:100%; display:grid; grid-template-rows:minmax(0,1fr) auto; justify-items:center; gap:3px; }
+.tb i { align-self:end; width:100%; max-width:26px; border-radius:4px 4px 0 0; background:var(--track); display:block; }
+.tb.now i { background:var(--sky); }
+.tb small { font-size:10px; color:var(--faint); font-weight:600; }
+.trend .goalline { position:absolute; left:0; right:0; border-top:1.5px dashed var(--amber-strong); margin-bottom:17px; }
+.trend .goalline span { position:absolute; right:0; top:-15px; font-size:10px; font-weight:700; color:var(--amber-strong); }
+.kpis5 { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:10px; }
+.kpis5 .kpi { background:var(--surface); border:1px solid var(--line); border-radius:var(--r-card); padding:14px; display:grid; gap:2px; align-content:start; }
+.kpis5 .kpi b { font-size:24px; }
+.kpis5 .kpi em { font-style:normal; font-size:11px; font-weight:700; margin-top:4px; }
+.kpis5 .kpi.hi { border-color:var(--sky); box-shadow:inset 0 0 0 1px var(--sky); }
+em.up { color:var(--ok); } em.dn { color:var(--danger); } em.flat { color:var(--faint); }
+.board { display:grid; grid-template-columns:repeat(6, minmax(0,1fr)); gap:12px; align-items:start; }
+.col { background:var(--surface-2); border-radius:var(--r-card); padding:10px; display:grid; gap:8px; min-width:0; }
+.col.focus { box-shadow:inset 0 0 0 1.5px var(--sky); }
+.colh { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:2px 8px; align-items:center; padding:2px 2px 4px; }
+.colh b { font-size:13px; }
+.colh .cnt { font-size:12px; font-weight:800; background:var(--surface); border-radius:999px; padding:1px 8px; }
+.colh .conv { grid-column:1 / -1; font-size:11px; color:var(--muted); }
+.col.won .colh .cnt { background:var(--ok-soft); color:var(--ok); }
+.pcard { background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:9px 10px; display:grid; gap:5px; font-size:12px; }
+.pcard.stale { border-color:var(--amber); }
+.pr { display:flex; justify-content:space-between; gap:6px; align-items:baseline; }
+.pr b { font-size:12.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.age { font-size:10.5px; color:var(--faint); white-space:nowrap; }
+.pm { display:flex; flex-wrap:wrap; align-items:center; gap:4px 8px; color:var(--muted); font-size:11px; }
+.own { display:inline-flex; align-items:center; gap:4px; font-weight:600; color:var(--fg); }
+.av.xs { width:18px; height:18px; font-size:8px; }
+.pn { display:flex; align-items:center; gap:5px; font-size:11px; color:var(--primary-ink); font-weight:600; }
+.pn [data-lucide] { width:13px; height:13px; }
+.pn.warn { color:var(--amber-ink); }
+.tag { font-size:10px; font-weight:800; padding:1px 7px; border-radius:999px; }
+.tag.hot { background:var(--danger-soft); color:var(--danger); }
+.more { font-size:11.5px; font-weight:600; color:var(--primary); text-align:center; padding:2px 0; }
+.stagetabs { display:flex; gap:6px; overflow:hidden; }
+.stagetabs span { flex:none; font-size:11.5px; font-weight:700; padding:5px 10px; border-radius:999px; border:1px solid var(--line); color:var(--muted); background:var(--surface); }
+.stagetabs span.on { background:var(--fg); border-color:var(--fg); color:var(--surface); }
+.prow { display:grid; grid-template-columns:32px minmax(0,1fr) auto; gap:10px; align-items:center; padding:9px 0; border-top:1px solid var(--line); font-size:12.5px; }
+.prow:first-child { border-top:0; }
+.prow .ps { font-size:11px; color:var(--muted); }
+.prow [data-lucide] { color:var(--faint); width:16px; height:16px; }
+.tic.pipe { background:var(--sky-soft); color:var(--sky-ink); }
+.minifunnel { display:flex; gap:3px; height:20px; }
+.minifunnel span { display:grid; place-items:center; border-radius:4px; background:var(--surface-2); color:var(--muted); font-size:10px; font-weight:800; min-width:0; }
+.minifunnel span.hi { background:var(--sky); color:#062338; }
+
+/* ---------- conversions ---------- */
+.convmain { padding:22px 26px 28px; }
+.convgrid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.25fr); gap:16px; align-items:start; }
+.legend { display:flex; gap:12px; font-size:11px; color:var(--muted); flex-wrap:wrap; }
+.legend span { display:inline-flex; align-items:center; gap:5px; }
+.legend .tick { width:2px; height:12px; background:var(--amber-strong); display:inline-block; }
+.legend .sw { width:10px; height:10px; border-radius:3px; display:inline-block; }
+.sw.good, .hc.good { background:var(--ok-soft); color:var(--ok); }
+.sw.warn, .hc.warn { background:var(--amber-soft); color:var(--amber-ink); }
+.sw.bad, .hc.bad { background:var(--danger-soft); color:var(--danger); }
+.funnel { display:grid; gap:4px; }
+.frow { display:grid; grid-template-columns:86px minmax(0,1fr) 44px; gap:10px; align-items:center; font-size:12.5px; }
+.fl { font-weight:600; }
+.frow b { text-align:right; font-weight:800; }
+.fb { height:22px; background:var(--surface-2); border-radius:6px; overflow:hidden; }
+.fb i { display:block; height:100%; background:var(--sky); border-radius:6px; }
+.fb i.won { background:var(--ok); }
+.fstep { margin-left:96px; display:flex; flex-wrap:wrap; align-items:baseline; gap:2px 10px; font-size:11.5px; padding:3px 0 3px 10px; border-left:2px solid var(--line); }
+.fstep span { font-weight:700; }
+.fstep em { font-style:normal; color:var(--muted); }
+.fstep small { color:var(--faint); }
+.fstep.good span { color:var(--ok); } .fstep.warn span { color:var(--amber-ink); } .fstep.bad span { color:var(--danger); }
+.fstep.hot { border-left-color:var(--danger); background:var(--danger-soft); border-radius:0 8px 8px 0; }
+.heat { display:grid; grid-template-columns:minmax(0,1.3fr) repeat(4, minmax(0,1fr)); gap:5px; font-size:12.5px; align-items:center; }
+.hh { font-size:11px; font-weight:700; color:var(--muted); text-align:center; line-height:1.25; padding-bottom:4px; }
+.hh small { display:block; font-weight:600; color:var(--faint); }
+.hn { display:flex; align-items:center; gap:7px; font-weight:600; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.hc { text-align:center; font-weight:800; border-radius:7px; padding:7px 0; font-variant-numeric:tabular-nums; }
+.hn.tot { font-weight:800; border-top:1px solid var(--line); padding-top:6px; }
+.hc.tot { outline:1.5px solid currentColor; outline-offset:-1.5px; }
+</style>
+
+<div class="sheet">
+  <header class="intro">
+    <span class="eyebrow">Design direction · pipeline</span>
+    <h1><span class="logo" aria-hidden="true"><i></i><i></i><i></i></span> LevelUp LOS pipeline</h1>
+    <p>A team-wide recruiting pipeline: every prospect is a card, every stage is a column, and the month's activity is counted for you. Shown as Maria Reyes (leader) looking at her whole team. Names come from the demo data; the numbers are made-up examples.</p>
+    <div class="themer" role="group" aria-label="Theme">
+      <button type="button" id="theme-light" data-t="light" aria-pressed="false">Light</button>
+      <button type="button" id="theme-dark" data-t="dark" aria-pressed="false">Dark</button>
+      <button type="button" id="theme-auto" data-t="auto" aria-pressed="false">Auto</button>
+    </div>
+  </header>
+
+  <section class="screen" aria-labelledby="desk-h">
+    <div class="screen-head"><h2 id="desk-h">Pipeline on desktop</h2><p>Activity this month first, then the board</p></div>
+    <div class="scroller">
+      <div class="desk wide" role="img" aria-label="Desktop pipeline mockup">
+        <div class="chrome"><b></b><b></b><b></b><span>levelup-los.app/pipeline</span></div>
+        <div class="shell">
+          <nav class="side" aria-label="Main">
+            <div class="brand"><span class="logo"><i></i><i></i><i></i></span><div>LevelUp LOS<small>LTD · LevelUp team</small></div></div>
+            <div class="nav"><i data-lucide="layout-dashboard"></i>Home</div>
+            <div class="nav"><i data-lucide="message-circle"></i>Chats<span class="count">5</span></div>
+            <div class="nav"><i data-lucide="bell"></i>Inbox<span class="count">4</span></div>
+            <div class="navlabel">My business</div>
+            <div class="nav"><i data-lucide="network"></i>Team</div>
+            <div class="nav on"><i data-lucide="kanban"></i>Pipeline</div>
+            <div class="nav"><i data-lucide="users"></i>People</div>
+            <div class="nav"><i data-lucide="contact"></i>Customers</div>
+            <div class="nav"><i data-lucide="calendar-days"></i>Events</div>
+            <div class="nav"><i data-lucide="wallet"></i>Wallet</div>
+            <div class="nav"><i data-lucide="megaphone"></i>Campaigns</div>
+            <div class="navlabel">More</div>
+            <div class="nav"><i data-lucide="file-bar-chart"></i>Reports</div>
+            <div class="nav"><i data-lucide="settings"></i>Settings</div>
+            <div class="grow"></div>
+            <div class="me"><span class="av ibo">MR</span><div>Maria Reyes<small>Leader</small></div></div>
+          </nav>
+          <main class="main">
+            <div class="top">
+              <div><h2>Pipeline</h2><p class="sub">Your whole team · October · 172 prospects in progress</p></div>
+              <span class="sp" style="flex:1"></span>
+              <span class="selectish"><i data-lucide="users"></i>Whole team<i data-lucide="chevron-down"></i></span>
+              <span class="selectish"><i data-lucide="calendar"></i>October<i data-lucide="chevron-down"></i></span>
+              <button class="btn primary" type="button"><i data-lucide="plus"></i>Add prospect</button>
+            </div>
+
+            <div class="tabs"><span class="on">Board</span><span>Conversions</span></div>
+            <div class="pulse">
+              <div class="card goalcard">
+                <div class="card-h"><h3>MG1s this month</h3><span class="chip info">25% pace: 80 a month</span></div>
+                <div class="goalrow">
+                  <div><div class="big num">62<span class="of"> / 80</span></div><p class="muted" style="font-size:12.5px">18 to go in 19 days · about 1 a day</p></div>
+                  <div class="trend" aria-label="MG1s per month, last 6 months">
+                    <div class="goalline" style="bottom:calc(80/90*100%)"><span>80</span></div>
+                    <div class="tb"><i style="height:calc(41/90*100%)"></i><small>May</small></div>
+                    <div class="tb"><i style="height:calc(48/90*100%)"></i><small>Jun</small></div>
+                    <div class="tb"><i style="height:calc(55/90*100%)"></i><small>Jul</small></div>
+                    <div class="tb"><i style="height:calc(60/90*100%)"></i><small>Aug</small></div>
+                    <div class="tb"><i style="height:calc(71/90*100%)"></i><small>Sep</small></div>
+                    <div class="tb now"><i style="height:calc(62/90*100%)"></i><small>Oct</small></div>
+                  </div>
+                </div>
+                <div class="bar" style="height:8px"><span style="width:77.5%; background:var(--sky)"></span></div>
+              </div>
+              <div class="kpis5">
+                <div class="kpi"><b class="num">214</b><span>New contacts</span><em class="up">+12%</em></div>
+                <div class="kpi"><b class="num">131</b><span>Invites</span><em class="up">+8%</em></div>
+                <div class="kpi hi"><b class="num">62</b><span>MG1s</span><em class="dn">−13% vs Sep</em></div>
+                <div class="kpi"><b class="num">27</b><span>MG2s</span><em class="up">+4%</em></div>
+                <div class="kpi"><b class="num">6</b><span>Registered</span><em class="flat">same</em></div>
+              </div>
+            </div>
+
+            <div class="board">
+              <div class="col">
+                <div class="colh"><b>New contact</b><span class="cnt">48</span><span class="conv">214 this month</span></div>
+                <div class="pcard"><div class="pr"><b>Tasha Reed</b><span class="age">2d</span></div><div class="pm"><span class="own"><span class="av ibo xs">MR</span>Maria</span><span>Met at the gym</span></div><div class="pn"><i data-lucide="calendar-clock"></i>Invite by Fri</div></div>
+                <div class="pcard"><div class="pr"><b>Omar Lewis</b><span class="age">4d</span></div><div class="pm"><span class="own"><span class="av app xs">JB</span>Jamal</span><span>Coworker</span></div></div>
+                <div class="pcard"><div class="pr"><b>Grace Kim</b><span class="age">6d</span></div><div class="pm"><span class="own"><span class="av ibo xs">AP</span>Anita</span><span>Referral</span></div></div>
+                <div class="more">+45 more</div>
+              </div>
+              <div class="col">
+                <div class="colh"><b>Invited</b><span class="cnt">31</span><span class="conv">61% from contact</span></div>
+                <div class="pcard"><div class="pr"><b>Devon Price</b><span class="age">1d</span></div><div class="pm"><span class="own"><span class="av ibo xs">DC</span>David</span></div><div class="pn"><i data-lucide="calendar-clock"></i>MG1 Thu 7 PM</div></div>
+                <div class="pcard"><div class="pr"><b>Lena Ortiz</b><span class="age">3d</span></div><div class="pm"><span class="own"><span class="av app xs">SK</span>Sarah</span></div><div class="pn"><i data-lucide="calendar-clock"></i>MG1 Sat</div></div>
+                <div class="pcard stale"><div class="pr"><b>Ray Collins</b><span class="age">16d</span></div><div class="pm"><span class="own"><span class="av ibo xs">PS</span>Priya</span></div><div class="pn warn"><i data-lucide="clock-alert"></i>No meeting set</div></div>
+                <div class="more">+28 more</div>
+              </div>
+              <div class="col focus">
+                <div class="colh"><b>MG1</b><span class="cnt">22</span><span class="conv">62 held this month</span></div>
+                <div class="pcard"><div class="pr"><b>Marcus Bell</b><span class="age">today</span></div><div class="pm"><span class="own"><span class="av ibo xs">AP</span>Anita</span><span class="tag hot">Hot</span></div><div class="pn"><i data-lucide="calendar-clock"></i>MG2 next Tue</div></div>
+                <div class="pcard"><div class="pr"><b>Nia Owens</b><span class="age">2d</span></div><div class="pm"><span class="own"><span class="av app xs">JB</span>Jamal</span></div><div class="pn"><i data-lucide="calendar-clock"></i>Follow up Mon</div></div>
+                <div class="pcard"><div class="pr"><b>Felix Wong</b><span class="age">5d</span></div><div class="pm"><span class="own"><span class="av ibo xs">MH</span>Marcus</span></div></div>
+                <div class="more">+19 more</div>
+              </div>
+              <div class="col">
+                <div class="colh"><b>MG2</b><span class="cnt">14</span><span class="conv">44% from MG1</span></div>
+                <div class="pcard"><div class="pr"><b>Layla Hassan</b><span class="age">3d</span></div><div class="pm"><span class="own"><span class="av ibo xs">MR</span>Maria</span><span class="tag hot">Hot</span></div><div class="pn"><i data-lucide="ticket"></i>Bringing to Fall Weekend</div></div>
+                <div class="pcard"><div class="pr"><b>Marco Diaz</b><span class="age">8d</span></div><div class="pm"><span class="own"><span class="av ibo xs">DC</span>David</span></div></div>
+                <div class="more">+12 more</div>
+              </div>
+              <div class="col">
+                <div class="colh"><b>Follow-up</b><span class="cnt">19</span><span class="conv">thinking it over</span></div>
+                <div class="pcard"><div class="pr"><b>June Park</b><span class="age">6d</span></div><div class="pm"><span class="own"><span class="av app xs">SK</span>Sarah</span></div><div class="pn"><i data-lucide="calendar-clock"></i>Call Wed</div></div>
+                <div class="pcard stale"><div class="pr"><b>Ed Miller Jr.</b><span class="age">21d</span></div><div class="pm"><span class="own"><span class="av ibo xs">AP</span>Anita</span></div><div class="pn warn"><i data-lucide="clock-alert"></i>No contact in 3 weeks</div></div>
+                <div class="more">+17 more</div>
+              </div>
+              <div class="col won">
+                <div class="colh"><b>Registered</b><span class="cnt">6</span><span class="conv">this month</span></div>
+                <div class="pcard"><div class="pr"><b>Sky Ortiz</b><span class="age">Oct 9</span></div><div class="pm"><span class="own"><span class="av ibo xs">AP</span>Anita</span><span class="chip app">Apprentice</span></div></div>
+                <div class="pcard"><div class="pr"><b>Joy Reed</b><span class="age">Oct 3</span></div><div class="pm"><span class="own"><span class="av app xs">JB</span>Jamal</span><span class="chip app">Apprentice</span></div></div>
+                <div class="more">+4 more</div>
+              </div>
+            </div>
+          </main>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="screen" aria-labelledby="conv-h">
+    <div class="screen-head"><h2 id="conv-h">Conversions</h2><p>The same page, Conversions tab: where people drop off, and whose process needs help</p></div>
+    <div class="scroller">
+      <div class="desk wide" role="img" aria-label="Conversions view mockup">
+        <div class="chrome"><b></b><b></b><b></b><span>levelup-los.app/pipeline/conversions</span></div>
+        <main class="main convmain">
+          <div class="top">
+            <div><h2>Pipeline</h2><p class="sub">Your whole team · last 90 days · 620 new contacts</p></div>
+            <span style="flex:1"></span>
+            <span class="selectish"><i data-lucide="calendar"></i>Last 90 days<i data-lucide="chevron-down"></i></span>
+          </div>
+          <div class="tabs"><span>Board</span><span class="on">Conversions</span></div>
+
+          <div class="convgrid">
+            <div class="card">
+              <div class="card-h"><h3>Where people drop off</h3><span class="legend"><span><i class="tick"></i>Target</span></span></div>
+              <div class="funnel">
+                <div class="frow"><span class="fl">New contact</span><div class="fb"><i style="width:100%"></i></div><b class="num">620</b></div>
+                <div class="fstep good"><span>61% invited</span><em>target 60%</em><small>242 not invited</small></div>
+                <div class="frow"><span class="fl">Invited</span><div class="fb"><i style="width:calc(378/620*100%)"></i></div><b class="num">378</b></div>
+                <div class="fstep bad hot"><span>46% had an MG1</span><em>target 55% · biggest drop</em><small>206 invited, never met</small></div>
+                <div class="frow"><span class="fl">MG1</span><div class="fb"><i style="width:calc(172/620*100%)"></i></div><b class="num">172</b></div>
+                <div class="fstep warn"><span>44% went to MG2</span><em>target 45%</em><small>96 stopped after MG1</small></div>
+                <div class="frow"><span class="fl">MG2</span><div class="fb"><i style="width:calc(76/620*100%)"></i></div><b class="num">76</b></div>
+                <div class="fstep bad"><span>24% registered</span><em>target 30%</em><small>58 didn't register</small></div>
+                <div class="frow"><span class="fl">Registered</span><div class="fb"><i class="won" style="width:calc(18/620*100%)"></i></div><b class="num">18</b></div>
+              </div>
+              <div class="notice"><i data-lucide="lightbulb"></i><div><b>Biggest gap: Invited → MG1.</b> 206 people agreed to an invite but never met. Booking the MG1 during the invite would close most of this gap.</div></div>
+            </div>
+
+            <div class="card">
+              <div class="card-h"><h3>Hotspots by team member</h3><span class="legend"><span><i class="sw good"></i>At target</span><span><i class="sw warn"></i>1–4 pts below</span><span><i class="sw bad"></i>5+ pts below</span></span></div>
+              <div class="heat">
+                <div class="hh"></div><div class="hh">Contact → Invite<small>60%</small></div><div class="hh">Invite → MG1<small>55%</small></div><div class="hh">MG1 → MG2<small>45%</small></div><div class="hh">MG2 → Registered<small>30%</small></div>
+                <div class="hn"><span class="av ibo xs">MR</span>Maria Reyes</div><div class="hc good">66%</div><div class="hc good">58%</div><div class="hc good">50%</div><div class="hc good">33%</div>
+                <div class="hn"><span class="av ibo xs">AP</span>Anita Patel</div><div class="hc good">63%</div><div class="hc warn">52%</div><div class="hc good">47%</div><div class="hc warn">29%</div>
+                <div class="hn"><span class="av ibo xs">MH</span>Marcus Hill</div><div class="hc good">64%</div><div class="hc bad">44%</div><div class="hc good">46%</div><div class="hc warn">27%</div>
+                <div class="hn"><span class="av ibo xs">PS</span>Priya Singh</div><div class="hc good">60%</div><div class="hc bad">49%</div><div class="hc warn">44%</div><div class="hc bad">25%</div>
+                <div class="hn"><span class="av app xs">SK</span>Sarah Kim</div><div class="hc good">62%</div><div class="hc good">57%</div><div class="hc warn">42%</div><div class="hc bad">20%</div>
+                <div class="hn"><span class="av ibo xs">DC</span>David Chen</div><div class="hc warn">58%</div><div class="hc bad">41%</div><div class="hc bad">40%</div><div class="hc bad">22%</div>
+                <div class="hn"><span class="av app xs">JB</span>Jamal Brown</div><div class="hc bad">55%</div><div class="hc bad">38%</div><div class="hc bad">36%</div><div class="hc bad">14%</div>
+                <div class="hn tot">Team</div><div class="hc good tot">61%</div><div class="hc bad tot">46%</div><div class="hc warn tot">44%</div><div class="hc bad tot">24%</div>
+              </div>
+              <p class="muted" style="font-size:12px">Tap a cell to see the people behind it. Members with fewer than 10 people at a step show "–" so small numbers don't mislead.</p>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </section>
+
+  <section class="screen" aria-labelledby="phone-h">
+    <div class="screen-head"><h2 id="phone-h">On a phone</h2><p>Stages become tabs; the hub gets a Pipeline tile</p></div>
+    <div class="phones">
+      <div class="pwrap">
+        <div class="phone" role="img" aria-label="Pipeline on a phone">
+          <div class="status"><span>7:42</span><span class="notch"></span><span>5G</span></div>
+          <div class="pbody">
+            <div class="chathead"><i data-lucide="chevron-left"></i><h3>Pipeline</h3><span class="sp"></span><span class="iconbtn" aria-label="Filter"><i data-lucide="sliders-horizontal"></i></span></div>
+            <div class="pc">
+              <div class="card-h"><h4>MG1s this month</h4><span class="chip info">Goal 80</span></div>
+              <div style="display:flex; align-items:baseline; gap:6px"><b class="big num" style="font-size:24px">62</b><span class="muted" style="font-size:12px">/ 80 · 18 to go in 19 days</span></div>
+              <div class="bar"><span style="width:77.5%; background:var(--sky)"></span></div>
+            </div>
+            <div class="stagetabs"><span>New 48</span><span>Invited 31</span><span class="on">MG1 22</span><span>MG2 14</span><span>Follow-up 19</span></div>
+            <div class="pc" style="gap:0">
+              <div class="prow"><span class="av pro">MB</span><div><b>Marcus Bell</b><div class="ps">Anita's · MG1 today · MG2 next Tue</div></div><span class="tag hot">Hot</span></div>
+              <div class="prow"><span class="av pro">NO</span><div><b>Nia Owens</b><div class="ps">Jamal's · 2 days · follow up Mon</div></div><i data-lucide="chevron-right"></i></div>
+              <div class="prow"><span class="av pro">FW</span><div><b>Felix Wong</b><div class="ps">Marcus's · 5 days in stage</div></div><i data-lucide="chevron-right"></i></div>
+              <div class="prow"><span class="av pro">TB</span><div><b>Tina Brooks</b><div class="ps">David's · 9 days in stage</div></div><i data-lucide="chevron-right"></i></div>
+            </div>
+            <p class="faint" style="font-size:11.5px; text-align:center">Swipe a card to move it to the next stage</p>
+          </div>
+          <div class="tabbar five"><div><i data-lucide="house"></i>Home</div><div><span class="ti"><i data-lucide="message-circle"></i><span class="tbadge">5</span></span>Chats</div><div><span class="fab"><i data-lucide="plus"></i></span></div><div class="on"><i data-lucide="briefcase"></i>My business</div><div><i data-lucide="menu"></i>More</div></div>
+        </div>
+        <p class="pcap"><b>Phone.</b> Pick a stage from the tabs; swipe a card to move it forward. Moving a card logs the activity.</p>
+      </div>
+
+      <div class="pwrap">
+        <div class="phone" role="img" aria-label="My business with a pipeline tile">
+          <div class="status"><span>7:42</span><span class="notch"></span><span>5G</span></div>
+          <div class="pbody">
+            <div class="chathead"><h3>My business</h3></div>
+            <div class="hub">
+              <div class="tile wide"><div class="th"><span class="tic pipe"><i data-lucide="kanban"></i></span><b>Pipeline</b><i data-lucide="chevron-right" class="chev"></i></div>
+                <div class="tv"><span class="big num">62</span><span class="muted">MG1s this month · goal 80</span></div>
+                <div class="minifunnel"><span style="flex:48">48</span><span style="flex:31">31</span><span style="flex:22" class="hi">22</span><span style="flex:14">14</span><span style="flex:19">19</span></div>
+                <span class="muted" style="font-size:11px">New · Invited · MG1 · MG2 · Follow-up</span>
+              </div>
+              <div class="tile wide"><div class="th"><span class="tic team"><i data-lucide="network"></i></span><b>Team</b><i data-lucide="chevron-right" class="chev"></i></div><div class="tv"><span class="big num">65</span><span class="muted">people · +7 this month</span></div></div>
+              <div class="tile"><div class="th"><span class="tic ppl"><i data-lucide="users"></i></span><b>People</b></div><div class="tv"><span class="big num">12</span></div><span class="chip warn">need attention</span></div>
+              <div class="tile"><div class="th"><span class="tic cus"><i data-lucide="contact"></i></span><b>Customers</b></div><div class="tv"><span class="big num">4</span></div><span class="chip warn">2 due</span></div>
+            </div>
+          </div>
+          <div class="tabbar five"><div><i data-lucide="house"></i>Home</div><div><span class="ti"><i data-lucide="message-circle"></i><span class="tbadge">5</span></span>Chats</div><div><span class="fab"><i data-lucide="plus"></i></span></div><div class="on"><i data-lucide="briefcase"></i>My business</div><div><i data-lucide="menu"></i>More</div></div>
+        </div>
+        <p class="pcap"><b>My business.</b> Pipeline becomes the first tile: this month's MG1s against the goal, and a mini bar of where everyone sits.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="screen" aria-labelledby="notes-h">
+    <div class="screen-head"><h2 id="notes-h">How it works</h2></div>
+    <aside class="notes" style="max-width:760px">
+      <ol>
+        <li><b>Two different numbers.</b> A column's count is who is in that stage right now. "62 held this month" counts MG1s that actually happened this month, which is the activity number the 25% pace is measured on.</li>
+        <li><b>Nobody counts by hand.</b> Logging "Booked a meeting" or "Showed the plan" from the + moves the card; dragging or swiping a card records the activity with today's date.</li>
+        <li><b>Leaders see the whole team</b> (their downline's prospects, with whose prospect it is). Everyone else sees their own team's pipeline. Same visibility rules as People.</li>
+        <li><b>Conversions show where people fall off.</b> Each step's rate is compared with a team target (the targets here are examples to set together); the biggest gap gets a plain-language tip, and the hotspot grid shows which team member needs help at which step.</li>
+        <li><b>Stale cards are flagged</b> (no movement or contact in 14+ days) so follow-ups don't slip.</li>
+        <li><b>The goal is a team setting</b> (80 MG1s a month for the 25% level after about 6 months), with the trend for the last six months.</li>
+        <li><b>Registered</b> means they became an apprentice; the card leaves the board after the month and the person continues on the business path.</li>
+      </ol>
+    </aside>
+  </section>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<script>
+try { lucide.createIcons(); } catch (e) { /* icons are decorative */ }
+document.querySelectorAll(".wave").forEach(function (w) {
+  var n = +w.dataset.n || 30, done = +w.dataset.done || 0, seed = 7;
+  for (var i = 0; i < n; i++) {
+    seed = (seed * 9301 + 49297) % 233280;
+    var h = 5 + Math.round((seed / 233280) * 19 * (0.55 + 0.45 * Math.sin(i / 3)));
+    var b = document.createElement("i");
+    b.style.height = Math.max(4, h) + "px";
+    if (i < done) b.className = "done";
+    w.appendChild(b);
+  }
+});
+(function () {
+  var root = document.documentElement, btns = document.querySelectorAll(".themer button");
+  function apply(t) {
+    if (t === "auto") root.removeAttribute("data-theme"); else root.setAttribute("data-theme", t);
+    btns.forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.t === t)); });
+    try { localStorage.setItem("levelup-mock-theme", t); } catch (e) {}
+  }
+  var saved = null;
+  try { saved = localStorage.getItem("levelup-mock-theme"); } catch (e) {}
+  apply(saved || root.getAttribute("data-theme") || "auto");
+  btns.forEach(function (b) { b.addEventListener("click", function () { apply(b.dataset.t); }); });
+})();
+</script>
