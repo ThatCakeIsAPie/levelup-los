@@ -86,10 +86,24 @@ export const WIN_ICON: Record<WinKind, LucideIcon> = {
   other: Trophy,
 };
 
+/** Icon tile per win kind (docs/design/chats-mockup.html: sale teal, contact sky, others amber). */
+const WIN_TILE: Record<WinKind, string> = {
+  sale: "bg-primary text-primary-foreground",
+  contact: "bg-sky text-on-sky",
+  plan: "bg-warn-soft text-amber-strong",
+  ticket: "bg-warn-soft text-amber-strong",
+  rank: "bg-warn-soft text-amber-strong",
+  other: "bg-warn-soft text-amber-strong",
+};
+
+/** Outline shared by the activity cards (wins and learning). */
+const ACTIVITY_CARD =
+  "rounded-xl border-[1.5px] border-[var(--win-line)] bg-transparent px-3 py-2.5 text-left text-muted-foreground";
+
 /**
  * The win card look: 1.5px outline in the text blue (--win-line), transparent
- * background, 12px radius and a soft amber icon tile. (The gold "activity"
- * band belongs to the message bubble, not the card; see MessageBubble.)
+ * background, 12px radius and an icon tile colored by kind. (The gold
+ * "activity" band belongs to the message bubble, not the card; see MessageBubble.)
  */
 export function WinCardFrame({
   winKind,
@@ -108,11 +122,12 @@ export function WinCardFrame({
   return (
     <div
       className={cn(
-        "grid grid-cols-[34px_minmax(0,1fr)] items-center gap-2.5 rounded-xl border-[1.5px] border-[var(--win-line)] bg-transparent px-3 py-2.5 text-left text-muted-foreground",
+        "grid grid-cols-[34px_minmax(0,1fr)] items-center gap-2.5",
+        ACTIVITY_CARD,
         className,
       )}
     >
-      <span className="grid size-[34px] place-items-center rounded-[10px] bg-warn-soft text-amber-strong">
+      <span className={cn("grid size-[34px] place-items-center rounded-[10px]", WIN_TILE[winKind])}>
         <Icon className="size-4" aria-hidden="true" />
       </span>
       <div className="min-w-0">
@@ -169,21 +184,45 @@ export function LearningCard({
 }) {
   const open = useOpenTarget();
   const visible = canOpenPerson(authorId);
-  return (
-    <CardButton
-      onClick={visible ? () => open({ kind: "person", id: authorId }) : undefined}
-      label={`${authorName} finished ${card.title}`}
-    >
-      <span className="grid size-9 place-items-center rounded-full bg-info-soft text-info-ink">
+  // Same outlined activity card as a win, with a sky "learning" tile.
+  const body = (
+    <>
+      <span className="grid size-[34px] place-items-center rounded-[10px] bg-info-soft text-info-ink">
         <BookOpen className="size-4" aria-hidden="true" />
       </span>
       <div className="min-w-0">
-        <div className="text-[12.5px] font-bold">
-          {authorName.split(" ")[0]} finished <i className="font-bold">{card.title}</i>
+        <div className="text-[13px] font-extrabold text-foreground">
+          {authorName.split(" ")[0]} finished <i>{card.title}</i>
         </div>
-        <div className="text-[11px] text-muted-foreground">Learning · logged</div>
+        <div className="text-[11.5px]">Learning · logged</div>
       </div>
-    </CardButton>
+    </>
+  );
+  const cls = cn(
+    "grid w-full grid-cols-[34px_minmax(0,1fr)_auto] items-center gap-2.5",
+    ACTIVITY_CARD,
+  );
+  if (!visible) {
+    return (
+      <div className={cls}>
+        {body}
+        <span />
+      </div>
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={() => open({ kind: "person", id: authorId })}
+      aria-label={`${authorName} finished ${card.title}. Open their profile`}
+      className={cn(
+        cls,
+        "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+      )}
+    >
+      {body}
+      <ChevronRight className="size-4 text-faint" aria-hidden="true" />
+    </button>
   );
 }
 
@@ -451,7 +490,7 @@ export function EventCard({ eventId, messageId }: { eventId: string; messageId?:
               onClick={() => answer(r.value)}
               className={cn(
                 "rounded-lg bg-white/10 px-1 py-1.5 text-center text-[11.5px] font-bold text-white hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
-                current === r.value && "bg-sky text-[var(--on-sky)] hover:bg-sky",
+                current === r.value && "bg-sky text-on-sky hover:bg-sky",
               )}
             >
               {r.label}

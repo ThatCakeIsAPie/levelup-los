@@ -2,7 +2,10 @@ import { PersonAvatar } from "@/components/brand";
 import { effectiveBizClass, type CrmPerson } from "@/data";
 import { cn } from "@/lib/utils";
 
-/** Overlapping initials avatars with a "+N" tail. */
+/**
+ * Overlapping initials avatars with a "+N" tail. Earlier avatars sit on top
+ * and the overlap is small, so every pair of initials stays readable.
+ */
 export function AvatarStack({
   people,
   max = 5,
@@ -20,26 +23,31 @@ export function AvatarStack({
   const rest = people.length - shown.length;
   return (
     <div
-      className={cn("flex items-center -space-x-1.5", className)}
+      className={cn("flex items-center", className)}
       role="img"
       aria-label={`${people.length} ${people.length === 1 ? "person" : "people"}: ${people
         .slice(0, max)
         .map((p) => p.name)
         .join(", ")}${rest > 0 ? ` and ${rest} more` : ""}`}
     >
-      {shown.map((p) => (
-        <PersonAvatar
+      {shown.map((p, i) => (
+        <span
           key={p.id}
-          name={p.name}
-          stage={effectiveBizClass(p)}
-          size="sm"
-          className={cn("ring-2", ringClassName)}
-        />
+          className="relative -ml-1 inline-flex first:ml-0"
+          style={{ zIndex: shown.length - i + 1 }}
+        >
+          <PersonAvatar
+            name={p.name}
+            stage={effectiveBizClass(p)}
+            size="sm"
+            className={cn("ring-2", ringClassName)}
+          />
+        </span>
       ))}
       {rest > 0 && (
         <span
           className={cn(
-            "inline-grid h-6 min-w-6 place-items-center rounded-full bg-surface-2 px-1 text-[10px] font-bold text-muted-foreground ring-2",
+            "relative -ml-1 inline-grid h-6 min-w-6 place-items-center rounded-full bg-surface-2 px-1 text-[10px] font-bold text-muted-foreground ring-2",
             ringClassName,
           )}
           aria-hidden="true"

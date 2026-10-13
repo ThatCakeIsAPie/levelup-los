@@ -46,7 +46,7 @@ function Countdown({ event, compact }: { event: CrmEvent; compact?: boolean }) {
   );
 }
 
-const SKY_BTN = "bg-sky text-navy hover:bg-sky/90";
+const SKY_BTN = "bg-sky text-on-sky hover:bg-sky/90";
 const GHOST_BTN = "border border-white/25 bg-transparent text-event-fg hover:bg-white/10";
 
 /** Navy "next event" card. Leaders see team ticket progress; candidates see their own status. */

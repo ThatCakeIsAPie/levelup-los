@@ -294,7 +294,7 @@ function FeaturedCard({
         <Button
           asChild
           size="sm"
-          className="ml-auto bg-sky text-navy hover:bg-sky/90 focus-visible:ring-offset-event"
+          className="ml-auto bg-sky text-on-sky hover:bg-sky/90 focus-visible:ring-offset-event"
         >
           <Link to="/events/$id" params={{ id: event.id }}>
             Open event

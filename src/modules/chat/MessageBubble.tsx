@@ -206,7 +206,13 @@ export const MessageBubble = memo(function MessageBubble({
               />
             )}
             {content}
-            <span className="flex items-center justify-end gap-1 text-[10.5px] text-faint">
+            <span
+              className={cn(
+                "flex items-center justify-end gap-1 text-[10.5px]",
+                // Own bubbles are tinted (primary-soft); faint text is below AA there.
+                own ? "text-muted-foreground" : "text-faint",
+              )}
+            >
               {m.pinned && <Pin className="size-3 text-amber-strong" aria-label="Pinned" />}
               {m.editedAt && !deleted && <span>edited ·</span>}
               <time dateTime={m.createdAt} title={format(new Date(m.createdAt), "PPpp")}>

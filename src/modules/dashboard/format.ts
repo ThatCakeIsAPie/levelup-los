@@ -74,6 +74,6 @@ export function attendanceStatus(a: Attendance | undefined): {
     : a.followUpDate
       ? `Follow-up ${shortDate(a.followUpDate)}`
       : undefined;
-  if (a.desireToAttend === "maybe") return { tone: "info", label: "Thinking about it", detail };
+  if (a.desireToAttend === "maybe") return { tone: "info", label: "Maybe", detail };
   return { tone: "warn", label: "No ticket yet", detail };
 }

@@ -73,6 +73,7 @@ function Page({ children }: { children: React.ReactNode }) {
       <PageHeader
         title="Team settings"
         subtitle="Moderators, announcement approvals, reports and blocked people"
+        back={{ to: "/settings", label: "Settings" }}
         logButton={false}
       />
       {children}
@@ -99,13 +100,10 @@ function Reports() {
         <ul className="grid gap-2.5">
           {open.map((r) => (
             <li key={r.id} className="grid gap-2 rounded-xl border border-line p-3">
-              <div className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
-                <b className="font-bold text-foreground">{r.reason}</b>
-                <span>
-                  · reported by {r.reporterName} · {shortAgo(r.createdAt)} ago · in{" "}
-                  {r.conversationTitle}
-                </span>
-              </div>
+              <p className="text-xs text-muted-foreground">
+                <b className="font-bold text-foreground">{r.reason}</b> · reported by{" "}
+                {r.reporterName} · {shortAgo(r.createdAt)} ago · in {r.conversationTitle}
+              </p>
               <blockquote className="rounded-[10px] bg-surface-2 px-3 py-2 text-[13px]">
                 <span className="block text-[11px] font-bold text-muted-foreground">
                   {r.authorName}
@@ -259,7 +257,7 @@ function MembersCard({ canEdit }: { canEdit: boolean }) {
                 {m.name}
                 {m.id === access.personId && <span className="font-normal text-faint"> (you)</span>}
               </div>
-              <div className="flex items-center gap-1.5">
+              <div className="flex flex-wrap items-center gap-1.5">
                 <StageChip stage={m.stage} />
                 {m.role && m.role !== "member" && (
                   <ToneChip tone={m.role === "leader" ? "info" : "good"}>

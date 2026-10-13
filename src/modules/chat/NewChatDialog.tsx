@@ -70,7 +70,9 @@ function NewGroup({ onDone }: { onDone: () => void }) {
 
   return (
     <form
-      className="flex min-h-0 flex-col gap-4"
+      // Scrolls as a whole on short screens (the member list alone cannot
+      // shrink enough to keep the footer clear).
+      className="-mx-1 flex min-h-0 flex-col gap-4 overflow-y-auto px-1"
       onSubmit={(e) => {
         e.preventDefault();
         if (title.trim()) create();
@@ -129,13 +131,7 @@ function NewGroup({ onDone }: { onDone: () => void }) {
           })}
         </div>
       </fieldset>
-      <MemberPicker
-        people={options}
-        picked={picked}
-        onChange={setPicked}
-        label="Members"
-        className="min-h-0 flex-1"
-      />
+      <MemberPicker people={options} picked={picked} onChange={setPicked} label="Members" />
       <DialogFooter className="gap-2">
         <Button type="button" variant="outline" onClick={onDone}>
           Cancel

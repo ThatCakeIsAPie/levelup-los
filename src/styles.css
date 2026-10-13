@@ -18,6 +18,7 @@
  *   Sky is a highlight/progress color only: never put white text on it.
  *   bg-logo-1 / bg-logo-2: the two shorter logo bars (use <Logo>).
  *   text-amber-strong: streak flame / win accents. text-on-amber: text on bg-amber.
+ *   text-on-sky: text on a solid bg-sky button or chip (5.1:1; navy is only 3.9:1).
  *
  * Surfaces and lines
  *   bg-app          page background (warm off-white / deep navy)
@@ -26,7 +27,10 @@
  *   border-line     1px warm hairline used by cards, tables, inputs
  *   bg-track        empty part of progress bars / rings
  *   text-foreground body text      text-muted-foreground secondary text
- *   text-faint      tertiary text (timestamps, hints)
+ *   text-faint      tertiary text (timestamps, hints). Darker/lighter than the
+ *                   mockup (#8791A0 / #7487A0) so it passes WCAG AA (4.5:1) on
+ *                   bg-surface and bg-app in both themes. On tinted fills
+ *                   (primary-soft, surface-2) prefer text-muted-foreground.
  *   bg-event        the navy "next event" card (white text on it)
  *
  * Primary action (teal; dark mode uses a lighter teal with dark text)
@@ -119,6 +123,7 @@
   --color-logo-1: #2d5088;
   --color-logo-2: #0a93a0;
   --color-on-amber: #3a2200;
+  --color-on-sky: #062338;
 
   /* Surfaces */
   --color-app: var(--app-bg);
@@ -185,7 +190,7 @@
   --track: #e6e1d7;
   --fg: #13243d;
   --muted-text: #5b687b;
-  --faint: #8791a0;
+  --faint: #667183;
   --primary-base: #067781;
   --on-primary: #ffffff;
   --primary-soft: #ddf0f1;
@@ -258,7 +263,7 @@
   --track: #22385a;
   --fg: #e7edf5;
   --muted-text: #a1b1c6;
-  --faint: #7487a0;
+  --faint: #8698b0;
   --primary-base: #3bbac4;
   --on-primary: #05232a;
   --primary-soft: #103a42;

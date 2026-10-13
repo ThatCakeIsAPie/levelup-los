@@ -134,6 +134,7 @@ function ConversationBody({
   const [confirm, setConfirm] = useState<{ kind: "delete" | "block"; m: MessageView } | null>(null);
   const [reporting, setReporting] = useState<MessageView | null>(null);
   const scroller = useRef<HTMLDivElement>(null);
+  const threadBody = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
   // Where "New messages" starts: your read position when you opened the chat.
   const [readFrom] = useState(conv.me.lastReadAt);
@@ -195,6 +196,7 @@ function ConversationBody({
       stick.current = false;
     } else if (firstUnread) {
       document.getElementById("new-messages")?.scrollIntoView({ block: "start" });
+      stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
     } else {
       el.scrollTop = el.scrollHeight;
     }
@@ -207,6 +209,21 @@ function ConversationBody({
     const el = scroller.current;
     if (el && stick.current) el.scrollTop = el.scrollHeight;
   }, [lastId]);
+
+  // Cards, images and reactions can grow (and the pane can shrink, e.g. under a
+  // draft-approval panel) after the first paint; stay at the bottom if you were
+  // there (otherwise the last message and its reactions end up hidden).
+  useEffect(() => {
+    const el = scroller.current;
+    const body = threadBody.current;
+    if (!el || !body || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => {
+      if (stick.current) el.scrollTop = el.scrollHeight;
+    });
+    ro.observe(body);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   useEffect(() => {
     if (!highlight) return;
@@ -362,7 +379,7 @@ function ConversationBody({
         aria-live="polite"
         aria-relevant="additions"
       >
-        <div className="grid content-start gap-2.5 pb-2">
+        <div ref={threadBody} className="grid content-start gap-2.5 pb-2">
           {isAnnouncements && access.canReview && <DraftsPanel />}
           {shown.length === 0 && (
             <EmptyState
@@ -382,7 +399,7 @@ function ConversationBody({
             return (
               <Fragment key={m.id}>
                 {newDay && (
-                  <span className="justify-self-center rounded-full bg-surface-2 px-2.5 py-0.5 text-[10.5px] font-bold uppercase tracking-[0.04em] text-faint">
+                  <span className="justify-self-center rounded-full bg-surface-2 px-2.5 py-0.5 text-[10.5px] font-bold uppercase tracking-[0.04em] text-muted-foreground">
                     {dayLabel(m.createdAt)}
                   </span>
                 )}

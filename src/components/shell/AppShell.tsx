@@ -126,7 +126,7 @@ function Sidebar({ onReset }: { onReset: () => void }) {
   const base =
     "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium text-sidebar-fg transition-colors hover:bg-sidebar-active hover:text-white focus-visible:outline-2 focus-visible:outline-ring";
   const label =
-    "block px-2.5 pb-1 pt-3 text-[10px] font-bold uppercase tracking-[.09em] text-sidebar-fg/70";
+    "block px-2.5 pb-1 pt-3 text-[10px] font-bold uppercase tracking-[.09em] text-sidebar-fg/80";
   return (
     <nav
       aria-label="Main"
@@ -361,7 +361,7 @@ function MoreSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
-        className="max-h-[90dvh] overflow-y-auto rounded-t-card px-4 pb-safe pt-5"
+        className="max-h-[90dvh] overflow-y-auto rounded-t-card px-4 pt-5 pb-[calc(1rem+env(safe-area-inset-bottom))]"
       >
         <SheetHeader className="mb-2 flex-row items-center gap-3 space-y-0 px-1 text-left">
           <PersonAvatar name={user.name} stage={me?.bizClass ?? "ibo"} size="lg" />

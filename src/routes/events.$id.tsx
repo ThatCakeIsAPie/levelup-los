@@ -130,24 +130,36 @@ function EventDetail() {
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as TabKey)} className="grid gap-4">
         <div className="-mx-4 overflow-x-auto px-4 [scrollbar-width:none] lg:mx-0 lg:px-0">
-          <TabsList className="h-auto w-max gap-0.5 bg-surface-2 p-1">
-            <TabsTrigger value="overview" className="px-3 py-1.5 text-[13px] sm:px-3.5">
+          <TabsList className="h-auto w-full gap-0.5 bg-surface-2 p-1 sm:w-max">
+            <TabsTrigger
+              value="overview"
+              className="flex-1 px-2 py-1.5 text-[13px] sm:flex-none sm:px-3.5"
+            >
               Overview
             </TabsTrigger>
             {!candidate && (
-              <TabsTrigger value="attendees" className="px-3 py-1.5 text-[13px] sm:px-3.5">
+              <TabsTrigger
+                value="attendees"
+                className="flex-1 px-2 py-1.5 text-[13px] sm:flex-none sm:px-3.5"
+              >
                 Attendees
                 <span className="ml-1.5 rounded-full bg-track px-1.5 text-[11px] tabular-nums">
                   {rows.length}
                 </span>
               </TabsTrigger>
             )}
-            <TabsTrigger value="travel" className="px-3 py-1.5 text-[13px] sm:px-3.5">
+            <TabsTrigger
+              value="travel"
+              className="flex-1 px-2 py-1.5 text-[13px] sm:flex-none sm:px-3.5"
+            >
               <span className="sm:hidden">Travel</span>
               <span className="hidden sm:inline">Tickets and travel</span>
             </TabsTrigger>
             {!candidate && (
-              <TabsTrigger value="compare" className="px-3 py-1.5 text-[13px] sm:px-3.5">
+              <TabsTrigger
+                value="compare"
+                className="flex-1 px-2 py-1.5 text-[13px] sm:flex-none sm:px-3.5"
+              >
                 Compare
               </TabsTrigger>
             )}
@@ -262,7 +274,7 @@ function Hero({ event, manage }: { event: CrmEvent; manage: boolean }) {
           <LogButton
             className={cn(
               "hidden lg:inline-flex",
-              navy && "bg-sky text-navy hover:bg-sky/90 focus-visible:ring-offset-event",
+              navy && "bg-sky text-on-sky hover:bg-sky/90 focus-visible:ring-offset-event",
             )}
           />
           {manage && (

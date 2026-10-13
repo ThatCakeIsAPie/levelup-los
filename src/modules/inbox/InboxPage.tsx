@@ -40,9 +40,8 @@ export function InboxPage() {
         logButton={false}
         actions={
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
-            className="text-primary"
             disabled={unread === 0}
             onClick={() => markAllNotificationsRead()}
           >
