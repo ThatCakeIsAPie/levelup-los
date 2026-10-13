@@ -38,6 +38,7 @@ import {
   canManageGroup,
   canManageTeam,
   canModerate,
+  canPinMore,
   canPostAnnouncement,
   canReviewDrafts,
   conversationCheckin,
@@ -152,6 +153,8 @@ export function joinWorkspace(personId: string): void {
             lastReadAt: at,
             muted: false,
             joinedAt: at,
+            // Team chats start pinned (the database does the same).
+            pinnedAt: c.pinned ? at : null,
           })),
       ],
     };
@@ -586,6 +589,7 @@ export function createGroup(input: {
         lastReadAt: personId === who ? at : null,
         muted: false,
         joinedAt: at,
+        pinnedAt: null,
       })),
     ],
   }));
@@ -637,6 +641,7 @@ export function addMembers(conversationId: string, personIds: string[]): boolean
         lastReadAt: null,
         muted: false,
         joinedAt: at,
+        pinnedAt: null,
       })),
     ],
   }));
@@ -738,6 +743,44 @@ export function setMuted(conversationId: string, muted: boolean): void {
   }));
 }
 
+export type PinResult = { ok: true } | { ok: false; reason: "limit" | "not-member" };
+
+/**
+ * Pin a conversation to the top of your own list (personal: nobody else sees
+ * it). At most MAX_PINS_PER_TAB per tab (Groups / Direct messages).
+ */
+export function pinConversation(conversationId: string): PinResult {
+  const who = me();
+  const s = chat();
+  const mine = memberOf(s, conversationId, who);
+  if (!mine) return { ok: false, reason: "not-member" };
+  if (mine.pinnedAt) return { ok: true };
+  if (!canPinMore(s.conversations, s.conversationMembers, who, conversationId)) {
+    return { ok: false, reason: "limit" };
+  }
+  const at = nowIso();
+  updateChat((st) => ({
+    conversationMembers: st.conversationMembers.map((m) =>
+      m.conversationId === conversationId && m.personId === who ? { ...m, pinnedAt: at } : m,
+    ),
+  }));
+  return { ok: true };
+}
+
+/** Unpin a conversation from your own list (team chats too). */
+export function unpinConversation(conversationId: string): boolean {
+  const who = me();
+  const mine = memberOf(chat(), conversationId, who);
+  if (!mine) return false;
+  if (!mine.pinnedAt) return true;
+  updateChat((st) => ({
+    conversationMembers: st.conversationMembers.map((m) =>
+      m.conversationId === conversationId && m.personId === who ? { ...m, pinnedAt: null } : m,
+    ),
+  }));
+  return true;
+}
+
 /** Who may change a chat's message history setting. */
 export function canSetRetention(s: ChatData, conversationId: string, personId: string): boolean {
   const c = s.conversations.find((x) => x.id === conversationId);
@@ -804,6 +847,7 @@ export function createOrOpenDm(personId: string): string | null {
     lastReadAt: pid === who ? at : null,
     muted: false,
     joinedAt: at,
+    pinnedAt: null,
   });
   const open = () =>
     updateChat((st) => ({

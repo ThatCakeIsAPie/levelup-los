@@ -33,7 +33,7 @@ select is((select count(*)::int from pg_class c join pg_namespace n on n.oid = c
 -- Chat data contract (field for field) ---------------------------------------------
 select columns_are('public', 'members', array['workspace_id', 'person_id', 'role', 'user_id', 'joined_at']);
 select columns_are('public', 'conversations', array['id', 'workspace_id', 'kind', 'title', 'description', 'icon', 'pinned', 'retention_days', 'created_by', 'created_at', 'pinned_message_id']);
-select columns_are('public', 'conversation_members', array['conversation_id', 'person_id', 'role', 'last_read_at', 'muted', 'joined_at']);
+select columns_are('public', 'conversation_members', array['conversation_id', 'person_id', 'role', 'last_read_at', 'muted', 'joined_at', 'pinned_at']);
 select columns_are('public', 'messages', array['id', 'conversation_id', 'author_id', 'body', 'reply_to_id', 'card', 'created_at', 'edited_at', 'deleted_at']);
 select columns_are('public', 'attachments', array['id', 'message_id', 'kind', 'storage_path', 'mime', 'size', 'duration_ms', 'width', 'height']);
 select columns_are('public', 'reactions', array['message_id', 'person_id', 'emoji', 'created_at']);

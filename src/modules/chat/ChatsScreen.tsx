@@ -8,9 +8,10 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { useChatAccess } from "@/data";
+import { useChatAccess, useConversation } from "@/data";
 import { ChatGate } from "./ChatGate";
 import { ChatList } from "./ChatList";
+import { useChatListTab } from "./chatTab";
 import { ConversationView } from "./Conversation";
 import { DetailsPanel } from "./DetailsPanel";
 
@@ -42,6 +43,11 @@ export function ChatsScreen({
   const wide = useMediaQuery("(min-width: 1280px)");
   const [paneOpen, setPaneOpen] = useState(readDetailsPref);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const selected = useConversation(selectedId);
+  const [tab, setTab] = useChatListTab(
+    access.personId,
+    selected && { id: selected.id, tab: selected.tab },
+  );
 
   if (!access.eligible) return <ChatGate access={access} />;
 
@@ -74,7 +80,7 @@ export function ChatsScreen({
           aria-label="Chat list"
           className="w-[300px] shrink-0 overflow-y-auto border-r border-line bg-surface px-3.5 py-4"
         >
-          <ChatList selectedId={selectedId} sectionLabels />
+          <ChatList selectedId={selectedId} tab={tab} onTab={setTab} />
         </aside>
         <div className="flex min-w-0 flex-1 flex-col">
           {selectedId ? (
@@ -90,7 +96,7 @@ export function ChatsScreen({
                 <MessagesSquare className="size-8 text-faint" aria-hidden="true" />
                 <p className="text-sm font-semibold text-foreground">Pick a chat</p>
                 <p className="max-w-xs text-[13px]">
-                  Your team chats are pinned on top; groups and direct messages follow.
+                  Groups and direct messages each have their own tab, with your pinned chats on top.
                 </p>
               </div>
             </div>
@@ -112,7 +118,7 @@ export function ChatsScreen({
   if (!selectedId) {
     return (
       <div className="px-4 py-5">
-        <ChatList />
+        <ChatList tab={tab} onTab={setTab} />
       </div>
     );
   }

@@ -43,6 +43,15 @@ describe("chat seed: people and roles", () => {
     for (const m of data.conversationMembers) expect(memberIds.has(m.personId)).toBe(true);
   });
 
+  it("team chats start pinned for everyone; nothing else is pinned", () => {
+    const pinnedConv = new Set(data.conversations.filter((c) => c.pinned).map((c) => c.id));
+    for (const m of data.conversationMembers) {
+      expect(!!m.pinnedAt, `${m.personId} in ${m.conversationId}`).toBe(
+        pinnedConv.has(m.conversationId),
+      );
+    }
+  });
+
   it("DMs have exactly two members and a stable id; the carpool group has an admin", () => {
     for (const c of data.conversations.filter((c) => c.kind === "dm")) {
       const ms = data.conversationMembers.filter((m) => m.conversationId === c.id);

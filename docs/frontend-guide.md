@@ -118,6 +118,8 @@ How the `supabase` mode works (`src/data/remote`):
 
 In the browser demo writes don't enforce visibility; only reads are filtered. With real accounts row-level security enforces both, and a refused write is rolled back.
 
+**Chat list**: two tabs, Groups (Announcements, Main chat, team groups, side groups) and Direct messages (`chatTab(conversation)`). `useChatTabs()` returns `{ groups, direct, unread }`, each list in order: the viewer's pinned chats first, in the order they pinned them (ties: Announcements, Main chat, then latest message), then the rest by latest message (`sortConversations`). `ConversationSummary` has `tab`, `pinned` and `pinnedAt`. Pins are personal (`ConversationMember.pinnedAt`): `pinConversation(id)` returns `{ ok: true }` or `{ ok: false, reason: "limit" | "not-member" }` (at most `MAX_PINS_PER_TAB` = 10 per tab, `canPinMore`), `unpinConversation(id)`. Team chats start pinned for everyone. The list remembers its tab per viewer in `localStorage` (`levelup.chatTab.<personId>`).
+
 **Team chat ids**: the demo and the local seed use the readable ids in `CHAT_IDS` (`main`, `daily-wins`, …); a real workspace's ids are generated. Use `getTeamChatId("main" | "announcements" | "dailyWins" | "highSignal")` to post into a team chat.
 
 ## Log sheet and theme

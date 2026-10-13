@@ -10,6 +10,7 @@ import {
   Mic,
   MoreHorizontal,
   Pencil,
+  Pin,
   ShieldCheck,
   ShieldOff,
   UserMinus,
@@ -83,6 +84,7 @@ import { ConversationAvatar } from "./avatars";
 import { ImageThumb } from "./media";
 import { MemberPicker } from "./NewChatDialog";
 import { duration, plural } from "./format";
+import { TAB_LABEL, togglePin } from "./chatTab";
 
 const retentionLabel = (d: number | null) => (d === null ? "Keep forever" : `${d} days`);
 
@@ -161,6 +163,21 @@ function Details({ conv, onClose }: { conv: ConversationSummary; onClose?: () =>
 
       <Section title="Settings">
         <div className="grid gap-3">
+          <div className="flex items-center gap-2">
+            <Pin className="size-4 text-muted-foreground" aria-hidden="true" />
+            <Label htmlFor={`pin-${conv.id}`} className="flex-1 text-[12.5px] font-normal">
+              Pin to top
+              <span className="block text-[11px] text-faint">
+                {conv.pinned ? "At the top of " : "Keep it at the top of "}
+                {TAB_LABEL[conv.tab]}. Only you see your pins.
+              </span>
+            </Label>
+            <Switch
+              id={`pin-${conv.id}`}
+              checked={conv.pinned}
+              onCheckedChange={() => togglePin(conv)}
+            />
+          </div>
           <div className="flex items-center gap-2">
             <Bell className="size-4 text-muted-foreground" aria-hidden="true" />
             <Label htmlFor={`mute-${conv.id}`} className="flex-1 text-[12.5px] font-normal">

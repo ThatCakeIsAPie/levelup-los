@@ -5,13 +5,16 @@ import {
   canEditMessage,
   canManageGroup,
   canModerate,
+  canPinMore,
   canPostAnnouncement,
+  chatTab,
   conversationCheckin,
   DAY_MS,
   dmId,
   extractMentions,
   isChatEligible,
   isExpired,
+  MAX_PINS_PER_TAB,
   needsApproval,
   purgeExpired,
   shareConversation,
@@ -50,6 +53,7 @@ const member = (conversationId: string, personId: string): ConversationMember =>
   lastReadAt: null,
   muted: false,
   joinedAt: at(9999),
+  pinnedAt: null,
 });
 
 describe("chat eligibility", () => {
@@ -304,32 +308,93 @@ describe("mentions and unread", () => {
   });
 });
 
-describe("ordering and uplines", () => {
-  const c = (kind: Conversation["kind"], pinned: boolean, createdAt: string) => ({
-    kind,
-    pinned,
-    createdAt,
+describe("chat list tabs, pins and ordering", () => {
+  const row = (
+    id: string,
+    kind: Conversation["kind"],
+    lastAt: string,
+    pinnedAt: string | null,
+  ) => ({
+    id,
+    conversation: { kind },
+    lastAt,
+    pinnedAt,
   });
 
-  it("pinned team chats first (Announcements, Main, pinned groups), then by recency", () => {
+  it("DMs are under Direct messages; everything else under Groups", () => {
+    expect(chatTab({ kind: "dm" })).toBe("direct");
+    expect(chatTab({ kind: "announcements" })).toBe("groups");
+    expect(chatTab({ kind: "main" })).toBe("groups");
+    expect(chatTab({ kind: "group" })).toBe("groups");
+  });
+
+  it("pinned first in the order pinned (team chats keep Announcements and Main on top), then by latest message", () => {
+    const joined = at(5000);
     const rows = [
-      { id: "dm", conversation: c("dm", false, at(10)), lastAt: at(1) },
-      { id: "wins", conversation: c("group", true, at(50)), lastAt: at(30) },
-      { id: "main", conversation: c("main", true, at(60)), lastAt: at(40) },
-      { id: "side", conversation: c("group", false, at(20)), lastAt: at(5) },
-      { id: "ann", conversation: c("announcements", true, at(60)), lastAt: at(90) },
-      { id: "signal", conversation: c("group", true, at(49)), lastAt: at(2) },
+      row("side-old", "group", at(300), null),
+      row("wins", "group", at(30), joined),
+      row("main", "main", at(40), joined),
+      row("side-new", "group", at(5), null),
+      row("ann", "announcements", at(90), joined),
+      row("signal", "group", at(2), joined),
+      row("carpool", "group", at(500), at(60)),
+      row("book-club", "group", at(1), at(10)),
     ];
     expect(sortConversations(rows).map((r) => r.id)).toEqual([
       "ann",
       "main",
-      "wins",
       "signal",
-      "dm",
-      "side",
+      "wins",
+      "carpool",
+      "book-club",
+      "side-new",
+      "side-old",
     ]);
   });
 
+  it("an unpinned team chat sorts by its latest message like any other", () => {
+    const rows = [
+      row("main", "main", at(40), null),
+      row("side", "group", at(5), null),
+      row("ann", "announcements", at(90), at(5000)),
+    ];
+    expect(sortConversations(rows).map((r) => r.id)).toEqual(["ann", "side", "main"]);
+  });
+
+  it("DMs: pinned first, then by latest message", () => {
+    const rows = [
+      row("dm-a", "dm", at(1), null),
+      row("dm-b", "dm", at(100), at(20)),
+      row("dm-c", "dm", at(50), null),
+    ];
+    expect(sortConversations(rows).map((r) => r.id)).toEqual(["dm-b", "dm-a", "dm-c"]);
+  });
+
+  it("caps pins at 10 per tab, counted separately for groups and DMs", () => {
+    const convs: Pick<Conversation, "id" | "kind">[] = [];
+    const members: ConversationMember[] = [];
+    for (let i = 0; i < 12; i++) {
+      convs.push({ id: `g${i}`, kind: "group" }, { id: `d${i}`, kind: "dm" });
+      members.push(
+        { ...member(`g${i}`, "me"), pinnedAt: i < MAX_PINS_PER_TAB ? at(100 - i) : null },
+        member(`d${i}`, "me"),
+      );
+    }
+    members.push({ ...member("g11", "other"), pinnedAt: at(1) });
+    expect(MAX_PINS_PER_TAB).toBe(10);
+    expect(canPinMore(convs, members, "me", "g10")).toBe(false);
+    expect(canPinMore(convs, members, "me", "g3")).toBe(true); // already pinned
+    expect(canPinMore(convs, members, "me", "d0")).toBe(true);
+    expect(canPinMore(convs, members, "other", "g10")).toBe(true); // pins are personal
+    const nine = members.map((m) =>
+      m.conversationId === "g0" && m.personId === "me" ? { ...m, pinnedAt: null } : m,
+    );
+    expect(canPinMore(convs, nine, "me", "g10")).toBe(true);
+    expect(canPinMore(convs, members, "me", "missing")).toBe(false);
+  });
+});
+
+describe("uplines", () => {
   it("upline walks sponsors and stops on cycles", () => {
     const s = new Map<string, string | null>([
       ["4", "2"],

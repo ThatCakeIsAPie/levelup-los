@@ -20,7 +20,7 @@ import type { ChatData } from "./types";
 
 export const CHAT_STORAGE_KEY = "levelup.chat";
 /** Bump when the stored shape changes (resets everyone's chat demo data). */
-const CHAT_SCHEMA_VERSION = 2;
+const CHAT_SCHEMA_VERSION = 3;
 
 type ChatState = ChatData;
 

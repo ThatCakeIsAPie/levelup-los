@@ -21,10 +21,12 @@ import {
   assignToEvent,
   getPerson,
   logContact,
+  pinConversation,
   removeContact,
   removeEvent,
   saveAttachment,
   sendMessage,
+  unpinConversation,
   updateAttendance,
   updatePerson,
 } from "@/data";
@@ -218,6 +220,48 @@ describe("write-through", () => {
 });
 
 describe("chat", () => {
+  it("chat pins are personal: Maria's pins are saved for her only", async () => {
+    await signInApp("maria");
+    const maria = await login("maria");
+    const anita = await login("anita");
+    const pinnedAt = async (c: SupabaseClient, conv: string, person: string) =>
+      (
+        await c
+          .from("conversation_members")
+          .select("pinned_at")
+          .eq("conversation_id", conv)
+          .eq("person_id", person)
+          .single()
+      ).data?.pinned_at ?? null;
+    const mainBefore = await pinnedAt(maria, "main", "1");
+    expect(mainBefore).not.toBeNull(); // team chats start pinned
+    cleanup.push(() =>
+      maria
+        .from("conversation_members")
+        .update({ pinned_at: mainBefore })
+        .match({ conversation_id: "main", person_id: "1" }),
+    );
+    cleanup.push(() =>
+      maria
+        .from("conversation_members")
+        .update({ pinned_at: null })
+        .match({ conversation_id: "carpool", person_id: "1" }),
+    );
+
+    expect(pinConversation("carpool")).toEqual({ ok: true });
+    expect(unpinConversation("main")).toBe(true);
+    await whenIdle();
+    expect(await pinnedAt(maria, "carpool", "1")).not.toBeNull();
+    expect(await pinnedAt(maria, "main", "1")).toBeNull();
+    expect(await pinnedAt(anita, "carpool", "2")).toBeNull();
+    expect(await pinnedAt(anita, "main", "2")).not.toBeNull();
+    // The store kept the change (nothing was rolled back).
+    const mine = useChatStore
+      .getState()
+      .conversationMembers.find((m) => m.conversationId === "carpool" && m.personId === "1");
+    expect(mine?.pinnedAt).not.toBeNull();
+  });
+
   it("a message sent by Maria reaches Anita live, and Anita's reaches Maria's app", async () => {
     const anita = await login("anita");
     const seenByAnita = await follow(anita, "anita");

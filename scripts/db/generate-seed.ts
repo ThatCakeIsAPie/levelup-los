@@ -603,6 +603,7 @@ emit(
       ["last_read_at", "ts"],
       ["muted", "bool"],
       ["joined_at", "ts"],
+      ["pinned_at", "ts"],
     ],
     chat.conversationMembers.map((m) => [
       m.conversationId,
@@ -611,6 +612,7 @@ emit(
       m.lastReadAt,
       m.muted,
       m.joinedAt,
+      m.pinnedAt,
     ]),
   ),
 );

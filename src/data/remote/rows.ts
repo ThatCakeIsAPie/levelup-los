@@ -489,6 +489,7 @@ export function conversationMemberFromRow(r: R<"conversation_members">): Convers
     lastReadAt: iso(r.last_read_at),
     muted: !!r.muted,
     joinedAt: isoOr(r.joined_at),
+    pinnedAt: iso(r.pinned_at),
   };
 }
 
@@ -500,6 +501,7 @@ export function conversationMemberToRow(m: ConversationMember): Row {
     last_read_at: iso(m.lastReadAt),
     muted: m.muted,
     joined_at: iso(m.joinedAt),
+    pinned_at: iso(m.pinnedAt),
   };
 }
 

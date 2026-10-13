@@ -518,6 +518,7 @@ export type Database = {
           last_read_at: string | null;
           muted: boolean;
           person_id: string;
+          pinned_at: string | null;
           role: string;
         };
         ComputedFields: never;
@@ -527,6 +528,7 @@ export type Database = {
           last_read_at?: string | null;
           muted?: boolean;
           person_id: string;
+          pinned_at?: string | null;
           role?: string;
         };
         Update: {
@@ -535,6 +537,7 @@ export type Database = {
           last_read_at?: string | null;
           muted?: boolean;
           person_id?: string;
+          pinned_at?: string | null;
           role?: string;
         };
         Relationships: [

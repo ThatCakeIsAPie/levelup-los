@@ -31,7 +31,11 @@ export interface Conversation {
   description: string | null;
   /** lucide icon name (kebab-case), optional. */
   icon: string | null;
-  /** Team chats pinned to the top of everyone's list. */
+  /**
+   * Team chats (Announcements, Main chat, Daily wins, High signal). They start
+   * pinned in everyone's list (ConversationMember.pinnedAt), and each person may
+   * unpin them.
+   */
   pinned: boolean;
   /** null = keep forever; otherwise messages older than this are deleted. */
   retentionDays: number | null;
@@ -52,6 +56,11 @@ export interface ConversationMember {
   /** Muted = no unread badge and only mentions notify ("Mentions only"). */
   muted: boolean;
   joinedAt: string;
+  /**
+   * When this member pinned the chat to the top of their own list (null = not
+   * pinned). Personal; team chats start pinned for everyone.
+   */
+  pinnedAt: string | null;
 }
 
 export type WinKind = "sale" | "contact" | "plan" | "ticket" | "rank" | "other";

@@ -87,6 +87,7 @@ Migrations live in `supabase/migrations`, in this order:
 | `…0800_triggers`             | guards, delete cascade, team-chat sync, notifications, check-ins, retention                                                                                                                                                                                                                              |
 | `…0900_storage_realtime`     | storage buckets and policies; realtime publication                                                                                                                                                                                                                                                       |
 | `20261013000100_client_sync` | what the app's supabase mode needs: `conversations.pinned_message_id` (+ who may pin), message-removal cleanup, `announcement_posted` / `event_post` notifications, mute, group admin hand-over, client-chosen ids for `create_dm` / `approve_announcement`, `event_rsvp_counts()`, more realtime tables |
+| `20261013000200_chat_pins`   | personal chat pins: `conversation_members.pinned_at` (team chats start pinned, backfilled for existing members), only your own, at most 10 per tab                                                                                                                                                       |
 
 Conventions:
 
@@ -162,6 +163,7 @@ RLS is on for every table. Policies apply to signed-in users (`authenticated`), 
 - **Reading:** you read conversations, members, messages, attachments, reactions and mentions only of conversations you belong to. **Nobody reads a DM they aren't in, leaders included.** You can also see (not read) the team chats you could rejoin, and groups you created.
 - **Team chats:** every eligible member belongs to Announcements and Main chat, and is added to the pinned team groups (Daily wins, High signal) on joining. You may rejoin a team chat yourself.
 - **Groups:** any eligible member creates one and becomes its `admin` (by trigger). Admins add people with any role and change roles. Group moderators add plain members. Only eligible people of the same workspace can be added. You can leave a group, but not Announcements, Main chat or a DM. When a group's last admin leaves, the longest-standing moderator (else member) becomes admin. Pinning a chat is for moderators and leaders.
+- **Personal pins** (`conversation_members.pinned_at`): you pin and unpin chats in your own list only (like read state and mute, nobody changes someone else's, not even a group admin or leader). Joining a `pinned = true` team chat starts it pinned; adding someone to a group never pins it for them. At most 10 pins per tab (DMs, and everything else), `23514` beyond that.
 - **Pinned message** (`conversations.pinned_message_id`): either member of a DM; in other chats whoever may moderate it (chat admins and moderators, workspace leaders and moderators). Group moderators may pin but not rename or otherwise edit the group. Only a message of the same chat can be pinned; removing it unpins it.
 - **DMs:** created only through `create_dm()`, and only when `can_dm` allows it. You can't post in a DM once either side has blocked the other.
 - **Posting:** you post as yourself, in your conversations. In Announcements only workspace moderators and leaders post directly; everyone else creates an `announcement_drafts` row.
@@ -214,7 +216,7 @@ Errors use SQLSTATE codes:
   - ids, workspace and authors can't change;
   - `created_at` on messages, drafts, reports and reactions is always "now";
   - only a chat admin changes roles;
-  - read state and mute are personal;
+  - read state, mute and pins (`pinned_at`) are personal;
   - notifications only change `read_at`;
   - reports only get resolved;
   - you can't change your own stage or sponsor.
@@ -288,8 +290,9 @@ The same script generates `supabase/tests/001_visibility_parity.test.sql`. It ru
 | `007_workspace_isolation` | a second workspace's rows are invisible and unreachable                                                                                            |
 | `008_schema_storage`      | contract columns, RLS on every table, realtime, function privileges, storage policies, retention purge                                             |
 | `009_client_sync`         | pinned messages and who may pin, message removal cleanup, announcement / event-post notifications, mute, admin hand-over, client ids, event totals |
+| `010_chat_pins`           | team chats start pinned for every member, pins are your own only (leaders, group admins and others can't pin for you), the 10-per-tab cap          |
 
-`npm run test:integration` (vitest, `tests/integration`) runs the app's sync layer against the running database: what Jamal and Beau load, a CRM round trip with cascades, a refused write rolled back, a message reaching another person live (both directions), the DM check-in trigger, a photo upload read through a signed URL, and approving an announcement. It adds rows each run (re-runnable); `npm run db:reset` restores the seed.
+`npm run test:integration` (vitest, `tests/integration`) runs the app's sync layer against the running database: what Jamal and Beau load, a CRM round trip with cascades, a refused write rolled back, a message reaching another person live (both directions), personal chat pins saved for one person only, the DM check-in trigger, a photo upload read through a signed URL, and approving an announcement. It adds rows each run (re-runnable); `npm run db:reset` restores the seed.
 
 ## Moving to hosted Supabase
 

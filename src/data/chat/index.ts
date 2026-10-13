@@ -23,6 +23,10 @@ export {
   purgeExpired,
   extractMentions,
   RETENTION_OPTIONS,
+  chatTab,
+  canPinMore,
+  MAX_PINS_PER_TAB,
+  type ChatTab,
 } from "./rules";
 export {
   workspaceRoleLabel,
@@ -30,6 +34,7 @@ export {
   useWorkspaceMembers,
   useChatAccess,
   useConversations,
+  useChatTabs,
   useConversation,
   getConversationTitle,
   useConversationMembers,
@@ -55,6 +60,7 @@ export {
   type ChatPerson,
   type ChatAccess,
   type ConversationSummary,
+  type ChatTabs,
   type MemberView,
   type MessageView,
   type ReactionSummary,
@@ -78,6 +84,8 @@ export {
   setMemberRole,
   leaveConversation,
   setMuted,
+  pinConversation,
+  unpinConversation,
   setRetention,
   createOrOpenDm,
   submitAnnouncement,
@@ -102,6 +110,7 @@ export {
   type SendMessageInput,
   type SendResult,
   type RsvpChoice,
+  type PinResult,
 } from "./mutations";
 export {
   saveAttachment,

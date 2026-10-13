@@ -270,22 +270,62 @@ export function unreadCount(
   return n;
 }
 
-const TEAM_ORDER: Record<string, number> = { announcements: 0, main: 1, group: 2, dm: 3 };
+// ---------------------------------------------------------------------------
+// Chat list: tabs, personal pins, order
+// ---------------------------------------------------------------------------
+
+/** The chat list's two tabs: every chat but DMs is under Groups. */
+export type ChatTab = "groups" | "direct";
+
+export function chatTab(c: Pick<Conversation, "kind">): ChatTab {
+  return c.kind === "dm" ? "direct" : "groups";
+}
+
+/** Pins per tab (each person's own). */
+export const MAX_PINS_PER_TAB = 10;
 
 /**
- * Chat list order: pinned team chats first (Announcements, Main chat, then the
- * pinned groups by creation), then groups and DMs by most recent activity.
+ * Whether `personId` may pin one more chat in the tab of `conversationId`
+ * (already pinned counts as allowed).
+ */
+export function canPinMore(
+  conversations: Pick<Conversation, "id" | "kind">[],
+  members: Pick<ConversationMember, "conversationId" | "personId" | "pinnedAt">[],
+  personId: string,
+  conversationId: string,
+): boolean {
+  const kindOf = new Map(conversations.map((c) => [c.id, c.kind]));
+  const kind = kindOf.get(conversationId);
+  if (!kind) return false;
+  const tab = chatTab({ kind });
+  let pinned = 0;
+  for (const m of members) {
+    if (m.personId !== personId || !m.pinnedAt) continue;
+    if (m.conversationId === conversationId) return true;
+    const k = kindOf.get(m.conversationId);
+    if (k && chatTab({ kind: k }) === tab) pinned++;
+  }
+  return pinned < MAX_PINS_PER_TAB;
+}
+
+const KIND_ORDER: Record<string, number> = { announcements: 0, main: 1, group: 2, dm: 3 };
+
+/**
+ * Chat list order (within a tab): your pinned chats first, in the order you
+ * pinned them (team chats, pinned together when you joined, keep Announcements
+ * and Main chat first, then the most recent), then everything else by latest
+ * message.
  */
 export function sortConversations<
-  T extends { conversation: Pick<Conversation, "kind" | "pinned" | "createdAt">; lastAt: string },
+  T extends { conversation: Pick<Conversation, "kind">; lastAt: string; pinnedAt: string | null },
 >(rows: T[]): T[] {
   return [...rows].sort((x, y) => {
-    const px = isTeamChat(x.conversation);
-    const py = isTeamChat(y.conversation);
-    if (px !== py) return px ? -1 : 1;
-    if (px && py) {
-      const k = TEAM_ORDER[x.conversation.kind] - TEAM_ORDER[y.conversation.kind];
-      return k || x.conversation.createdAt.localeCompare(y.conversation.createdAt);
+    if (!!x.pinnedAt !== !!y.pinnedAt) return x.pinnedAt ? -1 : 1;
+    if (x.pinnedAt && y.pinnedAt) {
+      const p = x.pinnedAt.localeCompare(y.pinnedAt);
+      if (p) return p;
+      const k = KIND_ORDER[x.conversation.kind] - KIND_ORDER[y.conversation.kind];
+      if (k) return k;
     }
     return y.lastAt.localeCompare(x.lastAt);
   });

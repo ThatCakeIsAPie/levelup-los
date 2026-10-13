@@ -168,7 +168,7 @@ export function seedChat(people: CrmPerson[] = seedPeople(), nowMs: number = Dat
     "an1",
     CHAT_IDS.announcements,
     "1",
-    "Welcome to LevelUp chats! Announcements, Main chat, Daily wins and High signal are pinned at the top. Side groups and direct messages are below them.",
+    "Welcome to LevelUp chats! Announcements, Main chat, Daily wins and High signal are pinned at the top of Groups, and direct messages have their own tab. Pin any chat you use a lot.",
     daysAgoAt(3, 9),
   );
   msg(
@@ -376,12 +376,16 @@ export function seedChat(people: CrmPerson[] = seedPeople(), nowMs: number = Dat
     lastReadAt: lastIn(cid) || null,
     muted: false,
     joinedAt: daysAgoAt(40, 9),
+    pinnedAt: null,
     ...o,
   });
   const teamRole = (id: string): ConversationMember["role"] =>
     SEED_ROLES[id] === "leader" ? "admin" : SEED_ROLES[id] === "moderator" ? "moderator" : "member";
+  // Team chats start pinned for everyone (each person may unpin them).
   for (const c of conversations.filter((c) => c.pinned)) {
-    for (const id of memberIds) conversationMembers.push(join(c.id, id, { role: teamRole(id) }));
+    for (const id of memberIds) {
+      conversationMembers.push(join(c.id, id, { role: teamRole(id), pinnedAt: daysAgoAt(40, 9) }));
+    }
   }
   const set = (cid: string, pid: string, patch: Partial<ConversationMember>) => {
     const m = conversationMembers.find((x) => x.conversationId === cid && x.personId === pid);

@@ -19,11 +19,13 @@ import {
   canDm,
   canModerate,
   canReviewDrafts,
+  chatTab,
   isChatEligible,
   isExpired,
   isTeamChat,
   sortConversations,
   unreadCount,
+  type ChatTab,
 } from "./rules";
 import type {
   AnnouncementDraft,
@@ -183,6 +185,12 @@ export interface ConversationSummary {
   pendingDrafts: number;
   /** Announcements, Main chat and the pinned groups. */
   team: boolean;
+  /** The chat list tab it belongs to (DMs: "direct"; everything else: "groups"). */
+  tab: ChatTab;
+  /** Pinned to the top of your own list (personal). */
+  pinned: boolean;
+  /** When you pinned it (null = not pinned); pinned chats are listed in this order. */
+  pinnedAt: string | null;
   /** May remove other people's messages here. */
   canModerate: boolean;
   /** DMs: "me" when you blocked the other person, "them" when they blocked you. */
@@ -298,6 +306,9 @@ function useSummaries(): ConversationSummary[] {
             ? pending.filter((d) => d.conversationId === c.id).length
             : 0,
         team: isTeamChat(c),
+        tab: chatTab(c),
+        pinned: !!mine.pinnedAt,
+        pinnedAt: mine.pinnedAt ?? null,
         canModerate: canModerate({
           conversation: c,
           workspaceRole: access.role,
@@ -316,9 +327,30 @@ function useSummaries(): ConversationSummary[] {
   }, [data, people, events, access, me]);
 }
 
-/** The current user's conversations: pinned team chats first, then by recency. */
+/** The current user's conversations: their pinned chats first, then by latest message. */
 export function useConversations(): ConversationSummary[] {
   return useSummaries();
+}
+
+export interface ChatTabs {
+  /** Announcements, Main chat, team groups and side groups (pinned first). */
+  groups: ConversationSummary[];
+  /** Direct messages (pinned first). */
+  direct: ConversationSummary[];
+  /** Chats with unread messages per tab (muted chats don't count, like the nav badge). */
+  unread: Record<ChatTab, number>;
+}
+
+/** The chat list split into its two tabs, each in list order. */
+export function useChatTabs(): ChatTabs {
+  const all = useSummaries();
+  return useMemo(() => {
+    const groups = all.filter((c) => c.tab === "groups");
+    const direct = all.filter((c) => c.tab === "direct");
+    const unread = (rows: ConversationSummary[]) =>
+      rows.filter((c) => c.unread > 0 && !c.muted).length;
+    return { groups, direct, unread: { groups: unread(groups), direct: unread(direct) } };
+  }, [all]);
 }
 
 /** One conversation the current user belongs to, or undefined. */
