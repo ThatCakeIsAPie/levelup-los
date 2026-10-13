@@ -22,11 +22,14 @@ import type { Campaign, Logistics, Payment, ReportSchedule, SharedCost } from "@
 import type { ActivityEvent } from "@/stores/activityStore";
 import type { ChatData } from "@/data/chat/types";
 import { isPendingPath } from "@/data/chat/attachments";
+import type { LibraryData } from "@/data/library/types";
+import { useLibraryExtras, type ChannelTeaser, type LibraryExtras } from "@/data/library/extras";
 import {
   activityBinding,
   attendanceBinding,
   chatBinding,
   crmBinding,
+  libraryBinding,
   eventsBinding,
   opsBinding,
   peopleBinding,
@@ -84,9 +87,15 @@ export interface CrmSnapshot {
   activity: ActivityEvent[];
 }
 
+export interface LibrarySnapshot {
+  data: LibraryData;
+  extras: LibraryExtras;
+}
+
 export interface Snapshot {
   crm: CrmSnapshot;
   chat: ChatData;
+  library: LibrarySnapshot;
   directory: DirectoryEntry[];
   rsvpCounts: Record<string, RsvpCounts>;
 }
@@ -211,7 +220,6 @@ export async function fetchChat(client: SupabaseClient): Promise<ChatData> {
     notifications,
     reports,
     blocks,
-    library,
   ] = await Promise.all([
     all("members", [["person_id", true]]),
     all("conversations", [
@@ -261,10 +269,6 @@ export async function fetchChat(client: SupabaseClient): Promise<ChatData> {
       ["blocker_id", true],
       ["blocked_id", true],
     ]),
-    all("library_items", [
-      ["created_at", true],
-      ["id", true],
-    ]),
   ]);
   return {
     members: members.map((r) => m.memberFromRow(r)),
@@ -278,7 +282,6 @@ export async function fetchChat(client: SupabaseClient): Promise<ChatData> {
     notifications: notifications.map((r) => m.notificationFromRow(r)),
     reports: reports.map((r) => m.reportFromRow(r)),
     blocks: blocks.map((r) => m.blockFromRow(r)),
-    library: library.map((r) => m.libraryFromRow(r)),
   };
 }
 
@@ -308,15 +311,100 @@ export async function fetchRsvpCounts(client: SupabaseClient): Promise<Record<st
   return out;
 }
 
+/**
+ * The library the caller may see (catalog, topics, channels, their own
+ * progress), plus the locked "IBOs and leaders" channels and the names of the
+ * people behind it all.
+ */
+export async function fetchLibrary(client: SupabaseClient): Promise<LibrarySnapshot> {
+  const all = (t: string, order: Order[]) => fetchAll(client, t, order);
+  const [topics, items, speakers, itemTopics, channels, sections, lessons, progress, people] =
+    await Promise.all([
+      all("library_topics", [
+        ["created_at", true],
+        ["id", true],
+      ]),
+      all("library_items", [
+        ["created_at", false],
+        ["id", true],
+      ]),
+      all("library_item_speakers", [
+        ["item_id", true],
+        ["position", true],
+      ]),
+      all("library_item_topics", [
+        ["item_id", true],
+        ["topic_id", true],
+      ]),
+      all("library_channels", [
+        ["created_at", true],
+        ["id", true],
+      ]),
+      all("library_channel_sections", [
+        ["channel_id", true],
+        ["position", true],
+      ]),
+      all("library_channel_items", [
+        ["section_id", true],
+        ["position", true],
+      ]),
+      all("library_progress", [
+        ["person_id", true],
+        ["item_id", true],
+      ]),
+      all("library_people", [["person_id", true]]),
+    ]);
+  const { data: teaserRows, error } = await client.rpc("library_channel_teasers");
+  if (error) throw new Error(`library_channel_teasers: ${error.message}`);
+
+  const itemList = items.map((r) => m.catalogItemFromRow(r));
+  const itemById = new Map(itemList.map((i) => [i.id, i]));
+  for (const r of speakers) itemById.get(String(r.item_id))?.speakers.push(m.speakerFromRow(r));
+  for (const r of itemTopics) itemById.get(String(r.item_id))?.topicIds.push(String(r.topic_id));
+  const channelList = channels.map((r) => m.channelFromRow(r));
+  const channelById = new Map(channelList.map((c) => [c.id, c]));
+  const sectionById = new Map<string, { itemIds: string[] }>();
+  for (const r of sections) {
+    const sec = { id: String(r.id), title: (r.title as string | null) ?? null, itemIds: [] };
+    channelById.get(String(r.channel_id))?.sections.push(sec);
+    sectionById.set(sec.id, sec);
+  }
+  for (const r of lessons) sectionById.get(String(r.section_id))?.itemIds.push(String(r.item_id));
+
+  const teasers: ChannelTeaser[] = ((teaserRows ?? []) as Row[]).map((r) => ({
+    id: String(r.id),
+    title: String(r.title ?? ""),
+    description: (r.description as string | null) ?? null,
+    icon: String(r.icon ?? "book-open"),
+    color: (r.color as ChannelTeaser["color"]) ?? "teal",
+    createdBy: String(r.created_by ?? ""),
+    lessonCount: Number(r.lesson_count ?? 0),
+    createdAt: m.iso(r.created_at) ?? "",
+  }));
+  return {
+    data: {
+      topics: topics.map((r) => m.topicFromRow(r)),
+      items: itemList,
+      channels: channelList,
+      progress: progress.map((r) => m.progressFromRow(r)),
+    },
+    extras: {
+      teasers,
+      names: Object.fromEntries(people.map((r) => [String(r.person_id), String(r.name ?? "")])),
+    },
+  };
+}
+
 /** Everything the signed-in person may see, in store shapes. */
 export async function fetchSnapshot(client: SupabaseClient, me: string): Promise<Snapshot> {
-  const [crm, chat, directory, rsvpCounts] = await Promise.all([
+  const [crm, chat, library, directory, rsvpCounts] = await Promise.all([
     fetchCrm(client, me),
     fetchChat(client),
+    fetchLibrary(client),
     fetchDirectory(client),
     fetchRsvpCounts(client),
   ]);
-  return { crm, chat, directory, rsvpCounts };
+  return { crm, chat, library, directory, rsvpCounts };
 }
 
 // ---------------------------------------------------------------------------
@@ -363,8 +451,14 @@ export function applyChat(next: ChatData): void {
   replaceStore(chatBinding, next);
 }
 
+export function applyLibrary(s: LibrarySnapshot): void {
+  replaceStore(libraryBinding, s.data);
+  useLibraryExtras.setState(s.extras);
+}
+
 export function applySnapshot(s: Snapshot): void {
   applyCrm(s.crm);
   applyChat(s.chat);
+  applyLibrary(s.library);
   useRemoteStore.setState({ directory: s.directory, rsvpCounts: s.rsvpCounts });
 }

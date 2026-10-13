@@ -62,6 +62,13 @@ export type Database = {
             foreignKeyName: "activity_actor_id_fkey";
             columns: ["actor_id"];
             isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "activity_actor_id_fkey";
+            columns: ["actor_id"];
+            isOneToOne: false;
             referencedRelation: "people";
             referencedColumns: ["id"];
           },
@@ -121,6 +128,13 @@ export type Database = {
             foreignKeyName: "announcement_drafts_author_id_fkey";
             columns: ["author_id"];
             isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "announcement_drafts_author_id_fkey";
+            columns: ["author_id"];
+            isOneToOne: false;
             referencedRelation: "people";
             referencedColumns: ["id"];
           },
@@ -136,6 +150,13 @@ export type Database = {
             columns: ["reviewer_id"];
             isOneToOne: false;
             referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "announcement_drafts_reviewer_id_fkey";
+            columns: ["reviewer_id"];
+            isOneToOne: false;
+            referencedRelation: "library_people";
             referencedColumns: ["person_id"];
           },
           {
@@ -264,6 +285,13 @@ export type Database = {
             foreignKeyName: "attendances_helper_id_fkey";
             columns: ["helper_id"];
             isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "attendances_helper_id_fkey";
+            columns: ["helper_id"];
+            isOneToOne: false;
             referencedRelation: "people";
             referencedColumns: ["id"];
           },
@@ -272,6 +300,13 @@ export type Database = {
             columns: ["person_id"];
             isOneToOne: false;
             referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "attendances_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: false;
+            referencedRelation: "library_people";
             referencedColumns: ["person_id"];
           },
           {
@@ -319,6 +354,13 @@ export type Database = {
             foreignKeyName: "blocks_blocked_id_fkey";
             columns: ["blocked_id"];
             isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "blocks_blocked_id_fkey";
+            columns: ["blocked_id"];
+            isOneToOne: false;
             referencedRelation: "people";
             referencedColumns: ["id"];
           },
@@ -327,6 +369,13 @@ export type Database = {
             columns: ["blocker_id"];
             isOneToOne: false;
             referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "blocks_blocker_id_fkey";
+            columns: ["blocker_id"];
+            isOneToOne: false;
+            referencedRelation: "library_people";
             referencedColumns: ["person_id"];
           },
           {
@@ -385,6 +434,13 @@ export type Database = {
             foreignKeyName: "campaigns_owner_id_fkey";
             columns: ["owner_id"];
             isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "campaigns_owner_id_fkey";
+            columns: ["owner_id"];
+            isOneToOne: false;
             referencedRelation: "people";
             referencedColumns: ["id"];
           },
@@ -423,6 +479,13 @@ export type Database = {
             columns: ["person_id"];
             isOneToOne: true;
             referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "contact_settings_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: true;
+            referencedRelation: "library_people";
             referencedColumns: ["person_id"];
           },
           {
@@ -485,6 +548,13 @@ export type Database = {
             foreignKeyName: "contacts_by_id_fkey";
             columns: ["by_id"];
             isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "contacts_by_id_fkey";
+            columns: ["by_id"];
+            isOneToOne: false;
             referencedRelation: "people";
             referencedColumns: ["id"];
           },
@@ -493,6 +563,13 @@ export type Database = {
             columns: ["person_id"];
             isOneToOne: false;
             referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "contacts_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: false;
+            referencedRelation: "library_people";
             referencedColumns: ["person_id"];
           },
           {
@@ -559,6 +636,13 @@ export type Database = {
             foreignKeyName: "conversation_members_person_id_fkey";
             columns: ["person_id"];
             isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "conversation_members_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: false;
             referencedRelation: "people";
             referencedColumns: ["id"];
           },
@@ -611,6 +695,13 @@ export type Database = {
             columns: ["created_by"];
             isOneToOne: false;
             referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "conversations_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "library_people";
             referencedColumns: ["person_id"];
           },
           {
@@ -672,6 +763,13 @@ export type Database = {
             foreignKeyName: "cost_overrides_person_id_fkey";
             columns: ["person_id"];
             isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "cost_overrides_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: false;
             referencedRelation: "people";
             referencedColumns: ["id"];
           },
@@ -721,6 +819,13 @@ export type Database = {
             columns: ["created_by"];
             isOneToOne: false;
             referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "events_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "library_people";
             referencedColumns: ["person_id"];
           },
           {
@@ -795,6 +900,13 @@ export type Database = {
             foreignKeyName: "invites_created_by_fkey";
             columns: ["created_by"];
             isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "invites_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
             referencedRelation: "people";
             referencedColumns: ["id"];
           },
@@ -803,6 +915,13 @@ export type Database = {
             columns: ["sponsor_person_id"];
             isOneToOne: false;
             referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "invites_sponsor_person_id_fkey";
+            columns: ["sponsor_person_id"];
+            isOneToOne: false;
+            referencedRelation: "library_people";
             referencedColumns: ["person_id"];
           },
           {
@@ -865,6 +984,13 @@ export type Database = {
             foreignKeyName: "learning_person_id_fkey";
             columns: ["person_id"];
             isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "learning_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: false;
             referencedRelation: "people";
             referencedColumns: ["id"];
           },
@@ -912,6 +1038,13 @@ export type Database = {
             foreignKeyName: "learning_goals_person_id_fkey";
             columns: ["person_id"];
             isOneToOne: true;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "learning_goals_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: true;
             referencedRelation: "people";
             referencedColumns: ["id"];
           },
@@ -924,36 +1057,303 @@ export type Database = {
           },
         ];
       };
+      library_channel_items: {
+        Row: {
+          channel_id: string;
+          item_id: string;
+          position: number;
+          section_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          channel_id: string;
+          item_id: string;
+          position: number;
+          section_id: string;
+        };
+        Update: {
+          channel_id?: string;
+          item_id?: string;
+          position?: number;
+          section_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "library_channel_items_channel_id_fkey";
+            columns: ["channel_id"];
+            isOneToOne: false;
+            referencedRelation: "library_channels";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "library_channel_items_item_id_fkey";
+            columns: ["item_id"];
+            isOneToOne: false;
+            referencedRelation: "library_items";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "library_channel_items_section_id_fkey";
+            columns: ["section_id"];
+            isOneToOne: false;
+            referencedRelation: "library_channel_sections";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      library_channel_sections: {
+        Row: {
+          channel_id: string;
+          id: string;
+          position: number;
+          title: string | null;
+        };
+        ComputedFields: never;
+        Insert: {
+          channel_id: string;
+          id?: string;
+          position: number;
+          title?: string | null;
+        };
+        Update: {
+          channel_id?: string;
+          id?: string;
+          position?: number;
+          title?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "library_channel_sections_channel_id_fkey";
+            columns: ["channel_id"];
+            isOneToOne: false;
+            referencedRelation: "library_channels";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      library_channels: {
+        Row: {
+          color: string;
+          created_at: string;
+          created_by: string;
+          description: string | null;
+          icon: string;
+          id: string;
+          title: string;
+          updated_at: string;
+          visibility: string;
+          workspace_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          color?: string;
+          created_at?: string;
+          created_by?: string;
+          description?: string | null;
+          icon?: string;
+          id?: string;
+          title: string;
+          updated_at?: string;
+          visibility?: string;
+          workspace_id?: string;
+        };
+        Update: {
+          color?: string;
+          created_at?: string;
+          created_by?: string;
+          description?: string | null;
+          icon?: string;
+          id?: string;
+          title?: string;
+          updated_at?: string;
+          visibility?: string;
+          workspace_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "library_channels_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "library_channels_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "library_channels_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "library_channels_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      library_item_speakers: {
+        Row: {
+          item_id: string;
+          name: string | null;
+          person_id: string | null;
+          position: number;
+        };
+        ComputedFields: never;
+        Insert: {
+          item_id: string;
+          name?: string | null;
+          person_id?: string | null;
+          position: number;
+        };
+        Update: {
+          item_id?: string;
+          name?: string | null;
+          person_id?: string | null;
+          position?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "library_item_speakers_item_id_fkey";
+            columns: ["item_id"];
+            isOneToOne: false;
+            referencedRelation: "library_items";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "library_item_speakers_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: false;
+            referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "library_item_speakers_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "library_item_speakers_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      library_item_topics: {
+        Row: {
+          item_id: string;
+          topic_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          item_id: string;
+          topic_id: string;
+        };
+        Update: {
+          item_id?: string;
+          topic_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "library_item_topics_item_id_fkey";
+            columns: ["item_id"];
+            isOneToOne: false;
+            referencedRelation: "library_items";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "library_item_topics_topic_id_fkey";
+            columns: ["topic_id"];
+            isOneToOne: false;
+            referencedRelation: "library_topics";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       library_items: {
         Row: {
           created_at: string;
-          created_by: string | null;
+          created_by: string;
+          description: string | null;
           duration_sec: number | null;
+          event_id: string | null;
+          file_name: string | null;
+          format: string;
           id: string;
           kind: string;
+          link_provider: string | null;
+          link_url: string | null;
+          mime: string | null;
+          page_count: number | null;
+          permission_confirmed: boolean;
+          recorded_on: string | null;
+          size_bytes: number | null;
+          source: string;
+          storage_path: string | null;
           title: string;
-          url: string;
+          updated_at: string;
+          visibility: string;
           workspace_id: string;
         };
         ComputedFields: never;
         Insert: {
           created_at?: string;
-          created_by?: string | null;
+          created_by?: string;
+          description?: string | null;
           duration_sec?: number | null;
+          event_id?: string | null;
+          file_name?: string | null;
+          format?: string;
           id?: string;
           kind: string;
+          link_provider?: string | null;
+          link_url?: string | null;
+          mime?: string | null;
+          page_count?: number | null;
+          permission_confirmed: boolean;
+          recorded_on?: string | null;
+          size_bytes?: number | null;
+          source: string;
+          storage_path?: string | null;
           title: string;
-          url: string;
+          updated_at?: string;
+          visibility?: string;
           workspace_id?: string;
         };
         Update: {
           created_at?: string;
-          created_by?: string | null;
+          created_by?: string;
+          description?: string | null;
           duration_sec?: number | null;
+          event_id?: string | null;
+          file_name?: string | null;
+          format?: string;
           id?: string;
           kind?: string;
+          link_provider?: string | null;
+          link_url?: string | null;
+          mime?: string | null;
+          page_count?: number | null;
+          permission_confirmed?: boolean;
+          recorded_on?: string | null;
+          size_bytes?: number | null;
+          source?: string;
+          storage_path?: string | null;
           title?: string;
-          url?: string;
+          updated_at?: string;
+          visibility?: string;
           workspace_id?: string;
         };
         Relationships: [
@@ -968,11 +1368,146 @@ export type Database = {
             foreignKeyName: "library_items_created_by_fkey";
             columns: ["created_by"];
             isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "library_items_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
             referencedRelation: "people";
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "library_items_event_id_fkey";
+            columns: ["event_id"];
+            isOneToOne: false;
+            referencedRelation: "events";
+            referencedColumns: ["id"];
+          },
+          {
             foreignKeyName: "library_items_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      library_progress: {
+        Row: {
+          completed_at: string | null;
+          item_id: string;
+          logged_at: string | null;
+          person_id: string;
+          position_sec: number;
+          updated_at: string;
+          workspace_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          completed_at?: string | null;
+          item_id: string;
+          logged_at?: string | null;
+          person_id?: string;
+          position_sec?: number;
+          updated_at?: string;
+          workspace_id?: string;
+        };
+        Update: {
+          completed_at?: string | null;
+          item_id?: string;
+          logged_at?: string | null;
+          person_id?: string;
+          position_sec?: number;
+          updated_at?: string;
+          workspace_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "library_progress_item_id_fkey";
+            columns: ["item_id"];
+            isOneToOne: false;
+            referencedRelation: "library_items";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "library_progress_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: false;
+            referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "library_progress_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "library_progress_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "library_progress_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      library_topics: {
+        Row: {
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          name: string;
+          workspace_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          name: string;
+          workspace_id?: string;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          name?: string;
+          workspace_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "library_topics_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "library_topics_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "library_topics_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "library_topics_workspace_id_fkey";
             columns: ["workspace_id"];
             isOneToOne: false;
             referencedRelation: "workspaces";
@@ -1040,6 +1575,13 @@ export type Database = {
             foreignKeyName: "logistics_person_id_fkey";
             columns: ["person_id"];
             isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "logistics_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: false;
             referencedRelation: "people";
             referencedColumns: ["id"];
           },
@@ -1087,6 +1629,13 @@ export type Database = {
             foreignKeyName: "members_person_id_fkey";
             columns: ["person_id"];
             isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "members_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: false;
             referencedRelation: "people";
             referencedColumns: ["id"];
           },
@@ -1126,6 +1675,13 @@ export type Database = {
             columns: ["person_id"];
             isOneToOne: false;
             referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "mentions_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: false;
+            referencedRelation: "library_people";
             referencedColumns: ["person_id"];
           },
           {
@@ -1179,6 +1735,13 @@ export type Database = {
             columns: ["author_id"];
             isOneToOne: false;
             referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "messages_author_id_fkey";
+            columns: ["author_id"];
+            isOneToOne: false;
+            referencedRelation: "library_people";
             referencedColumns: ["person_id"];
           },
           {
@@ -1251,6 +1814,13 @@ export type Database = {
             foreignKeyName: "notifications_actor_id_fkey";
             columns: ["actor_id"];
             isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "notifications_actor_id_fkey";
+            columns: ["actor_id"];
+            isOneToOne: false;
             referencedRelation: "people";
             referencedColumns: ["id"];
           },
@@ -1273,6 +1843,13 @@ export type Database = {
             columns: ["recipient_id"];
             isOneToOne: false;
             referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "notifications_recipient_id_fkey";
+            columns: ["recipient_id"];
+            isOneToOne: false;
+            referencedRelation: "library_people";
             referencedColumns: ["person_id"];
           },
           {
@@ -1323,6 +1900,13 @@ export type Database = {
             columns: ["person_id"];
             isOneToOne: false;
             referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "payments_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: false;
+            referencedRelation: "library_people";
             referencedColumns: ["person_id"];
           },
           {
@@ -1417,6 +2001,13 @@ export type Database = {
             foreignKeyName: "people_owner_id_fkey";
             columns: ["owner_id"];
             isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "people_owner_id_fkey";
+            columns: ["owner_id"];
+            isOneToOne: false;
             referencedRelation: "people";
             referencedColumns: ["id"];
           },
@@ -1425,6 +2016,13 @@ export type Database = {
             columns: ["sponsor_id"];
             isOneToOne: false;
             referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "people_sponsor_id_fkey";
+            columns: ["sponsor_id"];
+            isOneToOne: false;
+            referencedRelation: "library_people";
             referencedColumns: ["person_id"];
           },
           {
@@ -1482,6 +2080,13 @@ export type Database = {
             foreignKeyName: "reactions_person_id_fkey";
             columns: ["person_id"];
             isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "reactions_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: false;
             referencedRelation: "people";
             referencedColumns: ["id"];
           },
@@ -1510,6 +2115,13 @@ export type Database = {
             columns: ["owner_id"];
             isOneToOne: true;
             referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "report_schedules_owner_id_fkey";
+            columns: ["owner_id"];
+            isOneToOne: true;
+            referencedRelation: "library_people";
             referencedColumns: ["person_id"];
           },
           {
@@ -1576,6 +2188,13 @@ export type Database = {
             foreignKeyName: "reports_reporter_id_fkey";
             columns: ["reporter_id"];
             isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "reports_reporter_id_fkey";
+            columns: ["reporter_id"];
+            isOneToOne: false;
             referencedRelation: "people";
             referencedColumns: ["id"];
           },
@@ -1584,6 +2203,13 @@ export type Database = {
             columns: ["resolved_by"];
             isOneToOne: false;
             referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "reports_resolved_by_fkey";
+            columns: ["resolved_by"];
+            isOneToOne: false;
+            referencedRelation: "library_people";
             referencedColumns: ["person_id"];
           },
           {
@@ -1630,6 +2256,13 @@ export type Database = {
             columns: ["customer_id"];
             isOneToOne: false;
             referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "sales_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "library_people";
             referencedColumns: ["person_id"];
           },
           {
@@ -1684,6 +2317,13 @@ export type Database = {
             foreignKeyName: "shared_cost_members_person_id_fkey";
             columns: ["person_id"];
             isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "shared_cost_members_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: false;
             referencedRelation: "people";
             referencedColumns: ["id"];
           },
@@ -1731,6 +2371,13 @@ export type Database = {
             columns: ["owner_id"];
             isOneToOne: false;
             referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "shared_costs_owner_id_fkey";
+            columns: ["owner_id"];
+            isOneToOne: false;
+            referencedRelation: "library_people";
             referencedColumns: ["person_id"];
           },
           {
@@ -1797,6 +2444,14 @@ export type Database = {
             referencedColumns: ["id"];
           },
         ];
+      };
+      library_people: {
+        Row: {
+          name: string | null;
+          person_id: string | null;
+        };
+        ComputedFields: never;
+        Relationships: [];
       };
     };
     Functions: {
@@ -1874,6 +2529,37 @@ export type Database = {
       is_leader: { Args: Record<PropertyKey, never>; Returns: boolean };
       is_moderator_or_leader: { Args: Record<PropertyKey, never>; Returns: boolean };
       is_team_chat: { Args: { p_conversation_id: string }; Returns: boolean };
+      library_can_edit: {
+        Args: { p_created_by: string; p_workspace_id: string };
+        Returns: boolean;
+      };
+      library_can_see: {
+        Args: { p_created_by: string; p_visibility: string; p_workspace_id: string };
+        Returns: boolean;
+      };
+      library_can_share: { Args: { p_visibility: string }; Returns: boolean };
+      library_channel_editable: { Args: { p_channel_id: string }; Returns: boolean };
+      library_channel_teasers: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          color: string;
+          created_at: string;
+          created_by: string;
+          description: string;
+          icon: string;
+          id: string;
+          lesson_count: number;
+          title: string;
+        }[];
+      };
+      library_channel_visible: { Args: { p_channel_id: string }; Returns: boolean };
+      library_has_downline: { Args: Record<PropertyKey, never>; Returns: boolean };
+      library_is_ibo_or_leader: { Args: Record<PropertyKey, never>; Returns: boolean };
+      library_item_editable: { Args: { p_item_id: string }; Returns: boolean };
+      library_item_visible: { Args: { p_item_id: string }; Returns: boolean };
+      library_learning_id: { Args: { p_item_id: string; p_person_id: string }; Returns: string };
+      library_learning_kind: { Args: { p_format: string; p_kind: string }; Returns: string };
+      library_upline_ids: { Args: Record<PropertyKey, never>; Returns: string[] };
       mark_conversation_read: { Args: { p_conversation_id: string }; Returns: string };
       message_author_id: { Args: { p_message_id: string }; Returns: string };
       message_conversation_id: { Args: { p_message_id: string }; Returns: string };

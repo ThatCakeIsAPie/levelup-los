@@ -42,7 +42,7 @@ select columns_are('public', 'announcement_drafts', array['id', 'conversation_id
 select columns_are('public', 'notifications', array['id', 'recipient_id', 'type', 'actor_id', 'conversation_id', 'message_id', 'ref_id', 'created_at', 'read_at']);
 select columns_are('public', 'reports', array['id', 'message_id', 'reporter_id', 'reason', 'created_at', 'resolved_at', 'resolved_by']);
 select columns_are('public', 'blocks', array['blocker_id', 'blocked_id', 'created_at']);
-select columns_are('public', 'library_items', array['id', 'workspace_id', 'kind', 'title', 'duration_sec', 'url', 'created_by', 'created_at']);
+select has_table('public', 'library_items', 'the library catalog (columns: 011_library.test.sql)');
 select has_column('public', 'contacts', 'source', 'contacts gained source');
 
 -- Realtime ---------------------------------------------------------------------------
@@ -68,8 +68,10 @@ select lives_ok($$insert into storage.objects (bucket_id, name, owner_id) values
   'members upload media into their conversation''s folder');
 select throws_ok($$insert into storage.objects (bucket_id, name) values ('chat-media', 'dm-1-2/t-msg/photo.jpg')$$,
   '42501', null, 'nobody uploads into a conversation they are not in');
-select throws_ok($$insert into storage.objects (bucket_id, name) values ('library', 'w1/talk.m4a')$$,
-  '42501', null, 'members do not upload to the library');
+select pg_temp.logout();
+select pg_temp.login('20');
+select throws_ok($$insert into storage.objects (bucket_id, name) values ('library', 'w1/lib-1/talk.m4a')$$,
+  '42501', null, 'candidates do not upload to the library');
 select pg_temp.logout();
 
 select pg_temp.login('20');
@@ -77,12 +79,12 @@ select is((select count(*)::int from storage.objects where bucket_id = 'chat-med
 select pg_temp.logout();
 
 select pg_temp.login('2');
-select lives_ok($$insert into storage.objects (bucket_id, name) values ('library', 'w1/new-talk.m4a')$$,
+select lives_ok($$insert into storage.objects (bucket_id, name) values ('library', 'w1/lib-1/new-talk.m4a')$$,
   'moderators upload to the library');
 select pg_temp.logout();
 
 select pg_temp.login('1');
-select is((select count(*)::int from storage.objects where bucket_id = 'library'), 1, 'members read the library');
+select is((select count(*)::int from storage.objects where bucket_id = 'library'), 1, 'members read files of team talks');
 select pg_temp.logout();
 
 -- Retention ----------------------------------------------------------------------------

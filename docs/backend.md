@@ -110,7 +110,8 @@ Conventions:
 | `ActivityEvent`                                 | `activity` (+ `actor_id`, db only)                                                                                                                                                   |
 | `Campaign`, `ReportSchedule`                    | `campaigns`, `report_schedules`                                                                                                                                                      |
 | `DemoUser` / session                            | `auth.users` + `members`; `get_session()` returns the same `role` values                                                                                                             |
-| Chat contract                                   | `members`, `conversations`, `conversation_members`, `messages`, `attachments`, `reactions`, `mentions`, `announcement_drafts`, `notifications`, `reports`, `blocks`, `library_items` |
+| Chat contract                                   | `members`, `conversations`, `conversation_members`, `messages`, `attachments`, `reactions`, `mentions`, `announcement_drafts`, `notifications`, `reports`, `blocks`                  |
+| Library (`src/data/library/types.ts`)           | `library_items` (+ `library_item_speakers`, `library_item_topics`), `library_topics`, `library_channels` (+ `library_channel_sections`, `library_channel_items`), `library_progress` |
 | (new)                                           | `workspaces` (name, `logo_url`, `colors` jsonb, `timezone` for "local day"), `invites`                                                                                               |
 
 ### Helper functions
@@ -175,13 +176,18 @@ RLS is on for every table. Policies apply to signed-in users (`authenticated`), 
 - **Notifications:** only your own. Triggers and RPCs create them; you can only mark them read (`read_at`) or delete them.
 - **Reports:** you report messages you can see. The reporter and the workspace leaders see the report. Leaders resolve it; moderators don't see reports. For a DM a leader isn't in, they see the report but never the message.
 - **Blocks:** your own list. The blocked person never sees the block.
-- **Library:** every member reads it; leaders and moderators manage it.
+- **Library** (migration `20261013000300_library.sql`, mirror of `src/data/library/rules.ts`):
+  - `library_can_see(workspace, created_by, visibility)`: the creator; everyone for `team`; IBOs (effective stage), leaders and moderators for `ibos`; the creator's business downline for `downline` (`library_upline_ids()`). Speakers, topics, sections and lessons follow their item or channel.
+  - Sharing (`library_can_share`): leaders and moderators for any audience; anyone else with a business downline (not candidates) for `downline` only. Editing and deleting (`library_can_edit`): the creator or a leader / moderator. A guard trigger keeps `created_by`, `workspace_id` and `created_at`, and refuses widening the audience past what the editor may share.
+  - Topics: everyone reads; leaders and moderators write.
+  - Progress: your own rows only. The `library_progress_log` trigger logs finishing an item to `learning` once (id `library:<item_id>:<person_id>`, kind from `library_learning_kind`: documents `pages` × page count, workshops `workshop`, other audio/video `podcast`, other slides `pages`) and stamps `logged_at`, which clients can't set or clear. The app shows the same row at once (`serverSide`) and never writes it.
+  - `library_channel_teasers()` lists the `ibos` channels you can't open yet (title, icon, color, lesson count); `library_people` (a view) names the speakers and creators of what you can see, for viewers whose CRM view and chat directory don't include them.
 - **Directory:** `chat_directory` (a view) lists the names, stages and roles of the eligible members of your workspace, so chat screens can show authors outside your CRM visibility. It's empty for non-chat users.
 
 **Storage**
 
 - `chat-media` (private): object paths start with the conversation id (the policies only check that first folder); the app uploads to `<conversation_id>/<uuid>.<ext>`. Members of that conversation read and upload; the uploader or a conversation moderator deletes. The app reads files through signed URLs (one hour).
-- `library` (private): paths start with the workspace id, `<workspace_id>/...`. Members read; leaders and moderators upload, replace and delete.
+- `library` (private, 200 MB per file; audio, video and PDF): the app uploads to `<workspace_id>/<item_id>/<uuid>.<ext>` before writing the item row. You read files of items you can see (by the item id in the path) and your own uploads; anyone who may share uploads into their workspace's folder; the uploader or the item's editors delete. Read through signed URLs (one hour). The local stack's global upload limit in `supabase/config.toml` is 200 MiB too (takes effect after `supabase stop && supabase start`).
 
 ## RPCs
 
@@ -269,6 +275,7 @@ Reads: after sign-in the app loads every table the person may read (paged; the n
 
 - the CRM demo seed (`src/data/seed.ts`);
 - the chat demo seed (`seedChat()` in `src/data/chat/seed.ts`): workspace `w1`, the four pinned team chats, the Fall Weekend carpool group, DMs, the event, win, learning and link cards, reactions, the mention of Maria, Sarah Kim's pending announcement draft, a reported spam message, two library items, notifications and read state;
+- the library demo seed (`seedLibrary()` in `src/data/library/seed.ts`): 6 topics, 34 catalog items (lib-1 and lib-2 are the ones the chat seed's material cards point at), 6 channels and everyone's progress. Finished rows carry `logged_at`, so the learning trigger doesn't log them again;
 - the demo logins above. Beau also gets a member row so he can sign in.
 
 The database therefore holds exactly what the browser demo shows. Dates are written relative to the reset time (`seed_tmp.d(n)` and `seed_tmp.ts(seconds)`). The chat rows already contain their notifications and read state, so user triggers on the chat tables are switched off while they load (foreign keys stay checked).
@@ -328,7 +335,7 @@ The same script generates `supabase/tests/001_visibility_parity.test.sql`. It ru
 - **Chat child tables have no `workspace_id`.** They follow the contract exactly, and isolation comes from their conversation or person.
 - **The seed mirrors the browser demo, not the triggers.** For example, the demo's `checkin_logged` notification for Maria and Anita has no matching `contacts` row, and the High signal reply exchange between Maria and Jamal would count as a check-in if it were posted live. Change `src/data/chat/seed.ts` and re-run `npm run db:reset` to change the seed.
 - **Pinned message per chat** is `conversations.pinned_message_id` (an addition to the contract; the browser store's `Conversation.pinnedMessageId`).
-- **Seed media aren't real files.** Seed attachments use `seed:` storage paths, which the client synthesizes, and seed library URLs are `library/...`. Real uploads must follow the bucket path rules above.
+- **Seed media aren't real files.** Seed attachments use `seed:` storage paths, which the client synthesizes, and seed library items use `seed:audio:`, `seed:video:` and `seed:pdf:` paths that the client generates. Real uploads must follow the bucket path rules above.
 - **`event_post`** means "someone answered your event card" (that's how the inbox shows it), so it comes from `answer_event_post()` after the RSVP rather than from a trigger on posting. Event card totals come from `event_rsvp_counts()`.
 - **Retention and storage.** The nightly purge deletes expired messages (and their attachment rows by cascade) but not the files in `chat-media`; a storage cleanup job is still to do.
 - **Team chat ids.** The seed keeps readable ids (`main`, `daily-wins`, …); a hosted workspace's are generated. The app finds team chats with `getTeamChatId()`.

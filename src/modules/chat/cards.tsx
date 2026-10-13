@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -10,25 +10,15 @@ import {
   ChevronRight,
   Download,
   ExternalLink,
-  FileText,
-  Headphones,
   MessageSquareQuote,
   Presentation,
   ShoppingBag,
   Ticket,
   Trophy,
   UserPlus,
-  Video,
   type LucideIcon,
 } from "lucide-react";
 import { PersonAvatar, StageChip } from "@/components/brand";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -48,16 +38,19 @@ import {
   unpost,
   useChatPeople,
   useEventRsvp,
-  useLibrary,
+  useCatalogItem,
+  lengthLabel,
   useMessageIndex,
   winCardTarget,
   type CardTarget,
-  type LibraryItem,
+  type CatalogItem,
   type MessageCard,
   type RsvpChoice,
   type WinKind,
 } from "@/data";
 import { toastWithUndo } from "@/components/log/quickLog";
+import { KindIcon } from "@/modules/library/icons";
+import { useOpenItem } from "@/modules/library/links";
 import { dateRange } from "@/modules/dashboard/format";
 import "./chat.css";
 
@@ -266,16 +259,9 @@ function CardButton({
 // Link card
 // ---------------------------------------------------------------------------
 
-const MATERIAL_ICON: Record<LibraryItem["kind"], LucideIcon> = {
-  audio: Headphones,
-  video: Video,
-  document: FileText,
-};
-
-export function materialMeta(item: LibraryItem): string {
-  const kind = item.kind === "audio" ? "Audio" : item.kind === "video" ? "Video" : "Document";
-  const mins = item.durationSec ? ` · ${Math.round(item.durationSec / 60)} min` : "";
-  return `${kind}${mins} · from the library`;
+/** "Audio · 18 min · from the library" (link cards and the link picker). */
+export function materialMeta(item: CatalogItem): string {
+  return `${lengthLabel(item)} · from the library`;
 }
 
 export function LinkCard({ card }: { card: Extract<MessageCard, { type: "link" }> }) {
@@ -286,53 +272,23 @@ export function LinkCard({ card }: { card: Extract<MessageCard, { type: "link" }
   return <MessageLink id={id} />;
 }
 
+/**
+ * A talk, video or document from the library: audio and uploaded video play in
+ * the app's player, everything else opens its page. People the item isn't
+ * shared with (another upline's downline, IBO-only) see that instead.
+ */
 function MaterialLink({ id }: { id: string }) {
-  const item = useLibrary().find((x) => x.id === id);
-  const [open, setOpen] = useState(false);
-  if (!item) return <Unavailable text="This material was removed from the library" />;
-  const Icon = MATERIAL_ICON[item.kind];
+  const item = useCatalogItem(id);
+  const openItem = useOpenItem();
+  if (!item) return <Unavailable text="This library item isn't shared with you, or was removed" />;
   return (
-    <>
-      <CardButton onClick={() => setOpen(true)} label={`Open ${item.title}`}>
-        <span className="grid size-9 place-items-center rounded-full bg-primary text-primary-foreground">
-          <Icon className="size-4" aria-hidden="true" />
-        </span>
-        <div className="min-w-0">
-          <div className="truncate text-[12.5px] font-bold">{item.title}</div>
-          <div className="text-[11px] text-muted-foreground">{materialMeta(item)}</div>
-        </div>
-      </CardButton>
-      <MaterialDialog item={item} open={open} onOpenChange={setOpen} />
-    </>
-  );
-}
-
-export function MaterialDialog({
-  item,
-  open,
-  onOpenChange,
-}: {
-  item: LibraryItem;
-  open: boolean;
-  onOpenChange: (o: boolean) => void;
-}) {
-  const Icon = MATERIAL_ICON[item.kind];
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[calc(100%-2rem)] max-w-md rounded-card">
-        <DialogHeader>
-          <span className="mb-1 grid size-11 place-items-center rounded-xl bg-primary-soft text-primary-ink">
-            <Icon className="size-5" aria-hidden="true" />
-          </span>
-          <DialogTitle>{item.title}</DialogTitle>
-          <DialogDescription>{materialMeta(item)}</DialogDescription>
-        </DialogHeader>
-        <p className="text-[13px] text-muted-foreground">
-          Our own talks, videos and documents will play right here once the media library ships. In
-          this demo the file itself isn't included.
-        </p>
-      </DialogContent>
-    </Dialog>
+    <CardButton onClick={() => openItem(item)} label={`Open ${item.title}`}>
+      <KindIcon kind={item.kind} className="size-9 rounded-full" />
+      <div className="min-w-0">
+        <div className="truncate text-[12.5px] font-bold">{item.title}</div>
+        <div className="text-[11px] text-muted-foreground">{materialMeta(item)}</div>
+      </div>
+    </CardButton>
   );
 }
 

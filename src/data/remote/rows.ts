@@ -27,7 +27,6 @@ import type {
   Block,
   Conversation,
   ConversationMember,
-  LibraryItem,
   Mention,
   Message,
   MessageCard,
@@ -36,6 +35,14 @@ import type {
   Report,
   WorkspaceMember,
 } from "@/data/chat/types";
+import type {
+  CatalogItem,
+  ChannelSection,
+  LibraryChannel,
+  LibraryProgress,
+  LibraryTopic,
+  Speaker,
+} from "@/data/library/types";
 
 export type Row = Record<string, unknown>;
 type R<T extends keyof import("./database.types").Database["public"]["Tables"]> = Partial<
@@ -675,28 +682,159 @@ export function blockToRow(b: Block): Row {
   return { blocker_id: b.blockerId, blocked_id: b.blockedId, created_at: iso(b.createdAt) };
 }
 
-export function libraryFromRow(r: R<"library_items">): LibraryItem {
+// ---------------------------------------------------------------------------
+// Library (src/data/library/types.ts). An item's speakers and topics, and a
+// channel's sections and lessons, live in their own tables.
+// ---------------------------------------------------------------------------
+
+export function topicFromRow(r: R<"library_topics">): LibraryTopic {
   return {
     id: r.id!,
     workspaceId: r.workspace_id!,
-    kind: r.kind as LibraryItem["kind"],
-    title: r.title ?? "",
-    durationSec: r.duration_sec ?? null,
-    url: r.url ?? "",
+    name: r.name ?? "",
     createdBy: r.created_by ?? "",
     createdAt: isoOr(r.created_at),
   };
 }
 
-export function libraryToRow(l: LibraryItem): Row {
+export function topicToRow(t: LibraryTopic): Row {
   return {
-    id: l.id,
-    workspace_id: l.workspaceId,
-    kind: l.kind,
-    title: l.title,
-    duration_sec: l.durationSec,
-    url: l.url,
-    created_by: l.createdBy || null,
-    created_at: iso(l.createdAt),
+    id: t.id,
+    workspace_id: t.workspaceId,
+    name: t.name,
+    created_by: t.createdBy || null,
+    created_at: iso(t.createdAt),
+  };
+}
+
+/** The item without its speakers and topics (filled from their tables). */
+export function catalogItemFromRow(r: R<"library_items">): CatalogItem {
+  return {
+    id: r.id!,
+    workspaceId: r.workspace_id!,
+    title: r.title ?? "",
+    description: r.description ?? null,
+    kind: r.kind as CatalogItem["kind"],
+    source: r.source as CatalogItem["source"],
+    storagePath: r.storage_path ?? null,
+    mime: r.mime ?? null,
+    sizeBytes: numNull(r.size_bytes),
+    fileName: r.file_name ?? null,
+    linkUrl: r.link_url ?? null,
+    linkProvider: (r.link_provider as CatalogItem["linkProvider"]) ?? null,
+    durationSec: numNull(r.duration_sec),
+    pageCount: numNull(r.page_count),
+    speakers: [],
+    format: (r.format as CatalogItem["format"]) ?? "talk",
+    topicIds: [],
+    eventId: r.event_id ?? null,
+    recordedOn: r.recorded_on ?? null,
+    createdBy: r.created_by ?? "",
+    permissionConfirmed: r.permission_confirmed ?? true,
+    visibility: (r.visibility as CatalogItem["visibility"]) ?? "team",
+    createdAt: isoOr(r.created_at),
+    updatedAt: isoOr(r.updated_at),
+  };
+}
+
+export function catalogItemToRow(i: CatalogItem): Row {
+  return {
+    id: i.id,
+    workspace_id: i.workspaceId,
+    title: i.title,
+    description: i.description,
+    kind: i.kind,
+    source: i.source,
+    storage_path: i.storagePath,
+    mime: i.mime,
+    size_bytes: i.sizeBytes,
+    file_name: i.fileName,
+    link_url: i.linkUrl,
+    link_provider: i.linkProvider,
+    duration_sec: i.durationSec,
+    page_count: i.pageCount,
+    format: i.format,
+    event_id: i.eventId,
+    recorded_on: i.recordedOn,
+    created_by: i.createdBy,
+    permission_confirmed: i.permissionConfirmed,
+    visibility: i.visibility,
+    created_at: iso(i.createdAt),
+    updated_at: iso(i.updatedAt),
+  };
+}
+
+export function speakerToRow(itemId: string, position: number, s: Speaker): Row {
+  return { item_id: itemId, position, person_id: s.personId, name: s.name };
+}
+
+export function speakerFromRow(r: R<"library_item_speakers">): Speaker {
+  return { personId: r.person_id ?? null, name: r.person_id ? null : (r.name ?? null) };
+}
+
+/** The channel without its sections (filled from their tables). */
+export function channelFromRow(r: R<"library_channels">): LibraryChannel {
+  return {
+    id: r.id!,
+    workspaceId: r.workspace_id!,
+    title: r.title ?? "",
+    description: r.description ?? null,
+    icon: r.icon ?? "book-open",
+    color: (r.color as LibraryChannel["color"]) ?? "teal",
+    createdBy: r.created_by ?? "",
+    visibility: (r.visibility as LibraryChannel["visibility"]) ?? "team",
+    sections: [],
+    createdAt: isoOr(r.created_at),
+    updatedAt: isoOr(r.updated_at),
+  };
+}
+
+export function channelToRow(c: LibraryChannel): Row {
+  return {
+    id: c.id,
+    workspace_id: c.workspaceId,
+    title: c.title,
+    description: c.description,
+    icon: c.icon,
+    color: c.color,
+    created_by: c.createdBy,
+    visibility: c.visibility,
+    created_at: iso(c.createdAt),
+    updated_at: iso(c.updatedAt),
+  };
+}
+
+export function sectionToRow(channelId: string, position: number, s: ChannelSection): Row {
+  return { id: s.id, channel_id: channelId, position, title: s.title };
+}
+
+export function channelItemToRow(
+  channelId: string,
+  sectionId: string,
+  position: number,
+  itemId: string,
+): Row {
+  return { section_id: sectionId, item_id: itemId, channel_id: channelId, position };
+}
+
+export function progressFromRow(r: R<"library_progress">): LibraryProgress {
+  return {
+    personId: r.person_id!,
+    itemId: r.item_id!,
+    positionSec: Number(r.position_sec ?? 0),
+    completedAt: iso(r.completed_at),
+    loggedAt: iso(r.logged_at),
+    updatedAt: isoOr(r.updated_at),
+  };
+}
+
+/** `logged_at` is the database's (set when finishing is logged): never sent. */
+export function progressToRow(p: LibraryProgress): Row {
+  return {
+    person_id: p.personId,
+    item_id: p.itemId,
+    position_sec: p.positionSec,
+    completed_at: iso(p.completedAt),
+    updated_at: iso(p.updatedAt),
   };
 }

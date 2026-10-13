@@ -46,6 +46,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BusinessPathCard } from "@/modules/people/BusinessPath";
+import { PipelineCard } from "@/modules/people/PipelineCard";
+import { StatsAccessCard } from "@/modules/pipeline/StatsSharing";
 import { EventsCard, EventsTab, NextEventCard } from "@/modules/people/Events";
 import { TeamCard } from "@/modules/people/TeamCard";
 import { CustomersCard, CustomersTab } from "@/modules/people/Customers";
@@ -453,6 +455,7 @@ function BusinessProfile({ person }: { person: CrmPerson }) {
             <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
               <div className="grid min-w-0 content-start gap-4">
                 <BusinessPathCard person={person} canEdit={perms.canEditStage} />
+                <PipelineCard person={person} />
                 <EventsCard
                   person={person}
                   canEdit={canEditEvents}
@@ -461,6 +464,7 @@ function BusinessProfile({ person }: { person: CrmPerson }) {
               </div>
               <div className="grid min-w-0 content-start gap-4">
                 <TeamCard person={person} />
+                {isSelf && <StatsAccessCard />}
                 <CustomersCard person={person} onOpenTab={openCustomers} />
                 <RecentActivityCard
                   personId={person.id}
@@ -473,9 +477,11 @@ function BusinessProfile({ person }: { person: CrmPerson }) {
           ) : (
             <div className="grid gap-3">
               <BusinessPathCard person={person} canEdit={perms.canEditStage} compact />
+              <PipelineCard person={person} />
               <NextEventCard person={person} canEdit={canEditEvents} />
               <StatStrip items={stats} />
               <TeamCard person={person} />
+              {isSelf && <StatsAccessCard />}
               <CustomersCard person={person} onOpenTab={openCustomers} />
               <RecentActivityCard
                 personId={person.id}

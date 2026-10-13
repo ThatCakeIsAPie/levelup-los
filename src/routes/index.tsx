@@ -17,6 +17,7 @@ import { TodayCard } from "@/modules/dashboard/TodayCard";
 import { InboxCard } from "@/modules/dashboard/InboxCard";
 import { TeamCard, TeamLearningCard } from "@/modules/dashboard/TeamCards";
 import { MyLearningCard, PathCard } from "@/modules/dashboard/JourneyCards";
+import { ContinueLearningCard } from "@/modules/library/HomeCards";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -89,6 +90,7 @@ function Dashboard() {
           <StreakTile learning={learning} />
           <GoalTile learning={learning} personId={user.personId} />
         </div>
+        <ContinueLearningCard />
         {event}
         <InboxCard compact />
         {today}
@@ -108,6 +110,7 @@ function Dashboard() {
       </div>
       <div className="grid grid-cols-[1.6fr_1fr] items-start gap-4">
         <div className="grid min-w-0 content-start gap-4">
+          <ContinueLearningCard />
           <InboxCard />
           {today}
           {candidate && <MyEventsCard viewerId={user.personId} />}

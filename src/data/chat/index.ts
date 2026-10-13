@@ -52,7 +52,6 @@ export {
   useUnreadNotificationCount,
   useUnreadConversationCount,
   useMessageIndex,
-  useLibrary,
   useEventRsvp,
   useChatSearch,
   winCardTarget,

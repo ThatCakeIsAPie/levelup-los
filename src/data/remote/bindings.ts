@@ -25,6 +25,14 @@ import { useActivityStore, type ActivityEvent } from "@/stores/activityStore";
 import { useChatStore } from "@/data/chat/store";
 import type { ChatData } from "@/data/chat/types";
 import { isPendingPath } from "@/data/chat/attachments";
+import { useLibraryStore } from "@/data/library/store";
+import type {
+  CatalogItem,
+  LibraryChannel,
+  LibraryData,
+  LibraryProgress,
+  LibraryTopic,
+} from "@/data/library/types";
 import { applyRemote, keyOf, syncContext, type Binding, type Row, type TableSpec } from "./engine";
 import * as m from "./rows";
 
@@ -565,16 +573,214 @@ export const chatBinding: Binding<ChatS> = {
       // Only triggers and RPCs create notifications; people mark them read.
       insert: false,
     }),
-    listSpec<ChatS, ChatData["library"][number]>({
-      table: "library_items",
+  ],
+};
+
+// ---------------------------------------------------------------------------
+// Library (src/data/library): items and channels carry their child rows
+// (speakers, topics; sections, lessons) inside them in the store.
+// ---------------------------------------------------------------------------
+
+type LibS = LibraryData;
+
+/** Rows of a child table kept inside its parents (pk includes the parent column). */
+function childSpec<P>(o: {
+  table: string;
+  pk: readonly string[];
+  /** The parent id column ("item_id", "channel_id"). */
+  parentCol: string;
+  parents: (s: LibS) => P[];
+  parentId: (p: P) => string;
+  setParents: (parents: P[]) => Partial<LibS>;
+  rowsOf: (p: P) => Row[];
+  normalize: (r: Row) => Row;
+  /** The parent with exactly these child rows. */
+  rebuild: (p: P, rows: Row[]) => P;
+  insert?: TableSpec<LibS>["insert"];
+  update?: boolean;
+}): TableSpec<LibS> {
+  return {
+    table: o.table,
+    pk: o.pk,
+    insert: o.insert ?? "insert",
+    update: o.update,
+    rows: (s) => o.parents(s).flatMap(o.rowsOf),
+    normalize: o.normalize,
+    apply: (s, upserts, deletes) => {
+      const touched = new Set([...upserts, ...deletes].map((r) => String(r[o.parentCol])));
+      if (!touched.size) return {};
+      return o.setParents(
+        o.parents(s).map((p) => {
+          if (!touched.has(o.parentId(p))) return p;
+          const rows = new Map(o.rowsOf(p).map((r) => [keyOf(o.pk, r), r]));
+          for (const r of deletes) rows.delete(keyOf(o.pk, r));
+          for (const r of upserts)
+            if (String(r[o.parentCol]) === o.parentId(p)) rows.set(keyOf(o.pk, r), o.normalize(r));
+          return o.rebuild(p, [...rows.values()]);
+        }),
+      );
+    },
+  };
+}
+
+const byPosition = (a: Row, b: Row) => Number(a.position) - Number(b.position);
+
+export const libraryBinding: Binding<LibS> = {
+  name: "library",
+  store: useLibraryStore,
+  specs: [
+    listSpec<LibS, LibraryTopic>({
+      table: "library_topics",
       pk: ["id"],
-      get: (s) => s.library,
-      set: (library) => ({ library }),
-      toRow: m.libraryToRow,
-      fromRow: m.libraryFromRow,
-      insert: false,
+      get: (s) => s.topics,
+      set: (topics) => ({ topics }),
+      toRow: m.topicToRow,
+      fromRow: m.topicFromRow,
+    }),
+    {
+      ...listSpec<LibS, CatalogItem>({
+        table: "library_items",
+        pk: ["id"],
+        get: (s) => s.items,
+        set: (items) => ({ items }),
+        toRow: m.catalogItemToRow,
+        fromRow: m.catalogItemFromRow,
+        prepend: true,
+      }),
+      // Keep speakers and topics when the item row comes back from the server.
+      apply: (s, upserts, deletes) => {
+        const old = new Map(s.items.map((i) => [i.id, i]));
+        const gone = new Set(deletes.map((r) => String(r.id)));
+        const next = s.items.filter((i) => !gone.has(i.id));
+        for (const r of upserts) {
+          const fresh = m.catalogItemFromRow(r);
+          const prev = old.get(fresh.id);
+          const merged = prev
+            ? { ...fresh, speakers: prev.speakers, topicIds: prev.topicIds }
+            : fresh;
+          const i = next.findIndex((x) => x.id === fresh.id);
+          if (i === -1) next.unshift(merged);
+          else next[i] = merged;
+        }
+        return { items: next };
+      },
+    },
+    childSpec<CatalogItem>({
+      table: "library_item_speakers",
+      pk: ["item_id", "position"],
+      parentCol: "item_id",
+      parents: (s) => s.items,
+      parentId: (i) => i.id,
+      setParents: (items) => ({ items }),
+      rowsOf: (i) => i.speakers.map((sp, n) => m.speakerToRow(i.id, n, sp)),
+      normalize: (r) => m.speakerToRow(String(r.item_id), Number(r.position), m.speakerFromRow(r)),
+      rebuild: (i, rows) => ({
+        ...i,
+        speakers: rows.sort(byPosition).map((r) => m.speakerFromRow(r)),
+      }),
+      insert: "upsert",
+    }),
+    childSpec<CatalogItem>({
+      table: "library_item_topics",
+      pk: ["item_id", "topic_id"],
+      parentCol: "item_id",
+      parents: (s) => s.items,
+      parentId: (i) => i.id,
+      setParents: (items) => ({ items }),
+      rowsOf: (i) => i.topicIds.map((t) => ({ item_id: i.id, topic_id: t })),
+      normalize: (r) => ({ item_id: String(r.item_id), topic_id: String(r.topic_id) }),
+      rebuild: (i, rows) => ({ ...i, topicIds: rows.map((r) => String(r.topic_id)) }),
+      insert: "ignore",
       update: false,
-      delete: false,
+    }),
+    {
+      ...listSpec<LibS, LibraryChannel>({
+        table: "library_channels",
+        pk: ["id"],
+        get: (s) => s.channels,
+        set: (channels) => ({ channels }),
+        toRow: m.channelToRow,
+        fromRow: m.channelFromRow,
+      }),
+      // Keep sections when the channel row comes back from the server.
+      apply: (s, upserts, deletes) => {
+        const old = new Map(s.channels.map((c) => [c.id, c]));
+        const gone = new Set(deletes.map((r) => String(r.id)));
+        const next = s.channels.filter((c) => !gone.has(c.id));
+        for (const r of upserts) {
+          const fresh = m.channelFromRow(r);
+          const prev = old.get(fresh.id);
+          const merged = prev ? { ...fresh, sections: prev.sections } : fresh;
+          const i = next.findIndex((x) => x.id === fresh.id);
+          if (i === -1) next.push(merged);
+          else next[i] = merged;
+        }
+        return { channels: next };
+      },
+    },
+    childSpec<LibraryChannel>({
+      table: "library_channel_sections",
+      pk: ["id"],
+      parentCol: "channel_id",
+      parents: (s) => s.channels,
+      parentId: (c) => c.id,
+      setParents: (channels) => ({ channels }),
+      rowsOf: (c) => c.sections.map((sec, n) => m.sectionToRow(c.id, n, sec)),
+      normalize: (r) => ({
+        id: String(r.id),
+        channel_id: String(r.channel_id),
+        position: Number(r.position),
+        title: (r.title as string | null) ?? null,
+      }),
+      rebuild: (c, rows) => {
+        const old = new Map(c.sections.map((sec) => [sec.id, sec]));
+        return {
+          ...c,
+          sections: rows.sort(byPosition).map((r) => ({
+            id: String(r.id),
+            title: (r.title as string | null) ?? null,
+            itemIds: old.get(String(r.id))?.itemIds ?? [],
+          })),
+        };
+      },
+    }),
+    childSpec<LibraryChannel>({
+      table: "library_channel_items",
+      pk: ["section_id", "item_id"],
+      parentCol: "channel_id",
+      parents: (s) => s.channels,
+      parentId: (c) => c.id,
+      setParents: (channels) => ({ channels }),
+      rowsOf: (c) =>
+        c.sections.flatMap((sec) =>
+          sec.itemIds.map((id, n) => m.channelItemToRow(c.id, sec.id, n, id)),
+        ),
+      normalize: (r) =>
+        m.channelItemToRow(
+          String(r.channel_id),
+          String(r.section_id),
+          Number(r.position),
+          String(r.item_id),
+        ),
+      rebuild: (c, rows) => ({
+        ...c,
+        sections: c.sections.map((sec) => ({
+          ...sec,
+          itemIds: rows
+            .filter((r) => r.section_id === sec.id)
+            .sort(byPosition)
+            .map((r) => String(r.item_id)),
+        })),
+      }),
+    }),
+    listSpec<LibS, LibraryProgress>({
+      table: "library_progress",
+      pk: ["person_id", "item_id"],
+      get: (s) => s.progress,
+      set: (progress) => ({ progress }),
+      toRow: m.progressToRow,
+      fromRow: m.progressFromRow,
+      insert: "upsert",
     }),
   ],
 };
@@ -587,4 +793,5 @@ export const ALL_BINDINGS = [
   opsBinding,
   activityBinding,
   chatBinding,
+  libraryBinding,
 ] as unknown as Binding<unknown>[];

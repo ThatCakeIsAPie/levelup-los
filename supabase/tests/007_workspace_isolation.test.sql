@@ -41,7 +41,8 @@ values ('w2-main', 'w2', 'main', 'Main chat', '901');
 insert into public.messages (id, conversation_id, author_id, body) values ('w2-m1', 'w2-main', '901', 'Hello team two');
 insert into public.events (id, workspace_id, name, type, date) values ('w2-e1', 'w2', 'Other event', 'conference', current_date + 5);
 insert into public.contacts (workspace_id, person_id, by_id) values ('w2', '902', '901');
-insert into public.library_items (id, workspace_id, kind, title, url) values ('w2-lib', 'w2', 'audio', 'Other talk', 'w2/talk.m4a');
+insert into public.library_items (id, workspace_id, kind, source, storage_path, title, created_by, permission_confirmed)
+values ('w2-lib', 'w2', 'audio', 'upload', 'w2/w2-lib/talk.m4a', 'Other talk', '901', true);
 
 -- Maria (leader of w1) sees none of it
 select pg_temp.login('1');

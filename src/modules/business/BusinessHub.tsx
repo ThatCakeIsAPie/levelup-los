@@ -5,6 +5,7 @@ import {
   CalendarDays,
   ChevronRight,
   Contact,
+  Kanban,
   Megaphone,
   Network,
   Users,
@@ -20,12 +21,14 @@ import {
   type LinkTarget,
 } from "@/components/brand";
 import { cn } from "@/lib/utils";
+import { LibraryTile } from "@/modules/library/HomeCards";
 import {
   effectiveBizClass,
   parseDate,
   useAttendancesForPerson,
   useCurrentUser,
   useMe,
+  usePipelineSummary,
   type CrmEvent,
 } from "@/data";
 import {
@@ -73,12 +76,14 @@ export function BusinessHub() {
         }
       />
       <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-3 lg:gap-3.5">
+        {!candidate && <PipelineTile />}
         {candidate ? <PathTile /> : <TeamTile />}
         {!candidate && <PeopleTile />}
         {!candidate && <CustomersTile />}
         <EventTile candidate={candidate} viewerId={user.personId} />
         <WalletTile wide={candidate} />
         {!candidate && <CampaignsTile />}
+        <LibraryTile />
       </div>
     </div>
   );
@@ -89,6 +94,7 @@ export function BusinessHub() {
 // ---------------------------------------------------------------------------
 
 const ICON_TONE = {
+  pipeline: "bg-info-soft text-info-ink",
   team: "bg-stage-ibo text-stage-ibo-fg",
   people: "bg-primary-soft text-primary-ink",
   customers: "bg-stage-customer-soft text-stage-customer-ink",
@@ -177,6 +183,56 @@ const Meta = ({ children, event }: { children: ReactNode; event?: boolean }) => 
 // ---------------------------------------------------------------------------
 // Tiles
 // ---------------------------------------------------------------------------
+
+const PIPE_BANDS = [
+  { key: "contact", label: "Contact" },
+  { key: "first_meeting", label: "First meeting" },
+  { key: "first_plan", label: "First plan" },
+  { key: "registered", label: "Registered" },
+] as const;
+
+/** This month's first meetings against the team goal, and where everyone sits. */
+function PipelineTile() {
+  const p = usePipelineSummary();
+  if (!p) return null;
+  const total = PIPE_BANDS.reduce((s, b) => s + p.bands[b.key], 0);
+  return (
+    <Tile link={{ to: "/pipeline" }} icon={Kanban} tone="pipeline" title="Pipeline" wide>
+      <Value
+        value={p.mg1}
+        note={`first ${p.mg1 === 1 ? "meeting" : "meetings"} this month${p.goal ? ` · goal ${p.goal}` : ""}`}
+      />
+      {total === 0 ? (
+        <Meta>Add the people you invite to see them move from contact to registered.</Meta>
+      ) : (
+        <>
+          <span className="flex h-5 gap-[3px]" aria-hidden="true">
+            {PIPE_BANDS.map((b) => (
+              <span
+                key={b.key}
+                className={cn(
+                  "grid min-w-[22px] place-items-center rounded-[4px] text-[10px] font-extrabold tabular-nums",
+                  b.key === "first_meeting"
+                    ? "bg-sky text-on-sky"
+                    : "bg-surface-2 text-muted-foreground",
+                )}
+                style={{ flex: Math.max(p.bands[b.key], 1) }}
+              >
+                {p.bands[b.key]}
+              </span>
+            ))}
+          </span>
+          <span className="text-[11px] text-muted-foreground">
+            <span className="sr-only">
+              {PIPE_BANDS.map((b) => `${b.label} ${p.bands[b.key]}`).join(", ")}.{" "}
+            </span>
+            <span aria-hidden="true">{PIPE_BANDS.map((b) => b.label).join(" · ")}</span>
+          </span>
+        </>
+      )}
+    </Tile>
+  );
+}
 
 function TeamTile() {
   const t = useTeamSummary();

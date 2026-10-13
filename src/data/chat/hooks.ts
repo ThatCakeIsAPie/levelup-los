@@ -33,7 +33,6 @@ import type {
   Conversation,
   ConversationMember,
   ConversationRole,
-  LibraryItem,
   Message,
   MessageCard,
   Notification,
@@ -656,14 +655,8 @@ export function useMessageIndex(): Map<string, Message> {
 }
 
 // ---------------------------------------------------------------------------
-// Library, events, search
+// Events, search
 // ---------------------------------------------------------------------------
-
-/** Media library items (talks, videos, documents), newest first. */
-export function useLibrary(): LibraryItem[] {
-  const lib = useChatStore((s) => s.library);
-  return useMemo(() => [...lib].sort((a, b) => b.createdAt.localeCompare(a.createdAt)), [lib]);
-}
 
 export interface EventRsvp {
   event?: CrmEvent;

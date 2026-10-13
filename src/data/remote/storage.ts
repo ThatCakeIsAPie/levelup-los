@@ -78,3 +78,47 @@ export async function removeMedia(client: SupabaseClient, path: string): Promise
     .remove([path])
     .catch(() => undefined);
 }
+
+// ---------------------------------------------------------------------------
+// Library files: the private `library` bucket. Paths are
+// `<workspace_id>/<item_id>/<uuid>.<ext>`; the storage policies let people
+// read the files of items they can see (src/data/library/files.ts).
+// ---------------------------------------------------------------------------
+
+export const LIBRARY_BUCKET = "library";
+
+/** Upload a library file for an item; returns its storage path. */
+export async function uploadLibraryMedia(
+  client: SupabaseClient,
+  workspaceId: string,
+  itemId: string,
+  blob: Blob,
+  mime = blob.type || "application/octet-stream",
+): Promise<string> {
+  const path = `${workspaceId}/${itemId}/${crypto.randomUUID()}.${extensionFor(mime)}`;
+  const { error } = await client.storage.from(LIBRARY_BUCKET).upload(path, blob, {
+    contentType: mime.split(";")[0],
+    upsert: false,
+    cacheControl: "31536000",
+  });
+  if (error) throw new Error(`upload ${path}: ${error.message}`);
+  return path;
+}
+
+/** A signed URL for a library file (null when it's gone or not allowed). */
+export async function librarySignedUrl(
+  client: SupabaseClient,
+  path: string,
+  ttl = SIGNED_URL_TTL,
+): Promise<string | null> {
+  const { data, error } = await client.storage.from(LIBRARY_BUCKET).createSignedUrl(path, ttl);
+  return error || !data ? null : data.signedUrl;
+}
+
+/** Remove a library file (uploader or editor); errors are ignored. */
+export async function removeLibraryMedia(client: SupabaseClient, path: string): Promise<void> {
+  await client.storage
+    .from(LIBRARY_BUCKET)
+    .remove([path])
+    .catch(() => undefined);
+}

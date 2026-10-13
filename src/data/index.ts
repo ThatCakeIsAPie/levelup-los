@@ -38,6 +38,12 @@ export { useUnreadChatsCount, useUnreadInboxCount } from "./badges";
 // Chats, notifications, announcements, attachments (src/data/chat)
 export * from "./chat";
 
+// Recruiting pipeline: board, activity goal, conversions, stat sharing (src/data/pipeline)
+export * from "./pipeline";
+
+// Library: All talks catalog, channels, progress (src/data/library)
+export * from "./library";
+
 // Session
 export {
   useSession,

@@ -21,6 +21,8 @@ import { useCrmStore, DEFAULT_SETTINGS } from "@/stores/crmStore";
 import { useOpsStore } from "@/stores/opsStore";
 import { useActivityStore } from "@/stores/activityStore";
 import { emptyChat, useChatStore } from "@/data/chat/store";
+import { emptyLibrary, useLibraryStore } from "@/data/library/store";
+import { useLibraryExtras } from "@/data/library/extras";
 import { ALL_BINDINGS } from "./bindings";
 import {
   applyRemote,
@@ -37,10 +39,12 @@ import { saveFailed, setReconcile } from "./feedback";
 import {
   applyChat,
   applyCrm,
+  applyLibrary,
   applySnapshot,
   fetchChat,
   fetchCrm,
   fetchDirectory,
+  fetchLibrary,
   fetchRsvpCounts,
   fetchSnapshot,
 } from "./hydrate";
@@ -99,7 +103,8 @@ async function open(person: { personId: string; name: string }, token: number): 
   const stopLive = subscribeChanges(client, `levelup-sync:${person.personId}`, {
     onChange: onLiveChange,
     // After a reconnect, changes may have been missed: catch up.
-    onSubscribed: (resumed) => resumed && scheduleRefresh(["chat", "crm", "directory", "counts"]),
+    onSubscribed: (resumed) =>
+      resumed && scheduleRefresh(["chat", "crm", "library", "directory", "counts"]),
     onError: (status, err) => console.warn(`[realtime] ${status}`, err ?? ""),
   });
 
@@ -107,12 +112,12 @@ async function open(person: { personId: string; name: string }, token: number): 
     if (document.visibilityState !== "visible") return;
     if (Date.now() - lastFocusRefresh < FOCUS_THROTTLE_MS) return;
     lastFocusRefresh = Date.now();
-    scheduleRefresh(["crm", "chat", "directory", "counts"]);
+    scheduleRefresh(["crm", "chat", "library", "directory", "counts"]);
   };
-  const onOnline = () => scheduleRefresh(["crm", "chat", "directory", "counts"]);
+  const onOnline = () => scheduleRefresh(["crm", "chat", "library", "directory", "counts"]);
   let lastFocusRefresh = Date.now();
   const timer = setInterval(
-    () => scheduleRefresh(["crm", "directory", "counts"]),
+    () => scheduleRefresh(["crm", "library", "directory", "counts"]),
     REFRESH_EVERY_MS,
   );
   // (No window in the Node integration tests.)
@@ -163,6 +168,8 @@ export function closeRemoteSession(cancelLoading = true): void {
   useOpsStore.setState({ logistics: {}, costs: [], payments: {}, campaigns: [], schedules: [] });
   useActivityStore.setState({ events: [] });
   useChatStore.setState(emptyChat());
+  useLibraryStore.setState(emptyLibrary());
+  useLibraryExtras.setState({ teasers: [], names: {} });
   useRemoteStore.setState({ directory: [], rsvpCounts: null, phase: "idle" });
 }
 
@@ -200,7 +207,7 @@ function onLiveChange(ch: LiveChange): void {
 // Refetching
 // ---------------------------------------------------------------------------
 
-type Scope = "crm" | "chat" | "directory" | "counts";
+type Scope = "crm" | "chat" | "library" | "directory" | "counts";
 const pendingScopes = new Set<Scope>();
 let pendingTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -224,9 +231,10 @@ async function refresh(scopes: Scope[], attempt = 0): Promise<void> {
   await whenIdle();
   const version = localChangeVersion();
   try {
-    const [crm, chat, directory, counts] = await Promise.all([
+    const [crm, chat, library, directory, counts] = await Promise.all([
       scopes.includes("crm") ? fetchCrm(ctx.client, ctx.me) : null,
       scopes.includes("chat") ? fetchChat(ctx.client) : null,
+      scopes.includes("library") ? fetchLibrary(ctx.client) : null,
       scopes.includes("directory") ? fetchDirectory(ctx.client) : null,
       scopes.includes("counts") ? fetchRsvpCounts(ctx.client) : null,
     ]);
@@ -238,6 +246,7 @@ async function refresh(scopes: Scope[], attempt = 0): Promise<void> {
     }
     if (crm) applyCrm(crm);
     if (chat) applyChat(chat);
+    if (library) applyLibrary(library);
     if (directory) useRemoteStore.setState({ directory });
     if (counts) useRemoteStore.setState({ rsvpCounts: counts });
   } catch (e) {
@@ -252,4 +261,4 @@ export function refreshRsvpCounts(): void {
 
 // A failed write was rolled back: say so and re-sync with the server.
 onWriteError((error) => saveFailed(error));
-setReconcile(() => scheduleRefresh(["crm", "chat", "directory", "counts"], 1000));
+setReconcile(() => scheduleRefresh(["crm", "chat", "library", "directory", "counts"], 1000));

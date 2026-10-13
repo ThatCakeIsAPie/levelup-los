@@ -18,9 +18,10 @@ import type { Attendance } from "@/stores/attendanceStore";
 import type { Contact, Learning, LearningGoal, Sale } from "@/stores/crmStore";
 import type { ActivityEvent } from "@/stores/activityStore";
 import type { Logistics, SharedCost } from "@/stores/opsStore";
+import { pipelineSeedPeople } from "./pipeline/seedPeople";
 
 /** Bump to reset every persisted store to a fresh seed on next load. */
-export const SEED_VERSION = 3;
+export const SEED_VERSION = 4;
 
 const ago = (n: number) => daysFromToday(-n);
 const ahead = (n: number) => daysFromToday(n);
@@ -225,6 +226,9 @@ export function seedPeople(): CrmPerson[] {
       if (bizClass !== "prospect") pool.push(id);
     }
   }
+
+  // Pipeline demo: more prospects across the team and five recent registrations.
+  people.push(...pipelineSeedPeople());
 
   return people.map((p) => ({
     ...p,

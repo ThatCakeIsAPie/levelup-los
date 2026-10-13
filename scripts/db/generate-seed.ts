@@ -3,6 +3,7 @@
  * stays defined in one place:
  *   - CRM: src/data/seed.ts (people, events, attendance, contacts, ...)
  *   - chat: src/data/chat/seed.ts seedChat() (every chat table, row for row)
+ *   - library: src/data/library/seed.ts seedLibrary() (catalog, channels, progress)
  * plus the local demo logins. Also generates the visibility-parity pgTAP test
  * (supabase/tests/001_visibility_parity.test.sql) from src/data/access.ts.
  *
@@ -29,6 +30,7 @@ import {
   seedSales,
 } from "@/data/seed";
 import { seedChat } from "@/data/chat/seed";
+import { seedLibrary } from "@/data/library/seed";
 import { WORKSPACE_ID } from "@/data/chat/types";
 import { filterAttendances, visibleCustomers, visibleIdSet, type Viewer } from "@/data/access";
 import type { CrmPerson } from "@/stores/peopleStore";
@@ -147,6 +149,7 @@ const goals = seedLearningGoals();
 const ops = seedOps();
 const activity = seedActivity(people, attendances);
 const chat = seedChat(people, NOW);
+const library = seedLibrary(new Date(NOW));
 
 // Workspace members: the chat seed's members (apprentices, IBOs, the leader)
 // plus any demo user who isn't one (Beau, the candidate: can sign in, no chat).
@@ -505,6 +508,175 @@ emit(
   ),
 );
 
+section("Library (seedLibrary)");
+emit(
+  insert(
+    "public.library_topics",
+    [
+      ["id", "text"],
+      ["workspace_id", "text"],
+      ["name", "text"],
+      ["created_by", "text"],
+      ["created_at", "ts"],
+    ],
+    library.topics.map((t) => [t.id, t.workspaceId, t.name, t.createdBy, t.createdAt]),
+  ),
+);
+emit(
+  insert(
+    "public.library_items",
+    [
+      ["id", "text"],
+      ["workspace_id", "text"],
+      ["title", "text"],
+      ["description", "text"],
+      ["kind", "text"],
+      ["source", "text"],
+      ["storage_path", "text"],
+      ["mime", "text"],
+      ["size_bytes", "num"],
+      ["file_name", "text"],
+      ["link_url", "text"],
+      ["link_provider", "text"],
+      ["duration_sec", "num"],
+      ["page_count", "num"],
+      ["format", "text"],
+      ["event_id", "text"],
+      ["recorded_on", "date"],
+      ["created_by", "text"],
+      ["permission_confirmed", "bool"],
+      ["visibility", "text"],
+      ["created_at", "ts"],
+      ["updated_at", "ts"],
+    ],
+    library.items.map((i) => [
+      i.id,
+      i.workspaceId,
+      i.title,
+      i.description,
+      i.kind,
+      i.source,
+      i.storagePath,
+      i.mime,
+      i.sizeBytes,
+      i.fileName,
+      i.linkUrl,
+      i.linkProvider,
+      i.durationSec,
+      i.pageCount,
+      i.format,
+      i.eventId,
+      i.recordedOn,
+      i.createdBy,
+      i.permissionConfirmed,
+      i.visibility,
+      i.createdAt,
+      i.updatedAt,
+    ]),
+  ),
+);
+emit(
+  insert(
+    "public.library_item_speakers",
+    [
+      ["item_id", "text"],
+      ["position", "num"],
+      ["person_id", "text"],
+      ["name", "text"],
+    ],
+    library.items.flatMap((i) => i.speakers.map((sp, n) => [i.id, n, sp.personId, sp.name])),
+  ),
+);
+emit(
+  insert(
+    "public.library_item_topics",
+    [
+      ["item_id", "text"],
+      ["topic_id", "text"],
+    ],
+    library.items.flatMap((i) => i.topicIds.map((t) => [i.id, t])),
+  ),
+);
+emit(
+  insert(
+    "public.library_channels",
+    [
+      ["id", "text"],
+      ["workspace_id", "text"],
+      ["title", "text"],
+      ["description", "text"],
+      ["icon", "text"],
+      ["color", "text"],
+      ["created_by", "text"],
+      ["visibility", "text"],
+      ["created_at", "ts"],
+      ["updated_at", "ts"],
+    ],
+    library.channels.map((c) => [
+      c.id,
+      c.workspaceId,
+      c.title,
+      c.description,
+      c.icon,
+      c.color,
+      c.createdBy,
+      c.visibility,
+      c.createdAt,
+      c.updatedAt,
+    ]),
+  ),
+);
+emit(
+  insert(
+    "public.library_channel_sections",
+    [
+      ["id", "text"],
+      ["channel_id", "text"],
+      ["position", "num"],
+      ["title", "text"],
+    ],
+    library.channels.flatMap((c) => c.sections.map((sec, n) => [sec.id, c.id, n, sec.title])),
+  ),
+);
+emit(
+  insert(
+    "public.library_channel_items",
+    [
+      ["section_id", "text"],
+      ["item_id", "text"],
+      ["channel_id", "text"],
+      ["position", "num"],
+    ],
+    library.channels.flatMap((c) =>
+      c.sections.flatMap((sec) => sec.itemIds.map((id, n) => [sec.id, id, c.id, n])),
+    ),
+  ),
+);
+// Finished rows carry logged_at, so the trigger doesn't log them again.
+emit(
+  insert(
+    "public.library_progress",
+    [
+      ["person_id", "text"],
+      ["item_id", "text"],
+      ["workspace_id", "text"],
+      ["position_sec", "num"],
+      ["completed_at", "ts"],
+      ["logged_at", "ts"],
+      ["updated_at", "ts"],
+    ],
+    library.progress.map((r) => [
+      r.personId,
+      r.itemId,
+      WORKSPACE_ID,
+      r.positionSec,
+      r.completedAt,
+      r.loggedAt,
+      r.updatedAt,
+    ]),
+  ),
+);
+
 section("Chat (seedChat, row for row)");
 emit(`-- The browser demo's chat seed already contains the notifications, read
 -- state and roles the triggers would create, so user triggers are off while
@@ -536,31 +708,6 @@ emit(
       demoIds.has(m.personId) ? raw(`${str(userId(m.personId))}::uuid`) : null,
       m.role,
       m.joinedAt,
-    ]),
-  ),
-);
-emit(
-  insert(
-    "public.library_items",
-    [
-      ["id", "text"],
-      ["workspace_id", "text"],
-      ["kind", "text"],
-      ["title", "text"],
-      ["duration_sec", "num"],
-      ["url", "text"],
-      ["created_by", "text"],
-      ["created_at", "ts"],
-    ],
-    chat.library.map((l) => [
-      l.id,
-      l.workspaceId,
-      l.kind,
-      l.title,
-      l.durationSec,
-      l.url,
-      l.createdBy,
-      l.createdAt,
     ]),
   ),
 );

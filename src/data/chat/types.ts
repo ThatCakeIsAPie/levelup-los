@@ -186,20 +186,6 @@ export interface Block {
   createdAt: string;
 }
 
-export type LibraryKind = "audio" | "video" | "document";
-
-/** `library_items` table. */
-export interface LibraryItem {
-  id: string;
-  workspaceId: string;
-  kind: LibraryKind;
-  title: string;
-  durationSec: number | null;
-  url: string;
-  createdBy: string;
-  createdAt: string;
-}
-
 /** Every chat table, as the browser store keeps it. */
 export interface ChatData {
   members: WorkspaceMember[];
@@ -213,5 +199,4 @@ export interface ChatData {
   notifications: Notification[];
   reports: Report[];
   blocks: Block[];
-  library: LibraryItem[];
 }

@@ -56,6 +56,7 @@ import {
 import { badgeText, useNavAccess } from "./access";
 import { BUSINESS_PATHS, MORE_PATHS, NAV_SECTIONS, inAny, type NavBadge } from "./nav";
 import { ResetDemoDialog } from "./ResetDemoDialog";
+import { LibraryPlayer } from "@/modules/library/player/LibraryPlayer";
 
 const THEME_ICON: Record<ThemePreference, typeof Sun> = { light: Sun, dark: Moon, auto: Monitor };
 
@@ -86,6 +87,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         <ApprenticeNotice />
         {children}
       </main>
+      {/* Library player: one media element for the app, keeps playing across pages. */}
+      <LibraryPlayer />
       <TabBar onMore={() => setMoreOpen(true)} />
       <MoreSheet
         open={moreOpen}

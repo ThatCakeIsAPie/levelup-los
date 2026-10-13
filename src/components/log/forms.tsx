@@ -9,6 +9,10 @@
  *                     (logContact) whose note starts with the activity
  *                     ("Showed the plan", "Follow-up", "Booked a meeting for
  *                     Oct 20"); refId is the contact id.
+ * Pipeline board (src/data/pipeline): New contact puts the prospect on the
+ * board in Contact made; Showed the plan moves them to First plan; Booked a
+ * meeting moves them to the column picked (the next one by default). Undo
+ * takes the move back too.
  * Selling: Made a sale / Reorder -> logSale (refId sale id); Customer contact
  * -> logContact. Check-in -> logContact; Learning -> logLearning (learning card).
  */
@@ -30,16 +34,20 @@ import {
   logContact,
   logLearning,
   logSale,
+  movePipelineCard,
   parseDate,
   postLearning,
   postWin,
+  recordShowedPlan,
   removeContact,
   removeLearning,
   removePerson,
   removeSale,
+  startPipelineCard,
   unpost,
   useCurrentUser,
   useLastContactMap,
+  useProspectPipeline,
   useVisibleCustomers,
   useVisibleTeam,
   type LearningKind,
@@ -49,6 +57,8 @@ import {
 import { toastWithUndo } from "./quickLog";
 import { byStaleness, Field, PersonSelect } from "./parts";
 import { ShareAsWin, type WinDraft } from "./ShareAsWin";
+import { BoardMoveField, BoardNote } from "./PipelineMoveField";
+import { boardTarget, movesToPlan } from "./pipelineMove";
 
 // ---------------------------------------------------------------------------
 // Shared: save + optional share + Undo toast
@@ -435,10 +445,12 @@ export function NewContactForm() {
       ...(where.trim() ? { notes: `Met ${where.trim()}` } : {}),
     });
     const contact = logContact({ personId: person.id, date, note: "New contact" });
+    const undoCard = startPipelineCard(person.id, { source: where });
     finish({
       message: `${person.name} added as a new prospect`,
       undoneMessage: "New contact removed",
       undo: () => {
+        undoCard?.();
         removeContact(contact.id);
         removePerson(person.id);
       },
@@ -540,6 +552,9 @@ export function RecruitTouchForm({ kind }: { kind: RecruitTouch }) {
   const [personId, setPersonId] = useState("");
   const [date, setDate] = useState(localDate());
   const [meetingDate, setMeetingDate] = useState("");
+  // Pipeline board: where "Booked a meeting" moves the card ("" = next column).
+  const board = useProspectPipeline(personId || undefined);
+  const [boardPick, setBoardPick] = useState("");
   const [note, setNote] = useState("");
   const [win, setWin] = useWin(t.share, t.win, "Recruiting");
 
@@ -559,10 +574,23 @@ export function RecruitTouchForm({ kind }: { kind: RecruitTouch }) {
       note: note.trim() ? `${label}: ${note.trim()}` : label,
     });
     const name = options.find((p) => p.id === personId)?.name ?? "";
+    const target = kind === "meeting" ? boardTarget(board, boardPick) : null;
+    const moved =
+      kind === "plan"
+        ? recordShowedPlan(personId)
+        : target
+          ? movePipelineCard(personId, target, {
+              nextStep: "Meeting",
+              nextStepDate: meetingDate || null,
+            })
+          : null;
     finish({
       message: `${label} with ${name} logged`,
       undoneMessage: "Removed",
-      undo: () => removeContact(contact.id),
+      undo: () => {
+        if (moved?.ok) moved.undo();
+        removeContact(contact.id);
+      },
       share: { winKind: t.winKind, refId: contact.id, draft: win },
     });
   };
@@ -579,12 +607,18 @@ export function RecruitTouchForm({ kind }: { kind: RecruitTouch }) {
         <PersonSelect
           people={options}
           value={personId}
-          onChange={setPersonId}
+          onChange={(id) => {
+            setPersonId(id);
+            setBoardPick("");
+          }}
           placeholder="Pick a prospect or team member"
           ages={ages}
           label="Who"
         />
       </Field>
+      {kind === "plan" && movesToPlan(board) && (
+        <BoardNote>Moves them to First plan on the pipeline board.</BoardNote>
+      )}
       <div className="grid grid-cols-2 gap-3">
         <DateField id={`log-${kind}-date`} value={date} onChange={setDate} />
         {kind === "meeting" && (
@@ -596,6 +630,9 @@ export function RecruitTouchForm({ kind }: { kind: RecruitTouch }) {
           />
         )}
       </div>
+      {kind === "meeting" && (
+        <BoardMoveField pipeline={board} pick={boardPick} onPick={setBoardPick} />
+      )}
       <Field label="Note (optional)" htmlFor={`log-${kind}-note`}>
         <Textarea
           id={`log-${kind}-note`}

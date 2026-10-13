@@ -3,7 +3,9 @@ import {
   CalendarDays,
   Contact,
   FileBarChart,
+  Kanban,
   LayoutDashboard,
+  Library,
   Megaphone,
   MessageCircle,
   Network,
@@ -17,7 +19,9 @@ export type NavPath =
   | "/"
   | "/chats"
   | "/inbox"
+  | "/library"
   | "/business"
+  | "/pipeline"
   | "/people"
   | "/mindmap"
   | "/events"
@@ -58,6 +62,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { to: "/", label: "Home", icon: LayoutDashboard, exact: true },
       { to: "/chats", label: "Chats", icon: MessageCircle, badge: "chats", chatOnly: true },
       { to: "/inbox", label: "Inbox", icon: Bell, badge: "inbox" },
+      { to: "/library", label: "Library", icon: Library },
     ],
   },
   {
@@ -65,6 +70,7 @@ export const NAV_SECTIONS: NavSection[] = [
     labelTo: "/business",
     items: [
       { to: "/mindmap", label: "Team", icon: Network },
+      { to: "/pipeline", label: "Pipeline", icon: Kanban, hideForCandidate: true },
       { to: "/people", label: "People", icon: Users },
       { to: "/customers", label: "Customers", icon: Contact, hideForCandidate: true },
       { to: "/events", label: "Events", icon: CalendarDays, badge: "events" },
@@ -84,6 +90,7 @@ export const NAV_SECTIONS: NavSection[] = [
 /** Routes that light up the phone "My business" tab. */
 export const BUSINESS_PATHS: NavPath[] = [
   "/business",
+  "/pipeline",
   "/mindmap",
   "/people",
   "/customers",

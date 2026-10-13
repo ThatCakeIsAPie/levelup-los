@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { seedAttendances, seedEvents, seedLearning, seedPeople, seedSales } from "@/data/seed";
+import { seedLibrary } from "@/data/library/seed";
 import { CHAT_IDS, seedChat } from "./seed";
 import { conversationCheckin, dmId, isTeamChat, unreadCount } from "./rules";
 import type { Message } from "./types";
@@ -95,7 +96,7 @@ describe("chat seed: messages", () => {
     const sales = new Set(seedSales().map((s) => s.id));
     const attendance = new Set(seedAttendances().map((a) => a.id));
     const learning = new Set(seedLearning().map((l) => l.id));
-    const library = new Set(data.library.map((l) => l.id));
+    const library = new Set(seedLibrary().items.map((l) => l.id));
     const cards = data.messages.flatMap((m) => (m.card ? [m.card] : []));
     expect(cards.some((c) => c.type === "event" && c.eventId === "e1")).toBe(true);
     for (const c of cards) {

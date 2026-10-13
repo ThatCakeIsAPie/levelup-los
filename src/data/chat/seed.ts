@@ -5,7 +5,8 @@
  * carpool" group, DMs with Anita Patel, Sarah Kim and David Chen, an event
  * card for Fall Leadership Weekend (e1), win cards pointing at seed records,
  * a reply quoting an older message, reactions, a mention of Maria, one pending
- * announcement draft by Sarah Kim, an open report and two library items.
+ * announcement draft by Sarah Kim, an open report and two links to
+ * library material (src/data/library/seed.ts: lib-1, lib-2).
  *
  * Check-in demo: Anita DMs Maria earlier today (and Jamal); replying as Maria
  * (or Jamal) logs a contact for both people and a checkin_logged notification.
@@ -25,7 +26,6 @@ import {
   type ChatData,
   type Conversation,
   type ConversationMember,
-  type LibraryItem,
   type Mention,
   type Message,
   type MessageCard,
@@ -545,30 +545,6 @@ export function seedChat(people: CrmPerson[] = seedPeople(), nowMs: number = Dat
     createdAt: minsAgo(70),
   });
 
-  // ---- Library ----
-  const library: LibraryItem[] = [
-    {
-      id: "lib-1",
-      workspaceId: WORKSPACE_ID,
-      kind: "audio",
-      title: "Talk: Inviting without pressure",
-      durationSec: 18 * 60,
-      url: "library/inviting-without-pressure.m4a",
-      createdBy: "1",
-      createdAt: daysAgoAt(60, 12),
-    },
-    {
-      id: "lib-2",
-      workspaceId: WORKSPACE_ID,
-      kind: "document",
-      title: "How to set up your first home meeting",
-      durationSec: null,
-      url: "library/first-home-meeting.pdf",
-      createdBy: "1",
-      createdAt: daysAgoAt(31, 12),
-    },
-  ];
-
   return {
     members,
     conversations,
@@ -581,6 +557,5 @@ export function seedChat(people: CrmPerson[] = seedPeople(), nowMs: number = Dat
     notifications,
     reports,
     blocks: [],
-    library,
   };
 }

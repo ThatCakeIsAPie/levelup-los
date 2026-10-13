@@ -90,7 +90,14 @@ export const TABLE_ORDER = [
   "reports",
   "blocks",
   "notifications",
+  "library_topics",
   "library_items",
+  "library_item_speakers",
+  "library_item_topics",
+  "library_channels",
+  "library_channel_sections",
+  "library_channel_items",
+  "library_progress",
 ] as const;
 const orderOf = (t: string) => {
   const i = (TABLE_ORDER as readonly string[]).indexOf(t);

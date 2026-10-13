@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { CalendarDays, FileText, Headphones, MessageSquareQuote, Video } from "lucide-react";
+import { CalendarDays, MessageSquareQuote } from "lucide-react";
 import { PersonAvatar } from "@/components/brand";
 import {
   Command,
@@ -15,12 +15,13 @@ import {
   useChatPeople,
   useConversations,
   useEvents,
-  useLibrary,
+  useCatalog,
   useMessageIndex,
   useVisibleTeam,
   type LinkTargetKind,
 } from "@/data";
 import { dateRange } from "@/modules/dashboard/format";
+import { KIND_ICON } from "@/modules/library/icons";
 import { materialMeta } from "./cards";
 
 /**
@@ -42,7 +43,7 @@ export function LinkPicker({
   const people = useChatPeople();
   const events = useEvents();
   const team = useVisibleTeam();
-  const library = useLibrary();
+  const library = useCatalog();
 
   const titles = useMemo(() => new Map(convs.map((c) => [c.id, c.title])), [convs]);
   const messages = useMemo(() => {
@@ -123,8 +124,7 @@ export function LinkPicker({
               heading="Library"
               items={library.filter((l) => match(query, l.title))}
               render={(l) => {
-                const Icon =
-                  l.kind === "audio" ? Headphones : l.kind === "video" ? Video : FileText;
+                const Icon = KIND_ICON[l.kind];
                 return (
                   <CommandItem
                     key={l.id}
