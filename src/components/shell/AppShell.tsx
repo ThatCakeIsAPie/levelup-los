@@ -1,20 +1,25 @@
 import { useState, type ReactNode } from "react";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
+  Bell,
+  Briefcase,
   ChevronsUpDown,
+  FileBarChart,
   House,
   Info,
   LogOut,
   Menu,
+  MessageCircle,
   Monitor,
   Moon,
   Plus,
   RotateCcw,
+  Settings,
+  ShieldCheck,
   Sun,
   UserCircle,
   X,
-  CalendarDays,
-  Users,
+  type LucideIcon,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -26,16 +31,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import {
   Sheet,
   SheetContent,
@@ -50,20 +45,23 @@ import { THEME_OPTIONS, useTheme, type ThemePreference } from "@/lib/theme";
 import {
   logout,
   openLog,
-  resetDemo,
   roleLabel,
   useCurrentUser,
   useEventsAttentionCount,
   useMe,
+  useUnreadChatsCount,
+  useUnreadInboxCount,
 } from "@/data";
-import { MORE_ITEMS, NAV_ITEMS } from "./nav";
+import { badgeText, useNavAccess } from "./access";
+import { BUSINESS_PATHS, MORE_PATHS, NAV_SECTIONS, inAny, type NavBadge } from "./nav";
+import { ResetDemoDialog } from "./ResetDemoDialog";
 
 const THEME_ICON: Record<ThemePreference, typeof Sun> = { light: Sun, dark: Moon, auto: Monitor };
 
 /**
  * Logged-in app frame.
- * - lg+ : fixed 212px navy sidebar (logo, nav, user menu) + scrolling main.
- * - <lg : main + bottom tab bar (Home, People, Log FAB, Events, More).
+ * - lg+ : fixed 212px navy sidebar (logo, grouped nav, user menu) + scrolling main.
+ * - <lg : main + bottom tab bar (Home, Chats or Inbox, Log FAB, My business, More).
  * Renders the global LogSheet and the reset-demo confirmation once.
  *
  * Pages render inside <main>, which is the scroll container (full height
@@ -102,46 +100,89 @@ export function AppShell({ children }: { children: ReactNode }) {
   );
 }
 
+/** Live counts for the amber nav badges. */
+function useBadgeCounts(): Record<NavBadge, number> {
+  return {
+    chats: useUnreadChatsCount(),
+    inbox: useUnreadInboxCount(),
+    events: useEventsAttentionCount(),
+  };
+}
+
+const BADGE_LABEL: Record<NavBadge, (n: number) => string> = {
+  chats: (n) => `${n} ${n === 1 ? "chat" : "chats"} with unread messages`,
+  inbox: (n) => `${n} unread ${n === 1 ? "notification" : "notifications"}`,
+  events: (n) => `${n} ${n === 1 ? "person needs" : "people need"} attention for upcoming events`,
+};
+
 // ---------------------------------------------------------------------------
 // Desktop sidebar
 // ---------------------------------------------------------------------------
 
 function Sidebar({ onReset }: { onReset: () => void }) {
-  const eventsCount = useEventsAttentionCount();
+  const counts = useBadgeCounts();
+  const { canChat, isCandidate } = useNavAccess();
   const base =
-    "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium text-sidebar-fg transition-colors hover:bg-sidebar-active hover:text-white";
+    "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium text-sidebar-fg transition-colors hover:bg-sidebar-active hover:text-white focus-visible:outline-2 focus-visible:outline-ring";
+  const label =
+    "block px-2.5 pb-1 pt-3 text-[10px] font-bold uppercase tracking-[.09em] text-sidebar-fg/70";
   return (
     <nav
       aria-label="Main"
-      className="fixed inset-y-0 left-0 z-30 hidden w-[212px] flex-col gap-1 bg-sidebar px-3 py-[18px] text-sidebar-fg lg:flex"
+      className="fixed inset-y-0 left-0 z-30 hidden w-[212px] flex-col bg-sidebar px-3 py-[18px] text-sidebar-fg lg:flex"
     >
       <Link to="/" className="mb-3.5 rounded-lg px-2 py-0.5 text-white">
         <Logo wordmark tagline />
       </Link>
-      {NAV_ITEMS.map((item) => (
-        <Link
-          key={item.to}
-          to={item.to}
-          activeOptions={{ exact: !!item.exact }}
-          className={base}
-          activeProps={{
-            className: "bg-sidebar-active !text-white font-semibold",
-            "aria-current": "page",
-          }}
-        >
-          <item.icon className="size-4 shrink-0" aria-hidden="true" />
-          {item.label}
-          {item.to === "/events" && eventsCount > 0 && (
-            <span
-              className="ml-auto rounded-full bg-amber px-[7px] text-[11px] font-bold leading-[18px] text-on-amber"
-              aria-label={`${eventsCount} people said yes but have no ticket`}
-            >
-              {eventsCount}
-            </span>
-          )}
-        </Link>
-      ))}
-      <div className="flex-1" />
+      <div className="-mx-1 flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-1">
+        {NAV_SECTIONS.map((section, si) => {
+          const items = section.items.filter(
+            (i) => (!i.chatOnly || canChat) && (!i.hideForCandidate || !isCandidate),
+          );
+          return (
+            <div key={si} className="grid gap-1" role="group" aria-label={section.label}>
+              {section.label &&
+                (section.labelTo ? (
+                  <Link
+                    to={section.labelTo}
+                    className={cn(label, "rounded-lg hover:text-white")}
+                    activeProps={{ className: "!text-white", "aria-current": "page" }}
+                  >
+                    {section.label}
+                  </Link>
+                ) : (
+                  <span className={label}>{section.label}</span>
+                ))}
+              {items.map((item) => {
+                const n = item.badge ? counts[item.badge] : 0;
+                return (
+                  <Link
+                    key={item.to}
+                    to={item.to}
+                    activeOptions={{ exact: !!item.exact }}
+                    className={base}
+                    activeProps={{
+                      className: "bg-sidebar-active !text-white font-semibold",
+                      "aria-current": "page",
+                    }}
+                  >
+                    <item.icon className="size-4 shrink-0" aria-hidden="true" />
+                    {item.label}
+                    {item.badge && n > 0 && (
+                      <span
+                        className="ml-auto rounded-full bg-amber px-[7px] text-[11px] font-bold leading-[18px] text-on-amber"
+                        aria-label={BADGE_LABEL[item.badge](n)}
+                      >
+                        {badgeText(n)}
+                      </span>
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+          );
+        })}
+      </div>
       <UserMenu onReset={onReset} />
     </nav>
   );
@@ -181,6 +222,9 @@ function UserMenu({ onReset }: { onReset: () => void }) {
         >
           <UserCircle /> My profile
         </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => navigate({ to: "/settings" })}>
+          <Settings /> Settings
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
           Theme
@@ -214,11 +258,31 @@ function UserMenu({ onReset }: { onReset: () => void }) {
 // Phone tab bar + More sheet
 // ---------------------------------------------------------------------------
 
+/** Tab icon with an optional amber count bubble on its top-right corner. */
+function TabIcon({ icon: Icon, count = 0 }: { icon: LucideIcon; count?: number }) {
+  return (
+    <span className="relative inline-block">
+      <Icon className="size-5" aria-hidden="true" />
+      {count > 0 && (
+        <span
+          className="absolute -top-1 -right-[9px] grid h-4 min-w-4 place-items-center rounded-full bg-amber px-1 text-[10px] font-extrabold leading-none text-on-amber"
+          aria-hidden="true"
+        >
+          {badgeText(count)}
+        </span>
+      )}
+    </span>
+  );
+}
+
 function TabBar({ onMore }: { onMore: () => void }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const moreActive = MORE_ITEMS.some((i) => pathname.startsWith(i.to));
+  const counts = useBadgeCounts();
+  const { canChat } = useNavAccess();
+  const businessActive = inAny(pathname, BUSINESS_PATHS);
+  const moreActive = inAny(pathname, MORE_PATHS);
   const tab =
-    "grid justify-items-center gap-[3px] py-1 text-[10.5px] font-semibold text-faint focus-visible:outline-2 focus-visible:outline-ring rounded-lg";
+    "grid justify-items-center gap-[3px] whitespace-nowrap rounded-lg py-1 text-[10.5px] font-semibold text-faint focus-visible:outline-2 focus-visible:outline-ring";
   const on = { className: "!text-primary", "aria-current": "page" as const };
   return (
     <nav
@@ -226,13 +290,22 @@ function TabBar({ onMore }: { onMore: () => void }) {
       className="relative z-30 grid shrink-0 grid-cols-5 items-center border-t border-line bg-surface px-1.5 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] lg:hidden"
     >
       <Link to="/" activeOptions={{ exact: true }} className={tab} activeProps={on}>
-        <House className="size-5" aria-hidden="true" />
+        <TabIcon icon={House} />
         Home
       </Link>
-      <Link to="/people" className={tab} activeProps={on}>
-        <Users className="size-5" aria-hidden="true" />
-        People
-      </Link>
+      {canChat ? (
+        <Link to="/chats" className={tab} activeProps={on}>
+          <TabIcon icon={MessageCircle} count={counts.chats} />
+          Chats
+          {counts.chats > 0 && <span className="sr-only">, {BADGE_LABEL.chats(counts.chats)}</span>}
+        </Link>
+      ) : (
+        <Link to="/inbox" className={tab} activeProps={on}>
+          <TabIcon icon={Bell} count={counts.inbox} />
+          Inbox
+          {counts.inbox > 0 && <span className="sr-only">, {BADGE_LABEL.inbox(counts.inbox)}</span>}
+        </Link>
+      )}
       <div className="grid justify-items-center">
         <button
           type="button"
@@ -243,9 +316,13 @@ function TabBar({ onMore }: { onMore: () => void }) {
           <Plus className="size-6" aria-hidden="true" />
         </button>
       </div>
-      <Link to="/events" className={tab} activeProps={on}>
-        <CalendarDays className="size-5" aria-hidden="true" />
-        Events
+      <Link
+        to="/business"
+        className={cn(tab, businessActive && "text-primary")}
+        aria-current={businessActive ? "page" : undefined}
+      >
+        <TabIcon icon={Briefcase} />
+        My business
       </Link>
       <button
         type="button"
@@ -253,7 +330,7 @@ function TabBar({ onMore }: { onMore: () => void }) {
         className={cn(tab, moreActive && "text-primary")}
         aria-haspopup="dialog"
       >
-        <Menu className="size-5" aria-hidden="true" />
+        <TabIcon icon={Menu} />
         More
       </button>
     </nav>
@@ -271,9 +348,12 @@ function MoreSheet({
 }) {
   const user = useCurrentUser();
   const me = useMe();
+  const { canManageTeam } = useNavAccess();
   const close = () => onOpenChange(false);
   const row =
     "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-semibold hover:bg-surface-2";
+  const rowOn = { className: "bg-primary-soft text-primary-ink" };
+  const icon = "size-[18px] text-muted-foreground";
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
@@ -288,20 +368,28 @@ function MoreSheet({
           </div>
         </SheetHeader>
         <div className="grid gap-0.5">
-          {MORE_ITEMS.map((item) => (
-            <Link
-              key={item.to}
-              to={item.to}
-              onClick={close}
-              className={row}
-              activeProps={{ className: "bg-primary-soft text-primary-ink" }}
-            >
-              <item.icon className="size-[18px] text-muted-foreground" aria-hidden="true" />
-              {item.label}
+          <Link to="/reports" onClick={close} className={row} activeProps={rowOn}>
+            <FileBarChart className={icon} aria-hidden="true" />
+            Reports
+          </Link>
+          <Link
+            to="/settings"
+            activeOptions={{ exact: true }}
+            onClick={close}
+            className={row}
+            activeProps={rowOn}
+          >
+            <Settings className={icon} aria-hidden="true" />
+            Settings
+          </Link>
+          {canManageTeam && (
+            <Link to="/settings/team" onClick={close} className={row} activeProps={rowOn}>
+              <ShieldCheck className={icon} aria-hidden="true" />
+              Team settings
             </Link>
-          ))}
+          )}
           <Link to="/people/$id" params={{ id: user.personId }} onClick={close} className={row}>
-            <UserCircle className="size-[18px] text-muted-foreground" aria-hidden="true" />
+            <UserCircle className={icon} aria-hidden="true" />
             My profile
           </Link>
         </div>
@@ -313,7 +401,7 @@ function MoreSheet({
         <div className="my-3 border-t border-line" />
         <div className="grid gap-0.5 pb-2">
           <button type="button" className={row} onClick={onReset}>
-            <RotateCcw className="size-[18px] text-muted-foreground" aria-hidden="true" />
+            <RotateCcw className={icon} aria-hidden="true" />
             Reset demo data
           </button>
           <button
@@ -324,7 +412,7 @@ function MoreSheet({
               logout();
             }}
           >
-            <LogOut className="size-[18px] text-muted-foreground" aria-hidden="true" />
+            <LogOut className={icon} aria-hidden="true" />
             Log out
           </button>
         </div>
@@ -369,39 +457,8 @@ export function ThemeSwitcher({ className }: { className?: string }) {
 }
 
 // ---------------------------------------------------------------------------
-// Reset confirmation + apprentice notice
+// Apprentice notice
 // ---------------------------------------------------------------------------
-
-function ResetDemoDialog({
-  open,
-  onOpenChange,
-}: {
-  open: boolean;
-  onOpenChange: (o: boolean) => void;
-}) {
-  return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Reset demo data?</AlertDialogTitle>
-          <AlertDialogDescription>
-            This clears everything saved in this browser (people, events, logs, settings and your
-            theme) and reloads the original demo seed. You will be logged out.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            onClick={() => resetDemo()}
-          >
-            Reset demo data
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-  );
-}
 
 const NOTICE_KEY = "levelup.apprenticeNoticeDismissed";
 
