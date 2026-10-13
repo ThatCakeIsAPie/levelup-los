@@ -7,8 +7,10 @@ import {
   useLearningGoal,
   useContactSettings,
   useCurrentUser,
+  useDoNotContactIds,
   useEvents,
   useLastContactMap,
+  useMissedFollowUps,
   useSales,
   useVisibleAttendances,
   useVisiblePeople,
@@ -25,6 +27,8 @@ export function useTodayItems(): TodayItem[] {
   const events = useEvents();
   const attendances = useVisibleAttendances();
   const sales = useSales();
+  const doNotContact = useDoNotContactIds();
+  const missed = useMissedFollowUps();
   return useMemo(
     () =>
       buildTodayItems({
@@ -36,8 +40,10 @@ export function useTodayItems(): TodayItem[] {
         events,
         attendances,
         sales,
+        doNotContact,
+        missed,
       }),
-    [user, people, lastContact, settings, events, attendances, sales],
+    [user, people, lastContact, settings, events, attendances, sales, doNotContact, missed],
   );
 }
 

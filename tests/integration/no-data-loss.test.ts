@@ -103,7 +103,7 @@ async function beauRows() {
   };
 }
 const BEAU = {
-  attendances: ["m7"],
+  attendances: ["is1-20", "is2-20", "m7"],
   contacts: ["t-20", "t2-20"],
   learning: ["l30"],
   progress: ["lib-3", "lib-4"],
@@ -251,7 +251,11 @@ describe("nothing is deleted that the person didn't delete", () => {
     expect(seen.slice(cleared).every((ids) => ids.length <= 1)).toBe(true);
     expect(usePeopleStore.getState().people.map((p) => p.id)).toEqual(["20"]);
     expect(useCrmStore.getState().contacts.every((c) => c.personId === "20")).toBe(true);
-    expect(useAttendanceStore.getState().attendances.map((x) => x.id)).toEqual(["m7"]);
+    expect(useAttendanceStore.getState().attendances.map((x) => x.id)).toEqual([
+      "is1-20",
+      "is2-20",
+      "m7",
+    ]);
     const after = await beauRows();
     expect({ ...after, contacts: after.contacts.filter((id) => id !== contact.id) }).toEqual(BEAU);
   });
@@ -265,7 +269,7 @@ describe("nothing is deleted that the person didn't delete", () => {
       attendances: (await a.from("attendances").select("id").eq("person_id", "21")).data?.length,
       contacts: (await a.from("contacts").select("id").eq("person_id", "21")).data?.length,
     });
-    expect(await andre()).toEqual({ sponsor: "4", attendances: 1, contacts: 2 });
+    expect(await andre()).toEqual({ sponsor: "4", attendances: 3, contacts: 2 });
     const notes = (await a.from("people").select("notes").eq("id", "4").single()).data?.notes;
     cleanup.push(
       () => must(a.from("people").update({ sponsor_id: "4" }).eq("id", "21"), "Andre's sponsor"),
@@ -302,6 +306,6 @@ describe("nothing is deleted that the person didn't delete", () => {
     await whenIdle();
 
     expect(deletes()).toEqual([]);
-    expect(await andre()).toEqual({ sponsor: "1", attendances: 1, contacts: 2 });
+    expect(await andre()).toEqual({ sponsor: "1", attendances: 3, contacts: 2 });
   });
 });

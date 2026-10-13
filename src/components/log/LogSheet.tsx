@@ -5,6 +5,7 @@ import {
   Activity,
   BookOpen,
   CalendarCheck,
+  CalendarDays,
   CalendarPlus,
   ChevronRight,
   MessageCircle,
@@ -32,14 +33,18 @@ import {
   getTeamChatId,
   openLog,
   sendMessage,
+  useCanManageEvents,
   useChatAccess,
   useCurrentUser,
+  useFeature,
   useUiStore,
+  useUnlocks,
   type CrmEvent,
   type LogTab,
 } from "@/data";
 import { OptionGrid, type Option } from "./parts";
 import { ContactForm, LearningForm, NewContactForm, RecruitTouchForm, SaleForm } from "./forms";
+import { AttendanceForm } from "./AttendanceForm";
 
 type Recruit = "new" | "plan" | "followup" | "meeting";
 type Sell = "sale" | "customer" | "reorder";
@@ -51,7 +56,9 @@ type Step =
   | { view: "recruiting"; kind?: Recruit }
   | { view: "selling"; kind?: Sell }
   | { view: "learning" }
-  | { view: "checkin" };
+  | { view: "checkin" }
+  | { view: "events" }
+  | { view: "attendance" };
 
 /** Map the legacy `openLog({ tab })` targets onto the new flow. */
 function initialStep(tab?: LogTab): Step {
@@ -64,6 +71,8 @@ function initialStep(tab?: LogTab): Step {
       return { view: "selling", kind: "customer" };
     case "sale":
       return { view: "selling", kind: "sale" };
+    case "attendance":
+      return { view: "attendance" };
     default:
       return { view: "menu" };
   }
@@ -73,7 +82,23 @@ const ROOT: Option<Root>[] = [
   { value: "activity", label: "Activity", hint: "Recruiting or selling", icon: Activity },
   { value: "learning", label: "Learning", hint: "Pages, podcasts, workshops", icon: BookOpen },
   { value: "checkin", label: "Check-in", hint: "With your team", icon: MessageCircle },
-  { value: "event", label: "New event", hint: "Meeting or conference", icon: CalendarPlus },
+  { value: "event", label: "Events", hint: "Who came, or a new event", icon: CalendarDays },
+];
+/** The Activity option before the recruiting pipeline unlocks: straight to selling. */
+const SELLING_ROOT: Option<Root> = {
+  value: "activity",
+  label: "Selling",
+  hint: "Customers and sales",
+  icon: Store,
+};
+const EVENTS: Option<"attendance" | "new">[] = [
+  {
+    value: "attendance",
+    label: "Went to an event",
+    hint: "In person or virtual",
+    icon: CalendarCheck,
+  },
+  { value: "new", label: "New event", hint: "Night Owls to conferences", icon: CalendarPlus },
 ];
 const AREAS: Option<"recruiting" | "selling">[] = [
   { value: "recruiting", label: "Recruiting", hint: "Prospects and plans", icon: Users },
@@ -106,11 +131,12 @@ export function LogSheet() {
   const desktop = useIsDesktop();
   const navigate = useNavigate();
   const access = useChatAccess();
+  const chats = useFeature("chats");
   const [eventOpen, setEventOpen] = useState(false);
 
   const onEventCreated = (e: CrmEvent) => {
     navigate({ to: "/events/$id", params: { id: e.id } });
-    if (!access.eligible) return;
+    if (!access.eligible || !chats) return;
     toast.success(`${e.name} created`, {
       action: {
         label: "Post in Main chat",
@@ -144,7 +170,8 @@ export function LogSheet() {
           <SheetHeader className="border-b border-line px-5 pb-3 pt-3.5 text-left lg:pt-4">
             <SheetTitle className="text-base font-extrabold">Log</SheetTitle>
             <SheetDescription className="text-[12.5px]">
-              Record activity, learning or a check-in. Share it as a win in one tap.
+              Record activity, learning or a check-in.
+              {chats && access.eligible && " Share it as a win in one tap."}
             </SheetDescription>
           </SheetHeader>
           {/* Remount each time the sheet opens so it starts at the requested step. */}
@@ -178,18 +205,31 @@ function LogFlow({
   const user = useCurrentUser();
   const candidate = user.role === "candidate";
   const [step, setStep] = useState<Step>(() => initialStep(tab));
+  const manage = useCanManageEvents();
+  // Recruiting unlocks with the recruiting pipeline (First sponsor); before
+  // that, Activity is selling only.
+  const recruiting = useUnlocks().can.pipeline;
   const root = candidate
-    ? ROOT.filter((o) => o.value === "learning" || o.value === "checkin")
-    : ROOT;
+    ? ROOT.filter((o) => o.value !== "activity")
+    : recruiting
+      ? ROOT
+      : ROOT.map((o) => (o.value === "activity" ? SELLING_ROOT : o));
+  const eventOptions = manage ? EVENTS : EVENTS.filter((o) => o.value !== "new");
 
   const crumbs: { label: string; to?: Step }[] = [{ label: "Log", to: { view: "menu" } }];
-  if (step.view === "activity" || step.view === "recruiting" || step.view === "selling") {
+  if (
+    recruiting &&
+    (step.view === "activity" || step.view === "recruiting" || step.view === "selling")
+  ) {
     crumbs.push({ label: "Activity", to: { view: "activity" } });
   }
   if (step.view === "recruiting") crumbs.push({ label: "Recruiting" });
   if (step.view === "selling") crumbs.push({ label: "Selling" });
   if (step.view === "learning") crumbs.push({ label: "Learning" });
   if (step.view === "checkin") crumbs.push({ label: "Check-in" });
+  if (step.view === "events" || step.view === "attendance")
+    crumbs.push({ label: "Events", to: { view: "events" } });
+  if (step.view === "attendance") crumbs.push({ label: "Went to an event" });
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5 pt-3.5">
@@ -226,8 +266,8 @@ function LogFlow({
           label="What do you want to log?"
           options={root}
           onChange={(v) => {
-            if (v === "event") onNewEvent();
-            else if (v === "activity") setStep({ view: "activity" });
+            if (v === "event") setStep({ view: "events" });
+            else if (v === "activity") setStep({ view: recruiting ? "activity" : "selling" });
             else setStep({ view: v });
           }}
         />
@@ -281,6 +321,17 @@ function LogFlow({
             />
           )}
         </div>
+      )}
+
+      {step.view === "events" && (
+        <OptionGrid
+          label="Events"
+          options={eventOptions}
+          onChange={(v) => (v === "new" ? onNewEvent() : setStep({ view: "attendance" }))}
+        />
+      )}
+      {step.view === "attendance" && (
+        <AttendanceForm initialPersonId={tab === "attendance" ? personId : undefined} />
       )}
 
       {step.view === "learning" && <LearningForm />}

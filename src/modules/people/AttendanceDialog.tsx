@@ -8,7 +8,7 @@ import {
   type CrmEvent,
   type CrmPerson,
   type DesireLevel,
-  type TicketType,
+  type AttendMode,
 } from "@/data";
 import { Button } from "@/components/ui/button";
 import {
@@ -92,7 +92,7 @@ function AttendanceForm({
 }) {
   const [desire, setDesire] = useState<DesireLevel | "unset">(a.desireToAttend ?? "unset");
   const [hasTicket, setHasTicket] = useState(a.hasTicket);
-  const [ticketType, setTicketType] = useState<TicketType | "unset">(a.ticketType ?? "unset");
+  const [mode, setAttendMode] = useState<AttendMode | "unset">(a.mode ?? "unset");
   const [planned, setPlanned] = useState(a.plannedPurchaseDate ?? "");
   const [followUp, setFollowUp] = useState(a.followUpDate ?? "");
   const [helperId, setHelperId] = useState(a.helperId ?? "none");
@@ -110,7 +110,7 @@ function AttendanceForm({
     updateAttendance(a.id, {
       desireToAttend: desire === "unset" ? undefined : desire,
       hasTicket,
-      ticketType: hasTicket && ticketType !== "unset" ? ticketType : undefined,
+      mode: hasTicket && mode !== "unset" ? mode : undefined,
       plannedPurchaseDate: hasTicket ? a.plannedPurchaseDate : planned || undefined,
       followUpDate: followUp || undefined,
       helperId: helperId === "none" ? null : helperId,
@@ -174,17 +174,14 @@ function AttendanceForm({
       {hasTicket ? (
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Ticket type" htmlFor="att-type">
-            <Select
-              value={ticketType}
-              onValueChange={(v) => setTicketType(v as TicketType | "unset")}
-            >
+            <Select value={mode} onValueChange={(v) => setAttendMode(v as AttendMode | "unset")}>
               <SelectTrigger id="att-type">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="unset">Not set</SelectItem>
                 <SelectItem value="in_person">In person</SelectItem>
-                <SelectItem value="stream">Stream</SelectItem>
+                <SelectItem value="virtual">Virtual</SelectItem>
               </SelectContent>
             </Select>
           </Field>

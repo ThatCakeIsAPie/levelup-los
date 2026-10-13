@@ -11,6 +11,8 @@ import {
   type Settings,
 } from "@/stores/crmStore";
 import { useSessionStore } from "@/stores/sessionStore";
+import { usePeopleStore } from "@/stores/peopleStore";
+import { saleSellerId } from "./growth/engine";
 import { localDate } from "@/lib/dates";
 import { useVisibleIds } from "./people";
 
@@ -57,14 +59,23 @@ export function useContactSettings(): Settings {
 
 // ---- Sales ----
 
-/** Sales for visible customers, newest first; pass a customerId to narrow. */
+/**
+ * Sales to visible customers, newest first; pass a customerId to narrow.
+ * Personal orders (a business person buying for themselves) aren't customer
+ * sales and are left out; they count toward PV (src/data/growth).
+ */
 export function useSales(customerId?: string): Sale[] {
   const sales = useCrmStore((s) => s.sales);
   const ids = useVisibleIds();
   return useMemo(
     () =>
       sales
-        .filter((s) => ids.has(s.customerId) && (!customerId || s.customerId === customerId))
+        .filter(
+          (s) =>
+            ids.has(s.customerId) &&
+            s.personId !== s.customerId &&
+            (!customerId || s.customerId === customerId),
+        )
         .sort((a, b) => b.date.localeCompare(a.date)),
     [sales, ids, customerId],
   );
@@ -154,18 +165,33 @@ export function removeLearning(id: string): void {
   useCrmStore.getState().removeLearning(id);
 }
 
-/** Record a customer purchase. `date` defaults to today. Returns the saved sale. */
+/**
+ * Record a purchase. `customerId` is a customer, or a business person's own id
+ * for a personal order. `date` defaults to today; `pv` (point value) counts
+ * toward the monthly PV of `personId`, which defaults to the customer's owner
+ * (or the buyer, for a personal order; see saleSellerId). Returns the sale.
+ */
 export function logSale(input: {
   customerId: string;
   product: string;
   date?: string;
   amount?: number;
+  pv?: number;
+  personId?: string;
 }): Sale {
+  const personId =
+    input.personId ??
+    saleSellerId(
+      { id: "", customerId: input.customerId, product: "", date: "" },
+      new Map(usePeopleStore.getState().people.map((p) => [p.id, p])),
+    );
   return useCrmStore.getState().logSale({
     customerId: input.customerId,
     product: input.product,
     date: input.date ?? localDate(),
     ...(input.amount !== undefined ? { amount: input.amount } : {}),
+    ...(input.pv !== undefined ? { pv: input.pv } : {}),
+    ...(personId ? { personId } : {}),
   });
 }
 

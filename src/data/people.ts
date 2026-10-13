@@ -157,6 +157,7 @@ export function removePerson(id: string): void {
   }
   const heirId = usePeopleStore.getState().remove(id);
   useAttendanceStore.getState().removeWhere((a) => a.personId === id);
+  useAttendanceStore.getState().removeNotesWhere((n) => n.personId === id);
   useOpsStore.getState().removePerson(id, heirId);
 }
 
@@ -175,6 +176,7 @@ function removePersonRemote(id: string): void {
   serverSide(() => {
     usePeopleStore.setState({ people: people.map((p) => after.get(p.id) ?? p) });
     useAttendanceStore.getState().removeWhere((a) => a.personId === id);
+    useAttendanceStore.getState().removeNotesWhere((n) => n.personId === id);
     useOpsStore.getState().removePerson(id, r.heirId);
   });
   usePeopleStore.setState({ people: usePeopleStore.getState().people.filter((p) => p.id !== id) });

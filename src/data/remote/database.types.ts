@@ -168,6 +168,25 @@ export type Database = {
           },
         ];
       };
+      app_admins: {
+        Row: {
+          created_at: string;
+          note: string | null;
+          user_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          created_at?: string;
+          note?: string | null;
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          note?: string | null;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       attachments: {
         Row: {
           duration_ms: number | null;
@@ -223,11 +242,11 @@ export type Database = {
           helper_id: string | null;
           id: string;
           leadership_qualified: boolean;
+          mode: string | null;
           notes: string | null;
           person_id: string;
           planned_purchase_date: string | null;
           special_event_qualified: boolean;
-          ticket_type: string | null;
           updated_at: string;
           workspace_id: string;
         };
@@ -241,11 +260,11 @@ export type Database = {
           helper_id?: string | null;
           id?: string;
           leadership_qualified?: boolean;
+          mode?: string | null;
           notes?: string | null;
           person_id: string;
           planned_purchase_date?: string | null;
           special_event_qualified?: boolean;
-          ticket_type?: string | null;
           updated_at?: string;
           workspace_id?: string;
         };
@@ -258,11 +277,11 @@ export type Database = {
           helper_id?: string | null;
           id?: string;
           leadership_qualified?: boolean;
+          mode?: string | null;
           notes?: string | null;
           person_id?: string;
           planned_purchase_date?: string | null;
           special_event_qualified?: boolean;
-          ticket_type?: string | null;
           updated_at?: string;
           workspace_id?: string;
         };
@@ -775,12 +794,366 @@ export type Database = {
           },
         ];
       };
+      customer_cards: {
+        Row: {
+          column_id: string;
+          entered_at: string;
+          entry_id: string;
+          next_step: string | null;
+          next_step_date: string | null;
+          updated_at: string;
+          workspace_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          column_id: string;
+          entered_at?: string;
+          entry_id: string;
+          next_step?: string | null;
+          next_step_date?: string | null;
+          updated_at?: string;
+          workspace_id?: string;
+        };
+        Update: {
+          column_id?: string;
+          entered_at?: string;
+          entry_id?: string;
+          next_step?: string | null;
+          next_step_date?: string | null;
+          updated_at?: string;
+          workspace_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "customer_cards_entry_id_fkey";
+            columns: ["entry_id"];
+            isOneToOne: true;
+            referencedRelation: "list_entries";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "customer_cards_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      customer_moves: {
+        Row: {
+          band: string;
+          created_customer_id: string | null;
+          entry_id: string;
+          from_column: string | null;
+          id: string;
+          moved_at: string;
+          moved_by: string | null;
+          owner_id: string | null;
+          set_ditto: boolean;
+          to_column: string;
+          workspace_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          band: string;
+          created_customer_id?: string | null;
+          entry_id: string;
+          from_column?: string | null;
+          id?: string;
+          moved_at?: string;
+          moved_by?: string | null;
+          owner_id?: string | null;
+          set_ditto?: boolean;
+          to_column: string;
+          workspace_id?: string;
+        };
+        Update: {
+          band?: string;
+          created_customer_id?: string | null;
+          entry_id?: string;
+          from_column?: string | null;
+          id?: string;
+          moved_at?: string;
+          moved_by?: string | null;
+          owner_id?: string | null;
+          set_ditto?: boolean;
+          to_column?: string;
+          workspace_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "customer_moves_moved_by_fkey";
+            columns: ["moved_by"];
+            isOneToOne: false;
+            referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "customer_moves_moved_by_fkey";
+            columns: ["moved_by"];
+            isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "customer_moves_moved_by_fkey";
+            columns: ["moved_by"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "customer_moves_owner_id_fkey";
+            columns: ["owner_id"];
+            isOneToOne: false;
+            referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "customer_moves_owner_id_fkey";
+            columns: ["owner_id"];
+            isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "customer_moves_owner_id_fkey";
+            columns: ["owner_id"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "customer_moves_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      customer_step_hides: {
+        Row: {
+          created_at: string;
+          person_id: string;
+          step_id: string;
+          workspace_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          created_at?: string;
+          person_id?: string;
+          step_id: string;
+          workspace_id?: string;
+        };
+        Update: {
+          created_at?: string;
+          person_id?: string;
+          step_id?: string;
+          workspace_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "customer_step_hides_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: false;
+            referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "customer_step_hides_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "customer_step_hides_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "customer_step_hides_step_id_fkey";
+            columns: ["step_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_steps";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "customer_step_hides_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      customer_steps: {
+        Row: {
+          band: string;
+          created_at: string;
+          id: string;
+          label: string;
+          owner_id: string;
+          position: number;
+          workspace_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          band: string;
+          created_at?: string;
+          id?: string;
+          label: string;
+          owner_id?: string;
+          position?: number;
+          workspace_id?: string;
+        };
+        Update: {
+          band?: string;
+          created_at?: string;
+          id?: string;
+          label?: string;
+          owner_id?: string;
+          position?: number;
+          workspace_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "customer_steps_owner_id_fkey";
+            columns: ["owner_id"];
+            isOneToOne: false;
+            referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "customer_steps_owner_id_fkey";
+            columns: ["owner_id"];
+            isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "customer_steps_owner_id_fkey";
+            columns: ["owner_id"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "customer_steps_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      deputies: {
+        Row: {
+          added_at: string;
+          added_by: string | null;
+          deputy_id: string;
+          leader_id: string;
+          workspace_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          added_at?: string;
+          added_by?: string | null;
+          deputy_id: string;
+          leader_id: string;
+          workspace_id?: string;
+        };
+        Update: {
+          added_at?: string;
+          added_by?: string | null;
+          deputy_id?: string;
+          leader_id?: string;
+          workspace_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "deputies_added_by_fkey";
+            columns: ["added_by"];
+            isOneToOne: false;
+            referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "deputies_added_by_fkey";
+            columns: ["added_by"];
+            isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "deputies_added_by_fkey";
+            columns: ["added_by"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "deputies_deputy_id_fkey";
+            columns: ["deputy_id"];
+            isOneToOne: false;
+            referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "deputies_deputy_id_fkey";
+            columns: ["deputy_id"];
+            isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "deputies_deputy_id_fkey";
+            columns: ["deputy_id"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "deputies_leader_id_fkey";
+            columns: ["leader_id"];
+            isOneToOne: false;
+            referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "deputies_leader_id_fkey";
+            columns: ["leader_id"];
+            isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "deputies_leader_id_fkey";
+            columns: ["leader_id"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "deputies_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       events: {
         Row: {
           created_at: string;
           created_by: string | null;
           date: string;
           end_date: string | null;
+          format: string;
           id: string;
           location: string | null;
           name: string;
@@ -794,6 +1167,7 @@ export type Database = {
           created_by?: string | null;
           date: string;
           end_date?: string | null;
+          format?: string;
           id?: string;
           location?: string | null;
           name: string;
@@ -806,6 +1180,7 @@ export type Database = {
           created_by?: string | null;
           date?: string;
           end_date?: string | null;
+          format?: string;
           id?: string;
           location?: string | null;
           name?: string;
@@ -837,6 +1212,60 @@ export type Database = {
           },
           {
             foreignKeyName: "events_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      feature_switches: {
+        Row: {
+          enabled: boolean;
+          feature: string;
+          updated_at: string;
+          updated_by: string | null;
+          workspace_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          enabled?: boolean;
+          feature: string;
+          updated_at?: string;
+          updated_by?: string | null;
+          workspace_id?: string;
+        };
+        Update: {
+          enabled?: boolean;
+          feature?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+          workspace_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "feature_switches_updated_by_fkey";
+            columns: ["updated_by"];
+            isOneToOne: false;
+            referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "feature_switches_updated_by_fkey";
+            columns: ["updated_by"];
+            isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "feature_switches_updated_by_fkey";
+            columns: ["updated_by"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "feature_switches_workspace_id_fkey";
             columns: ["workspace_id"];
             isOneToOne: false;
             referencedRelation: "workspaces";
@@ -1515,6 +1944,150 @@ export type Database = {
           },
         ];
       };
+      list_entries: {
+        Row: {
+          added_by: string | null;
+          created_at: string;
+          customer_id: string | null;
+          email: string | null;
+          how_known: string | null;
+          id: string;
+          name: string;
+          notes: string | null;
+          owner_id: string;
+          phone: string | null;
+          prospect_id: string | null;
+          rating: string | null;
+          updated_at: string;
+          workspace_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          added_by?: string | null;
+          created_at?: string;
+          customer_id?: string | null;
+          email?: string | null;
+          how_known?: string | null;
+          id?: string;
+          name: string;
+          notes?: string | null;
+          owner_id?: string;
+          phone?: string | null;
+          prospect_id?: string | null;
+          rating?: string | null;
+          updated_at?: string;
+          workspace_id?: string;
+        };
+        Update: {
+          added_by?: string | null;
+          created_at?: string;
+          customer_id?: string | null;
+          email?: string | null;
+          how_known?: string | null;
+          id?: string;
+          name?: string;
+          notes?: string | null;
+          owner_id?: string;
+          phone?: string | null;
+          prospect_id?: string | null;
+          rating?: string | null;
+          updated_at?: string;
+          workspace_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "list_entries_added_by_fkey";
+            columns: ["added_by"];
+            isOneToOne: false;
+            referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "list_entries_added_by_fkey";
+            columns: ["added_by"];
+            isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "list_entries_added_by_fkey";
+            columns: ["added_by"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "list_entries_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "list_entries_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "list_entries_customer_id_fkey";
+            columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "list_entries_owner_id_fkey";
+            columns: ["owner_id"];
+            isOneToOne: false;
+            referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "list_entries_owner_id_fkey";
+            columns: ["owner_id"];
+            isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "list_entries_owner_id_fkey";
+            columns: ["owner_id"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "list_entries_prospect_id_fkey";
+            columns: ["prospect_id"];
+            isOneToOne: false;
+            referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "list_entries_prospect_id_fkey";
+            columns: ["prospect_id"];
+            isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "list_entries_prospect_id_fkey";
+            columns: ["prospect_id"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "list_entries_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       logistics: {
         Row: {
           carpool: string;
@@ -1767,6 +2340,175 @@ export type Database = {
           },
         ];
       };
+      milestone_marks: {
+        Row: {
+          code: string;
+          marked_at: string;
+          marked_by: string | null;
+          note: string | null;
+          person_id: string;
+          reached_on: string;
+          workspace_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          code: string;
+          marked_at?: string;
+          marked_by?: string | null;
+          note?: string | null;
+          person_id: string;
+          reached_on: string;
+          workspace_id?: string;
+        };
+        Update: {
+          code?: string;
+          marked_at?: string;
+          marked_by?: string | null;
+          note?: string | null;
+          person_id?: string;
+          reached_on?: string;
+          workspace_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "milestone_marks_marked_by_fkey";
+            columns: ["marked_by"];
+            isOneToOne: false;
+            referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "milestone_marks_marked_by_fkey";
+            columns: ["marked_by"];
+            isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "milestone_marks_marked_by_fkey";
+            columns: ["marked_by"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "milestone_marks_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: false;
+            referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "milestone_marks_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "milestone_marks_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "milestone_marks_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      missed_event_notes: {
+        Row: {
+          by_id: string | null;
+          created_at: string;
+          event_id: string;
+          id: string;
+          note: string;
+          person_id: string;
+          workspace_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          by_id?: string | null;
+          created_at?: string;
+          event_id: string;
+          id?: string;
+          note: string;
+          person_id: string;
+          workspace_id?: string;
+        };
+        Update: {
+          by_id?: string | null;
+          created_at?: string;
+          event_id?: string;
+          id?: string;
+          note?: string;
+          person_id?: string;
+          workspace_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "missed_event_notes_by_id_fkey";
+            columns: ["by_id"];
+            isOneToOne: false;
+            referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "missed_event_notes_by_id_fkey";
+            columns: ["by_id"];
+            isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "missed_event_notes_by_id_fkey";
+            columns: ["by_id"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "missed_event_notes_event_id_fkey";
+            columns: ["event_id"];
+            isOneToOne: false;
+            referencedRelation: "events";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "missed_event_notes_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: false;
+            referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "missed_event_notes_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "missed_event_notes_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "missed_event_notes_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       notifications: {
         Row: {
           actor_id: string | null;
@@ -1923,6 +2665,7 @@ export type Database = {
           biz_class: string;
           business_start_date: string | null;
           created_at: string;
+          ditto_since: string | null;
           email: string | null;
           ibo_number: string | null;
           id: string;
@@ -1947,6 +2690,7 @@ export type Database = {
           biz_class: string;
           business_start_date?: string | null;
           created_at?: string;
+          ditto_since?: string | null;
           email?: string | null;
           ibo_number?: string | null;
           id?: string;
@@ -1970,6 +2714,7 @@ export type Database = {
           biz_class?: string;
           business_start_date?: string | null;
           created_at?: string;
+          ditto_since?: string | null;
           email?: string | null;
           ibo_number?: string | null;
           id?: string;
@@ -2375,6 +3120,84 @@ export type Database = {
           },
         ];
       };
+      pv_overrides: {
+        Row: {
+          month: string;
+          person_id: string;
+          pv: number;
+          set_at: string;
+          set_by: string | null;
+          workspace_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          month: string;
+          person_id: string;
+          pv: number;
+          set_at?: string;
+          set_by?: string | null;
+          workspace_id?: string;
+        };
+        Update: {
+          month?: string;
+          person_id?: string;
+          pv?: number;
+          set_at?: string;
+          set_by?: string | null;
+          workspace_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "pv_overrides_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: false;
+            referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "pv_overrides_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "pv_overrides_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "pv_overrides_set_by_fkey";
+            columns: ["set_by"];
+            isOneToOne: false;
+            referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "pv_overrides_set_by_fkey";
+            columns: ["set_by"];
+            isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "pv_overrides_set_by_fkey";
+            columns: ["set_by"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "pv_overrides_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       reactions: {
         Row: {
           created_at: string;
@@ -2562,7 +3385,9 @@ export type Database = {
           customer_id: string;
           date: string;
           id: string;
+          person_id: string | null;
           product: string;
+          pv: number | null;
           workspace_id: string;
         };
         ComputedFields: never;
@@ -2572,7 +3397,9 @@ export type Database = {
           customer_id: string;
           date?: string;
           id?: string;
+          person_id?: string | null;
           product: string;
+          pv?: number | null;
           workspace_id?: string;
         };
         Update: {
@@ -2581,7 +3408,9 @@ export type Database = {
           customer_id?: string;
           date?: string;
           id?: string;
+          person_id?: string | null;
           product?: string;
+          pv?: number | null;
           workspace_id?: string;
         };
         Relationships: [
@@ -2602,6 +3431,27 @@ export type Database = {
           {
             foreignKeyName: "sales_customer_id_fkey";
             columns: ["customer_id"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "sales_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: false;
+            referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "sales_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "sales_person_id_fkey";
+            columns: ["person_id"];
             isOneToOne: false;
             referencedRelation: "people";
             referencedColumns: ["id"];
@@ -2943,6 +3793,7 @@ export type Database = {
     };
     Functions: {
       accept_invite: { Args: { p_token: string }; Returns: string };
+      acts_as_leader: { Args: Record<PropertyKey, never>; Returns: boolean };
       answer_event_post: { Args: { p_message_id: string }; Returns: string };
       answer_stat_request: {
         Args: { p_approve: boolean; p_request_id: string };
@@ -2969,6 +3820,7 @@ export type Database = {
       can_edit_conversation: { Args: { p_conversation_id: string }; Returns: boolean };
       can_moderate_conversation: { Args: { p_conversation_id: string }; Returns: boolean };
       can_organize_costs: { Args: Record<PropertyKey, never>; Returns: boolean };
+      can_own_list: { Args: { p_person_id: string }; Returns: boolean };
       can_pin_conversation: { Args: { p_conversation_id: string }; Returns: boolean };
       can_see_person: { Args: { p_person_id: string }; Returns: boolean };
       chat_eligible: { Args: { p_person_id: string }; Returns: boolean };
@@ -2983,6 +3835,8 @@ export type Database = {
       current_member_role: { Args: Record<PropertyKey, never>; Returns: string };
       current_person_id: { Args: Record<PropertyKey, never>; Returns: string };
       current_workspace_id: { Args: Record<PropertyKey, never>; Returns: string };
+      customer_move_is_latest: { Args: { p_move_id: string }; Returns: boolean };
+      deputy_leader_ids: { Args: Record<PropertyKey, never>; Returns: string[] };
       dm_open: { Args: { p_conversation_id: string }; Returns: boolean };
       dm_other_person: { Args: { p_conversation_id: string }; Returns: string };
       downline_ids: { Args: { p_root: string }; Returns: string[] };
@@ -3027,13 +3881,16 @@ export type Database = {
         }[];
       };
       has_paid: { Args: { p_cost_id: string; p_person_id: string }; Returns: boolean };
+      is_app_admin: { Args: Record<PropertyKey, never>; Returns: boolean };
       is_blocked_between: { Args: { a: string; b: string }; Returns: boolean };
       is_candidate: { Args: Record<PropertyKey, never>; Returns: boolean };
       is_client_write: { Args: Record<PropertyKey, never>; Returns: boolean };
       is_conversation_member: { Args: { p_conversation_id: string }; Returns: boolean };
+      is_deputy: { Args: Record<PropertyKey, never>; Returns: boolean };
       is_leader: { Args: Record<PropertyKey, never>; Returns: boolean };
       is_moderator_or_leader: { Args: Record<PropertyKey, never>; Returns: boolean };
       is_team_chat: { Args: { p_conversation_id: string }; Returns: boolean };
+      is_upline_of: { Args: { p_person_id: string }; Returns: boolean };
       library_can_edit: {
         Args: { p_created_by: string; p_workspace_id: string };
         Returns: boolean;
@@ -3065,9 +3922,25 @@ export type Database = {
       library_learning_id: { Args: { p_item_id: string; p_person_id: string }; Returns: string };
       library_learning_kind: { Args: { p_format: string; p_kind: string }; Returns: string };
       library_upline_ids: { Args: Record<PropertyKey, never>; Returns: string[] };
+      list_entry_visible: { Args: { p_entry_id: string }; Returns: boolean };
+      list_owner_visible: {
+        Args: { p_owner_id: string; p_workspace_id: string };
+        Returns: boolean;
+      };
       mark_conversation_read: { Args: { p_conversation_id: string }; Returns: string };
       message_author_id: { Args: { p_message_id: string }; Returns: string };
       message_conversation_id: { Args: { p_message_id: string }; Returns: string };
+      move_customer_card: {
+        Args: {
+          p_customer_id?: string;
+          p_entry_id: string;
+          p_move_id?: string;
+          p_next_step?: string;
+          p_next_step_date?: string;
+          p_to: string;
+        };
+        Returns: Json;
+      };
       move_pipeline_card: {
         Args: {
           p_hot?: boolean;

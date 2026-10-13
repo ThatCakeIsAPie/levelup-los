@@ -83,8 +83,8 @@ export function EventDetailsPanel({ rows }: { rows: Attendance[] }) {
           <Row label="Have a ticket" value={count((a) => a.hasTicket)} />
         </Group>
         <Group title="Ticketing">
-          <Row label="In person" value={count((a) => a.hasTicket && a.ticketType !== "stream")} />
-          <Row label="Stream" value={count((a) => a.hasTicket && a.ticketType === "stream")} />
+          <Row label="In person" value={count((a) => a.hasTicket && a.mode !== "virtual")} />
+          <Row label="Virtual" value={count((a) => a.hasTicket && a.mode === "virtual")} />
           <Row label="No-shows" value={count((a) => a.hasTicket && a.attended === false)} />
         </Group>
         <Group title="Engagement">

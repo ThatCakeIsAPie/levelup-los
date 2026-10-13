@@ -25,6 +25,8 @@ import { emptyChat, useChatStore } from "@/data/chat/store";
 import { emptyLibrary, useLibraryStore } from "@/data/library/store";
 import { useLibraryExtras } from "@/data/library/extras";
 import { emptyPipeline, usePipelineStore } from "@/data/pipeline/store";
+import { emptyCustomerPipeline, useCustomerPipelineStore } from "@/data/customerPipeline/store";
+import { emptyTeam, useTeamStore } from "@/data/team/store";
 import { ALL_BINDINGS } from "./bindings";
 import {
   applyRemote,
@@ -168,19 +170,23 @@ export function closeRemoteSession(cancelLoading = true): void {
   suppressed(() => {
     usePeopleStore.setState({ people: [] });
     useEventsStore.setState({ events: [] });
-    useAttendanceStore.setState({ attendances: [] });
+    useAttendanceStore.setState({ attendances: [], missedNotes: [] });
     useCrmStore.setState({
       sales: [],
       contacts: [],
       learning: [],
       settings: { ...DEFAULT_SETTINGS },
       goals: {},
+      pvOverrides: [],
+      milestoneMarks: [],
     });
     useOpsStore.setState({ logistics: {}, costs: [], payments: {}, campaigns: [], schedules: [] });
     useActivityStore.setState({ events: [] });
     useChatStore.setState(emptyChat());
     useLibraryStore.setState(emptyLibrary());
     usePipelineStore.setState(emptyPipeline());
+    useCustomerPipelineStore.setState(emptyCustomerPipeline());
+    useTeamStore.setState(emptyTeam());
   });
   useLibraryExtras.setState({ teasers: [], names: {} });
   useRemoteStore.setState({ directory: [], rsvpCounts: null, chain: [], phase: "idle" });

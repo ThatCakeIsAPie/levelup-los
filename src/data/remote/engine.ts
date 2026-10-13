@@ -75,6 +75,7 @@ export const TABLE_ORDER = [
   "people",
   "events",
   "attendances",
+  "missed_event_notes",
   "logistics",
   "shared_costs",
   "shared_cost_members",
@@ -82,6 +83,8 @@ export const TABLE_ORDER = [
   "payments",
   "contacts",
   "sales",
+  "pv_overrides",
+  "milestone_marks",
   "learning",
   "learning_goals",
   "contact_settings",
@@ -116,6 +119,16 @@ export const TABLE_ORDER = [
   // Requests before shares: approving makes the share in the database.
   "stat_requests",
   "stat_shares",
+  // Your list and the customer pipeline: entries (after the people they link
+  // to), steps, then moves before cards (move_customer_card() makes the card).
+  "list_entries",
+  "customer_steps",
+  "customer_step_hides",
+  "customer_moves",
+  "customer_cards",
+  // Team settings (after the people a deputy row names).
+  "deputies",
+  "feature_switches",
 ] as const;
 const orderOf = (t: string) => {
   const i = (TABLE_ORDER as readonly string[]).indexOf(t);

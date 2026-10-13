@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { format } from "date-fns";
 import { Check, Contact, Mail, Phone, Plus, Receipt, Search, X } from "lucide-react";
@@ -29,7 +29,12 @@ import {
 } from "@/data";
 import { cn } from "@/lib/utils";
 import { AddCustomerDialog } from "./AddCustomerDialog";
+import { CustomerPipelineTab } from "./CustomerPipelineTab";
+import { CustomersTabs, type CustomersTab } from "./CustomersTabs";
+import { YourListTab } from "./YourListTab";
 import { dayWord, money0, shortDate } from "./format";
+
+export type { CustomersTab };
 
 type Filter = "all" | "due";
 
@@ -41,10 +46,33 @@ interface Row {
   due: boolean;
 }
 
-export function CustomersPage() {
+/**
+ * Customers: the customer pipeline (default), your list, and your private
+ * customer list, as tabs. Candidates get an explanation instead.
+ */
+export function CustomersPage({
+  tab,
+  owner,
+  onTab,
+}: {
+  tab: CustomersTab;
+  /** Your list: whose list (default yours). */
+  owner?: string;
+  onTab: (tab: CustomersTab, owner?: string) => void;
+}) {
   const user = useCurrentUser();
   if (user.role === "candidate") return <CandidateCustomers />;
-  return <OwnerCustomers ownerId={user.personId} />;
+  const tabs = <CustomersTabs tab={tab} onTab={(t) => onTab(t)} />;
+  if (tab === "pipeline") return <CustomerPipelineTab tabs={tabs} />;
+  if (tab === "list")
+    return (
+      <YourListTab
+        tabs={tabs}
+        ownerId={owner ?? user.personId}
+        onOwner={(id) => onTab("list", id === user.personId ? undefined : id)}
+      />
+    );
+  return <OwnerCustomers ownerId={user.personId} tabs={tabs} />;
 }
 
 function CandidateCustomers() {
@@ -60,7 +88,7 @@ function CandidateCustomers() {
   );
 }
 
-function OwnerCustomers({ ownerId }: { ownerId: string }) {
+function OwnerCustomers({ ownerId, tabs }: { ownerId: string; tabs: ReactNode }) {
   const desktop = useIsDesktop();
   const customers = useVisibleCustomers();
   const sales = useSales();
@@ -116,6 +144,7 @@ function OwnerCustomers({ ownerId }: { ownerId: string }) {
         subtitle={`Private to you · due for contact after ${customerDays} days`}
         actions={addButton}
       />
+      {tabs}
 
       {customers.length === 0 ? (
         <EmptyState
@@ -297,13 +326,20 @@ function LastContactChip({ row, customerDays }: { row: Row; customerDays: number
 
 function NameLink({ person }: { person: CrmPerson }) {
   return (
-    <Link
-      to="/people/$id"
-      params={{ id: person.id }}
-      className="block truncate rounded-sm text-[13px] font-semibold hover:underline focus-visible:outline-2 focus-visible:outline-ring"
-    >
-      {person.name}
-    </Link>
+    <span className="flex min-w-0 items-center gap-1.5">
+      <Link
+        to="/people/$id"
+        params={{ id: person.id }}
+        className="block truncate rounded-sm text-[13px] font-semibold hover:underline focus-visible:outline-2 focus-visible:outline-ring"
+      >
+        {person.name}
+      </Link>
+      {person.dittoSince && (
+        <ToneChip tone="good" className="shrink-0">
+          On Ditto
+        </ToneChip>
+      )}
+    </span>
   );
 }
 

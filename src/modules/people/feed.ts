@@ -2,6 +2,9 @@ import { useMemo } from "react";
 import {
   parseDate,
   useActivity,
+  useAttendancesForPerson,
+  useChatPeople,
+  useMissedNotes,
   useContacts,
   useCurrentUser,
   useEvents,
@@ -37,7 +40,9 @@ const timeOf = (s: string) => (s.length <= 10 ? parseDate(`${s}T12:00:00`) : new
 
 /**
  * One merged, newest-first timeline for a person: activity log (stage changes,
- * events, edits, notes), check-ins, learning and (for customers) purchases.
+ * events, edits, notes), check-ins, learning, events they came to (on the
+ * event's day, in person or virtual), missed-event notes and (for customers)
+ * purchases.
  */
 export function usePersonFeed(personId: string): FeedItem[] {
   const activity = useActivity(personId);
@@ -47,13 +52,50 @@ export function usePersonFeed(personId: string): FeedItem[] {
   const events = useEvents();
   const people = useVisiblePeople();
   const me = useCurrentUser();
+  const attendances = useAttendancesForPerson(personId);
+  const allNotes = useMissedNotes();
+  // Note authors are uplines, often outside the viewer's CRM view.
+  const directory = useChatPeople();
 
   return useMemo(() => {
     const eventName = new Map(events.map((e) => [e.id, e.name]));
     const personName = new Map(people.map((p) => [p.id, p.name]));
     const out: FeedItem[] = [];
 
-    for (const e of activity) out.push(fromActivity(e, eventName));
+    // Attendance shows on the event's day (below), not when it was recorded.
+    for (const e of activity)
+      if (e.kind !== "marked_attended") out.push(fromActivity(e, eventName));
+
+    const eventById = new Map(events.map((e) => [e.id, e]));
+    for (const a of attendances) {
+      const ev = eventById.get(a.eventId);
+      if (a.attended !== true || !ev) continue;
+      out.push({
+        id: `came-${a.id}`,
+        at: timeOf(ev.date),
+        when: ev.date,
+        text: `Came to ${ev.name}${a.mode === "virtual" ? " (virtual)" : a.mode === "in_person" ? " in person" : ""}`,
+        dot: "amber",
+      });
+    }
+
+    for (const n of allNotes) {
+      if (n.personId !== personId) continue;
+      const by =
+        n.byId === me.personId
+          ? "you"
+          : n.byId
+            ? (directory.get(n.byId)?.name ?? "an upline")
+            : "an upline";
+      out.push({
+        id: `missed-note-${n.id}`,
+        at: timeOf(n.createdAt),
+        when: n.createdAt,
+        text: `Missed ${eventName.get(n.eventId) ?? "an event"}: followed up by ${by}`,
+        sub: n.note,
+        dot: "primary",
+      });
+    }
 
     for (const c of contacts) {
       const by =
@@ -92,14 +134,27 @@ export function usePersonFeed(personId: string): FeedItem[] {
         id: `sale-${s.id}`,
         at: timeOf(s.date),
         when: s.date,
-        text: `Bought ${s.product}${s.amount !== undefined ? ` · ${fmtMoney(s.amount)}` : ""}`,
+        text: `Bought ${s.product}${s.amount !== undefined ? ` · ${fmtMoney(s.amount)}` : ""}${s.pv ? ` · ${s.pv} PV` : ""}`,
         dot: "amber",
         remove: me.role !== "candidate" ? { kind: "sale", id: s.id, label: "sale" } : undefined,
       });
     }
 
     return out.sort((a, b) => b.at - a.at);
-  }, [activity, contacts, learning, sales, events, people, me.personId, me.role, personId]);
+  }, [
+    activity,
+    contacts,
+    learning,
+    sales,
+    events,
+    people,
+    me.personId,
+    me.role,
+    personId,
+    attendances,
+    allNotes,
+    directory,
+  ]);
 }
 
 function fromActivity(e: ActivityEvent, eventName: Map<string, string>): FeedItem {

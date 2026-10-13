@@ -39,7 +39,7 @@ import {
   useVisiblePeople,
   type Attendance,
   type DesireLevel,
-  type TicketType,
+  type AttendMode,
 } from "@/data";
 import { cn } from "@/lib/utils";
 import { usePeopleMap } from "./hooks";
@@ -166,7 +166,7 @@ function EditFields({
             onChange={(v) =>
               up(
                 v === "yes"
-                  ? { hasTicket: true, ticketType: a.ticketType ?? "in_person" }
+                  ? { hasTicket: true, mode: a.mode ?? "in_person" }
                   : { hasTicket: false, attended: undefined },
               )
             }
@@ -176,15 +176,15 @@ function EditFields({
             ]}
           />
           {a.hasTicket ? (
-            <Segmented<TicketType>
+            <Segmented<AttendMode>
               label="Ticket type"
               size="sm"
               className="mt-1"
-              value={a.ticketType ?? "in_person"}
-              onChange={(v) => up({ ticketType: v })}
+              value={a.mode ?? "in_person"}
+              onChange={(v) => up({ mode: v })}
               options={[
                 { value: "in_person", label: "In person" },
-                { value: "stream", label: "Stream" },
+                { value: "virtual", label: "Virtual" },
               ]}
             />
           ) : (

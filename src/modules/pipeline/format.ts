@@ -35,7 +35,7 @@ export function nextStepText(text: string | null, day: string | null): string | 
 export const overdue = (day: string | null) => !!day && day < localDate();
 
 /** "Maria's step" / "Your step". */
-export const stepBy = (c: PipelineColumn) =>
+export const stepBy = (c: PipelineColumn<string>) =>
   c.ownerName === "You" ? "Your step" : `${c.ownerName ?? "A leader"}’s step`;
 
 /** Whole percent text. */

@@ -97,8 +97,8 @@ export function MyPlanCard({
             (mine.hasTicket ? (
               <div className="flex flex-wrap items-center gap-2 rounded-[10px] bg-surface-2 px-3 py-2.5 text-[13px]">
                 <Ticket className="size-4 text-info" aria-hidden="true" />
-                {mine.ticketType === "stream"
-                  ? "You have a stream ticket."
+                {mine.mode === "virtual"
+                  ? "You have a virtual ticket."
                   : "You have an in-person ticket."}
                 <Button
                   variant="link"
@@ -126,7 +126,7 @@ export function MyPlanCard({
                   onClick={() => {
                     up({
                       hasTicket: true,
-                      ticketType: mine.ticketType ?? "in_person",
+                      mode: mine.mode ?? "in_person",
                       desireToAttend: "yes",
                     });
                     toast.success("Ticket marked as bought");

@@ -168,28 +168,54 @@ function Trend({
   );
 }
 
-const KPI: { m: MilestoneCode; label: string; short: string }[] = [
-  { m: "contact", label: "Contacts made", short: "Contacts" },
-  { m: "first_meeting", label: "First meetings", short: "MG1s" },
-  { m: "first_plan", label: "First plans", short: "Plans" },
-  { m: "registered", label: "Registered", short: "Registered" },
-];
+export interface KpiItem {
+  m: string;
+  label: string;
+  short: string;
+  /** Read out after the label ("First meeting reached"). */
+  milestone: string;
+  /** The number the goal is about (outlined). */
+  highlight?: boolean;
+}
 
-function Kpis({ activity, month }: { activity: PipelineActivity; month: string }) {
+const KPI: KpiItem[] = (
+  [
+    { m: "contact", label: "Contacts made", short: "Contacts" },
+    { m: "first_meeting", label: "First meetings", short: "MG1s", highlight: true },
+    { m: "first_plan", label: "First plans", short: "Plans" },
+    { m: "registered", label: "Registered", short: "Registered" },
+  ] as const
+).map((k) => ({ ...k, milestone: MILESTONE_LABEL[k.m as MilestoneCode] }));
+
+/** This month's milestones reached, each against the previous month (both boards). */
+export function Kpis({
+  activity,
+  month,
+  items = KPI,
+}: {
+  activity:
+    | Pick<PipelineActivity, "counts" | "previous">
+    | {
+        counts: Record<string, number>;
+        previous: Record<string, number>;
+      };
+  month: string;
+  items?: KpiItem[];
+}) {
   const prev = monthName(shiftMonth(month, -1), "short");
+  const counts = activity.counts as Record<string, number>;
+  const previous = activity.previous as Record<string, number>;
   return (
     <div className="grid grid-cols-4 gap-1.5 sm:gap-2.5">
-      {KPI.map(({ m, label, short }) => {
-        const now = activity.counts[m];
-        const change = percentChange(now, activity.previous[m]);
+      {items.map(({ m, label, short, milestone, highlight }) => {
+        const now = counts[m] ?? 0;
+        const change = percentChange(now, previous[m] ?? 0);
         return (
           <div
             key={m}
             className={cn(
               "grid min-w-0 content-start gap-0.5 rounded-xl border bg-card px-2 py-2 sm:rounded-card sm:px-3.5 sm:py-3",
-              m === "first_meeting"
-                ? "border-sky shadow-[inset_0_0_0_1px_var(--color-sky)]"
-                : "border-line",
+              highlight ? "border-sky shadow-[inset_0_0_0_1px_var(--color-sky)]" : "border-line",
             )}
           >
             <b className="text-lg font-extrabold leading-tight tabular-nums sm:text-[22px] lg:text-2xl">
@@ -198,7 +224,7 @@ function Kpis({ activity, month }: { activity: PipelineActivity; month: string }
             <span className="truncate text-[10.5px] text-muted-foreground sm:text-[12px]">
               <span className="sm:hidden">{short}</span>
               <span className="hidden sm:inline">{label}</span>
-              <span className="sr-only"> ({MILESTONE_LABEL[m]} reached)</span>
+              <span className="sr-only"> ({milestone} reached)</span>
             </span>
             <em
               className={cn(

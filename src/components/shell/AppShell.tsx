@@ -3,11 +3,16 @@ import { useState, type ReactNode } from "react";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   Bell,
+  BookOpen,
   Briefcase,
+  CalendarDays,
   ChevronsUpDown,
+  Contact,
   FileBarChart,
   House,
   Info,
+  Library,
+  LockOpen,
   LogOut,
   Menu,
   MessageCircle,
@@ -18,7 +23,9 @@ import {
   Settings,
   ShieldCheck,
   Sun,
+  User,
   UserCircle,
+  Wallet,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -47,6 +54,7 @@ import {
   logout,
   openLog,
   roleLabel,
+  useActingFor,
   useCurrentUser,
   useEventsAttentionCount,
   useMe,
@@ -54,8 +62,18 @@ import {
   useUnreadInboxCount,
 } from "@/data";
 import { badgeText, useNavAccess } from "./access";
-import { BUSINESS_PATHS, MORE_PATHS, NAV_SECTIONS, inAny, type NavBadge } from "./nav";
+import {
+  BUSINESS_PATHS,
+  MORE_PATHS,
+  NAV_SECTIONS,
+  STARTER_NAV,
+  inAny,
+  underPath,
+  type NavBadge,
+  type NavItem,
+} from "./nav";
 import { ResetDemoDialog } from "./ResetDemoDialog";
+import { RouteGuard } from "./RouteGuard";
 import { LibraryPlayer } from "@/modules/library/player/LibraryPlayer";
 
 const THEME_ICON: Record<ThemePreference, typeof Sun> = { light: Sun, dark: Moon, auto: Monitor };
@@ -85,7 +103,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         id="main"
       >
         <ApprenticeNotice />
-        {children}
+        <RouteGuard>{children}</RouteGuard>
       </main>
       {/* Library player: one media element for the app, keeps playing across pages. */}
       <LibraryPlayer />
@@ -106,10 +124,15 @@ export function AppShell({ children }: { children: ReactNode }) {
 
 /** Live counts for the amber nav badges. */
 function useBadgeCounts(): Record<NavBadge, number> {
+  const { unlocks } = useNavAccess();
+  const chats = useUnreadChatsCount();
+  const inbox = useUnreadInboxCount();
+  const events = useEventsAttentionCount();
   return {
-    chats: useUnreadChatsCount(),
-    inbox: useUnreadInboxCount(),
-    events: useEventsAttentionCount(),
+    chats: unlocks.can.chats ? chats : 0,
+    inbox,
+    // Ticket and attendance follow-ups are event planning (3/10 and up).
+    events: unlocks.can.eventPlanning ? events : 0,
   };
 }
 
@@ -123,9 +146,24 @@ const BADGE_LABEL: Record<NavBadge, (n: number) => string> = {
 // Desktop sidebar
 // ---------------------------------------------------------------------------
 
+/** "IBO", "IBO · Maria's deputy · Admin": the line under the person's name. */
+function useRoleLine(): string {
+  const user = useCurrentUser();
+  const actingFor = useActingFor();
+  const parts = [roleLabel[user.role]];
+  if (actingFor.length)
+    parts.push(`${actingFor.map((p) => p.name.split(" ")[0]).join(" & ")}'s deputy`);
+  if (user.admin) parts.push("Admin");
+  return parts.join(" · ");
+}
+
 function Sidebar({ onReset }: { onReset: () => void }) {
   const counts = useBadgeCounts();
-  const { canChat, isCandidate } = useNavAccess();
+  const { unlocks, starter } = useNavAccess();
+  const shown = (i: NavItem) => unlocks.can[i.area];
+  const sections = starter
+    ? [{ label: undefined, labelTo: undefined, items: STARTER_NAV }]
+    : NAV_SECTIONS;
   const base =
     "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium text-sidebar-fg transition-colors hover:bg-sidebar-active hover:text-white focus-visible:outline-2 focus-visible:outline-ring";
   const label =
@@ -139,10 +177,8 @@ function Sidebar({ onReset }: { onReset: () => void }) {
         <Logo wordmark tagline />
       </Link>
       <div className="-mx-1 flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-1">
-        {NAV_SECTIONS.map((section, si) => {
-          const items = section.items.filter(
-            (i) => (!i.chatOnly || canChat) && (!i.hideForCandidate || !isCandidate),
-          );
+        {sections.map((section, si) => {
+          const items = section.items.filter(shown);
           return (
             <div key={si} className="grid gap-1" role="group" aria-label={section.label}>
               {section.label &&
@@ -187,6 +223,12 @@ function Sidebar({ onReset }: { onReset: () => void }) {
           );
         })}
       </div>
+      {unlocks.next && (
+        <p className="mx-0.5 my-1.5 flex items-start gap-2 rounded-[10px] bg-sidebar-active px-2.5 py-2 text-[11.5px] leading-snug text-sidebar-fg">
+          <LockOpen className="mt-px size-[15px] shrink-0 text-sky" aria-hidden="true" />
+          <span>{unlocks.next.text}</span>
+        </p>
+      )}
       <UserMenu onReset={onReset} />
     </nav>
   );
@@ -196,6 +238,7 @@ function UserMenu({ onReset }: { onReset: () => void }) {
   const user = useCurrentUser();
   const me = useMe();
   const navigate = useNavigate();
+  const roleLine = useRoleLine();
   const { preference, setPreference } = useTheme();
   return (
     <DropdownMenu>
@@ -212,7 +255,7 @@ function UserMenu({ onReset }: { onReset: () => void }) {
           />
           <span className="min-w-0 flex-1 leading-tight">
             <span className="block truncate font-semibold">{user.name}</span>
-            <span className="block text-[11px] text-sidebar-fg">{roleLabel[user.role]}</span>
+            <span className="block truncate text-[11px] text-sidebar-fg">{roleLine}</span>
           </span>
           <ChevronsUpDown className="size-3.5 text-sidebar-fg" aria-hidden="true" />
         </button>
@@ -281,10 +324,15 @@ function TabIcon({ icon: Icon, count = 0 }: { icon: LucideIcon; count?: number }
   );
 }
 
+/** Paths that light up the new apprentice's "Me" tab. */
+const ME_PATHS = ["/wallet", "/settings", "/learning", "/library", "/inbox", "/chats"];
+
 function TabBar({ onMore }: { onMore: () => void }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const counts = useBadgeCounts();
-  const { canChat } = useNavAccess();
+  const user = useCurrentUser();
+  const { unlocks, canChat, starter } = useNavAccess();
+  const meActive = inAny(pathname, ME_PATHS) || underPath(pathname, `/people/${user.personId}`);
   const businessActive = inAny(pathname, BUSINESS_PATHS);
   const moreActive = inAny(pathname, MORE_PATHS);
   const tab =
@@ -299,17 +347,32 @@ function TabBar({ onMore }: { onMore: () => void }) {
         <TabIcon icon={House} />
         Home
       </Link>
-      {canChat ? (
+      {starter ? (
+        <Link to="/customers" className={tab} activeProps={on}>
+          <TabIcon icon={Contact} />
+          Customers
+        </Link>
+      ) : canChat ? (
         <Link to="/chats" className={tab} activeProps={on}>
           <TabIcon icon={MessageCircle} count={counts.chats} />
           Chats
           {counts.chats > 0 && <span className="sr-only">, {BADGE_LABEL.chats(counts.chats)}</span>}
         </Link>
-      ) : (
+      ) : unlocks.can.inbox ? (
         <Link to="/inbox" className={tab} activeProps={on}>
           <TabIcon icon={Bell} count={counts.inbox} />
           Inbox
           {counts.inbox > 0 && <span className="sr-only">, {BADGE_LABEL.inbox(counts.inbox)}</span>}
+        </Link>
+      ) : unlocks.can.customers ? (
+        <Link to="/customers" className={tab} activeProps={on}>
+          <TabIcon icon={Contact} />
+          Customers
+        </Link>
+      ) : (
+        <Link to="/events" className={tab} activeProps={on}>
+          <TabIcon icon={CalendarDays} count={counts.events} />
+          Events
         </Link>
       )}
       <div className="grid justify-items-center">
@@ -322,22 +385,32 @@ function TabBar({ onMore }: { onMore: () => void }) {
           <Plus className="size-6" aria-hidden="true" />
         </button>
       </div>
-      <Link
-        to="/business"
-        className={cn(tab, businessActive && "text-primary")}
-        aria-current={businessActive ? "page" : undefined}
-      >
-        <TabIcon icon={Briefcase} />
-        My business
-      </Link>
+      {starter ? (
+        <Link to="/events" className={tab} activeProps={on}>
+          <TabIcon icon={CalendarDays} count={counts.events} />
+          Events
+          {counts.events > 0 && (
+            <span className="sr-only">, {BADGE_LABEL.events(counts.events)}</span>
+          )}
+        </Link>
+      ) : (
+        <Link
+          to="/business"
+          className={cn(tab, businessActive && "text-primary")}
+          aria-current={businessActive ? "page" : undefined}
+        >
+          <TabIcon icon={Briefcase} />
+          My business
+        </Link>
+      )}
       <button
         type="button"
         onClick={onMore}
-        className={cn(tab, moreActive && "text-primary")}
+        className={cn(tab, (starter ? meActive : moreActive) && "text-primary")}
         aria-haspopup="dialog"
       >
-        <TabIcon icon={Menu} />
-        More
+        <TabIcon icon={starter ? User : Menu} />
+        {starter ? "Me" : "More"}
       </button>
     </nav>
   );
@@ -354,7 +427,11 @@ function MoreSheet({
 }) {
   const user = useCurrentUser();
   const me = useMe();
-  const { canManageTeam } = useNavAccess();
+  const roleLine = useRoleLine();
+  const { unlocks, canManageTeam, canChat, starter } = useNavAccess();
+  const counts = useBadgeCounts();
+  // The inbox has its own tab unless Chats (or the starter tabs) take that place.
+  const inboxHere = unlocks.can.inbox && (canChat || starter);
   const close = () => onOpenChange(false);
   const row =
     "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-semibold hover:bg-surface-2";
@@ -370,14 +447,60 @@ function MoreSheet({
           <PersonAvatar name={user.name} stage={me?.bizClass ?? "ibo"} size="lg" />
           <div>
             <SheetTitle className="text-base font-extrabold">{user.name}</SheetTitle>
-            <SheetDescription className="text-xs">{roleLabel[user.role]}</SheetDescription>
+            <SheetDescription className="text-xs">{roleLine}</SheetDescription>
           </div>
         </SheetHeader>
         <div className="grid gap-0.5">
-          <Link to="/reports" onClick={close} className={row} activeProps={rowOn}>
-            <FileBarChart className={icon} aria-hidden="true" />
-            Reports
+          {starter && canChat && (
+            <Link to="/chats" onClick={close} className={row} activeProps={rowOn}>
+              <MessageCircle className={icon} aria-hidden="true" />
+              Chats
+              {counts.chats > 0 && (
+                <span
+                  className="ml-auto rounded-full bg-amber px-[7px] text-[11px] font-bold leading-[18px] text-on-amber"
+                  aria-label={BADGE_LABEL.chats(counts.chats)}
+                >
+                  {badgeText(counts.chats)}
+                </span>
+              )}
+            </Link>
+          )}
+          {inboxHere && (
+            <Link to="/inbox" onClick={close} className={row} activeProps={rowOn}>
+              <Bell className={icon} aria-hidden="true" />
+              Inbox
+              {counts.inbox > 0 && (
+                <span
+                  className="ml-auto rounded-full bg-amber px-[7px] text-[11px] font-bold leading-[18px] text-on-amber"
+                  aria-label={BADGE_LABEL.inbox(counts.inbox)}
+                >
+                  {badgeText(counts.inbox)}
+                </span>
+              )}
+            </Link>
+          )}
+          <Link to="/learning" onClick={close} className={row} activeProps={rowOn}>
+            <BookOpen className={icon} aria-hidden="true" />
+            Learning
           </Link>
+          {unlocks.can.library && (
+            <Link to="/library" onClick={close} className={row} activeProps={rowOn}>
+              <Library className={icon} aria-hidden="true" />
+              Library
+            </Link>
+          )}
+          {starter && (
+            <Link to="/wallet" onClick={close} className={row} activeProps={rowOn}>
+              <Wallet className={icon} aria-hidden="true" />
+              Wallet
+            </Link>
+          )}
+          {unlocks.can.reports && (
+            <Link to="/reports" onClick={close} className={row} activeProps={rowOn}>
+              <FileBarChart className={icon} aria-hidden="true" />
+              Reports
+            </Link>
+          )}
           <Link
             to="/settings"
             activeOptions={{ exact: true }}
@@ -399,6 +522,12 @@ function MoreSheet({
             My profile
           </Link>
         </div>
+        {unlocks.next && (
+          <p className="mx-1 mt-3 flex items-start gap-2 rounded-[10px] bg-primary-soft px-3 py-2.5 text-[12.5px] text-primary-ink">
+            <LockOpen className="mt-px size-4 shrink-0" aria-hidden="true" />
+            <span>{unlocks.next.text}</span>
+          </p>
+        )}
         <div className="my-3 border-t border-line" />
         <div className="grid gap-2 px-1">
           <span className="text-xs font-semibold text-muted-foreground">Theme</span>

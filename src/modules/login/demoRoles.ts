@@ -26,6 +26,9 @@ const DEV_EMAIL: Record<string, string> = {
   "2": "anita@levelup.test",
   "4": "jamal@levelup.test",
   "20": "beau@levelup.test",
+  "700": "tasha@levelup.test",
+  "6": "marcus@levelup.test",
+  "800": "admin@levelup.test",
 };
 
 export const DEV_PASSWORD: string = import.meta.env.DEV ? "levelup-local" : "";

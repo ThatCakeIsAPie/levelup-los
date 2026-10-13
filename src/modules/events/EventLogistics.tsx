@@ -253,7 +253,7 @@ function TravelForm({
       updateAttendance(
         a.id,
         hasTicket
-          ? { hasTicket: true, ticketType: a.ticketType ?? "in_person" }
+          ? { hasTicket: true, mode: a.mode ?? "in_person" }
           : { hasTicket: false, plannedPurchaseDate: planDate || undefined, attended: undefined },
       );
     }

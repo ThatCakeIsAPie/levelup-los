@@ -33,36 +33,45 @@ import {
   useBlockedIds,
   useChatAccess,
   useChatPeople,
+  useFeature,
+  useUnlocks,
   useReports,
   useWorkspaceMembers,
   workspaceRoleLabel,
   type ReportView,
 } from "@/data";
 import { shortAgo } from "./format";
+import {
+  ActingForBadge,
+  DeputiesCard,
+  FeatureSwitchesCard,
+} from "@/modules/settings/TeamSettingsCards";
 
 /**
- * /settings/team: leaders designate moderators and work the report queue;
- * leaders and moderators approve announcement drafts; everyone manages the
- * people they blocked.
+ * /settings/team: leaders and their deputies switch features on for the team;
+ * leaders name deputies. With Chats on: leaders designate moderators and work
+ * the report queue; leaders and moderators approve announcement drafts;
+ * everyone manages the people they blocked.
  */
 export function TeamSettings() {
   const access = useChatAccess();
-  if (!access.eligible) {
-    return (
-      <Page>
-        <EmptyState
-          title="Team settings are for chat members"
-          body="Apprentices, IBOs and leaders manage chats, moderators and reports here."
-        />
-      </Page>
-    );
-  }
+  const chats = useFeature("chats");
+  const { can } = useUnlocks();
+  const chatParts = chats && access.eligible;
   return (
     <Page>
-      {access.isLeader && <Reports />}
-      {access.canReview && <Drafts />}
-      <MembersCard canEdit={access.isLeader} />
-      <Blocked />
+      {can.teamSettings && <FeatureSwitchesCard />}
+      {can.teamSettings && <DeputiesCard />}
+      {chatParts && access.isLeader && <Reports />}
+      {chatParts && access.canReview && <Drafts />}
+      {chatParts && <MembersCard canEdit={access.isLeader} />}
+      {chatParts && <Blocked />}
+      {!can.teamSettings && !chatParts && (
+        <EmptyState
+          title="Nothing to set here yet"
+          body="Your team's leader and their deputies manage the team's features here."
+        />
+      )}
     </Page>
   );
 }
@@ -72,9 +81,10 @@ function Page({ children }: { children: React.ReactNode }) {
     <div className="mx-auto grid w-full max-w-3xl content-start gap-4 px-4 py-5 lg:px-[26px] lg:py-[22px]">
       <PageHeader
         title="Team settings"
-        subtitle="Moderators, announcement approvals, reports and blocked people"
+        subtitle="Features for the team, deputies and, with chats on, moderators and reports"
         back={{ to: "/settings", label: "Settings" }}
         logButton={false}
+        actions={<ActingForBadge />}
       />
       {children}
     </div>

@@ -91,6 +91,9 @@ function reachesFor(moves: PipelineMove[]): Reach[] {
 
 const firstName = (name: string): string => name.split(" ")[0] ?? name;
 
+/** Real accounts: the signed-in person's sponsor line (root first); [] in the demo. */
+export const usePipelineUplines = useUplines;
+
 /** Who may use the pipeline: everyone but candidates. */
 export function usePipelineAccess(): { enabled: boolean; personId: string | null } {
   const viewer = useViewer();
@@ -194,6 +197,7 @@ function useNamer(): (id: string | undefined) => string {
 // ---------------------------------------------------------------------------
 
 export interface BoardCard {
+  /** The card's id: a prospect's person id (on the customer board, a list entry id). */
   personId: string;
   name: string;
   ownerId: string;
@@ -210,18 +214,24 @@ export interface BoardCard {
   nextStepDate: string | null;
   source: string | null;
   enteredAt: string;
+  /** Customer board: a warm name on the list. */
+  warm?: boolean;
+  /** Customer board: still on the list (not contacted yet), so no age. */
+  listed?: boolean;
+  /** Customer board: an outcome (Not interested, Do not contact), shown dimmed. */
+  dim?: boolean;
 }
 
-export interface BoardColumn {
-  column: PipelineColumn;
+export interface BoardColumn<B extends string = MilestoneCode> {
+  column: PipelineColumn<B>;
   cards: BoardCard[];
   /** Milestones: reached in the chosen month. */
   reached: number | null;
 }
 
-export interface BoardBand {
-  milestone: MilestoneCode;
-  columns: BoardColumn[];
+export interface BoardBand<B extends string = MilestoneCode> {
+  milestone: B;
+  columns: BoardColumn<B>[];
   /** Cards in the band now (Registered: registered in the month). */
   count: number;
 }
@@ -235,9 +245,10 @@ export interface RegisteredCard {
   day: string;
 }
 
-export interface PipelineBoard {
-  columns: PipelineColumn[];
-  bands: BoardBand[];
+export interface PipelineBoard<B extends string = MilestoneCode> {
+  columns: PipelineColumn<B>[];
+  bands: BoardBand<B>[];
+  /** Recruiting: the month's registrations (the customer board has none). */
   registered: { cards: RegisteredCard[]; total: number };
   inProgress: number;
 }

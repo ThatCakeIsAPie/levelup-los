@@ -45,12 +45,15 @@ export const MILESTONE_COLUMN_LABEL: Record<MilestoneCode, string> = {
   registered: "Registered",
 };
 
-/** `pipeline_steps`: a leader-defined step between two milestones. */
-export interface PipelineStep {
+/**
+ * `pipeline_steps` (and `customer_steps` on the customer board): a
+ * leader-defined step between two milestones.
+ */
+export interface PipelineStep<B extends string = StepBand> {
   id: string;
   /** The leader who defined it; their whole downline inherits it. */
   ownerId: string;
-  band: StepBand;
+  band: B;
   label: string;
   /** Order among the owner's own steps in this band (ascending). */
   position: number;
@@ -159,11 +162,14 @@ export const STALE_DAYS = 14;
 export const MIN_SAMPLE = 10;
 
 /** One column of the board as a given person sees it. */
-export interface PipelineColumn {
+export interface PipelineColumn<B extends string = MilestoneCode> {
   id: string;
-  band: MilestoneCode;
-  kind: "milestone" | "step";
+  band: B;
+  /** "fixed": a start or outcome column of the customer board (not a milestone, not a step). */
+  kind: "milestone" | "step" | "fixed";
   label: string;
+  /** Fixed columns: a short line under the name ("From your list"). */
+  hint?: string;
   /** Steps: the leader who defined it. */
   ownerId?: string;
   /** Steps: their first name ("Maria"), "You" for your own (filled by the hooks). */
@@ -182,3 +188,57 @@ export type RateTone = "good" | "warn" | "bad";
 
 /** Whose board: everyone you see, your own prospects, or one downline leader's team. */
 export type PipelineScope = "team" | "mine" | `leader:${string}`;
+
+// ---------------------------------------------------------------------------
+// Board layouts (the recruiting board, and the customer board in
+// src/data/customerPipeline): the same board UI and rules, different bands.
+// ---------------------------------------------------------------------------
+
+export type BoardKind = "recruiting" | "customer";
+
+/** One band of a board, in board order. */
+export interface BoardBandDef<B extends string = string> {
+  id: B;
+  /**
+   * "milestone": a fixed milestone column plus the leader steps after it.
+   * "start" / "outcome": fixed columns before the first milestone or after
+   * the last (the customer board's "Not contacted yet", "Do not contact").
+   */
+  kind: "start" | "milestone" | "outcome";
+  label: string;
+}
+
+/** A fixed start or outcome column. */
+export interface FixedColumnDef<B extends string = string> {
+  id: string;
+  band: B;
+  label: string;
+  hint: string;
+}
+
+export interface BoardDef<B extends string = MilestoneCode> {
+  kind: BoardKind;
+  /** Every band, in board order. */
+  bands: readonly BoardBandDef<B>[];
+  /** The milestones, in order (what counts as "reached"). */
+  milestones: readonly B[];
+  /** Bands that can hold leader steps. */
+  stepBands: readonly B[];
+  /** Column header of each milestone. */
+  milestoneColumnLabel: Partial<Record<B, string>>;
+  /** Start and outcome columns. */
+  fixed: readonly FixedColumnDef<B>[];
+  /** Names a step can't take (milestones and fixed columns). */
+  reserved: readonly string[];
+}
+
+/** The recruiting board: four milestones, steps after the first three. */
+export const RECRUITING_BOARD: BoardDef<MilestoneCode> = {
+  kind: "recruiting",
+  bands: MILESTONES.map((m) => ({ id: m, kind: "milestone" as const, label: MILESTONE_LABEL[m] })),
+  milestones: MILESTONES,
+  stepBands: STEP_BANDS,
+  milestoneColumnLabel: MILESTONE_COLUMN_LABEL,
+  fixed: [],
+  reserved: Object.values(MILESTONE_LABEL),
+};

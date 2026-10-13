@@ -118,10 +118,10 @@ afterAll(async () => {
 });
 
 describe("loading what each person may see", () => {
-  it("Jamal loads himself, his downline and his own customer: 19 people", async () => {
+  it("Jamal loads himself, his downline and his own customer: 20 people", async () => {
     const snap = await fetchSnapshot(await login("jamal"), "4");
     const ids = new Set(snap.crm.people.map((p) => p.id));
-    expect(snap.crm.people).toHaveLength(19);
+    expect(snap.crm.people).toHaveLength(20);
     expect(ids.has("4")).toBe(true);
     expect(ids.has("1")).toBe(false); // not his upline
     const customers = snap.crm.people.filter((p) => p.bizClass === "customer");
@@ -145,7 +145,7 @@ describe("loading what each person may see", () => {
   it("signing in fills the stores before the app is ready", async () => {
     await signInApp("jamal");
     expect(useRemoteStore.getState().phase).toBe("ready");
-    expect(usePeopleStore.getState().people).toHaveLength(19);
+    expect(usePeopleStore.getState().people).toHaveLength(20);
     expect(getPerson("4")?.name).toBe("Jamal Brown");
     expect(useChatStore.getState().conversations.length).toBe(6);
   });
@@ -163,7 +163,11 @@ describe("write-through", () => {
         .eq("id", "9"),
     );
 
-    const ev = addEvent({ name: `IT meeting ${stamp}`, type: "team_meeting", date: "2026-12-01" });
+    const ev = addEvent({
+      name: `IT meeting ${stamp}`,
+      type: "monthly_meeting",
+      date: "2026-12-01",
+    });
     // The timeline is append-only for people; only the service role clears it.
     const admin = adminClient();
     cleanup.push(

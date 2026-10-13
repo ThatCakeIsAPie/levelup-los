@@ -1,19 +1,21 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { format } from "date-fns";
 import { useNavigate } from "@tanstack/react-router";
-import { CalendarClock, ClockAlert, Flag, GripVertical, MoreHorizontal } from "lucide-react";
+import { CalendarClock, ClockAlert, Flag, GripVertical, MoreHorizontal, X } from "lucide-react";
 import { PersonAvatar, useIsDesktop } from "@/components/brand";
 import { cn } from "@/lib/utils";
 import {
-  MILESTONE_LABEL,
+  RECRUITING_BOARD,
   monthName,
   monthOf,
   localDate,
   type BoardBand,
   type BoardCard,
   type BoardColumn,
-  type MilestoneCode,
+  type BoardDef,
   type PipelineBoard,
+  type PipelineColumn,
   type RegisteredCard,
 } from "@/data";
 import { CardSheet } from "./CardSheet";
@@ -27,17 +29,62 @@ const SHOW = 5;
 /** Menus render in a portal, but React events still bubble to the card: stop them here. */
 const stop = (e: React.SyntheticEvent) => e.stopPropagation();
 
-/**
- * The board: four bands (one per milestone), each with its milestone column
- * and the leader steps after it. Desktop: bands side by side, scrolling
- * sideways when wider than the screen; drag a card (or use its "Move to…"
- * menu). Phones: one full column at a time with the next one peeking in;
- * hold a card to drag it, or tap the grip for "Move to…".
- */
+/** The recruiting board (prospects, with the Register confirmation and the card sheet). */
 export function Board({ board, month }: { board: PipelineBoard; month: string }) {
+  const { move, dialog } = useMoveCard(board.columns);
+  return (
+    <BoardView
+      board={board as unknown as PipelineBoard<string>}
+      month={month}
+      def={RECRUITING_BOARD as BoardDef<string>}
+      move={move}
+      sheet={({ card, open, onOpenChange }) => (
+        <CardSheet
+          card={card}
+          columns={board.columns}
+          open={open}
+          onOpenChange={onOpenChange}
+          onMove={move}
+        />
+      )}
+    >
+      {dialog}
+    </BoardView>
+  );
+}
+
+/**
+ * A board (the recruiting pipeline, or the customer pipeline with
+ * CUSTOMER_BOARD): its bands side by side, each with its milestone column and
+ * the leader steps after it (the customer board adds fixed start and outcome
+ * columns). Desktop: bands side by side, scrolling sideways when wider than
+ * the screen; drag a card (or use its "Move to…" menu). Phones: one full
+ * column at a time with the next one peeking in; hold a card to drag it, or
+ * tap the grip for "Move to…".
+ */
+export function BoardView({
+  board,
+  month,
+  def,
+  move,
+  sheet,
+  children,
+}: {
+  board: PipelineBoard<string>;
+  month: string;
+  def: BoardDef<string>;
+  move: (id: string, name: string, to: string) => void;
+  /** The card details sheet (opened by a tap on a card). */
+  sheet: (p: {
+    card: BoardCard | null;
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+  }) => ReactNode;
+  /** Dialogs the mover needs (rendered once). */
+  children?: ReactNode;
+}) {
   const desktop = useIsDesktop();
   const scroller = useRef<HTMLDivElement>(null);
-  const { move, dialog } = useMoveCard(board.columns);
   const [openId, setOpenId] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const cards = useMemo(() => {
@@ -60,19 +107,19 @@ export function Board({ board, month }: { board: PipelineBoard; month: string })
     setOpenId(personId);
     setSheetOpen(true);
   };
-  const ctx: CardCtx = { columns: board.columns, drag, start, open, move };
+  const ctx: CardCtx = { columns: board.columns, def, drag, start, open, move };
   const isThisMonth = monthOf(localDate()) === month;
+  const label = def.kind === "customer" ? "Customer pipeline board" : "Pipeline board";
 
   return (
     <>
       {desktop ? (
-        <div ref={scroller} className="overflow-x-auto pb-2" aria-label="Pipeline board">
+        <div ref={scroller} className="overflow-x-auto pb-2" aria-label={label}>
           <div className="flex w-max items-start gap-3.5">
-            {board.bands.map((band, i) => (
+            {board.bands.map((band) => (
               <DesktopBand
                 key={band.milestone}
                 band={band}
-                index={i}
                 month={month}
                 isThisMonth={isThisMonth}
                 registered={board.registered}
@@ -88,7 +135,7 @@ export function Board({ board, month }: { board: PipelineBoard; month: string })
           </p>
           <div
             ref={scroller}
-            aria-label="Pipeline board"
+            aria-label={label}
             className="-mx-4 flex snap-x snap-mandatory scroll-px-4 items-start gap-2.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
             {board.bands.flatMap((band) =>
@@ -108,27 +155,35 @@ export function Board({ board, month }: { board: PipelineBoard; month: string })
         </div>
       )}
       {drag && <DragGhost drag={drag} />}
-      <CardSheet
-        card={openId ? (cards.get(openId) ?? null) : null}
-        columns={board.columns}
-        open={sheetOpen && !!openId && cards.has(openId)}
-        onOpenChange={setSheetOpen}
-        onMove={move}
-      />
-      {dialog}
+      {sheet({
+        card: openId ? (cards.get(openId) ?? null) : null,
+        open: sheetOpen && !!openId && cards.has(openId),
+        onOpenChange: setSheetOpen,
+      })}
+      {children}
     </>
   );
 }
 
 interface CardCtx {
-  columns: PipelineBoard["columns"];
+  columns: PipelineColumn<string>[];
+  def: BoardDef<string>;
   drag: DragInfo | null;
   start: ReturnType<typeof useBoardDrag>["start"];
   open: (personId: string) => void;
   move: (personId: string, name: string, to: string) => void;
 }
 
-function reachedText(m: MilestoneCode, n: number, month: string, isThisMonth: boolean) {
+const bandDef = (def: BoardDef<string>, id: string) => def.bands.find((b) => b.id === id);
+const bandLabel = (def: BoardDef<string>, id: string) => bandDef(def, id)?.label ?? id;
+/** The recruiting board's Registered column lists the month's registrations, not cards. */
+const isRegisteredList = (def: BoardDef<string>, c: PipelineColumn<string>) =>
+  def.kind === "recruiting" && c.id === "registered";
+/** The last milestone (Registered, On Ditto) gets a green count. */
+const isWon = (def: BoardDef<string>, c: PipelineColumn<string>) =>
+  c.kind === "milestone" && c.id === def.milestones[def.milestones.length - 1];
+
+function reachedText(m: string, n: number, month: string, isThisMonth: boolean) {
   const when = isThisMonth ? "this month" : `in ${monthName(month, "short")}`;
   if (m === "first_meeting") return `${n} held ${when}`;
   if (m === "registered") return when;
@@ -139,36 +194,63 @@ function reachedText(m: MilestoneCode, n: number, month: string, isThisMonth: bo
 // Desktop
 // ---------------------------------------------------------------------------
 
+function BandBadge({ def, band }: { def: BoardDef<string>; band: string }) {
+  const b = bandDef(def, band);
+  const milestones = def.bands.filter((x) => x.kind === "milestone");
+  return (
+    <span
+      className={cn(
+        "grid size-5 place-items-center rounded-md text-[11px] font-extrabold",
+        b?.kind === "milestone" ? "bg-foreground text-background" : "bg-surface-2 text-faint",
+      )}
+      aria-hidden="true"
+    >
+      {b?.kind === "milestone" ? (
+        milestones.findIndex((x) => x.id === band) + 1
+      ) : b?.kind === "outcome" ? (
+        <X className="size-3" />
+      ) : (
+        "·"
+      )}
+    </span>
+  );
+}
+
 function DesktopBand({
   band,
-  index,
   month,
   isThisMonth,
   registered,
   ctx,
 }: {
-  band: BoardBand;
-  index: number;
+  band: BoardBand<string>;
   month: string;
   isThisMonth: boolean;
-  registered: PipelineBoard["registered"];
+  registered: PipelineBoard<string>["registered"];
   ctx: CardCtx;
 }) {
   const m = band.milestone;
+  const kind = bandDef(ctx.def, m)?.kind;
+  const regList = band.columns.some((c) => isRegisteredList(ctx.def, c.column));
   return (
-    <section className="grid gap-2" aria-label={`${MILESTONE_LABEL[m]} band`}>
+    <section className="grid gap-2" aria-label={`${bandLabel(ctx.def, m)} band`}>
       <header className="flex items-center gap-2 px-0.5 text-[12.5px]">
-        <span className="grid size-5 place-items-center rounded-md bg-foreground text-[11px] font-extrabold text-background">
-          {index + 1}
-        </span>
-        <b>{MILESTONE_LABEL[m]}</b>
+        <BandBadge def={ctx.def} band={m} />
+        <b>{bandLabel(ctx.def, m)}</b>
         <span className="text-[11.5px] text-muted-foreground">
-          {m === "registered"
+          {regList
             ? `${band.count} ${isThisMonth ? "this month" : `in ${monthName(month, "short")}`}`
-            : `${band.count} in this band`}
+            : kind === "milestone"
+              ? `${band.count} in this band`
+              : band.count}
         </span>
       </header>
-      <div className="flex items-start gap-2 rounded-2xl bg-surface-2 p-2">
+      <div
+        className={cn(
+          "flex items-start gap-2 rounded-2xl p-2",
+          kind === "outcome" ? "border border-dashed border-line" : "bg-surface-2",
+        )}
+      >
         {band.columns.map((col) => (
           <DesktopColumn
             key={col.column.id}
@@ -189,14 +271,17 @@ function ColumnHead({
   count,
   month,
   isThisMonth,
+  def,
 }: {
-  col: BoardColumn;
+  col: BoardColumn<string>;
   count: number;
   month: string;
   isThisMonth: boolean;
+  def: BoardDef<string>;
 }) {
   const c = col.column;
-  const won = c.id === "registered";
+  const won = isWon(def, c);
+  const regList = isRegisteredList(def, c);
   return (
     <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-0.5 px-0.5 pb-1 pt-0.5">
       <b className="truncate text-[13px]" title={c.label}>
@@ -210,12 +295,12 @@ function ColumnHead({
       >
         {count}
       </span>
-      {col.reached !== null && c.id !== "registered" && (
+      {col.reached !== null && !regList && (
         <span className="col-span-2 text-[11px] text-muted-foreground">
           {reachedText(c.band, col.reached, month, isThisMonth)}
         </span>
       )}
-      {won && (
+      {regList && (
         <span className="col-span-2 text-[11px] text-muted-foreground">
           {isThisMonth ? "this month" : `in ${monthName(month)}`}
         </span>
@@ -224,6 +309,8 @@ function ColumnHead({
         <span className="col-span-2 inline-flex items-center gap-1 text-[10.5px] font-bold">
           <Flag className="size-3 text-amber-strong" aria-hidden="true" /> Milestone
         </span>
+      ) : c.kind === "fixed" ? (
+        <span className="col-span-2 text-[10.5px] font-semibold text-faint">{c.hint}</span>
       ) : (
         <span className="col-span-2 text-[10.5px] font-semibold text-faint">{stepBy(c)}</span>
       )}
@@ -238,15 +325,15 @@ function DesktopColumn({
   registered,
   ctx,
 }: {
-  col: BoardColumn;
+  col: BoardColumn<string>;
   month: string;
   isThisMonth: boolean;
-  registered: PipelineBoard["registered"];
+  registered: PipelineBoard<string>["registered"];
   ctx: CardCtx;
 }) {
   const [all, setAll] = useState(false);
   const c = col.column;
-  const isReg = c.id === "registered";
+  const isReg = isRegisteredList(ctx.def, c);
   const over = ctx.drag?.over === c.id && ctx.drag.from !== c.id;
   const list = isReg ? [] : col.cards;
   const shown = all ? list : list.slice(0, SHOW);
@@ -265,6 +352,7 @@ function DesktopColumn({
         count={isReg ? registered.total : list.length}
         month={month}
         isThisMonth={isThisMonth}
+        def={ctx.def}
       />
       {isReg ? (
         <RegisteredList registered={registered} />
@@ -308,6 +396,23 @@ function OwnerTag({ card }: { card: { ownerName: string; ownerStage?: BoardCard[
   );
 }
 
+/** "Hot" / "Warm" chips. */
+function Heat({ card }: { card: BoardCard }) {
+  if (card.hot)
+    return (
+      <span className="rounded-full bg-bad-soft px-1.5 text-[10px] font-extrabold text-bad">
+        Hot
+      </span>
+    );
+  if (card.warm)
+    return (
+      <span className="rounded-full bg-warn-soft px-1.5 text-[10px] font-extrabold text-warn-ink">
+        Warm
+      </span>
+    );
+  return null;
+}
+
 function DesktopCard({ card, ctx }: { card: BoardCard; ctx: CardCtx }) {
   const dragging = ctx.drag?.personId === card.personId;
   const next = nextStepText(card.nextStep, card.nextStepDate);
@@ -318,6 +423,7 @@ function DesktopCard({ card, ctx }: { card: BoardCard; ctx: CardCtx }) {
       className={cn(
         "group relative grid min-w-0 cursor-grab touch-manipulation select-none gap-1.5 rounded-[10px] border bg-surface px-2.5 py-2 text-xs transition-colors hover:border-primary/40 [-webkit-touch-callout:none]",
         card.stale ? "border-amber" : "border-line",
+        card.dim && "opacity-70",
         dragging && "opacity-40",
       )}
     >
@@ -332,15 +438,17 @@ function DesktopCard({ card, ctx }: { card: BoardCard; ctx: CardCtx }) {
         >
           {card.name}
         </button>
-        <span className="whitespace-nowrap text-[10.5px] text-faint">{ageShort(card.days)}</span>
+        <span className="whitespace-nowrap text-[10.5px] text-faint">
+          {card.listed
+            ? "list"
+            : card.dim
+              ? format(new Date(card.enteredAt), "MMM d")
+              : ageShort(card.days)}
+        </span>
       </div>
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
         <OwnerTag card={card} />
-        {card.hot && (
-          <span className="rounded-full bg-bad-soft px-1.5 text-[10px] font-extrabold text-bad">
-            Hot
-          </span>
-        )}
+        <Heat card={card} />
         {card.source && <span className="truncate">{card.source}</span>}
       </div>
       {card.elsewhere && (
@@ -369,6 +477,7 @@ function DesktopCard({ card, ctx }: { card: BoardCard; ctx: CardCtx }) {
       <span data-no-drag className="absolute right-1 top-1" onClick={stop} onPointerDown={stop}>
         <MoveMenu
           columns={ctx.columns}
+          bands={ctx.def.bands}
           current={card.column}
           onMove={(to) => ctx.move(card.personId, card.name, to)}
         >
@@ -386,7 +495,7 @@ function DesktopCard({ card, ctx }: { card: BoardCard; ctx: CardCtx }) {
   );
 }
 
-function RegisteredList({ registered }: { registered: PipelineBoard["registered"] }) {
+function RegisteredList({ registered }: { registered: PipelineBoard<string>["registered"] }) {
   const navigate = useNavigate();
   const [all, setAll] = useState(false);
   const shown = all ? registered.cards : registered.cards.slice(0, SHOW);
@@ -456,16 +565,16 @@ function PhoneColumn({
   registered,
   ctx,
 }: {
-  band: MilestoneCode;
-  col: BoardColumn;
+  band: string;
+  col: BoardColumn<string>;
   month: string;
   isThisMonth: boolean;
-  registered: PipelineBoard["registered"];
+  registered: PipelineBoard<string>["registered"];
   ctx: CardCtx;
 }) {
   const navigate = useNavigate();
   const c = col.column;
-  const isReg = c.id === "registered";
+  const isReg = isRegisteredList(ctx.def, c);
   const over = ctx.drag?.over === c.id && ctx.drag.from !== c.id;
   const count = isReg ? registered.total : col.cards.length;
   return (
@@ -478,7 +587,7 @@ function PhoneColumn({
       )}
     >
       <div className="text-[10px] font-extrabold uppercase tracking-[.08em] text-faint">
-        {MILESTONE_LABEL[band]}
+        {bandLabel(ctx.def, band)}
       </div>
       <div className="flex items-center gap-1.5 pb-1 pt-0.5 text-sm">
         {c.kind === "milestone" && (
@@ -488,7 +597,7 @@ function PhoneColumn({
         <span
           className={cn(
             "ml-auto rounded-full px-2 text-xs font-extrabold leading-5 tabular-nums",
-            isReg ? "bg-good-soft text-good" : "bg-surface-2",
+            isWon(ctx.def, c) ? "bg-good-soft text-good" : "bg-surface-2",
           )}
         >
           {count}
@@ -497,9 +606,11 @@ function PhoneColumn({
       <div className="pb-1.5 text-[11px] text-muted-foreground">
         {c.kind === "step"
           ? stepBy(c)
-          : col.reached !== null
-            ? reachedText(c.band, col.reached, month, isThisMonth)
-            : ""}
+          : c.kind === "fixed"
+            ? c.hint
+            : col.reached !== null
+              ? reachedText(c.band, col.reached, month, isThisMonth)
+              : ""}
       </div>
       {isReg ? (
         registered.cards.map((r) => (
@@ -542,7 +653,11 @@ function PhoneColumn({
 function PhoneRow({ card, ctx }: { card: BoardCard; ctx: CardCtx }) {
   const dragging = ctx.drag?.personId === card.personId;
   const next = nextStepText(card.nextStep, card.nextStepDate);
-  const sub = [card.ownerName ? `${card.ownerName}'s` : "", ageLong(card.days)];
+  const sub = [
+    card.ownerName ? `${card.ownerName}'s` : "",
+    card.listed ? (card.source ?? "") : ageLong(card.days),
+  ];
+  if (!card.listed && card.source && ctx.def.kind === "customer") sub.push(card.source);
   if (!card.stale && next) sub.push(next.charAt(0).toLowerCase() + next.slice(1));
   return (
     <div
@@ -551,6 +666,7 @@ function PhoneRow({ card, ctx }: { card: BoardCard; ctx: CardCtx }) {
       onContextMenu={(e) => e.preventDefault()}
       className={cn(
         "grid select-none grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-2.5 border-t border-line py-2 text-[12.5px] [-webkit-touch-callout:none] first-of-type:border-t-0",
+        card.dim && "opacity-70",
         dragging && "opacity-40",
       )}
     >
@@ -567,11 +683,7 @@ function PhoneRow({ card, ctx }: { card: BoardCard; ctx: CardCtx }) {
           >
             {card.name}
           </button>
-          {card.hot && (
-            <span className="rounded-full bg-bad-soft px-1.5 text-[10px] font-extrabold text-bad">
-              Hot
-            </span>
-          )}
+          <Heat card={card} />
         </div>
         <div
           className={cn(
@@ -587,6 +699,7 @@ function PhoneRow({ card, ctx }: { card: BoardCard; ctx: CardCtx }) {
       <span data-no-drag onClick={stop} onPointerDown={stop}>
         <MoveMenu
           columns={ctx.columns}
+          bands={ctx.def.bands}
           current={card.column}
           onMove={(to) => ctx.move(card.personId, card.name, to)}
         >

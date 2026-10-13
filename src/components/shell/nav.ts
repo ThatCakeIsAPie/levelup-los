@@ -1,5 +1,7 @@
+import type { UnlockArea } from "@/data/unlocks";
 import {
   Bell,
+  BookOpen,
   CalendarDays,
   Contact,
   FileBarChart,
@@ -20,6 +22,7 @@ export type NavPath =
   | "/chats"
   | "/inbox"
   | "/library"
+  | "/learning"
   | "/business"
   | "/pipeline"
   | "/people"
@@ -41,10 +44,8 @@ export interface NavItem {
   /** Only active on an exact match (Home). */
   exact?: boolean;
   badge?: NavBadge;
-  /** Hidden for people who can't chat (candidates and prospects). */
-  chatOnly?: boolean;
-  /** Hidden for candidates (they have no customers or campaigns yet). */
-  hideForCandidate?: boolean;
+  /** Shown only when this area is unlocked for the person (src/data/unlocks.ts). */
+  area: UnlockArea;
 }
 
 export interface NavSection {
@@ -55,36 +56,57 @@ export interface NavSection {
   items: NavItem[];
 }
 
-/** Desktop sidebar, grouped like the phone tabs (see docs/design/chats-mockup.html). */
+/**
+ * Desktop sidebar, grouped like the phone tabs (see docs/design/chats-mockup.html).
+ * Items show only when their area is unlocked; Chats, Library and Campaigns
+ * also follow the team's feature switches.
+ */
 export const NAV_SECTIONS: NavSection[] = [
   {
     items: [
-      { to: "/", label: "Home", icon: LayoutDashboard, exact: true },
-      { to: "/chats", label: "Chats", icon: MessageCircle, badge: "chats", chatOnly: true },
-      { to: "/inbox", label: "Inbox", icon: Bell, badge: "inbox" },
-      { to: "/library", label: "Library", icon: Library },
+      { to: "/", label: "Home", icon: LayoutDashboard, exact: true, area: "home" },
+      { to: "/chats", label: "Chats", icon: MessageCircle, badge: "chats", area: "chats" },
+      { to: "/inbox", label: "Inbox", icon: Bell, badge: "inbox", area: "inbox" },
+      { to: "/learning", label: "Learning", icon: BookOpen, area: "learning" },
+      { to: "/library", label: "Library", icon: Library, area: "library" },
     ],
   },
   {
     label: "My business",
     labelTo: "/business",
     items: [
-      { to: "/mindmap", label: "Team", icon: Network },
-      { to: "/pipeline", label: "Pipeline", icon: Kanban, hideForCandidate: true },
-      { to: "/people", label: "People", icon: Users },
-      { to: "/customers", label: "Customers", icon: Contact, hideForCandidate: true },
-      { to: "/events", label: "Events", icon: CalendarDays, badge: "events" },
-      { to: "/wallet", label: "Wallet", icon: Wallet },
-      { to: "/campaigns", label: "Campaigns", icon: Megaphone, hideForCandidate: true },
+      { to: "/mindmap", label: "Team", icon: Network, area: "team" },
+      { to: "/pipeline", label: "Pipeline", icon: Kanban, area: "pipeline" },
+      { to: "/people", label: "People", icon: Users, area: "people" },
+      { to: "/customers", label: "Customers", icon: Contact, area: "customers" },
+      { to: "/events", label: "Events", icon: CalendarDays, badge: "events", area: "events" },
+      { to: "/wallet", label: "Wallet", icon: Wallet, area: "wallet" },
+      { to: "/campaigns", label: "Campaigns", icon: Megaphone, area: "campaigns" },
     ],
   },
   {
     label: "More",
     items: [
-      { to: "/reports", label: "Reports", icon: FileBarChart },
-      { to: "/settings", label: "Settings", icon: Settings },
+      { to: "/reports", label: "Reports", icon: FileBarChart, area: "reports" },
+      { to: "/settings", label: "Settings", icon: Settings, area: "settings" },
     ],
   },
+];
+
+/**
+ * The new apprentice's sidebar (until First sponsor): five things, no
+ * grouping (docs/design/mvp-mockup.html "A brand-new apprentice"). Chats, the
+ * Inbox and the Library join when the team switches them on.
+ */
+export const STARTER_NAV: NavItem[] = [
+  { to: "/", label: "Home", icon: LayoutDashboard, exact: true, area: "home" },
+  { to: "/chats", label: "Chats", icon: MessageCircle, badge: "chats", area: "chats" },
+  { to: "/inbox", label: "Inbox", icon: Bell, badge: "inbox", area: "inbox" },
+  { to: "/customers", label: "Customers", icon: Contact, area: "customers" },
+  { to: "/events", label: "Events", icon: CalendarDays, badge: "events", area: "events" },
+  { to: "/learning", label: "Learning", icon: BookOpen, area: "learning" },
+  { to: "/library", label: "Library", icon: Library, area: "library" },
+  { to: "/wallet", label: "Wallet", icon: Wallet, area: "wallet" },
 ];
 
 /** Routes that light up the phone "My business" tab. */
@@ -100,7 +122,7 @@ export const BUSINESS_PATHS: NavPath[] = [
 ];
 
 /** Routes reached from the phone "More" sheet (lights up the More tab). */
-export const MORE_PATHS: NavPath[] = ["/reports", "/settings"];
+export const MORE_PATHS: NavPath[] = ["/reports", "/settings", "/learning", "/library"];
 
 /** True when `pathname` is `base` or below it ("/people" matches "/people/12"). */
 export function underPath(pathname: string, base: string): boolean {

@@ -46,6 +46,8 @@ export interface CrmPerson {
   ownerId?: string | null;
   /** Customers only: monthly volume, used to rank top-producing customers. */
   monthlyVolume?: number;
+  /** Customers only: on Ditto (the monthly product subscription) since this day ("YYYY-MM-DD"). */
+  dittoSince?: string;
   notes?: string;
   pipelineStage?: PipelineStage;
   stageHistory?: StageChange[];

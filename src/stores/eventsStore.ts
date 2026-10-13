@@ -4,7 +4,16 @@ import { dataStorage, seedOr } from "./storage";
 import { logEvent } from "./activityStore";
 import { seedEvents, SEED_VERSION } from "@/data/seed";
 
-export type EventType = "conference" | "team_meeting";
+/**
+ * The six event types (docs/plans/mvp-plan-2026-10-13.md "Events"). Labels,
+ * which ones can be joined online and which use tickets / travel live in
+ * src/data/eventTypes.
+ */
+export type EventType =
+  "info_session" | "work_session" | "night_owls" | "training" | "monthly_meeting" | "conference";
+
+/** How people can join: in person, online, or either (online only where the type allows it). */
+export type EventFormat = "in_person" | "virtual" | "both";
 
 export interface CrmEvent {
   id: string;
@@ -15,6 +24,8 @@ export interface CrmEvent {
   endDate?: string;
   location?: string;
   notes?: string;
+  /** In person (the default), virtual or both; see `eventFormat()` in @/data. */
+  format?: EventFormat;
 }
 
 interface EventsState {

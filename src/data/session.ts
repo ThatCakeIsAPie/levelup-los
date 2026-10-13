@@ -4,6 +4,8 @@ import { usePeopleStore, type CrmPerson } from "@/stores/peopleStore";
 import { IS_SUPABASE } from "@/lib/config";
 import { signOut } from "@/modules/login/auth";
 import type { Viewer } from "./access";
+import { useTeamStore } from "./team/store";
+import { deputyOfIds } from "./team/rules";
 
 /** The logged-in demo user, or null on the login page. */
 export function useSession(): DemoUser | null {
@@ -27,16 +29,32 @@ export function useMe(): CrmPerson | undefined {
   return useMemo(() => people.find((p) => p.id === user?.personId), [people, user]);
 }
 
-/** Viewer for the pure access rules (stable while the session is unchanged). */
+/** Build the viewer for the access rules (with the leaders they deputize for). */
+function viewerOf(user: DemoUser | null, deputyOf: string[]): Viewer {
+  if (!user) return null;
+  return deputyOf.length
+    ? { personId: user.personId, role: user.role, deputyOf }
+    : { personId: user.personId, role: user.role };
+}
+
+/** The leaders the signed-in person is a deputy of (stable string key for memos). */
+function useDeputyOfKey(): string {
+  const me = useSessionStore((s) => s.user?.personId ?? "");
+  return useTeamStore((s) => (me ? deputyOfIds(s.deputies, me).sort().join(",") : ""));
+}
+
+/** Viewer for the pure access rules (stable while the session and deputies are unchanged). */
 export function useViewer(): Viewer {
   const user = useSessionStore((s) => s.user);
-  return useMemo(() => (user ? { personId: user.personId, role: user.role } : null), [user]);
+  const key = useDeputyOfKey();
+  return useMemo(() => viewerOf(user, key ? key.split(",") : []), [user, key]);
 }
 
 /** Non-reactive viewer, for use inside event handlers / mutations. */
 export function getViewer(): Viewer {
   const user = useSessionStore.getState().user;
-  return user ? { personId: user.personId, role: user.role } : null;
+  const deputyOf = user ? deputyOfIds(useTeamStore.getState().deputies, user.personId) : [];
+  return viewerOf(user, deputyOf);
 }
 
 /** Log in as a demo user (local mode; real accounts sign in on the login page). */

@@ -7,21 +7,26 @@
  * their persist `migrate` (bump SEED_VERSION to force everyone onto a new seed).
  * Ids are stable so links and tests can rely on them:
  *   people "1".."21" (named), "100".."114" / "200".."214" / "300".."314"
- *   (generated downlines), customers "c1".."c10"; events "e1".."e6".
+ *   (generated downlines), "700" Tasha Greene and "701" Imani Brooks (growth
+ *   path demo), "800" Admin Tester (the admin login), customers
+ *   "c1".."c11"; events "e1".."e6" plus the recurring calendar (Night Owls
+ *   "no1".."no7", info sessions "is1".."is2", work sessions "ws1".."ws3",
+ *   trainings "tr1".."tr3").
  * Prospects never have a downline: every sponsor is an apprentice or IBO.
  */
 import { addDays, addYears, differenceInCalendarDays, subYears } from "date-fns";
 import { daysFromToday, localDate, parseDate } from "@/lib/dates";
 import type { BizClass, CrmPerson, PipelineStage } from "@/stores/peopleStore";
 import type { CrmEvent } from "@/stores/eventsStore";
-import type { Attendance } from "@/stores/attendanceStore";
+import type { Attendance, MissedEventNote } from "@/stores/attendanceStore";
 import type { Contact, Learning, LearningGoal, Sale } from "@/stores/crmStore";
+import type { GrowthMilestoneCode, MilestoneMark, PvOverride } from "./growth/types";
 import type { ActivityEvent } from "@/stores/activityStore";
 import type { Logistics, SharedCost } from "@/stores/opsStore";
 import { pipelineSeedPeople } from "./pipeline/seedPeople";
 
 /** Bump to reset every persisted store to a fresh seed on next load. */
-export const SEED_VERSION = 5;
+export const SEED_VERSION = 9;
 
 const ago = (n: number) => daysFromToday(-n);
 const ahead = (n: number) => daysFromToday(n);
@@ -230,11 +235,46 @@ export function seedPeople(): CrmPerson[] {
   // Pipeline demo: more prospects across the team and five recent registrations.
   people.push(...pipelineSeedPeople());
 
+  // Growth path demo (src/data/growth): Tasha, a brand-new apprentice under
+  // Jamal (95 / 150 PV this month), her first customer, and Imani, Anita's
+  // newest personal sponsor (Anita: 4/6 sponsors toward 6/25).
+  people.push(
+    biz("700", "Tasha Greene", "apprentice", "4", {
+      location: "Atlanta, GA",
+      businessStartDate: ago(12),
+      joinedDate: ago(12),
+      email: "tasha@example.com",
+      phone: "404-555-0170",
+    }),
+    cust("c11", "Lena Duarte", "700", "Atlanta, GA", 60, 7),
+    biz("701", "Imani Brooks", "apprentice", "2", {
+      location: "Austin, TX",
+      businessStartDate: ago(40),
+      joinedDate: ago(40),
+    }),
+    // The admin login (src/data/team/seed.ts makes them Maria's deputy, so
+    // they try switched-off features against the team's real data).
+    biz("800", "Admin Tester", "ibo", "1", {
+      location: "Dallas, TX",
+      businessStartDate: ago(800),
+      joinedDate: ago(800),
+      email: "admin@example.com",
+      notes: "Test account for trying features before they're switched on.",
+    }),
+  );
+
   return people.map((p) => ({
     ...p,
+    ...(DITTO_SINCE[p.id] !== undefined ? { dittoSince: ago(DITTO_SINCE[p.id]) } : {}),
     stageHistory: p.pipelineStage ? stageHistoryFor(p) : undefined,
   }));
 }
+
+/**
+ * Customers on Ditto (the monthly subscription), days ago: the On Ditto
+ * column of the customer pipeline seed (src/data/customerPipeline/seed.ts).
+ */
+const DITTO_SINCE: Record<string, number> = { c2: 4, c5: 41, c8: 19 };
 
 function cust(
   id: string,
@@ -291,14 +331,16 @@ export function seedEvents(): CrmEvent[] {
       endDate: localDate(addDays(parseDate(fall), 1)),
       location: "Dallas, TX",
       notes: "Two-day leadership conference. Team van leaves Friday 7am.",
+      format: "both",
     },
     {
       id: "e5",
       name: "Monthly Team Meeting",
-      type: "team_meeting",
+      type: "monthly_meeting",
       date: ahead(10),
-      location: "Zoom",
+      location: "Dallas, TX and Zoom",
       notes: "Recognition, new apprentices, Fall Weekend ticket push.",
+      format: "both",
     },
     {
       id: "e2",
@@ -307,6 +349,7 @@ export function seedEvents(): CrmEvent[] {
       date: lastFall,
       endDate: localDate(addDays(parseDate(lastFall), 1)),
       location: "Dallas, TX",
+      format: "both",
     },
     {
       id: "e3",
@@ -315,21 +358,76 @@ export function seedEvents(): CrmEvent[] {
       date: ago(91),
       endDate: ago(90),
       location: "Orlando, FL",
+      format: "both",
     },
     {
       id: "e4",
       name: "September Team Meeting",
-      type: "team_meeting",
+      type: "monthly_meeting",
       date: ago(20),
       location: "Zoom",
+      format: "virtual",
     },
     {
       id: "e6",
       name: "August Team Meeting",
-      type: "team_meeting",
+      type: "monthly_meeting",
       date: ago(48),
       location: "Zoom",
+      format: "virtual",
     },
+    ...recurringEvents(),
+  ];
+}
+
+/**
+ * The smaller recurring events (MVP plan "Events"): weekly Night Owls, info
+ * sessions, work sessions and trainings, past and upcoming. Their attendance
+ * (in seedAttendances) gives the demo logins missed-event follow-ups.
+ */
+function recurringEvents(): CrmEvent[] {
+  const day = (d: number) => (d < 0 ? ago(-d) : ahead(d));
+  const owls = (id: string, d: number): CrmEvent => ({
+    id,
+    name: "Night Owls",
+    type: "night_owls",
+    date: day(d),
+    location: "Maria's place, Dallas",
+    format: "in_person",
+  });
+  const ev = (
+    id: string,
+    type: CrmEvent["type"],
+    name: string,
+    d: number,
+    format: CrmEvent["format"],
+    location: string,
+    notes?: string,
+  ): CrmEvent => ({ id, name, type, date: day(d), location, format, ...(notes ? { notes } : {}) });
+  return [
+    owls("no1", -30),
+    owls("no2", -23),
+    owls("no3", -16),
+    owls("no4", -9),
+    owls("no5", -2),
+    owls("no6", 5),
+    owls("no7", 12),
+    ev("is1", "info_session", "Business info night", -11, "in_person", "Dallas office"),
+    ev(
+      "is2",
+      "info_session",
+      "Business info night",
+      3,
+      "both",
+      "Dallas office and Zoom",
+      "Bring a guest, or send them the Zoom link.",
+    ),
+    ev("ws1", "work_session", "Work session: build your list", -18, "in_person", "Dallas office"),
+    ev("ws2", "work_session", "Work session: book your meetings", -4, "in_person", "Dallas office"),
+    ev("ws3", "work_session", "Work session: follow-ups", 9, "in_person", "Dallas office"),
+    ev("tr1", "training", "Duplication training", -26, "both", "Dallas office and Zoom"),
+    ev("tr2", "training", "Showing the plan", -6, "both", "Dallas office and Zoom"),
+    ev("tr3", "training", "Product training: Nutrilite", 17, "virtual", "Zoom"),
   ];
 }
 
@@ -348,10 +446,10 @@ export function seedAttendances(): Attendance[] {
     specialEventQualified: false,
     ...o,
   });
-  const tix = (type: Attendance["ticketType"] = "in_person"): Partial<Attendance> => ({
+  const tix = (mode: Attendance["mode"] = "in_person"): Partial<Attendance> => ({
     desireToAttend: "yes",
     hasTicket: true,
-    ticketType: type,
+    mode,
   });
   const went = (o: Partial<Attendance> = {}): Partial<Attendance> => ({
     ...tix(),
@@ -372,7 +470,7 @@ export function seedAttendances(): Attendance[] {
       helperId: "2",
     }),
     mk("a5", "e1", "5", { desireToAttend: "maybe", followUpDate: ahead(2), helperId: "2" }),
-    mk("a6", "e1", "6", tix("stream")),
+    mk("a6", "e1", "6", tix("virtual")),
     mk("a7", "e1", "7", { desireToAttend: "yes", plannedPurchaseDate: ago(2), helperId: "3" }),
     mk("a8", "e1", "8", { ...tix(), specialEventQualified: true }),
     mk("a9", "e1", "9", {
@@ -390,7 +488,7 @@ export function seedAttendances(): Attendance[] {
     mk("a16", "e1", "10", { desireToAttend: "maybe", followUpDate: ahead(6) }),
     mk("a17", "e1", "16", { desireToAttend: "no", notes: "Out of town that weekend" }),
     mk("a18", "e1", "100", tix()),
-    mk("a19", "e1", "101", tix("stream")),
+    mk("a19", "e1", "101", tix("virtual")),
     mk("a20", "e1", "200", { desireToAttend: "yes", helperId: "4" }),
 
     // e5 Monthly Team Meeting (+10d)
@@ -407,7 +505,7 @@ export function seedAttendances(): Attendance[] {
     mk("b1", "e2", "1", went({ leadershipQualified: true })),
     mk("b2", "e2", "2", went()),
     mk("b3", "e2", "3", missed),
-    mk("b4", "e2", "6", went({ ticketType: "stream" })),
+    mk("b4", "e2", "6", went({ mode: "virtual" })),
     mk("b5", "e2", "8", went()),
     mk("b6", "e2", "13", went()),
     mk("b7", "e2", "17", missed),
@@ -427,21 +525,89 @@ export function seedAttendances(): Attendance[] {
     mk("c5", "e3", "3", went()),
     mk("c6", "e3", "6", went()),
     mk("c7", "e3", "7", went()),
-    mk("c8", "e3", "13", went({ ticketType: "stream" })),
+    mk("c8", "e3", "13", went({ mode: "virtual" })),
     mk("c9", "e3", "11", { desireToAttend: "maybe" }),
     mk("c10", "e3", "9", { desireToAttend: "yes" }),
 
-    // e4 September Team Meeting (-20d): 12 tracked, 9 attended.
+    // e4 September Team Meeting (-20d, on Zoom): 14 tracked, 11 attended.
     ...["1", "2", "3", "4", "6", "7", "8", "9", "14"].map((pid, i) =>
-      mk(`d${i + 1}`, "e4", pid, went()),
+      mk(`d${i + 1}`, "e4", pid, went({ mode: "virtual" })),
     ),
     mk("d10", "e4", "11", missed),
     mk("d11", "e4", "17", missed),
     mk("d12", "e4", "5", { desireToAttend: "maybe" }),
+    mk("d13", "e4", "13", went({ mode: "virtual" })),
+    mk("d14", "e4", "19", went({ mode: "virtual" })),
 
-    // e6 August Team Meeting (-48d)
-    ...["1", "2", "4", "6", "8", "13", "19"].map((pid, i) => mk(`f${i + 1}`, "e6", pid, went())),
+    // e6 August Team Meeting (-48d, on Zoom)
+    ...["1", "2", "4", "6", "8", "13", "19"].map((pid, i) =>
+      mk(`f${i + 1}`, "e6", pid, went({ mode: "virtual" })),
+    ),
     mk("f8", "e6", "3", missed),
+
+    ...recurringAttendances(mk),
+  ];
+}
+
+/**
+ * Who came to the recurring events (no tickets: attended, and how). Built so
+ * the demo logins have missed-event follow-ups (src/data/eventTypes/missed.ts;
+ * checked in src/data/eventTypes/seed.test.ts):
+ *   - Tasha Greene (700) came to Night Owls no4 but not no5 (2 days ago):
+ *     Jamal, Anita and Maria see it;
+ *   - Jamal (4) came to work session ws1 but not ws2 (4 days ago): Anita and
+ *     Maria see it (never Jamal himself);
+ *   - Sarah Kim (7) came to training tr1 but not tr2 (6 days ago): David and
+ *     Maria see it;
+ *   - Layla Hassan (14) missed no5 too, but Priya left an "already handled"
+ *     note (seedMissedNotes), so nobody gets a follow-up for her.
+ * Their last check-ins are pinned before those events (seedContacts).
+ */
+function recurringAttendances(
+  mk: (id: string, eventId: string, personId: string, o?: Partial<Attendance>) => Attendance,
+): Attendance[] {
+  const came = (mode: Attendance["mode"] = "in_person"): Partial<Attendance> => ({
+    desireToAttend: "yes",
+    attended: true,
+    mode,
+  });
+  const going: Partial<Attendance> = { desireToAttend: "yes" };
+  const at = (eventId: string, people: string[], o: Partial<Attendance> = came()) =>
+    people.map((pid) => mk(`${eventId}-${pid}`, eventId, pid, o));
+  return [
+    ...at("no1", ["1", "2", "4", "8", "14"]),
+    ...at("no2", ["1", "2", "4", "8", "14"]),
+    ...at("no3", ["1", "2", "4", "8", "14"]),
+    ...at("no4", ["1", "2", "4", "8", "14", "700"]),
+    ...at("no5", ["1", "2", "4", "8"]),
+    ...at("no6", ["1", "2", "4", "700"], going),
+    ...at("is1", ["1", "2", "4", "9", "21"]),
+    mk("is1-20", "is1", "20", came("virtual")),
+    mk("is2-9", "is2", "9", going),
+    mk("is2-21", "is2", "21", { ...going, mode: "virtual" }),
+    mk("is2-20", "is2", "20", { desireToAttend: "maybe" }),
+    ...at("ws1", ["1", "2", "4", "17"]),
+    ...at("ws2", ["1", "2", "17"]),
+    ...at("ws3", ["2", "4", "17"], going),
+    ...at("tr1", ["1", "3", "7"]),
+    mk("tr1-13", "tr1", "13", came("virtual")),
+    ...at("tr2", ["1", "3"]),
+    mk("tr2-13", "tr2", "13", came("virtual")),
+    ...at("tr3", ["1", "3", "7", "13"], { ...going, mode: "virtual" }),
+  ];
+}
+
+/** "Already handled" notes on missed-event follow-ups. */
+export function seedMissedNotes(): MissedEventNote[] {
+  return [
+    {
+      id: "mn1",
+      personId: "14",
+      eventId: "no5",
+      note: "Talked at the gym, she was sick this week. Back next Thursday.",
+      byId: "8",
+      createdAt: tsAgo(1, 9),
+    },
   ];
 }
 
@@ -450,26 +616,157 @@ export function seedAttendances(): Attendance[] {
 // ---------------------------------------------------------------------------
 
 export function seedSales(): Sale[] {
-  const rows: [string, string, number, number][] = [
-    ["c1", "Nutrilite Double X", 5, 89],
-    ["c1", "XS Energy (case)", 33, 42],
-    ["c2", "Artistry Skin Set", 20, 120],
-    ["c3", "XS Energy (case)", 40, 42],
-    ["c4", "eSpring Filter", 70, 210],
-    ["c5", "Nutrilite Daily", 3, 32],
-    ["c6", "SA8 Laundry", 45, 28],
-    ["c7", "Protein Powder", 12, 54],
-    ["c8", "XS Energy (case)", 33, 42],
-    ["c9", "Artistry Serum", 8, 76],
-    ["c10", "Glister Toothpaste", 60, 14],
+  // [customer, product, days ago, amount, PV]; PV counts toward the owner.
+  const rows: [string, string, number, number, number][] = [
+    ["c1", "Nutrilite Double X", 5, 89, 30],
+    ["c1", "XS Energy (case)", 33, 42, 14],
+    ["c2", "Artistry Skin Set", 20, 120, 40],
+    ["c3", "XS Energy (case)", 40, 42, 14],
+    ["c4", "eSpring Filter", 70, 210, 70],
+    ["c5", "Nutrilite Daily", 3, 32, 70],
+    ["c6", "SA8 Laundry", 45, 28, 20],
+    ["c7", "Protein Powder", 12, 54, 18],
+    ["c8", "XS Energy (case)", 33, 42, 14],
+    ["c9", "Artistry Serum", 8, 76, 25],
+    ["c10", "Glister Toothpaste", 60, 14, 5],
   ];
-  return rows.map(([customerId, product, d, amount], i) => ({
+  const owner = (customerId: string) =>
+    ({
+      c1: "1",
+      c2: "1",
+      c3: "1",
+      c4: "1",
+      c5: "2",
+      c6: "2",
+      c7: "3",
+      c8: "4",
+      c9: "8",
+      c10: "13",
+    })[customerId] ?? "1";
+  const base: Sale[] = rows.map(([customerId, product, d, amount, pv], i) => ({
     id: `s${i}`,
     customerId,
     product,
     date: ago(d),
     amount,
+    pv,
+    personId: owner(customerId),
   }));
+  return [...base, ...growthSales()];
+}
+
+/**
+ * A date in the calendar month `monthsBack` months before this one, on `day`
+ * (kept inside that month, and not after today for this month).
+ */
+export function inMonth(monthsBack: number, day: number): string {
+  const now = new Date();
+  const first = new Date(now.getFullYear(), now.getMonth() - monthsBack, 1);
+  const last = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate();
+  const max = monthsBack === 0 ? Math.min(last, now.getDate()) : last;
+  return localDate(
+    new Date(first.getFullYear(), first.getMonth(), Math.min(Math.max(1, day), max)),
+  );
+}
+
+/** `ago(n)`, but never before the 1st of this month (this month's PV stays this month's). */
+const thisMonthAgo = (n: number) => {
+  const d = ago(n);
+  const first = inMonth(0, 1);
+  return d < first ? first : d;
+};
+
+/**
+ * Sales with PV for the growth path demo:
+ *  - Tasha (700): Lena's order (her first sale) and a personal order, 95 PV
+ *    this month toward Core 150.
+ *  - Jamal (4): 160 PV three months ago (Core 150), 320 two months ago
+ *    (Core 300), 110 this month; his frontline 201 has 180 this month, so
+ *    Jamal's Bronze foundation shows real legs.
+ *  - Anita (2): a personal order this month.
+ * A personal order has the buyer as both customerId and personId.
+ */
+function growthSales(): Sale[] {
+  const sale = (
+    id: string,
+    customerId: string,
+    personId: string,
+    product: string,
+    date: string,
+    amount: number,
+    pv: number,
+  ): Sale => ({ id, customerId, personId, product, date, amount, pv });
+  return [
+    sale("sg1", "c11", "700", "Nutrilite Double X", thisMonthAgo(7), 89, 60),
+    sale("sg2", "700", "700", "Personal order: XS Energy", thisMonthAgo(3), 105, 35),
+    sale("sg3", "c8", "4", "Artistry Hydration Set", inMonth(3, 6), 180, 60),
+    sale("sg4", "4", "4", "Personal order: Nutrilite", inMonth(3, 19), 290, 100),
+    sale("sg5", "c8", "4", "eSpring Filter", inMonth(2, 4), 360, 120),
+    sale("sg6", "4", "4", "Personal order: home care", inMonth(2, 21), 600, 200),
+    sale("sg7", "4", "4", "Personal order: Nutrilite", thisMonthAgo(6), 330, 110),
+    sale("sg8", "201", "201", "Personal order: XS Energy", thisMonthAgo(4), 540, 180),
+    sale("sg9", "2", "2", "Personal order: Artistry", thisMonthAgo(2), 360, 120),
+  ];
+}
+
+/**
+ * Monthly PV uplines set from the Amway app last month (replacing what was
+ * logged): Anita's line had about 4,080 group PV, so her best month shows on
+ * the way to Platinum and her legs show real numbers.
+ */
+export function seedPvOverrides(): PvOverride[] {
+  const month = inMonth(1, 1).slice(0, 7);
+  const setAt = `${inMonth(0, 1)}T15:00:00.000Z`;
+  const rows: [string, number, string][] = [
+    ["2", 420, "1"],
+    ["17", 650, "2"],
+    ["301", 820, "2"],
+    ["701", 760, "2"],
+    ["4", 280, "2"],
+    ["203", 450, "2"],
+    ["201", 700, "2"],
+  ];
+  return rows.map(([personId, pv, setBy]) => ({ personId, month, pv, setBy, setAt }));
+}
+
+/**
+ * Milestones marked by hand from before the app: Maria's path up to Ruby
+ * (nobody is above her, so no "marked by"), and Anita's early milestones up to
+ * Bronze builder, marked by Maria (Anita is working on 6/25).
+ */
+export function seedMilestoneMarks(): MilestoneMark[] {
+  const markedAt = tsAgo(30);
+  const mk = (
+    personId: string,
+    code: GrowthMilestoneCode,
+    daysAgo: number,
+    markedBy?: string,
+  ): MilestoneMark => ({
+    personId,
+    code,
+    reachedOn: ago(daysAgo),
+    markedAt,
+    ...(markedBy ? { markedBy } : {}),
+    note: "From before the app",
+  });
+  return [
+    mk("1", "first_sale", 2764),
+    mk("1", "core_150", 2740),
+    mk("1", "core_300", 2695),
+    mk("1", "bronze_foundation", 2170),
+    mk("1", "3_10", 1700),
+    mk("1", "bronze_builder", 1270),
+    mk("1", "6_25", 970),
+    mk("1", "6_50", 670),
+    mk("1", "platinum", 470),
+    mk("1", "ruby", 170),
+    mk("2", "first_sale", 2320, "1"),
+    mk("2", "core_150", 2290, "1"),
+    mk("2", "core_300", 2255, "1"),
+    mk("2", "bronze_foundation", 2025, "1"),
+    mk("2", "3_10", 1425, "1"),
+    mk("2", "bronze_builder", 65, "1"),
+  ];
 }
 
 /**
@@ -513,7 +810,14 @@ export function seedContacts(people: CrmPerson[] = seedPeople()): Contact[] {
       date: ago(age + 14 + Math.floor(rng() * 20)),
     });
   }
-  return out;
+  // Last check-ins just before the events they missed (recurringAttendances),
+  // so their missed-event follow-ups are still open.
+  const lastTouch: Record<string, number> = { "700": 3, "4": 5, "7": 7 };
+  return out.map((c) =>
+    c.id === `t-${c.personId}` && lastTouch[c.personId] !== undefined
+      ? { ...c, date: ago(lastTouch[c.personId]) }
+      : c,
+  );
 }
 
 export function seedLearning(): Learning[] {

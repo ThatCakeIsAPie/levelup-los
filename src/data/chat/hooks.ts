@@ -40,6 +40,10 @@ import type {
   WorkspaceRole,
 } from "./types";
 import { joinWorkspace } from "./mutations";
+import { useFeature } from "../team/hooks";
+
+/** Notifications that don't come from chats (they stay when Chats is switched off). */
+const NOT_FROM_CHAT = new Set<string>(["stat_request", "stat_request_answered"]);
 
 // ---------------------------------------------------------------------------
 // People in chat
@@ -622,12 +626,16 @@ export function useNotifications(): Notification[] {
   const all = useChatStore((s) => s.notifications);
   const me = useSessionStore((s) => s.user?.personId ?? "");
   const access = useChatAccess();
+  // With Chats switched off for the team, the inbox keeps only what doesn't
+  // depend on chat (requests to see your pipeline numbers, and answers).
+  const chats = useFeature("chats");
   return useMemo(
     () =>
       all
         .filter((n) => n.recipientId === me && (access.eligible || n.type === "checkin_logged"))
+        .filter((n) => chats || NOT_FROM_CHAT.has(n.type))
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
-    [all, me, access.eligible],
+    [all, me, access.eligible, chats],
   );
 }
 

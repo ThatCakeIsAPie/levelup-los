@@ -7,6 +7,9 @@
  *   1. Event tickets whose planned purchase date has passed   1000 + days late
  *   2. Event follow-ups that are overdue, due today/tomorrow   800–900+
  *   3. Apprentices at their IBO anniversary (due / 30 days)    700 / 500
+ *      Missed an event they came to last time (uplines)       650 - days since
+ *      (src/data/eventTypes/missed.ts; cleared for every upline by a
+ *      check-in or an "already handled" note)
  *   4. Contact overdue (team and customers)                    100 × days / threshold
  *      Apprentices 90 days out                                 150
  * Ties fall back to the person's name.
@@ -20,6 +23,7 @@ import {
   type Attendance,
   type CrmEvent,
   type CrmPerson,
+  type MissedStreak,
   type Role,
   type Sale,
 } from "@/data";
@@ -67,6 +71,13 @@ export type TodayItem =
       threshold: number;
     })
   | (Base & {
+      kind: "missed";
+      /** Came to `streak.lastAttended`, missed `streak.latest` (and maybe more). */
+      streak: MissedStreak;
+      /** Days since the latest missed event. */
+      daysAgo: number;
+    })
+  | (Base & {
       kind: "anniversary";
       level: Exclude<ApprenticeAlert, null>;
       /** The day they become an IBO ("YYYY-MM-DD"). */
@@ -92,6 +103,13 @@ export interface TodayInput {
   attendances: Attendance[];
   /** Visible sales, for "last bought" on customer rows. */
   sales: Sale[];
+  /** People hidden from reminders ("Do not contact" on the customer board). */
+  doNotContact?: ReadonlySet<string>;
+  /**
+   * Open missed-event follow-ups (`useMissedFollowUps()`: registered team
+   * members only, never the viewer). "Do not contact" doesn't apply to them.
+   */
+  missed?: MissedStreak[];
   /** "Now"; defaults to the current time. */
   now?: Date;
 }
@@ -105,7 +123,8 @@ const diff = (a: string, b: string) => differenceInCalendarDays(parseDate(a), pa
 export function buildTodayItems(input: TodayInput): TodayItem[] {
   const now = input.now ?? new Date();
   const today = localDate(now);
-  const byId = new Map(input.people.map((p) => [p.id, p]));
+  const skip = input.doNotContact;
+  const byId = new Map(input.people.filter((p) => !skip?.has(p.id)).map((p) => [p.id, p] as const));
   const items: TodayItem[] = [];
 
   // 1 + 2. Event tickets and follow-ups on events that haven't finished.
@@ -151,8 +170,29 @@ export function buildTodayItems(input: TodayInput): TodayItem[] {
     }
   }
 
+  // Missed an event they came to last time (team members, never the viewer).
+  if (input.role !== "candidate") {
+    const everyone = new Map(input.people.map((p) => [p.id, p] as const));
+    for (const streak of input.missed ?? []) {
+      const person = everyone.get(streak.personId);
+      if (!person || person.id === input.viewerId) continue;
+      const daysAgo = Math.max(0, diff(today, streak.latest.endDate ?? streak.latest.date));
+      items.push({
+        key: `missed:${streak.key}`,
+        kind: "missed",
+        filter: "events",
+        person,
+        self: false,
+        streak,
+        daysAgo,
+        score: 650 - daysAgo,
+      });
+    }
+  }
+
   if (input.role !== "candidate") {
     for (const p of input.people) {
+      if (skip?.has(p.id)) continue;
       // 3. Customers past the contact threshold (own customers only are visible).
       if (p.bizClass === "customer") {
         const { days, never } = daysSinceContact(p, input.lastContact, today);

@@ -11,15 +11,20 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { MILESTONES, MILESTONE_LABEL, type PipelineColumn } from "@/data";
 
-/** "Move to…" menu: every column of the board, grouped by milestone band. */
+const RECRUITING_BANDS = MILESTONES.map((m) => ({ id: m as string, label: MILESTONE_LABEL[m] }));
+
+/** "Move to…" menu: every column of the board, grouped by band. */
 export function MoveMenu({
   columns,
+  bands = RECRUITING_BANDS,
   current,
   onMove,
   children,
   align = "end",
 }: {
-  columns: PipelineColumn[];
+  columns: PipelineColumn<string>[];
+  /** The board's bands in order (default: the recruiting milestones). */
+  bands?: readonly { id: string; label: string }[];
   current: string;
   onMove: (to: string) => void;
   /** The trigger (rendered with asChild). */
@@ -36,14 +41,14 @@ export function MoveMenu({
         <DropdownMenuLabel className="flex items-center gap-1.5 text-xs">
           <MoveRight className="size-3.5" aria-hidden="true" /> Move to…
         </DropdownMenuLabel>
-        {MILESTONES.map((m) => (
-          <DropdownMenuGroup key={m}>
+        {bands.map((b) => (
+          <DropdownMenuGroup key={b.id}>
             <DropdownMenuSeparator />
             <DropdownMenuLabel className="pb-0.5 text-[10px] font-bold uppercase tracking-[.08em] text-faint">
-              {MILESTONE_LABEL[m]}
+              {b.label}
             </DropdownMenuLabel>
             {columns
-              .filter((c) => c.band === m)
+              .filter((c) => c.band === b.id)
               .map((c) => (
                 <DropdownMenuItem
                   key={c.id}

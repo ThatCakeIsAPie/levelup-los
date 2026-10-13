@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import {
+  CUSTOMER_MILESTONE_LABEL,
   MAX_STEP_LABEL,
   MILESTONE_COLUMN_LABEL,
   MILESTONE_LABEL,
@@ -32,45 +33,96 @@ import {
   movePipelineStep,
   renamePipelineStep,
   showPipelineStep,
+  useCustomerStepsEditor,
   useStepsEditor,
+  type BoardKind,
+  type CustomerStepBand,
   type StepBand,
-  type StepsEditorBand,
 } from "@/data";
 import { plural } from "./format";
+
+/** A band of the steps editor (the same shape on both boards). */
+interface EditorBand {
+  band: string;
+  steps: EditorStep[];
+}
+interface EditorStep {
+  step: { id: string; label: string; band: string };
+  own: boolean;
+  hiddenBy: string | null;
+  ownerName: string;
+  hiddenByName: string | null;
+  cards: number;
+}
+
+/** Milestone names per board. */
+const NAMES: Record<
+  BoardKind,
+  { label: (band: string) => string; column: (band: string) => string; last: string }
+> = {
+  recruiting: {
+    label: (b) => MILESTONE_LABEL[b as StepBand],
+    column: (b) => MILESTONE_COLUMN_LABEL[b as StepBand],
+    last: MILESTONE_COLUMN_LABEL.registered,
+  },
+  customer: {
+    label: (b) => CUSTOMER_MILESTONE_LABEL[b as CustomerStepBand],
+    column: (b) => CUSTOMER_MILESTONE_LABEL[b as CustomerStepBand],
+    last: CUSTOMER_MILESTONE_LABEL.on_ditto,
+  },
+};
 
 /**
  * Customize steps: milestones are locked; inherited steps can be hidden for
  * your team; your own steps can be added, renamed, reordered and deleted.
+ * `kind` picks the board (recruiting by default, or the customer board).
  */
 export function CustomizeStepsDialog({
   open,
   onOpenChange,
+  kind = "recruiting",
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  kind?: BoardKind;
 }) {
-  const bands = useStepsEditor();
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Customize steps</DialogTitle>
+          <DialogTitle>
+            {kind === "customer" ? "Customize customer steps" : "Customize steps"}
+          </DialogTitle>
           <DialogDescription>
             The four milestones are the same for everyone, so every team&rsquo;s numbers add up.
             Steps between them are yours: your team sees them too. Hide your upline&rsquo;s steps
             your team doesn&rsquo;t use.
           </DialogDescription>
         </DialogHeader>
-        <ol className="grid gap-4">
-          {bands.map((b, i) => (
-            <BandEditor key={b.band} band={b} index={i} />
-          ))}
-          <li className="grid gap-1.5">
-            <MilestoneRow index={4} label={MILESTONE_COLUMN_LABEL.registered} />
-          </li>
-        </ol>
+        {kind === "customer" ? <CustomerBands /> : <RecruitingBands />}
       </DialogContent>
     </Dialog>
+  );
+}
+
+function RecruitingBands() {
+  return <Bands bands={useStepsEditor()} kind="recruiting" />;
+}
+
+function CustomerBands() {
+  return <Bands bands={useCustomerStepsEditor()} kind="customer" />;
+}
+
+function Bands({ bands, kind }: { bands: EditorBand[]; kind: BoardKind }) {
+  return (
+    <ol className="grid gap-4">
+      {bands.map((b, i) => (
+        <BandEditor key={b.band} band={b} index={i} kind={kind} />
+      ))}
+      <li className="grid gap-1.5">
+        <MilestoneRow index={bands.length + 1} label={NAMES[kind].last} />
+      </li>
+    </ol>
   );
 }
 
@@ -89,12 +141,13 @@ function MilestoneRow({ index, label }: { index: number; label: string }) {
   );
 }
 
-function BandEditor({ band, index }: { band: StepsEditorBand; index: number }) {
+function BandEditor({ band, index, kind }: { band: EditorBand; index: number; kind: BoardKind }) {
   const [label, setLabel] = useState("");
   const [error, setError] = useState<string | null>(null);
   const own = band.steps.filter((s) => s.own);
+  const name = NAMES[kind].label(band.band);
   const add = () => {
-    const r = addPipelineStep(band.band, label);
+    const r = addPipelineStep(band.band as StepBand | CustomerStepBand, label, kind);
     if (!r.ok) {
       setError(r.error);
       return;
@@ -103,13 +156,14 @@ function BandEditor({ band, index }: { band: StepsEditorBand; index: number }) {
     setError(null);
   };
   return (
-    <li className="grid gap-1.5" aria-label={`${MILESTONE_LABEL[band.band]} band`}>
-      <MilestoneRow index={index + 1} label={MILESTONE_COLUMN_LABEL[band.band]} />
+    <li className="grid gap-1.5" aria-label={`${name} band`}>
+      <MilestoneRow index={index + 1} label={NAMES[kind].column(band.band)} />
       <ul className="grid gap-1 pl-3">
         {band.steps.map((s) => (
           <StepRow
             key={s.step.id}
             s={s}
+            kind={kind}
             first={own[0]?.step.id === s.step.id}
             last={own[own.length - 1]?.step.id === s.step.id}
           />
@@ -133,8 +187,8 @@ function BandEditor({ band, index }: { band: StepsEditorBand; index: number }) {
               setLabel(e.target.value);
               setError(null);
             }}
-            placeholder={`Add a step after ${MILESTONE_LABEL[band.band]}`}
-            aria-label={`New step after ${MILESTONE_LABEL[band.band]}`}
+            placeholder={`Add a step after ${name}`}
+            aria-label={`New step after ${name}`}
             aria-invalid={!!error}
             className="h-8 text-[13px]"
           />
@@ -152,10 +206,12 @@ function StepRow({
   s,
   first,
   last,
+  kind,
 }: {
-  s: StepsEditorBand["steps"][number];
+  s: EditorStep;
   first: boolean;
   last: boolean;
+  kind: BoardKind;
 }) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(s.step.label);
@@ -165,7 +221,7 @@ function StepRow({
   const hidden = !!s.hiddenBy;
 
   const save = () => {
-    const r = renamePipelineStep(s.step.id, name);
+    const r = renamePipelineStep(s.step.id, name, kind);
     if (!r.ok) {
       setError(r.error);
       return;
@@ -174,7 +230,7 @@ function StepRow({
     setError(null);
   };
   const remove = () => {
-    const r = deletePipelineStep(s.step.id);
+    const r = deletePipelineStep(s.step.id, kind);
     if (r.ok)
       toast.success(
         `${s.step.label} deleted${r.moved ? ` · ${plural(r.moved, "card")} moved back to the milestone` : ""}`,
@@ -254,14 +310,14 @@ function StepRow({
                   <IconBtn
                     label={`Move ${s.step.label} up`}
                     disabled={first}
-                    onClick={() => movePipelineStep(s.step.id, -1)}
+                    onClick={() => movePipelineStep(s.step.id, -1, kind)}
                   >
                     <ArrowUp />
                   </IconBtn>
                   <IconBtn
                     label={`Move ${s.step.label} down`}
                     disabled={last}
-                    onClick={() => movePipelineStep(s.step.id, 1)}
+                    onClick={() => movePipelineStep(s.step.id, 1, kind)}
                   >
                     <ArrowDown />
                   </IconBtn>
@@ -277,8 +333,8 @@ function StepRow({
                   checked={!hidden}
                   disabled={hiddenByUpline}
                   onCheckedChange={(on) => {
-                    if (on) showPipelineStep(s.step.id);
-                    else hidePipelineStep(s.step.id);
+                    if (on) showPipelineStep(s.step.id, kind);
+                    else hidePipelineStep(s.step.id, kind);
                   }}
                   aria-label={`Show ${s.step.label} on your team's board`}
                 />
@@ -298,9 +354,8 @@ function StepRow({
           <AlertDialogHeader>
             <AlertDialogTitle>Delete {s.step.label}?</AlertDialogTitle>
             <AlertDialogDescription>
-              {plural(s.cards, "card")} in it move back to{" "}
-              {MILESTONE_LABEL[s.step.band as StepBand]}. Past moves still count toward the
-              milestone. Your team loses this step too.
+              {plural(s.cards, "card")} in it move back to {NAMES[kind].label(s.step.band)}. Past
+              moves still count toward the milestone. Your team loses this step too.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

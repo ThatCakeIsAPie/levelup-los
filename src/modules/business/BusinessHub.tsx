@@ -29,6 +29,7 @@ import {
   useCurrentUser,
   useMe,
   usePipelineSummary,
+  useUnlocks,
   type CrmEvent,
 } from "@/data";
 import {
@@ -60,10 +61,13 @@ const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? o
 /**
  * The "My business" hub (phone tab + desktop page): one live tile per area,
  * each showing a number or the next thing to do and linking to its page.
- * Candidates get their path, their event status and their wallet only.
+ * Tiles follow what the person has unlocked (src/data/unlocks.ts): a new
+ * apprentice gets customers, events and wallet; candidates their path, their
+ * event status and their wallet.
  */
 export function BusinessHub() {
   const user = useCurrentUser();
+  const { can } = useUnlocks();
   const candidate = user.role === "candidate";
   return (
     <div className={PAGE}>
@@ -76,14 +80,15 @@ export function BusinessHub() {
         }
       />
       <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-3 lg:gap-3.5">
-        {!candidate && <PipelineTile />}
-        {candidate ? <PathTile /> : <TeamTile />}
-        {!candidate && <PeopleTile />}
-        {!candidate && <CustomersTile />}
-        <EventTile candidate={candidate} viewerId={user.personId} />
+        {can.pipeline && <PipelineTile />}
+        {candidate ? <PathTile /> : can.team && <TeamTile />}
+        {!candidate && can.people && <PeopleTile />}
+        {can.customers && <CustomersTile />}
+        {/* Without event planning, the tile is about your own plans. */}
+        <EventTile candidate={candidate || !can.eventPlanning} viewerId={user.personId} />
         <WalletTile wide={candidate} />
-        {!candidate && <CampaignsTile />}
-        <LibraryTile />
+        {can.campaigns && <CampaignsTile />}
+        {can.library && <LibraryTile />}
       </div>
     </div>
   );

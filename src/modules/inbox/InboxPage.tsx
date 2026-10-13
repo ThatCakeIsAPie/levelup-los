@@ -3,7 +3,7 @@ import { Bell, CheckCheck } from "lucide-react";
 import { EmptyState, PageHeader } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { markAllNotificationsRead } from "@/data";
+import { markAllNotificationsRead, useFeature } from "@/data";
 import { useInboxRows } from "./model";
 import { NotificationRow } from "./NotificationRow";
 
@@ -12,6 +12,7 @@ type Filter = "all" | "needs" | "mentions";
 /** Notifications: approvals and reports first-class, then mentions, replies, wins, events, check-ins. */
 export function InboxPage() {
   const rows = useInboxRows();
+  const chats = useFeature("chats");
   const [filter, setFilter] = useState<Filter>("all");
   const needs = rows.filter((r) => r.needsYou).length;
   const unread = rows.filter((r) => r.unread).length;
@@ -29,7 +30,8 @@ export function InboxPage() {
   const chips: { value: Filter; label: string; count?: number }[] = [
     { value: "all", label: "All" },
     { value: "needs", label: "Needs you", count: needs },
-    { value: "mentions", label: "Mentions" },
+    // Mentions and replies only come from chats.
+    ...(chats ? [{ value: "mentions" as const, label: "Mentions" }] : []),
   ];
 
   return (
@@ -74,7 +76,9 @@ export function InboxPage() {
           body={
             filter === "needs"
               ? "Drafts to approve and reports to review show up here."
-              : "Mentions, replies, wins and check-ins from your chats show up here."
+              : chats
+                ? "Mentions, replies, wins and check-ins from your chats show up here."
+                : "Requests to see your pipeline numbers, and the answers to yours, show up here."
           }
         />
       ) : (

@@ -6,16 +6,27 @@ import {
   seedContacts,
   seedLearning,
   seedLearningGoals,
+  seedMilestoneMarks,
+  seedPvOverrides,
   seedSales,
   SEED_VERSION,
 } from "@/data/seed";
+import type { GrowthMilestoneCode, MilestoneMark, PvOverride } from "@/data/growth/types";
 
 export interface Sale {
   id: string;
+  /** Who bought: a customer, or a business person buying for themselves (personal order). */
   customerId: string;
   product: string;
   date: string;
   amount?: number;
+  /** Point value: counts toward `personId`'s monthly PV (src/data/growth). */
+  pv?: number;
+  /**
+   * Whose PV it is: the customer's owner, or the buyer for a personal order.
+   * Set by logSale; older sales without it fall back to the same rule.
+   */
+  personId?: string;
 }
 /** How a contact was recorded: by hand, from a chat conversation, or at an event. */
 export type ContactSource = "manual" | "message" | "event";
@@ -66,6 +77,10 @@ interface CrmState {
   settings: Settings;
   /** Weekly learning goals by person id; missing = DEFAULT_LEARNING_GOAL. */
   goals: Record<string, LearningGoal>;
+  /** Monthly PV set by uplines (one per person and month). */
+  pvOverrides: PvOverride[];
+  /** Milestones marked as reached by hand (one per person and milestone). */
+  milestoneMarks: MilestoneMark[];
   logSale: (s: Omit<Sale, "id">) => Sale;
   logContact: (c: Omit<Contact, "id">) => Contact;
   removeSale: (id: string) => void;
@@ -74,6 +89,18 @@ interface CrmState {
   removeLearning: (id: string) => void;
   setSettings: (s: Partial<Settings>) => void;
   setLearningGoal: (personId: string, goal: Partial<LearningGoal>) => void;
+  /** Set (or with `null`, clear) a person's PV for a month. */
+  setPvOverride: (
+    personId: string,
+    month: string,
+    value: Omit<PvOverride, "personId" | "month"> | null,
+  ) => void;
+  /** Mark (or with `null`, unmark) a milestone as reached by hand. */
+  setMilestoneMark: (
+    personId: string,
+    code: GrowthMilestoneCode,
+    value: Omit<MilestoneMark, "personId" | "code"> | null,
+  ) => void;
 }
 
 /** The demo seed ("local" mode) or nothing until the database loads ("supabase" mode). */
@@ -85,8 +112,18 @@ function freshState() {
       learning: seedLearning(),
       settings: { ...DEFAULT_SETTINGS },
       goals: seedLearningGoals(),
+      pvOverrides: seedPvOverrides(),
+      milestoneMarks: seedMilestoneMarks(),
     }),
-    { sales: [], contacts: [], learning: [], settings: { ...DEFAULT_SETTINGS }, goals: {} },
+    {
+      sales: [],
+      contacts: [],
+      learning: [],
+      settings: { ...DEFAULT_SETTINGS },
+      goals: {},
+      pvOverrides: [],
+      milestoneMarks: [],
+    },
   );
 }
 
@@ -116,6 +153,18 @@ export const useCrmStore = create<CrmState>()(
             [personId]: { ...learningGoalFor(get().goals, personId), ...goal },
           },
         }),
+      setPvOverride: (personId, month, value) => {
+        const rest = get().pvOverrides.filter(
+          (o) => !(o.personId === personId && o.month === month),
+        );
+        set({ pvOverrides: value ? [...rest, { personId, month, ...value }] : rest });
+      },
+      setMilestoneMark: (personId, code, value) => {
+        const rest = get().milestoneMarks.filter(
+          (m) => !(m.personId === personId && m.code === code),
+        );
+        set({ milestoneMarks: value ? [...rest, { personId, code, ...value }] : rest });
+      },
     }),
     {
       name: "levelup.crm",
@@ -126,6 +175,8 @@ export const useCrmStore = create<CrmState>()(
         learning: s.learning,
         settings: s.settings,
         goals: s.goals,
+        pvOverrides: s.pvOverrides,
+        milestoneMarks: s.milestoneMarks,
       }),
       version: SEED_VERSION,
       migrate: () => freshState() as unknown as CrmState,

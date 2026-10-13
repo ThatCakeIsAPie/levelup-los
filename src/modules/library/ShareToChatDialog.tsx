@@ -10,6 +10,7 @@ import {
   lengthLabel,
   sendMessage,
   useChatAccess,
+  useFeature,
   useConversations,
   useLibraryPeople,
   type CatalogItem,
@@ -18,9 +19,10 @@ import { FormSheet } from "./FormSheet";
 import { KindIcon } from "./icons";
 import { audienceText } from "./parts";
 
-/** May the current user share library items into chats? (Chat members only.) */
+/** May the current user share library items into chats? (Chat members, with Chats on.) */
 export function useCanShareToChat(): boolean {
-  return useChatAccess().eligible;
+  const chats = useFeature("chats");
+  return useChatAccess().eligible && chats;
 }
 
 /**

@@ -69,9 +69,11 @@ async function applySession(session: Session | null): Promise<void> {
   let loadingData = false;
   try {
     const client = getSupabase();
-    const [sessionRes, workspaceRes] = await Promise.all([
+    const [sessionRes, workspaceRes, adminRes] = await Promise.all([
       client.rpc("get_session"),
       client.from("workspaces").select("id, name").limit(1).maybeSingle(),
+      // The admin flag is the database's (app_admins); a failed check means no admin.
+      client.rpc("is_app_admin"),
     ]);
     if (gen !== generation) return;
     if (sessionRes.error) throw sessionRes.error;
@@ -85,7 +87,7 @@ async function applySession(session: Session | null): Promise<void> {
     }
     // Load everything this person may see before showing the app (once per
     // person; a reload for the same person keeps the live data).
-    const user = sessionUserFrom(row);
+    const user = sessionUserFrom(row, adminRes.data === true);
     if (remotePersonId() !== user.personId) {
       loadingData = true;
       if (useSessionStore.getState().status !== "loading") set({ status: "loading" });

@@ -172,7 +172,7 @@ export function AttendeesTab({
         "Wants to go": a.desireToAttend ? DESIRE_LABEL[a.desireToAttend] : "",
         "Follow-up": a.followUpDate ?? "",
         Ticket: a.hasTicket ? "Yes" : "",
-        "Ticket type": a.hasTicket ? (a.ticketType === "stream" ? "Stream" : "In person") : "",
+        "Ticket type": a.hasTicket ? (a.mode === "virtual" ? "Virtual" : "In person") : "",
         "Plans to buy by": a.hasTicket ? "" : (a.plannedPurchaseDate ?? ""),
         Helper: a.helperId ? (people.get(a.helperId)?.name ?? "") : "",
         Leadership: a.leadershipQualified ? "Yes" : "",
@@ -374,7 +374,7 @@ export function AttendeesTab({
 }
 
 const TICKET_VALUE = (a: Attendance) =>
-  a.hasTicket ? (a.ticketType === "stream" ? "stream" : "in_person") : "none";
+  a.hasTicket ? (a.mode === "virtual" ? "virtual" : "in_person") : "none";
 
 function AttendeeRow({
   a,
@@ -446,7 +446,7 @@ function AttendeeRow({
               a.id,
               v === "none"
                 ? { hasTicket: false, attended: undefined }
-                : { hasTicket: true, ticketType: v as "in_person" | "stream" },
+                : { hasTicket: true, mode: v as "in_person" | "virtual" },
             )
           }
         >
@@ -456,7 +456,7 @@ function AttendeeRow({
           <SelectContent>
             <SelectItem value="none">No ticket</SelectItem>
             <SelectItem value="in_person">In person</SelectItem>
-            <SelectItem value="stream">Stream</SelectItem>
+            <SelectItem value="virtual">Virtual</SelectItem>
           </SelectContent>
         </Select>
         {!a.hasTicket && a.plannedPurchaseDate && (

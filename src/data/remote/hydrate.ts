@@ -9,7 +9,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { CrmPerson } from "@/stores/peopleStore";
 import type { CrmEvent } from "@/stores/eventsStore";
-import type { Attendance } from "@/stores/attendanceStore";
+import type { Attendance, MissedEventNote } from "@/stores/attendanceStore";
 import {
   DEFAULT_SETTINGS,
   type Contact,
@@ -18,6 +18,7 @@ import {
   type Sale,
   type Settings,
 } from "@/stores/crmStore";
+import type { MilestoneMark, PvOverride } from "@/data/growth/types";
 import type { Campaign, Logistics, Payment, ReportSchedule, SharedCost } from "@/stores/opsStore";
 import type { ActivityEvent } from "@/stores/activityStore";
 import type { ChatData } from "@/data/chat/types";
@@ -25,6 +26,8 @@ import { isPendingPath } from "@/data/chat/attachments";
 import type { LibraryData } from "@/data/library/types";
 import { useLibraryExtras, type ChannelTeaser, type LibraryExtras } from "@/data/library/extras";
 import type { PipelineData } from "@/data/pipeline/types";
+import type { CustomerPipelineData } from "@/data/customerPipeline/types";
+import type { TeamData } from "@/data/team/types";
 import {
   activityBinding,
   attendanceBinding,
@@ -35,6 +38,8 @@ import {
   opsBinding,
   peopleBinding,
   pipelineBinding,
+  customerPipelineBinding,
+  teamBinding,
 } from "./bindings";
 import { replaceStore } from "./engine";
 import { useRemoteStore, type ChainEntry, type DirectoryEntry, type RsvpCounts } from "./extras";
@@ -76,8 +81,11 @@ export interface CrmSnapshot {
   people: CrmPerson[];
   events: CrmEvent[];
   attendances: Attendance[];
+  missedNotes: MissedEventNote[];
   contacts: Contact[];
   sales: Sale[];
+  pvOverrides: PvOverride[];
+  milestoneMarks: MilestoneMark[];
   learning: Learning[];
   goals: Record<string, LearningGoal>;
   settings: Settings;
@@ -87,6 +95,8 @@ export interface CrmSnapshot {
   campaigns: Campaign[];
   schedules: ReportSchedule[];
   activity: ActivityEvent[];
+  /** Team settings: deputies (yours, or the leaders you act for) and feature switches. */
+  team: TeamData;
 }
 
 export interface LibrarySnapshot {
@@ -96,6 +106,8 @@ export interface LibrarySnapshot {
 
 export interface PipelineSnapshot {
   data: PipelineData;
+  /** Your list and the customer pipeline (the same refresh as the recruiting board). */
+  customer: CustomerPipelineData;
   /** sponsor_chain(me): root first, the signed-in person last. */
   chain: ChainEntry[];
 }
@@ -111,6 +123,7 @@ export interface Snapshot {
 
 export async function fetchCrm(client: SupabaseClient, me: string): Promise<CrmSnapshot> {
   const all = (t: string, order: Order[], limit?: number) => fetchAll(client, t, order, { limit });
+  const team = fetchTeam(client);
   const [
     people,
     events,
@@ -128,6 +141,9 @@ export async function fetchCrm(client: SupabaseClient, me: string): Promise<CrmS
     campaigns,
     schedules,
     activity,
+    pvOverrides,
+    milestoneMarks,
+    missedNotes,
   ] = await Promise.all([
     all("people", [["id", true]]),
     all("events", [
@@ -186,6 +202,18 @@ export async function fetchCrm(client: SupabaseClient, me: string): Promise<CrmS
       ],
       LIMITS.activity,
     ),
+    all("pv_overrides", [
+      ["person_id", true],
+      ["month", true],
+    ]),
+    all("milestone_marks", [
+      ["person_id", true],
+      ["code", true],
+    ]),
+    all("missed_event_notes", [
+      ["created_at", false],
+      ["id", true],
+    ]),
   ]);
 
   const costList = costs.map((r) => m.costFromRow(r));
@@ -201,8 +229,11 @@ export async function fetchCrm(client: SupabaseClient, me: string): Promise<CrmS
     people: people.map((r) => m.personFromRow(r)),
     events: events.map((r) => m.eventFromRow(r)),
     attendances: attendances.map((r) => m.attendanceFromRow(r)),
+    missedNotes: missedNotes.map((r) => m.missedNoteFromRow(r)),
     contacts: contacts.map((r) => m.contactFromRow(r)),
     sales: sales.map((r) => m.saleFromRow(r)),
+    pvOverrides: pvOverrides.map((r) => m.pvOverrideFromRow(r)),
+    milestoneMarks: milestoneMarks.map((r) => m.milestoneMarkFromRow(r)),
     learning: learning.map((r) => m.learningFromRow(r)),
     goals: Object.fromEntries(goals.map((r) => m.goalFromRow(r))),
     settings: mine ? m.settingsFromRow(mine) : { ...DEFAULT_SETTINGS },
@@ -212,6 +243,22 @@ export async function fetchCrm(client: SupabaseClient, me: string): Promise<CrmS
     campaigns: campaigns.map((r) => m.campaignFromRow(r)),
     schedules: schedules.map((r) => m.scheduleFromRow(r)),
     activity: activity.map((r) => m.activityFromRow(r, me)),
+    team: await team,
+  };
+}
+
+/** Deputies and feature switches (RLS: your own deputy rows; your team's switches). */
+export async function fetchTeam(client: SupabaseClient): Promise<TeamData> {
+  const [deputies, switches] = await Promise.all([
+    fetchAll(client, "deputies", [
+      ["leader_id", true],
+      ["deputy_id", true],
+    ]),
+    fetchAll(client, "feature_switches", [["feature", true]]),
+  ]);
+  return {
+    deputies: deputies.map((r) => m.deputyFromRow(r)),
+    switches: switches.map((r) => m.featureSwitchFromRow(r)),
   };
 }
 
@@ -411,31 +458,33 @@ export async function fetchLibrary(client: SupabaseClient): Promise<LibrarySnaps
  */
 export async function fetchPipeline(client: SupabaseClient, me: string): Promise<PipelineSnapshot> {
   const all = (t: string, order: Order[]) => fetchAll(client, t, order);
-  const [steps, hides, cards, moves, settings, shares, requests, chain] = await Promise.all([
-    all("pipeline_steps", [
-      ["created_at", true],
-      ["id", true],
-    ]),
-    all("pipeline_step_hides", [
-      ["person_id", true],
-      ["step_id", true],
-    ]),
-    all("pipeline_cards", [["person_id", true]]),
-    all("pipeline_moves", [
-      ["moved_at", true],
-      ["id", true],
-    ]),
-    all("pipeline_team_settings", [["person_id", true]]),
-    all("stat_shares", [
-      ["owner_id", true],
-      ["viewer_id", true],
-    ]),
-    all("stat_requests", [
-      ["created_at", true],
-      ["id", true],
-    ]),
-    client.rpc("sponsor_chain", { p_person_id: me }),
-  ]);
+  const [steps, hides, cards, moves, settings, shares, requests, chain, customer] =
+    await Promise.all([
+      all("pipeline_steps", [
+        ["created_at", true],
+        ["id", true],
+      ]),
+      all("pipeline_step_hides", [
+        ["person_id", true],
+        ["step_id", true],
+      ]),
+      all("pipeline_cards", [["person_id", true]]),
+      all("pipeline_moves", [
+        ["moved_at", true],
+        ["id", true],
+      ]),
+      all("pipeline_team_settings", [["person_id", true]]),
+      all("stat_shares", [
+        ["owner_id", true],
+        ["viewer_id", true],
+      ]),
+      all("stat_requests", [
+        ["created_at", true],
+        ["id", true],
+      ]),
+      client.rpc("sponsor_chain", { p_person_id: me }),
+      fetchCustomerPipeline(client),
+    ]);
   if (chain.error) throw new Error(`sponsor_chain: ${chain.error.message}`);
   return {
     data: {
@@ -447,10 +496,45 @@ export async function fetchPipeline(client: SupabaseClient, me: string): Promise
       shares: shares.map((r) => m.shareFromRow(r)),
       requests: requests.map((r) => m.statRequestFromRow(r)),
     },
+    customer,
     chain: ((chain.data ?? []) as Row[]).map((r) => ({
       personId: String(r.person_id),
       name: String(r.name ?? ""),
     })),
+  };
+}
+
+/**
+ * Your list and the customer pipeline the caller may see: their own and their
+ * downline's lists, cards and moves, and the steps of their sponsor line.
+ */
+export async function fetchCustomerPipeline(client: SupabaseClient): Promise<CustomerPipelineData> {
+  const all = (t: string, order: Order[]) => fetchAll(client, t, order);
+  const [entries, steps, hides, cards, moves] = await Promise.all([
+    all("list_entries", [
+      ["created_at", true],
+      ["id", true],
+    ]),
+    all("customer_steps", [
+      ["created_at", true],
+      ["id", true],
+    ]),
+    all("customer_step_hides", [
+      ["person_id", true],
+      ["step_id", true],
+    ]),
+    all("customer_cards", [["entry_id", true]]),
+    all("customer_moves", [
+      ["moved_at", true],
+      ["id", true],
+    ]),
+  ]);
+  return {
+    entries: entries.map((r) => m.listEntryFromRow(r)),
+    steps: steps.map((r) => m.customerStepFromRow(r)),
+    hides: hides.map((r) => m.customerHideFromRow(r)),
+    cards: cards.map((r) => m.customerCardFromRow(r)),
+    moves: moves.map((r) => m.customerMoveFromRow(r)),
   };
 }
 
@@ -472,12 +556,16 @@ export async function fetchSnapshot(client: SupabaseClient, me: string): Promise
 // ---------------------------------------------------------------------------
 
 export function applyCrm(s: CrmSnapshot): void {
+  // Deputies first: they widen what the client-side visibility rules show.
+  replaceStore(teamBinding, s.team);
   replaceStore(peopleBinding, { people: s.people });
   replaceStore(eventsBinding, { events: s.events });
-  replaceStore(attendanceBinding, { attendances: s.attendances });
+  replaceStore(attendanceBinding, { attendances: s.attendances, missedNotes: s.missedNotes });
   replaceStore(crmBinding, {
     contacts: s.contacts,
     sales: s.sales,
+    pvOverrides: s.pvOverrides,
+    milestoneMarks: s.milestoneMarks,
     learning: s.learning,
     goals: s.goals,
     settings: s.settings,
@@ -519,6 +607,7 @@ export function applyLibrary(s: LibrarySnapshot): void {
 export function applyPipeline(s: PipelineSnapshot): void {
   useRemoteStore.setState({ chain: s.chain });
   replaceStore(pipelineBinding, s.data);
+  replaceStore(customerPipelineBinding, s.customer);
 }
 
 export function applySnapshot(s: Snapshot): void {

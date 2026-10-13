@@ -23,17 +23,24 @@ import { localDate, parseDate } from "@/lib/dates";
 import {
   seedActivity,
   seedAttendances,
+  seedMissedNotes,
   seedContacts,
   seedEvents,
   seedLearning,
   seedLearningGoals,
+  seedMilestoneMarks,
   seedOps,
   seedPeople,
+  seedPvOverrides,
   seedSales,
 } from "@/data/seed";
 import { seedChat } from "@/data/chat/seed";
 import { seedLibrary } from "@/data/library/seed";
 import { seedPipeline } from "@/data/pipeline/seed";
+import { seedCustomerPipeline } from "@/data/customerPipeline/seed";
+import { seedDeputies, seedFeatureSwitches } from "@/data/team/seed";
+import { deputyOfIds } from "@/data/team/rules";
+import { visibleEntries } from "@/data/customerPipeline/rules";
 import { WORKSPACE_ID } from "@/data/chat/types";
 import { filterAttendances, visibleCustomers, visibleIdSet, type Viewer } from "@/data/access";
 import type { CrmPerson } from "@/stores/peopleStore";
@@ -48,6 +55,11 @@ const DEMO_USERS = [
   { personId: "2", name: "Anita Patel", role: "ibo" },
   { personId: "4", name: "Jamal Brown", role: "apprentice" },
   { personId: "20", name: "Beau Foster", role: "candidate" },
+  { personId: "700", name: "Tasha Greene", role: "apprentice" },
+  // Maria's deputy (src/data/team/seed.ts).
+  { personId: "6", name: "Marcus Hill", role: "ibo" },
+  // The admin login (admin@levelup.test): an app_admins row, and Maria's deputy.
+  { personId: "800", name: "Admin Tester", role: "ibo", admin: true },
 ] as const;
 const loginEmail = (name: string) => `${name.split(" ")[0].toLowerCase()}@levelup.test`;
 /** Local development only. Documented in docs/backend.md. */
@@ -90,6 +102,14 @@ type ColType = "text" | "date" | "ts" | "num" | "bool" | "json" | "textarr";
 const str = (s: string) => `'${s.replace(/'/g, "''")}'`;
 const dateExpr = (iso: string) =>
   `seed_tmp.d(${differenceInCalendarDays(parseDate(iso.slice(0, 10)), parseDate(TODAY))})`;
+/** A "YYYY-MM" month as the same number of months before the reset month. */
+const monthExpr = (month: string) => {
+  const k =
+    Number(TODAY.slice(0, 4)) * 12 +
+    Number(TODAY.slice(5, 7)) -
+    (Number(month.slice(0, 4)) * 12 + Number(month.slice(5, 7)));
+  return `to_char(date_trunc('month', seed_tmp.d(0)::timestamp) - interval '${k} months', 'YYYY-MM')`;
+};
 const tsExpr = (iso: string) => `seed_tmp.ts(${Math.round((Date.parse(iso) - NOW) / 1000)})`;
 
 function lit(v: unknown, type: ColType): string {
@@ -145,8 +165,11 @@ const stageHistory = (p: CrmPerson) =>
 const people = seedPeople();
 const events = seedEvents();
 const attendances = seedAttendances();
+const missedNotes = seedMissedNotes();
 const contacts = seedContacts(people);
 const sales = seedSales();
+const pvOverrides = seedPvOverrides();
+const milestoneMarks = seedMilestoneMarks();
 const learning = seedLearning();
 const goals = seedLearningGoals();
 const ops = seedOps();
@@ -154,6 +177,7 @@ const activity = seedActivity(people, attendances);
 const chat = seedChat(people, NOW);
 const library = seedLibrary(new Date(NOW));
 const pipeline = seedPipeline(people, new Date(NOW));
+const customerPipeline = seedCustomerPipeline(people, new Date(NOW));
 
 // Workspace members: the chat seed's members (apprentices, IBOs, the leader)
 // plus any demo user who isn't one (Beau, the candidate: can sign in, no chat).
@@ -235,6 +259,7 @@ emit(
       ["stage_history", "json"],
       ["tags", "textarr"],
       ["los_uid", "text"],
+      ["ditto_since", "date"],
     ],
     people.map((p) => [
       p.id,
@@ -256,6 +281,7 @@ emit(
       stageHistory(p),
       p.tags ?? [],
       p.losUid,
+      p.dittoSince,
     ]),
   ),
 );
@@ -292,6 +318,7 @@ emit(
       ["end_date", "date"],
       ["location", "text"],
       ["notes", "text"],
+      ["format", "text"],
       ["created_by", "text"],
     ],
     events.map((e) => [
@@ -303,6 +330,7 @@ emit(
       e.endDate,
       e.location,
       e.notes,
+      e.format ?? "in_person",
       "1",
     ]),
   ),
@@ -318,7 +346,7 @@ emit(
       ["desire_to_attend", "text"],
       ["follow_up_date", "date"],
       ["has_ticket", "bool"],
-      ["ticket_type", "text"],
+      ["mode", "text"],
       ["planned_purchase_date", "date"],
       ["helper_id", "text"],
       ["leadership_qualified", "bool"],
@@ -334,13 +362,36 @@ emit(
       a.desireToAttend,
       a.followUpDate,
       a.hasTicket,
-      a.ticketType,
+      a.mode,
       a.plannedPurchaseDate,
       a.helperId,
       a.leadershipQualified,
       a.specialEventQualified,
       a.notes,
       a.attended,
+    ]),
+  ),
+);
+emit(
+  insert(
+    "public.missed_event_notes",
+    [
+      ["id", "text"],
+      ["workspace_id", "text"],
+      ["person_id", "text"],
+      ["event_id", "text"],
+      ["note", "text"],
+      ["by_id", "text"],
+      ["created_at", "ts"],
+    ],
+    missedNotes.map((n) => [
+      n.id,
+      WORKSPACE_ID,
+      n.personId,
+      n.eventId,
+      n.note,
+      n.byId,
+      n.createdAt,
     ]),
   ),
 );
@@ -446,8 +497,63 @@ emit(
       ["product", "text"],
       ["date", "date"],
       ["amount", "num"],
+      ["pv", "num"],
+      ["person_id", "text"],
     ],
-    sales.map((s) => [s.id, WORKSPACE_ID, s.customerId, s.product, s.date, s.amount]),
+    sales.map((s) => [
+      s.id,
+      WORKSPACE_ID,
+      s.customerId,
+      s.product,
+      s.date,
+      s.amount,
+      s.pv,
+      s.personId,
+    ]),
+  ),
+);
+emit(
+  insert(
+    "public.pv_overrides",
+    [
+      ["person_id", "text"],
+      ["month", "text"],
+      ["workspace_id", "text"],
+      ["pv", "num"],
+      ["set_by", "text"],
+      ["set_at", "ts"],
+    ],
+    pvOverrides.map((o) => [
+      o.personId,
+      raw(monthExpr(o.month)),
+      WORKSPACE_ID,
+      o.pv,
+      o.setBy,
+      o.setAt,
+    ]),
+  ),
+);
+emit(
+  insert(
+    "public.milestone_marks",
+    [
+      ["person_id", "text"],
+      ["code", "text"],
+      ["workspace_id", "text"],
+      ["reached_on", "date"],
+      ["marked_by", "text"],
+      ["marked_at", "ts"],
+      ["note", "text"],
+    ],
+    milestoneMarks.map((k) => [
+      k.personId,
+      k.code,
+      WORKSPACE_ID,
+      k.reachedOn,
+      k.markedBy,
+      k.markedAt,
+      k.note,
+    ]),
   ),
 );
 emit(
@@ -841,6 +947,139 @@ emit(`
 alter table public.stat_requests enable trigger user;
 `);
 
+section("Your list and the customer pipeline (seedCustomerPipeline)");
+emit(`-- History moves of names no longer on a list keep their "xl-..." entry ids
+-- (moves keep no link to entries). Names at First sale / On Ditto link to
+-- the seed's existing customers, so no people are made here.
+`);
+emit(
+  insert(
+    "public.list_entries",
+    [
+      ["id", "text"],
+      ["workspace_id", "text"],
+      ["owner_id", "text"],
+      ["name", "text"],
+      ["how_known", "text"],
+      ["phone", "text"],
+      ["email", "text"],
+      ["notes", "text"],
+      ["rating", "text"],
+      ["customer_id", "text"],
+      ["prospect_id", "text"],
+      ["added_by", "text"],
+      ["created_at", "ts"],
+      ["updated_at", "ts"],
+    ],
+    customerPipeline.entries.map((e) => [
+      e.id,
+      WORKSPACE_ID,
+      e.ownerId,
+      e.name,
+      e.howKnown,
+      e.phone,
+      e.email,
+      e.notes,
+      e.rating,
+      e.customerId,
+      e.prospectId,
+      e.addedBy,
+      e.createdAt,
+      e.updatedAt,
+    ]),
+  ),
+);
+emit(
+  insert(
+    "public.customer_steps",
+    [
+      ["id", "text"],
+      ["workspace_id", "text"],
+      ["owner_id", "text"],
+      ["band", "text"],
+      ["label", "text"],
+      ["position", "num"],
+      ["created_at", "ts"],
+    ],
+    customerPipeline.steps.map((x) => [
+      x.id,
+      WORKSPACE_ID,
+      x.ownerId,
+      x.band,
+      x.label,
+      x.position,
+      x.createdAt,
+    ]),
+  ),
+);
+if (customerPipeline.hides.length)
+  emit(
+    insert(
+      "public.customer_step_hides",
+      [
+        ["person_id", "text"],
+        ["step_id", "text"],
+        ["workspace_id", "text"],
+        ["created_at", "ts"],
+      ],
+      customerPipeline.hides.map((h) => [h.personId, h.stepId, WORKSPACE_ID, h.createdAt]),
+    ),
+  );
+emit(
+  insert(
+    "public.customer_cards",
+    [
+      ["entry_id", "text"],
+      ["workspace_id", "text"],
+      ["column_id", "text"],
+      ["entered_at", "ts"],
+      ["next_step", "text"],
+      ["next_step_date", "date"],
+      ["updated_at", "ts"],
+    ],
+    customerPipeline.cards.map((c) => [
+      c.entryId,
+      WORKSPACE_ID,
+      c.column,
+      c.enteredAt,
+      c.nextStep,
+      c.nextStepDate,
+      c.updatedAt,
+    ]),
+  ),
+);
+emit(
+  insert(
+    "public.customer_moves",
+    [
+      ["id", "text"],
+      ["workspace_id", "text"],
+      ["entry_id", "text"],
+      ["owner_id", "text"],
+      ["from_column", "text"],
+      ["to_column", "text"],
+      ["band", "text"],
+      ["moved_at", "ts"],
+      ["moved_by", "text"],
+      ["created_customer_id", "text"],
+      ["set_ditto", "bool"],
+    ],
+    customerPipeline.moves.map((m) => [
+      m.id,
+      WORKSPACE_ID,
+      m.entryId,
+      m.ownerId,
+      m.from,
+      m.to,
+      m.band,
+      m.movedAt,
+      m.movedBy,
+      m.createdCustomerId,
+      m.setDitto,
+    ]),
+  ),
+);
+
 section("Chat (seedChat, row for row)");
 emit(`-- The browser demo's chat seed already contains the notifications, read
 -- state and roles the triggers would create, so user triggers are off while
@@ -1102,6 +1341,45 @@ emit(
     chat.blocks.map((b) => [b.blockerId, b.blockedId, b.createdAt]),
   ),
 );
+section("Team settings: deputies, feature switches, the admin flag (src/data/team/seed.ts)");
+const deputies = seedDeputies();
+emit(
+  insert(
+    "public.deputies",
+    [
+      ["workspace_id", "text"],
+      ["leader_id", "text"],
+      ["deputy_id", "text"],
+      ["added_by", "text"],
+      ["added_at", "ts"],
+    ],
+    deputies.map((d) => [
+      WORKSPACE_ID,
+      d.leaderId,
+      d.deputyId,
+      d.addedBy ?? d.leaderId,
+      d.addedAt ?? new Date(NOW).toISOString(),
+    ]),
+  ),
+);
+emit(
+  insert(
+    "public.feature_switches",
+    [
+      ["workspace_id", "text"],
+      ["feature", "text"],
+      ["enabled", "bool"],
+    ],
+    seedFeatureSwitches().map((f) => [WORKSPACE_ID, f.feature, f.enabled]),
+  ),
+);
+for (const u of DEMO_USERS) {
+  if (!("admin" in u && u.admin)) continue;
+  emit(`insert into public.app_admins (user_id, note)
+values (${str(userId(u.personId))}::uuid, 'Demo admin login: every feature regardless of switches');
+`);
+}
+
 emit(`
 alter table public.members enable trigger user;
 alter table public.conversations enable trigger user;
@@ -1145,7 +1423,10 @@ check(`select is((select count(*)::int from public.people), 0, 'nobody signed in
 check(`select is((select count(*)::int from public.events), 0, 'nobody signed in: no events');`);
 t.push(`select pg_temp.logout();`);
 for (const u of DEMO_USERS) {
-  const v: Viewer = { personId: u.personId, role: u.role };
+  const deputyOf = deputyOfIds(deputies, u.personId);
+  const v: Viewer = deputyOf.length
+    ? { personId: u.personId, role: u.role, deputyOf }
+    : { personId: u.personId, role: u.role };
   const ids = visibleIdSet(people, v);
   t.push(`\nselect pg_temp.login(${str(u.personId)}); -- ${u.name} (${u.role})`);
   check(
@@ -1161,7 +1442,13 @@ for (const u of DEMO_USERS) {
     `select is((select count(*)::int from public.contacts where id = any(${arr(contacts.map((c) => c.id))})), ${contacts.filter((c) => ids.has(c.personId)).length}, ${str(`${u.name}: contacts with visible people`)});`,
   );
   check(
-    `select is((select count(*)::int from public.sales where id = any(${arr(sales.map((x) => x.id))})), ${sales.filter((s) => ids.has(s.customerId)).length}, ${str(`${u.name}: sales of visible customers`)});`,
+    `select is((select count(*)::int from public.sales where id = any(${arr(sales.map((x) => x.id))})), ${sales.filter((s) => ids.has(s.customerId) || (!!s.personId && ids.has(s.personId))).length}, ${str(`${u.name}: sales of visible customers or sellers`)});`,
+  );
+  check(
+    `select is((select count(*)::int from public.pv_overrides), ${pvOverrides.filter((o) => ids.has(o.personId)).length}, ${str(`${u.name}: monthly PV of visible people`)});`,
+  );
+  check(
+    `select is((select count(*)::int from public.milestone_marks), ${milestoneMarks.filter((k) => ids.has(k.personId)).length}, ${str(`${u.name}: milestone marks of visible people`)});`,
   );
   check(
     `select is((select count(*)::int from public.learning where id = any(${arr(learning.map((x) => x.id))})), ${learning.filter((l) => ids.has(l.personId)).length}, ${str(`${u.name}: learning of visible people`)});`,
@@ -1176,6 +1463,18 @@ for (const u of DEMO_USERS) {
   );
   check(
     `select is((select count(*)::int from public.pipeline_moves where id like 'pm%'), ${candidate ? 0 : pipeline.moves.filter((m) => ids.has(m.ownerId)).length}, ${str(`${u.name}: pipeline moves of their team`)});`,
+  );
+  // Lists: the viewer's own and their downline's (rules.ts visibleEntries).
+  const entries = visibleEntries(customerPipeline.entries, people, v);
+  const entryIds = new Set(entries.map((e) => e.id));
+  check(
+    `select is(array(select id from public.list_entries where id like 'le-%' order by id collate "C"), ${arr(entries.map((e) => e.id))}, ${str(`${u.name}: list entries match visibleEntries`)});`,
+  );
+  check(
+    `select is((select count(*)::int from public.customer_cards where entry_id like 'le-%'), ${customerPipeline.cards.filter((c) => entryIds.has(c.entryId)).length}, ${str(`${u.name}: customer cards of visible lists`)});`,
+  );
+  check(
+    `select is((select count(*)::int from public.customer_moves where id like 'cm%'), ${candidate ? 0 : customerPipeline.moves.filter((m) => ids.has(m.ownerId)).length}, ${str(`${u.name}: customer moves of their team`)});`,
   );
   t.push(`select pg_temp.logout();`);
 }

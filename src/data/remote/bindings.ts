@@ -4,7 +4,11 @@
  */
 import { usePeopleStore, type CrmPerson } from "@/stores/peopleStore";
 import { useEventsStore, type CrmEvent } from "@/stores/eventsStore";
-import { useAttendanceStore, type Attendance } from "@/stores/attendanceStore";
+import {
+  useAttendanceStore,
+  type Attendance,
+  type MissedEventNote,
+} from "@/stores/attendanceStore";
 import {
   useCrmStore,
   DEFAULT_SETTINGS,
@@ -13,6 +17,7 @@ import {
   type LearningGoal,
   type Sale,
 } from "@/stores/crmStore";
+import type { MilestoneMark, PvOverride } from "@/data/growth/types";
 import {
   useOpsStore,
   type Campaign,
@@ -44,6 +49,16 @@ import type {
   StepHide,
   TeamSetting,
 } from "@/data/pipeline/types";
+import { useCustomerPipelineStore } from "@/data/customerPipeline/store";
+import type {
+  CustomerCard,
+  CustomerMove,
+  CustomerPipelineData,
+  CustomerStep,
+  ListEntry,
+} from "@/data/customerPipeline/types";
+import { useTeamStore } from "@/data/team/store";
+import type { Deputy, FeatureSwitch, TeamData } from "@/data/team/types";
 import { applyRemote, keyOf, syncContext, type Binding, type Row, type TableSpec } from "./engine";
 import * as m from "./rows";
 
@@ -198,6 +213,17 @@ export const attendanceBinding: Binding<AttendanceS> = {
       toRow: m.attendanceToRow,
       fromRow: m.attendanceFromRow,
     }),
+    // "Already handled" notes on missed-event follow-ups (written by uplines).
+    listSpec<AttendanceS, MissedEventNote>({
+      table: "missed_event_notes",
+      pk: ["id"],
+      get: (s) => s.missedNotes,
+      set: (missedNotes) => ({ missedNotes }),
+      toRow: m.missedNoteToRow,
+      fromRow: m.missedNoteFromRow,
+      prepend: true,
+      update: false,
+    }),
   ],
 };
 
@@ -225,6 +251,25 @@ export const crmBinding: Binding<CrmS> = {
       toRow: m.saleToRow,
       fromRow: m.saleFromRow,
       prepend: true,
+    }),
+    // Growth path (src/data/growth): uplines' monthly PV and hand marks.
+    listSpec<CrmS, PvOverride>({
+      table: "pv_overrides",
+      pk: ["person_id", "month"],
+      get: (s) => s.pvOverrides,
+      set: (pvOverrides) => ({ pvOverrides }),
+      toRow: m.pvOverrideToRow,
+      fromRow: m.pvOverrideFromRow,
+      insert: "upsert",
+    }),
+    listSpec<CrmS, MilestoneMark>({
+      table: "milestone_marks",
+      pk: ["person_id", "code"],
+      get: (s) => s.milestoneMarks,
+      set: (milestoneMarks) => ({ milestoneMarks }),
+      toRow: m.milestoneMarkToRow,
+      fromRow: m.milestoneMarkFromRow,
+      insert: "upsert",
     }),
     listSpec<CrmS, Learning>({
       table: "learning",
@@ -952,6 +997,159 @@ export const pipelineBinding: Binding<PipeS> = {
   ],
 };
 
+// ---------------------------------------------------------------------------
+// Your list and the customer pipeline (src/data/customerPipeline). Moves go
+// through move_customer_card(), which also creates or moves the card and, at
+// First sale, makes the customer (the client shows it with serverSide); a
+// card's column and entry time belong to the database, like recruiting cards.
+// ---------------------------------------------------------------------------
+
+type CustS = CustomerPipelineData;
+/** Customer card columns the client never sends (the database owns them). */
+const SERVER_CUSTOMER_CARD_COLS = ["entry_id", "column_id", "entered_at"];
+const customerCardPatch = (row: Row): Row =>
+  Object.fromEntries(Object.entries(row).filter(([k]) => !SERVER_CUSTOMER_CARD_COLS.includes(k)));
+
+export const customerPipelineBinding: Binding<CustS> = {
+  name: "customerPipeline",
+  store: useCustomerPipelineStore,
+  specs: [
+    listSpec<CustS, ListEntry>({
+      table: "list_entries",
+      pk: ["id"],
+      get: (s) => s.entries,
+      set: (entries) => ({ entries }),
+      toRow: m.listEntryToRow,
+      fromRow: m.listEntryFromRow,
+    }),
+    listSpec<CustS, CustomerStep>({
+      table: "customer_steps",
+      pk: ["id"],
+      get: (s) => s.steps,
+      set: (steps) => ({ steps }),
+      toRow: m.customerStepToRow,
+      fromRow: m.customerStepFromRow,
+    }),
+    listSpec<CustS, StepHide>({
+      table: "customer_step_hides",
+      pk: ["person_id", "step_id"],
+      get: (s) => s.hides,
+      set: (hides) => ({ hides }),
+      toRow: m.customerHideToRow,
+      fromRow: m.customerHideFromRow,
+      insert: "ignore",
+      update: false,
+    }),
+    listSpec<CustS, CustomerMove>({
+      table: "customer_moves",
+      pk: ["id"],
+      get: (s) => s.moves,
+      set: (moves) => ({ moves }),
+      toRow: m.customerMoveToRow,
+      fromRow: m.customerMoveFromRow,
+      // Undo deletes; nobody edits a move.
+      update: false,
+      writeInsert: async (rows, c) => {
+        const sorted = [...rows].sort((a, b) =>
+          String(a.moved_at).localeCompare(String(b.moved_at)),
+        );
+        for (const r of sorted) {
+          const card = useCustomerPipelineStore
+            .getState()
+            .cards.find((x) => x.entryId === r.entry_id);
+          const { data, error } = await c.client.rpc("move_customer_card", {
+            p_entry_id: r.entry_id as string,
+            p_to: r.to_column as string,
+            p_move_id: r.id as string,
+            p_customer_id: (r.created_customer_id as string | null) ?? undefined,
+            p_next_step: card?.nextStep ?? undefined,
+            p_next_step_date: card?.nextStepDate ?? undefined,
+          });
+          if (error) throw rpcError("move_customer_card", error);
+          const out = (data ?? {}) as { move?: Row; card?: Row };
+          queueMicrotask(() => {
+            if (out.move) applyRemote("customer_moves", [out.move]);
+            if (out.card) applyRemote("customer_cards", [out.card]);
+          });
+        }
+      },
+    }),
+    listSpec<CustS, CustomerCard>({
+      table: "customer_cards",
+      pk: ["entry_id"],
+      get: (s) => s.cards,
+      set: (cards) => ({ cards }),
+      toRow: m.customerCardToRow,
+      fromRow: m.customerCardFromRow,
+      // A card usually comes from its first move (written just before). A
+      // name still on the list gets one here, in "Not contacted yet", the
+      // first time its next step is set.
+      writeInsert: async (rows, c) => {
+        const ids = rows.map((r) => r.entry_id as string);
+        const { data, error } = await c.client
+          .from("customer_cards")
+          .select("entry_id")
+          .in("entry_id", ids);
+        if (error) throw rpcError("load customer_cards", error);
+        const have = new Set((data ?? []).map((r) => String(r.entry_id)));
+        for (const r of rows) {
+          const res = have.has(String(r.entry_id))
+            ? await c.client
+                .from("customer_cards")
+                .update(customerCardPatch(r))
+                .eq("entry_id", r.entry_id as string)
+            : await c.client
+                .from("customer_cards")
+                .insert({ ...r, column_id: "not_contacted" }, { defaultToNull: false });
+          if (res.error) throw rpcError("write customer_cards", res.error);
+        }
+      },
+      writeUpdate: async (row, changes, _prev, c) => {
+        const patch = customerCardPatch(changes);
+        if (!Object.keys(patch).length) return;
+        const { data, error } = await c.client
+          .from("customer_cards")
+          .update(patch)
+          .eq("entry_id", row.entry_id as string)
+          .select("entry_id");
+        if (error) throw rpcError("update customer_cards", error);
+        if (!data?.length) throw new Error("update customer_cards: not allowed");
+      },
+    }),
+  ],
+};
+
+// ---------------------------------------------------------------------------
+// Team settings: deputies and feature switches (src/data/team)
+// ---------------------------------------------------------------------------
+
+type TeamS = TeamData;
+export const teamBinding: Binding<TeamS> = {
+  name: "team",
+  store: useTeamStore,
+  specs: [
+    // Added and removed, never edited (who added a deputy is the database's).
+    listSpec<TeamS, Deputy>({
+      table: "deputies",
+      pk: ["leader_id", "deputy_id"],
+      get: (s) => s.deputies,
+      set: (deputies) => ({ deputies }),
+      toRow: m.deputyToRow,
+      fromRow: m.deputyFromRow,
+      update: false,
+    }),
+    listSpec<TeamS, FeatureSwitch>({
+      table: "feature_switches",
+      pk: ["workspace_id", "feature"],
+      get: (s) => s.switches,
+      set: (switches) => ({ switches }),
+      toRow: m.featureSwitchToRow,
+      fromRow: m.featureSwitchFromRow,
+      insert: "upsert",
+    }),
+  ],
+};
+
 export const ALL_BINDINGS = [
   peopleBinding,
   eventsBinding,
@@ -962,4 +1160,6 @@ export const ALL_BINDINGS = [
   chatBinding,
   libraryBinding,
   pipelineBinding,
+  customerPipelineBinding,
+  teamBinding,
 ] as unknown as Binding<unknown>[];

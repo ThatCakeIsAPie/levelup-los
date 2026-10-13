@@ -17,8 +17,9 @@ import { format } from "date-fns";
 import type { Tables } from "./database.types";
 import type { CrmPerson, StageChange } from "@/stores/peopleStore";
 import type { CrmEvent } from "@/stores/eventsStore";
-import type { Attendance } from "@/stores/attendanceStore";
+import type { Attendance, MissedEventNote } from "@/stores/attendanceStore";
 import type { Contact, Learning, LearningGoal, Sale, Settings } from "@/stores/crmStore";
+import type { GrowthMilestoneCode, MilestoneMark, PvOverride } from "@/data/growth/types";
 import type { Campaign, Logistics, Payment, ReportSchedule, SharedCost } from "@/stores/opsStore";
 import type { ActivityEvent } from "@/stores/activityStore";
 import type {
@@ -54,6 +55,15 @@ import type {
   StepHide,
   TeamSetting,
 } from "@/data/pipeline/types";
+import type {
+  CustomerBand,
+  CustomerCard,
+  CustomerMove,
+  CustomerStep,
+  ListEntry,
+  ListRating,
+} from "@/data/customerPipeline/types";
+import type { Deputy, FeatureKey, FeatureSwitch } from "@/data/team/types";
 
 export type Row = Record<string, unknown>;
 type R<T extends keyof import("./database.types").Database["public"]["Tables"]> = Partial<
@@ -105,6 +115,7 @@ export function personFromRow(r: R<"people">): CrmPerson {
     tags: r.tags?.length ? r.tags : undefined,
     lastUpdatedAt: iso(r.last_updated_at) ?? undefined,
     losUid: opt(r.los_uid),
+    dittoSince: opt(r.ditto_since),
   };
 }
 
@@ -129,6 +140,7 @@ export function personToRow(p: CrmPerson): Row {
     tags: p.tags ?? [],
     last_updated_at: p.lastUpdatedAt ? iso(p.lastUpdatedAt) : undefined,
     los_uid: nul(p.losUid),
+    ditto_since: nul(p.dittoSince),
   };
 }
 
@@ -141,6 +153,7 @@ export function eventFromRow(r: R<"events">): CrmEvent {
     endDate: opt(r.end_date),
     location: opt(r.location),
     notes: opt(r.notes),
+    format: opt(r.format) as CrmEvent["format"],
   };
 }
 
@@ -153,6 +166,7 @@ export function eventToRow(e: CrmEvent): Row {
     end_date: nul(e.endDate),
     location: nul(e.location),
     notes: nul(e.notes),
+    format: e.format ?? "in_person",
   };
 }
 
@@ -164,7 +178,7 @@ export function attendanceFromRow(r: R<"attendances">): Attendance {
     desireToAttend: opt(r.desire_to_attend) as Attendance["desireToAttend"],
     followUpDate: opt(r.follow_up_date),
     hasTicket: !!r.has_ticket,
-    ticketType: opt(r.ticket_type) as Attendance["ticketType"],
+    mode: opt(r.mode) as Attendance["mode"],
     plannedPurchaseDate: opt(r.planned_purchase_date),
     helperId: r.helper_id ?? null,
     leadershipQualified: !!r.leadership_qualified,
@@ -183,7 +197,7 @@ export function attendanceToRow(a: Attendance): Row {
     desire_to_attend: nul(a.desireToAttend),
     follow_up_date: nul(a.followUpDate),
     has_ticket: !!a.hasTicket,
-    ticket_type: nul(a.ticketType),
+    mode: nul(a.mode),
     planned_purchase_date: nul(a.plannedPurchaseDate),
     helper_id: a.helperId ?? null,
     leadership_qualified: !!a.leadershipQualified,
@@ -191,6 +205,29 @@ export function attendanceToRow(a: Attendance): Row {
     notes: nul(a.notes),
     attended: nul(a.attended),
     updated_at: a.updatedAt ? iso(a.updatedAt) : undefined,
+  };
+}
+
+export function missedNoteFromRow(r: R<"missed_event_notes">): MissedEventNote {
+  return {
+    id: r.id!,
+    personId: r.person_id!,
+    eventId: r.event_id!,
+    note: r.note ?? "",
+    byId: r.by_id ?? null,
+    createdAt: isoOr(r.created_at),
+  };
+}
+
+export function missedNoteToRow(n: MissedEventNote): Row {
+  return {
+    id: n.id,
+    person_id: n.personId,
+    event_id: n.eventId,
+    note: n.note,
+    // Stamped by the database on every client write (who and when).
+    by_id: n.byId,
+    created_at: iso(n.createdAt),
   };
 }
 
@@ -352,6 +389,8 @@ export function saleFromRow(r: R<"sales">): Sale {
     product: r.product ?? "",
     date: r.date ?? "",
     amount: num(r.amount),
+    pv: num(r.pv),
+    personId: opt(r.person_id),
   };
 }
 
@@ -362,6 +401,55 @@ export function saleToRow(s: Sale): Row {
     product: s.product,
     date: s.date,
     amount: nul(s.amount),
+    pv: nul(s.pv),
+    // Left out when unknown: the database fills in the customer's owner.
+    person_id: s.personId,
+  };
+}
+
+// Growth path: monthly PV set by uplines, milestones marked by hand. Who set
+// them and when are stamped by the database (the client's values are shown
+// until the next load).
+
+export function pvOverrideFromRow(r: R<"pv_overrides">): PvOverride {
+  return {
+    personId: r.person_id!,
+    month: r.month ?? "",
+    pv: Number(r.pv ?? 0),
+    setBy: opt(r.set_by),
+    setAt: isoOr(r.set_at),
+  };
+}
+
+export function pvOverrideToRow(o: PvOverride): Row {
+  return {
+    person_id: o.personId,
+    month: o.month,
+    pv: o.pv,
+    set_by: nul(o.setBy),
+    set_at: o.setAt,
+  };
+}
+
+export function milestoneMarkFromRow(r: R<"milestone_marks">): MilestoneMark {
+  return {
+    personId: r.person_id!,
+    code: r.code as GrowthMilestoneCode,
+    reachedOn: r.reached_on ?? "",
+    markedBy: opt(r.marked_by),
+    markedAt: isoOr(r.marked_at),
+    note: opt(r.note),
+  };
+}
+
+export function milestoneMarkToRow(k: MilestoneMark): Row {
+  return {
+    person_id: k.personId,
+    code: k.code,
+    reached_on: k.reachedOn,
+    marked_by: nul(k.markedBy),
+    marked_at: k.markedAt,
+    note: nul(k.note),
   };
 }
 
@@ -1002,5 +1090,172 @@ export function statRequestToRow(q: StatRequest): Row {
     status: q.status,
     created_at: iso(q.createdAt),
     decided_at: iso(q.decidedAt),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Your list and the customer pipeline (src/data/customerPipeline)
+// ---------------------------------------------------------------------------
+
+export function listEntryFromRow(r: R<"list_entries">): ListEntry {
+  return {
+    id: r.id!,
+    ownerId: r.owner_id!,
+    name: r.name ?? "",
+    howKnown: r.how_known ?? null,
+    phone: r.phone ?? null,
+    email: r.email ?? null,
+    notes: r.notes ?? null,
+    rating: (r.rating as ListRating | null) ?? null,
+    customerId: r.customer_id ?? null,
+    prospectId: r.prospect_id ?? null,
+    addedBy: r.added_by ?? r.owner_id ?? "",
+    createdAt: isoOr(r.created_at),
+    updatedAt: isoOr(r.updated_at),
+  };
+}
+
+/**
+ * `customer_id` is the database's (move_customer_card() sets it) and
+ * `updated_at` is stamped on every change: neither is sent.
+ */
+export function listEntryToRow(e: ListEntry): Row {
+  return {
+    id: e.id,
+    owner_id: e.ownerId,
+    name: e.name,
+    how_known: e.howKnown,
+    phone: e.phone,
+    email: e.email,
+    notes: e.notes,
+    rating: e.rating,
+    prospect_id: e.prospectId,
+    added_by: e.addedBy || null,
+    created_at: iso(e.createdAt),
+  };
+}
+
+export function customerStepFromRow(r: R<"customer_steps">): CustomerStep {
+  return {
+    id: r.id!,
+    ownerId: r.owner_id!,
+    band: r.band as CustomerStep["band"],
+    label: r.label ?? "",
+    position: Number(r.position ?? 0),
+    createdAt: isoOr(r.created_at),
+  };
+}
+
+export function customerStepToRow(s: CustomerStep): Row {
+  return {
+    id: s.id,
+    owner_id: s.ownerId,
+    band: s.band,
+    label: s.label,
+    position: s.position,
+    created_at: iso(s.createdAt),
+  };
+}
+
+export function customerHideFromRow(r: R<"customer_step_hides">): StepHide {
+  return { personId: r.person_id!, stepId: r.step_id!, createdAt: isoOr(r.created_at) };
+}
+
+export function customerHideToRow(h: StepHide): Row {
+  return { person_id: h.personId, step_id: h.stepId, created_at: iso(h.createdAt) };
+}
+
+/** `column_id` and `entered_at` only change through moves (see the cards binding). */
+export function customerCardFromRow(r: R<"customer_cards">): CustomerCard {
+  return {
+    entryId: r.entry_id!,
+    column: r.column_id ?? "not_contacted",
+    enteredAt: isoOr(r.entered_at),
+    nextStep: r.next_step ?? null,
+    nextStepDate: r.next_step_date ?? null,
+    updatedAt: isoOr(r.updated_at),
+  };
+}
+
+/** `updated_at` is the database's: never sent. */
+export function customerCardToRow(c: CustomerCard): Row {
+  return {
+    entry_id: c.entryId,
+    column_id: c.column,
+    entered_at: iso(c.enteredAt),
+    next_step: c.nextStep,
+    next_step_date: c.nextStepDate,
+  };
+}
+
+export function customerMoveFromRow(r: R<"customer_moves">): CustomerMove {
+  return {
+    id: r.id!,
+    entryId: r.entry_id!,
+    ownerId: r.owner_id ?? "",
+    from: r.from_column ?? null,
+    to: r.to_column!,
+    band: r.band as CustomerBand,
+    movedAt: isoOr(r.moved_at),
+    movedBy: r.moved_by ?? "",
+    createdCustomerId: r.created_customer_id ?? null,
+    setDitto: !!r.set_ditto,
+  };
+}
+
+export function customerMoveToRow(m: CustomerMove): Row {
+  return {
+    id: m.id,
+    entry_id: m.entryId,
+    owner_id: m.ownerId || null,
+    from_column: m.from,
+    to_column: m.to,
+    band: m.band,
+    moved_at: iso(m.movedAt),
+    moved_by: m.movedBy || null,
+    created_customer_id: m.createdCustomerId,
+    set_ditto: m.setDitto,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Team settings: deputies, feature switches (src/data/team)
+// ---------------------------------------------------------------------------
+
+export function deputyFromRow(r: R<"deputies">): Deputy {
+  return {
+    leaderId: r.leader_id ?? "",
+    deputyId: r.deputy_id ?? "",
+    addedBy: opt(r.added_by),
+    addedAt: iso(r.added_at) ?? undefined,
+  };
+}
+
+export function deputyToRow(d: Deputy): Row {
+  return {
+    leader_id: d.leaderId,
+    deputy_id: d.deputyId,
+    added_by: nul(d.addedBy),
+    added_at: iso(d.addedAt),
+  };
+}
+
+export function featureSwitchFromRow(r: R<"feature_switches">): FeatureSwitch {
+  return {
+    workspaceId: r.workspace_id ?? "",
+    feature: r.feature as FeatureKey,
+    enabled: !!r.enabled,
+    updatedBy: opt(r.updated_by),
+    updatedAt: iso(r.updated_at) ?? undefined,
+  };
+}
+
+export function featureSwitchToRow(s: FeatureSwitch): Row {
+  return {
+    workspace_id: s.workspaceId,
+    feature: s.feature,
+    enabled: s.enabled,
+    updated_by: nul(s.updatedBy),
+    updated_at: iso(s.updatedAt),
   };
 }

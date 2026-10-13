@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { seedAttendances, seedContacts, seedEvents, seedPeople } from "@/data/seed";
+import {
+  seedAttendances,
+  seedContacts,
+  seedEvents,
+  seedMilestoneMarks,
+  seedPeople,
+  seedPvOverrides,
+  seedSales,
+} from "@/data/seed";
 import { seedChat } from "@/data/chat/seed";
 import * as m from "./rows";
 
@@ -18,6 +26,20 @@ describe("row mappers", () => {
       const row = m.contactToRow(c);
       expect(m.contactToRow(m.contactFromRow(row))).toEqual(row);
     }
+  });
+
+  it("round-trip sales with PV, monthly PV and milestone marks", () => {
+    for (const s of seedSales()) expect(m.saleFromRow(m.saleToRow(s))).toEqual(s);
+    for (const o of seedPvOverrides()) {
+      expect(m.pvOverrideFromRow(m.pvOverrideToRow(o))).toEqual(o);
+    }
+    for (const k of seedMilestoneMarks()) {
+      expect(m.milestoneMarkFromRow(m.milestoneMarkToRow(k))).toEqual(k);
+    }
+    // A sale logged without a seller leaves person_id to the database.
+    const row = m.saleToRow({ id: "x", customerId: "c1", product: "P", date: "2026-10-01" });
+    expect(row.person_id).toBeUndefined();
+    expect(row.pv).toBeNull();
   });
 
   it("round-trip the chat contract field for field", () => {
@@ -71,5 +93,28 @@ describe("row mappers", () => {
     expect(
       m.activityFromRow({ ...m.activityToRow(a, "Maria Reyes"), actor_id: "1" }, "2").actorName,
     ).toBe("Maria Reyes");
+  });
+});
+
+describe("customer pipeline row mappers", () => {
+  it("round-trip every seed list entry, step, card and move", async () => {
+    const { seedCustomerPipeline } = await import("@/data/customerPipeline/seed");
+    const data = seedCustomerPipeline(seedPeople());
+    for (const e of data.entries) {
+      const row = m.listEntryToRow(e);
+      expect(m.listEntryToRow(m.listEntryFromRow(row))).toEqual(row);
+      // The customer link is the database's: never sent.
+      expect("customer_id" in row).toBe(false);
+    }
+    for (const s of data.steps) expect(m.customerStepFromRow(m.customerStepToRow(s))).toEqual(s);
+    for (const c of data.cards) {
+      const row = m.customerCardToRow(c);
+      expect(m.customerCardToRow(m.customerCardFromRow(row))).toEqual(row);
+    }
+    for (const mv of data.moves) {
+      expect(m.customerMoveFromRow(m.customerMoveToRow(mv))).toEqual(mv);
+    }
+    const p = seedPeople().find((x) => x.id === "c2")!;
+    expect(m.personToRow(p).ditto_since).toBe(p.dittoSince);
   });
 });

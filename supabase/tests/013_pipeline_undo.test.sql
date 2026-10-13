@@ -111,7 +111,8 @@ select is(pg_temp.affected($$delete from public.pipeline_moves where id = 'mv-un
 select pg_temp.logout();
 select is(pg_temp.stage('20') || ' ' || public.chat_eligible('20')::text, 'prospect/prospect false',
   'Beau is a prospect again (a candidate: no chat)');
-select is(pg_temp.beau_rows(), '1/2/1/2/1',
+-- Beau is on the Monthly Team Meeting and two info sessions (src/data/seed.ts).
+select is(pg_temp.beau_rows(), '3/2/1/2/1',
   'his attendance, contacts, learning, library progress and login are all still there');
 
 select * from finish();

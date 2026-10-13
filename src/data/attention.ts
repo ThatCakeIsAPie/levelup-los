@@ -7,6 +7,7 @@ import { addDays, format } from "date-fns";
 import { localDate, parseDate } from "@/lib/dates";
 import type { Attendance } from "@/stores/attendanceStore";
 import type { CrmEvent } from "@/stores/eventsStore";
+import { usesTickets } from "./eventTypes/info";
 
 export type AttentionCode =
   "date_passed" | "no_helper" | "no_followup" | "buy_due" | "followup_due" | "unrecorded";
@@ -28,9 +29,12 @@ const short = (d: string) => format(parseDate(d), "MMM d");
  * flag ticket holders whose attendance was never recorded.
  */
 export function attentionItems(
-  event: Pick<CrmEvent, "date" | "endDate">,
+  /** Events without tickets (Night Owls, trainings...) only flag follow-ups due. */
+  event: Pick<CrmEvent, "date" | "endDate"> & Partial<Pick<CrmEvent, "type">>,
   rows: Attendance[],
   now = new Date(),
+  /** People hidden from reminders ("Do not contact" on the customer board). */
+  skip?: ReadonlySet<string>,
 ): AttentionItem[] {
   const today = localDate(now);
   const weekOut = localDate(addDays(parseDate(today), 7));
@@ -38,7 +42,19 @@ export function attentionItems(
   const out: AttentionItem[] = [];
   const followUpDue = (a: Attendance) =>
     !!a.followUpDate && a.followUpDate >= today && a.followUpDate <= weekOut;
+  const tickets = !event.type || usesTickets(event.type);
   for (const a of rows) {
+    if (skip?.has(a.personId)) continue;
+    if (!tickets) {
+      if (!finished && a.desireToAttend !== "no" && followUpDue(a))
+        out.push({
+          a,
+          code: "followup_due",
+          label: `Follow up ${short(a.followUpDate!)}`,
+          tone: "info",
+        });
+      continue;
+    }
     if (finished) {
       if (a.hasTicket && a.attended === undefined)
         out.push({ a, code: "unrecorded", label: "Attendance not recorded", tone: "warn" });
@@ -100,6 +116,7 @@ export function upcomingAttentionCount(
   events: CrmEvent[],
   rows: Attendance[],
   now = new Date(),
+  skip?: ReadonlySet<string>,
 ): number {
   const today = localDate(now);
   let n = 0;
@@ -109,6 +126,7 @@ export function upcomingAttentionCount(
       e,
       rows.filter((a) => a.eventId === e.id),
       now,
+      skip,
     ).length;
   }
   return n;

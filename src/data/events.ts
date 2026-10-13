@@ -5,6 +5,7 @@ import { useOpsStore } from "@/stores/opsStore";
 import { IS_SUPABASE } from "@/lib/config";
 import { serverSide } from "./remote";
 import { upcomingAttentionCount } from "./attention";
+import { useDoNotContactIds } from "./customerPipeline/hooks";
 import { localDate } from "@/lib/dates";
 import { filterAttendances } from "./access";
 import { useVisibleIds } from "./people";
@@ -87,7 +88,11 @@ export function useVisibleAttendances(): Attendance[] {
 export function useEventsAttentionCount(): number {
   const upcoming = useUpcomingEvents();
   const rows = useVisibleAttendances();
-  return useMemo(() => upcomingAttentionCount(upcoming, rows), [upcoming, rows]);
+  const skip = useDoNotContactIds();
+  return useMemo(
+    () => upcomingAttentionCount(upcoming, rows, undefined, skip),
+    [upcoming, rows, skip],
+  );
 }
 
 // ---- Mutations ----

@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { effectiveBizClass, logout, roleLabel, useCurrentUser, useMe } from "@/data";
 import { NOTIFY_OPTIONS, usePrefsStore } from "./prefsStore";
+import { AdminDebugCard } from "./AdminDebugCard";
 
 const PAGE =
   "mx-auto grid w-full max-w-2xl content-start gap-4 px-4 py-5 lg:px-[26px] lg:py-[22px]";
@@ -31,6 +32,7 @@ export function SettingsPage() {
         </div>
       </SectionCard>
       <NotificationsCard />
+      <AdminDebugCard />
       <SectionCard title="Data">
         <div>
           {IS_LOCAL_DEMO && (
@@ -92,7 +94,7 @@ function AccountCard() {
             icon={ShieldCheck}
             iconTone="info"
             title="Team settings"
-            meta="Moderators, approvals and team chats"
+            meta="Features, deputies and, with chats on, moderators"
             link={{ to: "/settings/team" }}
           />
         </div>

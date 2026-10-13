@@ -11,11 +11,11 @@ import {
   DEFAULT_MG1_GOAL,
   DEFAULT_TARGETS,
   MILESTONES,
-  MILESTONE_COLUMN_LABEL,
-  MILESTONE_LABEL,
   MIN_SAMPLE,
+  RECRUITING_BOARD,
   STALE_DAYS,
   TRANSITIONS,
+  type BoardDef,
   type ConversionTargets,
   type MilestoneCode,
   type PipelineCard,
@@ -77,19 +77,32 @@ export function withUplines(chain: string[], uplines: string[]): string[] {
  * The board's columns for the last person in `chain`: each milestone, then
  * the steps in its band defined by anyone in the chain (uplines first, each
  * owner's steps in their own order), minus steps hidden by anyone in the
- * chain. Registered has no steps after it.
+ * chain. Registered has no steps after it. Another board layout (`def`, the
+ * customer board) adds its fixed start and outcome columns in their bands.
  */
-export function columnsFor(
+export function columnsFor<B extends string = MilestoneCode>(
   chain: string[],
-  steps: PipelineStep[],
+  steps: readonly PipelineStep<string>[],
   hides: StepHide[],
-): PipelineColumn[] {
+  def: BoardDef<B> = RECRUITING_BOARD as unknown as BoardDef<B>,
+): PipelineColumn<B>[] {
   const depth = new Map(chain.map((id, i) => [id, i]));
   const hidden = new Set(hides.filter((h) => depth.has(h.personId)).map((h) => h.stepId));
-  const out: PipelineColumn[] = [];
-  for (const m of MILESTONES) {
-    out.push({ id: m, band: m, kind: "milestone", label: MILESTONE_COLUMN_LABEL[m] });
-    if (m === "registered") break;
+  const out: PipelineColumn<B>[] = [];
+  for (const band of def.bands) {
+    const m = band.id;
+    if (band.kind !== "milestone") {
+      for (const f of def.fixed.filter((x) => x.band === m))
+        out.push({ id: f.id, band: m, kind: "fixed", label: f.label, hint: f.hint });
+      continue;
+    }
+    out.push({
+      id: m,
+      band: m,
+      kind: "milestone",
+      label: def.milestoneColumnLabel[m] ?? band.label,
+    });
+    if (!def.stepBands.includes(m)) continue;
     steps
       .filter((s) => s.band === m && depth.has(s.ownerId) && !hidden.has(s.id))
       .sort(byChainOrder(depth))
@@ -102,26 +115,26 @@ export function columnsFor(
 
 const byChainOrder =
   (depth: Map<string, number>) =>
-  (a: PipelineStep, b: PipelineStep): number =>
+  (a: PipelineStep<string>, b: PipelineStep<string>): number =>
     (depth.get(a.ownerId) ?? 0) - (depth.get(b.ownerId) ?? 0) ||
     a.position - b.position ||
     a.createdAt.localeCompare(b.createdAt);
 
 /** A step as the steps editor shows it to the last person in `chain`. */
-export interface ChainStep {
-  step: PipelineStep;
+export interface ChainStep<S extends PipelineStep<string> = PipelineStep> {
+  step: S;
   own: boolean;
   /** Who in the chain hides it (the person themselves, or an upline). */
   hiddenBy: string | null;
 }
 
 /** Every step in the chain for one band, in board order, with hide state. */
-export function chainSteps(
+export function chainSteps<S extends PipelineStep<string>>(
   chain: string[],
-  steps: PipelineStep[],
+  steps: readonly S[],
   hides: StepHide[],
-  band: StepBand,
-): ChainStep[] {
+  band: S["band"],
+): ChainStep<S>[] {
   const depth = new Map(chain.map((id, i) => [id, i]));
   const me = chain[chain.length - 1];
   return steps
@@ -146,15 +159,28 @@ export function chainSteps(
  */
 export function resolveColumn(
   columnId: string,
-  band: MilestoneCode,
+  band: string,
   columnIds: ReadonlySet<string>,
 ): string {
   return columnIds.has(columnId) ? columnId : band;
 }
 
 /** The milestone band of a column id, or null for an unknown step. */
-export function bandOf(columnId: string, steps: PipelineStep[]): MilestoneCode | null {
-  if (isMilestone(columnId)) return columnId;
+export function bandOf(columnId: string, steps: PipelineStep[]): MilestoneCode | null;
+/** On another board layout: the band of a milestone, fixed column or step. */
+export function bandOf<B extends string>(
+  columnId: string,
+  steps: readonly PipelineStep<string>[],
+  def: BoardDef<B>,
+): B | null;
+export function bandOf(
+  columnId: string,
+  steps: readonly PipelineStep<string>[],
+  def: BoardDef<string> = RECRUITING_BOARD,
+): string | null {
+  if (def.milestones.includes(columnId)) return columnId;
+  const fixed = def.fixed.find((f) => f.id === columnId);
+  if (fixed) return fixed.band;
   return steps.find((s) => s.id === columnId)?.band ?? null;
 }
 
@@ -162,16 +188,15 @@ export function bandOf(columnId: string, steps: PipelineStep[]): MilestoneCode |
 // Moves
 // ---------------------------------------------------------------------------
 
-export type MoveCheck =
-  | { ok: true; to: PipelineColumn }
-  | { ok: false; reason: "not-on-board" | "unknown-column" | "same-column" };
+export type MoveCheck<C = PipelineColumn> =
+  { ok: true; to: C } | { ok: false; reason: "not-on-board" | "unknown-column" | "same-column" };
 
 /** Can this card move to `to` on a board with these columns? */
-export function validateMove(
-  card: PipelineCard | undefined,
+export function validateMove<C extends PipelineColumn<string> = PipelineColumn>(
+  card: Pick<PipelineCard, "column" | "droppedAt"> | undefined,
   to: string,
-  columns: PipelineColumn[],
-): MoveCheck {
+  columns: C[],
+): MoveCheck<C> {
   if (!card || card.droppedAt) return { ok: false, reason: "not-on-board" };
   const col = columns.find((c) => c.id === to);
   if (!col) return { ok: false, reason: "unknown-column" };
@@ -185,7 +210,10 @@ export function registrationPatch(today: string): Partial<CrmPerson> {
 }
 
 /** The column after `columnId` on this board (null at the end). */
-export function nextColumn(columns: PipelineColumn[], columnId: string): PipelineColumn | null {
+export function nextColumn<C extends PipelineColumn<string>>(
+  columns: C[],
+  columnId: string,
+): C | null {
   const i = columns.findIndex((c) => c.id === columnId);
   return i >= 0 ? (columns[i + 1] ?? null) : (columns[0] ?? null);
 }
@@ -195,10 +223,10 @@ export function nextColumn(columns: PipelineColumn[], columnId: string): Pipelin
 // ---------------------------------------------------------------------------
 
 /** A person reaching a milestone for the first time. */
-export interface Reach {
+export interface Reach<B extends string = MilestoneCode> {
   personId: string;
   ownerId: string;
-  milestone: MilestoneCode;
+  milestone: B;
   at: string;
   /** Local "YYYY-MM-DD" of `at`. */
   day: string;
@@ -220,12 +248,16 @@ export function localNoon(day: string): string {
  * between on the same date; moving back and forward again never counts
  * twice, so the board and the Log sheet can't double count.
  */
-export function reachesOf(moves: PipelineMove[]): Reach[] {
+export function reachesOf<B extends string = MilestoneCode>(
+  moves: readonly MoveLike[],
+  milestones: readonly B[] = MILESTONES as unknown as readonly B[],
+): Reach<B>[] {
   const sorted = [...moves].sort((a, b) => a.movedAt.localeCompare(b.movedAt));
   const best = new Map<string, number>();
-  const out: Reach[] = [];
+  const out: Reach<B>[] = [];
   for (const m of sorted) {
-    const idx = bandIndex(m.milestone);
+    // Start and outcome columns (index -1) reach nothing.
+    const idx = milestones.indexOf(m.milestone as B);
     const prev = best.get(m.personId) ?? -1;
     if (idx <= prev) continue;
     const day = dayOf(m.movedAt);
@@ -233,7 +265,7 @@ export function reachesOf(moves: PipelineMove[]): Reach[] {
       out.push({
         personId: m.personId,
         ownerId: m.ownerId,
-        milestone: MILESTONES[k],
+        milestone: milestones[k],
         at: m.movedAt,
         day,
       });
@@ -243,22 +275,29 @@ export function reachesOf(moves: PipelineMove[]): Reach[] {
   return out;
 }
 
-export type MilestoneCounts = Record<MilestoneCode, number>;
-const zero = (): MilestoneCounts => ({
-  contact: 0,
-  first_meeting: 0,
-  first_plan: 0,
-  registered: 0,
-});
+/** What reachesOf needs of a move (recruiting and customer moves both fit). */
+export interface MoveLike {
+  /** Whose card: a prospect's person id, or a list entry id on the customer board. */
+  personId: string;
+  ownerId: string;
+  milestone: string;
+  movedAt: string;
+}
+
+export type MilestoneCounts<B extends string = MilestoneCode> = Record<B, number>;
+const zero = <B extends string = MilestoneCode>(
+  milestones: readonly B[] = MILESTONES as unknown as readonly B[],
+): MilestoneCounts<B> => Object.fromEntries(milestones.map((m) => [m, 0])) as MilestoneCounts<B>;
 
 /** Milestones reached between two days (inclusive) by these owners' prospects. */
-export function countReaches(
-  reaches: Reach[],
+export function countReaches<B extends string = MilestoneCode>(
+  reaches: Reach<B>[],
   owners: ReadonlySet<string> | null,
   from: string,
   to: string,
-): MilestoneCounts {
-  const out = zero();
+  milestones: readonly B[] = MILESTONES as unknown as readonly B[],
+): MilestoneCounts<B> {
+  const out = zero(milestones);
   for (const r of reaches) {
     if (r.day < from || r.day > to) continue;
     if (owners && !owners.has(r.ownerId)) continue;
@@ -268,13 +307,14 @@ export function countReaches(
 }
 
 /** The same counts per owner (only the owners listed). */
-export function countReachesByOwner(
-  reaches: Reach[],
+export function countReachesByOwner<B extends string = MilestoneCode>(
+  reaches: Reach<B>[],
   owners: string[],
   from: string,
   to: string,
-): Map<string, MilestoneCounts> {
-  const out = new Map(owners.map((o) => [o, zero()]));
+  milestones: readonly B[] = MILESTONES as unknown as readonly B[],
+): Map<string, MilestoneCounts<B>> {
+  const out = new Map(owners.map((o) => [o, zero(milestones)]));
   for (const r of reaches) {
     if (r.day < from || r.day > to) continue;
     const c = out.get(r.ownerId);
@@ -312,10 +352,10 @@ export function comparisonPeriod(key: string, today: string): { from: string; to
   return monthBounds(shiftMonth(key, -1));
 }
 
-export interface MonthActivity {
-  counts: MilestoneCounts;
+export interface MonthActivity<B extends string = MilestoneCode> {
+  counts: MilestoneCounts<B>;
   /** The whole previous month. */
-  previous: MilestoneCounts;
+  previous: MilestoneCounts<B>;
   /** True when `key` is the current month (counts so far). */
   partial: boolean;
 }
@@ -324,34 +364,36 @@ export interface MonthActivity {
  * One month's milestone activity and the whole previous month's (the
  * current month counts so far, as the design shows: "62 · −13% vs Sep").
  */
-export function monthActivity(
-  reaches: Reach[],
+export function monthActivity<B extends string = MilestoneCode>(
+  reaches: Reach<B>[],
   owners: ReadonlySet<string> | null,
   key: string,
   today: string,
-): MonthActivity {
+  milestones: readonly B[] = MILESTONES as unknown as readonly B[],
+): MonthActivity<B> {
   const { from, to } = monthBounds(key);
   const partial = monthOf(today) === key;
   const prev = comparisonPeriod(key, today);
   return {
-    counts: countReaches(reaches, owners, from, partial ? today : to),
-    previous: countReaches(reaches, owners, prev.from, prev.to),
+    counts: countReaches(reaches, owners, from, partial ? today : to, milestones),
+    previous: countReaches(reaches, owners, prev.from, prev.to, milestones),
     partial,
   };
 }
 
 /** `n` months of one milestone ending with `endKey`, oldest first. */
-export function monthlySeries(
-  reaches: Reach[],
+export function monthlySeries<B extends string = MilestoneCode>(
+  reaches: Reach<B>[],
   owners: ReadonlySet<string> | null,
-  milestone: MilestoneCode,
+  milestone: B,
   endKey: string,
   n = 6,
+  milestones: readonly B[] = MILESTONES as unknown as readonly B[],
 ): { key: string; count: number }[] {
   return Array.from({ length: n }, (_, i) => {
     const key = shiftMonth(endKey, i - n + 1);
     const { from, to } = monthBounds(key);
-    return { key, count: countReaches(reaches, owners, from, to)[milestone] };
+    return { key, count: countReaches(reaches, owners, from, to, milestones)[milestone] };
   });
 }
 
@@ -592,12 +634,15 @@ export function isStale(
 // Steps editor
 // ---------------------------------------------------------------------------
 
-export const canEditStep = (step: PipelineStep, personId: string): boolean =>
+export const canEditStep = (step: PipelineStep<string>, personId: string): boolean =>
   step.ownerId === personId;
 
 /** Inherited steps (an upline's) can be hidden; your own you delete instead. */
-export const canHideStep = (step: PipelineStep, chain: string[], personId: string): boolean =>
-  step.ownerId !== personId && chain.includes(step.ownerId);
+export const canHideStep = (
+  step: PipelineStep<string>,
+  chain: string[],
+  personId: string,
+): boolean => step.ownerId !== personId && chain.includes(step.ownerId);
 
 export const MAX_STEP_LABEL = 24;
 
@@ -606,20 +651,24 @@ export function stepLabelError(
   label: string,
   bandLabels: string[],
   current?: string,
+  reserved: readonly string[] = RECRUITING_BOARD.reserved,
 ): string | null {
   const t = label.trim();
   if (!t) return "Give the step a name.";
   if (t.length > MAX_STEP_LABEL) return `Keep it to ${MAX_STEP_LABEL} characters.`;
   const lower = t.toLowerCase();
-  if (Object.values(MILESTONE_LABEL).some((m) => m.toLowerCase() === lower))
-    return "That's a milestone's name.";
+  if (reserved.some((m) => m.toLowerCase() === lower)) return "That's a milestone's name.";
   if (bandLabels.some((l) => l.toLowerCase() === lower && l !== current))
     return "There's already a step with that name here.";
   return null;
 }
 
 /** Position for a new step at the end of the owner's steps in a band. */
-export function nextPosition(steps: PipelineStep[], ownerId: string, band: StepBand): number {
+export function nextPosition(
+  steps: readonly PipelineStep<string>[],
+  ownerId: string,
+  band: string,
+): number {
   const own = steps.filter((s) => s.ownerId === ownerId && s.band === band);
   return own.length ? Math.max(...own.map((s) => s.position)) + 1 : 0;
 }
@@ -629,12 +678,12 @@ export function nextPosition(steps: PipelineStep[], ownerId: string, band: StepB
  * its band. Returns the owner's steps in that band with positions renumbered
  * 0..n-1, or [] when it can't move.
  */
-export function reorderOwnSteps(
-  steps: PipelineStep[],
+export function reorderOwnSteps<S extends PipelineStep<string>>(
+  steps: readonly S[],
   ownerId: string,
   stepId: string,
   dir: -1 | 1,
-): PipelineStep[] {
+): S[] {
   const step = steps.find((s) => s.id === stepId);
   if (!step || step.ownerId !== ownerId) return [];
   const own = steps

@@ -4,16 +4,11 @@
  */
 import { differenceInCalendarDays, format } from "date-fns";
 import { localDate, parseDate } from "@/data";
-import type { Attendance, CrmEvent, EventType, Role } from "@/data";
+import type { Attendance, CrmEvent } from "@/data";
 import type { Tone } from "@/components/brand";
 
-export const EVENT_TYPE_LABEL: Record<EventType, string> = {
-  conference: "Conference",
-  team_meeting: "Team meeting",
-};
-
-/** Candidates only ever see their own journey; everyone else manages events. */
-export const canManageEvents = (role: Role) => role !== "candidate";
+// Labels and the one "who may plan events" check live in @/data.
+export { EVENT_TYPE_LABEL } from "@/data";
 
 /** "Nov 7, 2026", "Nov 7–8, 2026", "Oct 31 – Nov 1, 2026" or across years. */
 export function formatEventRange(e: Pick<CrmEvent, "date" | "endDate">): string {
@@ -135,14 +130,14 @@ export function patchForStage(a: Attendance, target: StageKey): Partial<Attendan
       return {
         desireToAttend: "yes",
         hasTicket: true,
-        ticketType: a.ticketType ?? "in_person",
+        mode: a.mode ?? "in_person",
         attended: undefined,
       };
     case "attended":
       return {
         desireToAttend: "yes",
         hasTicket: true,
-        ticketType: a.ticketType ?? "in_person",
+        mode: a.mode ?? "in_person",
         attended: true,
       };
   }
@@ -171,7 +166,7 @@ export function attendanceStatus(a: Attendance | undefined): { label: string; to
   if (a.attended === true) return { label: "Attended", tone: "good" };
   if (a.hasTicket && a.attended === false) return { label: "No-show", tone: "bad" };
   if (a.hasTicket)
-    return { label: a.ticketType === "stream" ? "Stream ticket" : "Has ticket", tone: "info" };
+    return { label: a.mode === "virtual" ? "Virtual ticket" : "Has ticket", tone: "info" };
   if (a.desireToAttend === "no") return { label: "Not going", tone: "neutral" };
   if (a.plannedPurchaseDate)
     return { label: `Buying by ${shortDate(a.plannedPurchaseDate)}`, tone: "warn" };
@@ -180,10 +175,9 @@ export function attendanceStatus(a: Attendance | undefined): { label: string; to
   return { label: "Invited", tone: "neutral" };
 }
 
-/** Ticket cell text: "In person", "Stream", "Plans Oct 20", "No ticket". */
+/** Ticket cell text: "In person", "Virtual", "Plans Oct 20", "No ticket". */
 export function ticketStatus(a: Attendance, today = localDate()): { label: string; tone: Tone } {
-  if (a.hasTicket)
-    return { label: a.ticketType === "stream" ? "Stream" : "In person", tone: "info" };
+  if (a.hasTicket) return { label: a.mode === "virtual" ? "Virtual" : "In person", tone: "info" };
   if (a.plannedPurchaseDate)
     return {
       label: `Plans ${shortDate(a.plannedPurchaseDate)}`,

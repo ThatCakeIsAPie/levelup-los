@@ -14,6 +14,7 @@ import { Route as BusinessRouteImport } from './routes/business'
 import { Route as CampaignsRouteImport } from './routes/campaigns'
 import { Route as CustomersRouteImport } from './routes/customers'
 import { Route as InboxRouteImport } from './routes/inbox'
+import { Route as LearningRouteImport } from './routes/learning'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as MindmapRouteImport } from './routes/mindmap'
 import { Route as PipelineRouteImport } from './routes/pipeline'
@@ -58,6 +59,11 @@ const CustomersRoute = CustomersRouteImport.update({
 const InboxRoute = InboxRouteImport.update({
   id: '/inbox',
   path: '/inbox',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LearningRoute = LearningRouteImport.update({
+  id: '/learning',
+  path: '/learning',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -167,6 +173,7 @@ export interface FileRoutesByFullPath {
   '/campaigns': typeof CampaignsRoute
   '/customers': typeof CustomersRoute
   '/inbox': typeof InboxRoute
+  '/learning': typeof LearningRoute
   '/login': typeof LoginRoute
   '/mindmap': typeof MindmapRoute
   '/pipeline': typeof PipelineRoute
@@ -194,6 +201,7 @@ export interface FileRoutesByTo {
   '/campaigns': typeof CampaignsRoute
   '/customers': typeof CustomersRoute
   '/inbox': typeof InboxRoute
+  '/learning': typeof LearningRoute
   '/login': typeof LoginRoute
   '/mindmap': typeof MindmapRoute
   '/pipeline': typeof PipelineRoute
@@ -222,6 +230,7 @@ export interface FileRoutesById {
   '/campaigns': typeof CampaignsRoute
   '/customers': typeof CustomersRoute
   '/inbox': typeof InboxRoute
+  '/learning': typeof LearningRoute
   '/login': typeof LoginRoute
   '/mindmap': typeof MindmapRoute
   '/pipeline': typeof PipelineRoute
@@ -251,6 +260,7 @@ export interface FileRouteTypes {
     | '/campaigns'
     | '/customers'
     | '/inbox'
+    | '/learning'
     | '/login'
     | '/mindmap'
     | '/pipeline'
@@ -278,6 +288,7 @@ export interface FileRouteTypes {
     | '/campaigns'
     | '/customers'
     | '/inbox'
+    | '/learning'
     | '/login'
     | '/mindmap'
     | '/pipeline'
@@ -305,6 +316,7 @@ export interface FileRouteTypes {
     | '/campaigns'
     | '/customers'
     | '/inbox'
+    | '/learning'
     | '/login'
     | '/mindmap'
     | '/pipeline'
@@ -333,6 +345,7 @@ export interface RootRouteChildren {
   CampaignsRoute: typeof CampaignsRoute
   CustomersRoute: typeof CustomersRoute
   InboxRoute: typeof InboxRoute
+  LearningRoute: typeof LearningRoute
   LoginRoute: typeof LoginRoute
   MindmapRoute: typeof MindmapRoute
   PipelineRoute: typeof PipelineRoute
@@ -390,6 +403,13 @@ declare module '@tanstack/react-router' {
       path: '/inbox'
       fullPath: '/inbox'
       preLoaderRoute: typeof InboxRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/learning': {
+      id: '/learning'
+      path: '/learning'
+      fullPath: '/learning'
+      preLoaderRoute: typeof LearningRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -541,6 +561,7 @@ const rootRouteChildren: RootRouteChildren = {
   CampaignsRoute: CampaignsRoute,
   CustomersRoute: CustomersRoute,
   InboxRoute: InboxRoute,
+  LearningRoute: LearningRoute,
   LoginRoute: LoginRoute,
   MindmapRoute: MindmapRoute,
   PipelineRoute: PipelineRoute,

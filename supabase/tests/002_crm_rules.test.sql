@@ -68,7 +68,7 @@ select pg_temp.logout();
 select pg_temp.login('20');
 select throws_ok($$insert into public.people (name, biz_class, sponsor_id) values ('X', 'prospect', '20')$$,
   '42501', null, 'candidates add nobody');
-select throws_ok($$insert into public.events (name, type, date) values ('X', 'team_meeting', current_date)$$,
+select throws_ok($$insert into public.events (name, type, date) values ('X', 'monthly_meeting', current_date)$$,
   '42501', null, 'candidates do not create events');
 select is((select count(*)::int from public.members), 1, 'a candidate sees only his own member row');
 select pg_temp.logout();

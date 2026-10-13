@@ -43,9 +43,11 @@ function DemoPicker() {
               <span className="min-w-0">
                 <span className="block truncate text-sm font-bold">{u.name}</span>
                 <span className="block text-[12.5px] text-muted-foreground">
-                  <span className="font-semibold text-foreground">{roleLabel[u.role]}</span>
+                  <span className="font-semibold text-foreground">
+                    {u.label ?? roleLabel[u.role]}
+                  </span>
                   {" · "}
-                  {ROLE_SEES[u.role]}
+                  {u.sees ?? ROLE_SEES[u.role]}
                 </span>
               </span>
               <ChevronRight

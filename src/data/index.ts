@@ -41,8 +41,33 @@ export * from "./chat";
 // Recruiting pipeline: board, activity goal, conversions, stat sharing (src/data/pipeline)
 export * from "./pipeline";
 
+// Your list and the customer pipeline (src/data/customerPipeline)
+export * from "./customerPipeline";
+
 // Library: All talks catalog, channels, progress (src/data/library)
 export * from "./library";
+
+// Growth path: milestone engine, monthly PV, hand-marked milestones (src/data/growth)
+export * from "./growth";
+
+// Event types, quick attendance, missed-event follow-ups (src/data/eventTypes)
+export * from "./eventTypes";
+
+// Unlocks (what each person sees), feature switches, leader deputies (src/data/team)
+export * from "./team";
+export {
+  computeUnlocks,
+  unlockStage,
+  routeAccess,
+  NEXT_UNLOCK_TEXT,
+  type Unlocks,
+  type UnlockArea,
+  type UnlockInput,
+  type UnlockStage,
+  type NextUnlock,
+  type LockReason,
+  type RouteAccess,
+} from "./unlocks";
 
 // Session
 export {
@@ -199,8 +224,13 @@ export type {
   PersonPath,
   ApprenticeAlert,
 } from "@/stores/peopleStore";
-export type { CrmEvent, EventType } from "@/stores/eventsStore";
-export type { Attendance, DesireLevel, TicketType } from "@/stores/attendanceStore";
+export type { CrmEvent, EventFormat, EventType } from "@/stores/eventsStore";
+export type {
+  Attendance,
+  AttendMode,
+  DesireLevel,
+  MissedEventNote,
+} from "@/stores/attendanceStore";
 export type {
   Contact,
   ContactSource,

@@ -13,7 +13,9 @@
  * board in Contact made; Showed the plan moves them to First plan; Booked a
  * meeting moves them to the column picked (the next one by default). Undo
  * takes the move back too.
- * Selling: Made a sale / Reorder -> logSale (refId sale id); Customer contact
+ * Selling: Made a sale / Reorder -> logSale with PV (refId sale id); "My own
+ * order" logs a personal order (the buyer is you; counts toward your PV, not
+ * shared as a win); Customer contact
  * -> logContact. Check-in -> logContact; Learning -> logLearning (learning card).
  */
 import { useMemo, useState } from "react";
@@ -57,6 +59,7 @@ import {
 import { toastWithUndo } from "./quickLog";
 import { byStaleness, Field, PersonSelect } from "./parts";
 import { ShareAsWin, type WinDraft } from "./ShareAsWin";
+import { useCanShareWins } from "./canShareWins";
 import { BoardMoveField, BoardNote } from "./PipelineMoveField";
 import { boardTarget, movesToPlan } from "./pipelineMove";
 
@@ -96,8 +99,12 @@ function finish(opts: {
   closeLog();
 }
 
-const useWin = (on: boolean, title: string, detail = "") =>
-  useState<WinDraft>({ on, title, detail });
+/** The win draft; never "on" when wins can't be shared (no chat, or Chats switched off). */
+function useWin(on: boolean, title: string, detail = "") {
+  const canShare = useCanShareWins();
+  const [draft, setDraft] = useState<WinDraft>({ on, title, detail });
+  return [canShare ? draft : { ...draft, on: false }, setDraft] as const;
+}
 
 function SubmitButton({
   disabled,
@@ -336,37 +343,48 @@ export function SaleForm({
   initialCustomerId?: string;
   reorder?: boolean;
 }) {
+  const user = useCurrentUser();
   const customers = useVisibleCustomers();
   const ages = useLastContactMap();
+  const candidate = user.role === "candidate";
+  const [personal, setPersonal] = useState(
+    !candidate && (customers.length === 0 || initialCustomerId === user.personId),
+  );
   const [customerId, setCustomerId] = useState(
     initialCustomerId && customers.some((c) => c.id === initialCustomerId) ? initialCustomerId : "",
   );
   const [product, setProduct] = useState("");
   const [amount, setAmount] = useState("");
+  const [pvValue, setPvValue] = useState("");
   const [date, setDate] = useState(localDate());
-  const [win, setWin] = useWin(true, reorder ? "Customer reordered" : "Made a sale");
+  const [win, setWin] = useWin(!personal, reorder ? "Customer reordered" : "Made a sale");
 
-  if (customers.length === 0) {
+  if (candidate) {
     return (
       <EmptyState title="No customers yet" body="Sales are logged against customers you own." />
     );
   }
 
-  const valid = !!customerId && !!product.trim();
+  const buyer = personal ? user.personId : customerId;
+  const pvNum = Number(pvValue);
+  const pvOk = pvValue.trim() === "" || (Number.isFinite(pvNum) && pvNum >= 0);
+  const valid = !!buyer && !!product.trim() && pvOk;
   const save = () => {
     if (!valid) return;
     const n = Number(amount);
     const sale = logSale({
-      customerId,
+      customerId: buyer,
       product: product.trim(),
       date,
       amount: amount !== "" && Number.isFinite(n) ? n : undefined,
+      pv: pvValue.trim() !== "" ? pvNum : undefined,
     });
+    const pvNote = sale.pv ? ` · ${sale.pv} PV` : "";
     finish({
-      message: reorder ? "Reorder logged" : "Sale logged",
-      undoneMessage: "Sale removed",
+      message: `${personal ? "Personal order logged" : reorder ? "Reorder logged" : "Sale logged"}${pvNote}`,
+      undoneMessage: personal ? "Order removed" : "Sale removed",
       undo: () => removeSale(sale.id),
-      share: { winKind: "sale", refId: sale.id, draft: win },
+      share: personal ? null : { winKind: "sale", refId: sale.id, draft: win },
     });
   };
 
@@ -378,15 +396,53 @@ export function SaleForm({
         save();
       }}
     >
-      <Field label="Customer">
-        <PersonSelect
-          people={customers}
-          value={customerId}
-          onChange={setCustomerId}
-          placeholder="Which customer?"
-          ages={ages}
+      <div
+        role="radiogroup"
+        aria-label="Who bought"
+        className="grid grid-cols-2 gap-1 rounded-[10px] bg-surface-2 p-[3px]"
+      >
+        {[
+          { on: false, label: "A customer" },
+          { on: true, label: "My own order" },
+        ].map((o) => (
+          <button
+            key={o.label}
+            type="button"
+            role="radio"
+            aria-checked={personal === o.on}
+            onClick={() => {
+              setPersonal(o.on);
+              setWin((w) => ({ ...w, on: !o.on }));
+            }}
+            className={cn(
+              "rounded-lg px-2 py-1.5 text-[12.5px] font-semibold text-muted-foreground focus-visible:outline-2 focus-visible:outline-ring",
+              personal === o.on && "bg-card text-foreground shadow-sm",
+            )}
+          >
+            {o.label}
+          </button>
+        ))}
+      </div>
+      {personal ? (
+        <p className="-mt-1 text-[12px] text-muted-foreground">
+          Products you buy for yourself count toward your PV too.
+        </p>
+      ) : customers.length === 0 ? (
+        <EmptyState
+          title="No customers yet"
+          body="Add a customer first, or log your own order: it counts toward your PV too."
         />
-      </Field>
+      ) : (
+        <Field label="Customer">
+          <PersonSelect
+            people={customers}
+            value={customerId}
+            onChange={setCustomerId}
+            placeholder="Which customer?"
+            ages={ages}
+          />
+        </Field>
+      )}
       <Field label="Product" htmlFor="log-product">
         <Input
           id="log-product"
@@ -399,6 +455,18 @@ export function SaleForm({
         />
       </Field>
       <div className="grid grid-cols-2 gap-3">
+        <Field label="PV" htmlFor="log-pv">
+          <Input
+            id="log-pv"
+            type="number"
+            inputMode="decimal"
+            min={0}
+            step="0.01"
+            value={pvValue}
+            onChange={(e) => setPvValue(e.target.value)}
+            aria-describedby="log-pv-hint"
+          />
+        </Field>
         <Field label="Amount ($, optional)" htmlFor="log-amount">
           <Input
             id="log-amount"
@@ -410,13 +478,16 @@ export function SaleForm({
             onChange={(e) => setAmount(e.target.value)}
           />
         </Field>
-        <DateField id="log-sale-date" value={date} onChange={setDate} />
       </div>
-      <ShareAsWin id="share-sale" value={win} onChange={setWin} winKind="sale" />
+      <p id="log-pv-hint" className="-mt-2 text-[11.5px] text-muted-foreground">
+        The point value on the order. It counts toward this month's PV.
+      </p>
+      <DateField id="log-sale-date" value={date} onChange={setDate} />
+      {!personal && <ShareAsWin id="share-sale" value={win} onChange={setWin} winKind="sale" />}
       <SubmitButton
         disabled={!valid}
-        sharing={win.on}
-        label={reorder ? "Log reorder" : "Log sale"}
+        sharing={!personal && win.on}
+        label={personal ? "Log order" : reorder ? "Log reorder" : "Log sale"}
       />
     </form>
   );

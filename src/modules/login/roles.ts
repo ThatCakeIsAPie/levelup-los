@@ -64,13 +64,15 @@ export function deriveRole(
 /**
  * Build the session user (DemoUser shape) from a `get_session()` row. The
  * stage is already effective (the server applied the anniversary rule).
+ * `admin` comes from `is_app_admin()`.
  */
-export function sessionUserFrom(row: SessionRow): DemoUser {
-  return {
+export function sessionUserFrom(row: SessionRow, admin = false): DemoUser {
+  const user: DemoUser = {
     personId: row.person_id,
     name: row.name,
     role: deriveRole(toWorkspaceRole(row.member_role), row.effective_stage || row.biz_class, null),
   };
+  return admin ? { ...user, admin: true } : user;
 }
 
 /** Who may invite people: anyone with a team (leaders, IBOs, apprentices). */

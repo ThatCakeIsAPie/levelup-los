@@ -17,6 +17,12 @@ import { addPerson, removePerson, updatePerson } from "../people";
 import { logContact, removeContact } from "../crm";
 import { getViewer } from "../session";
 import { visibleIdSet } from "../access";
+import { customerPipeline, updateCustomerPipeline } from "../customerPipeline/store";
+import {
+  CUSTOMER_BOARD,
+  type CustomerPipelineData,
+  type CustomerStepBand,
+} from "../customerPipeline/types";
 import { pipeline, updatePipeline } from "./store";
 import {
   bandIndex,
@@ -37,14 +43,18 @@ import {
   validTarget,
   validateMove,
 } from "./rules";
-import type {
-  ConversionTargets,
-  MilestoneCode,
-  PipelineCard,
-  PipelineColumn,
-  PipelineMove,
-  PipelineStep,
-  StepBand,
+import {
+  RECRUITING_BOARD,
+  type BoardDef,
+  type BoardKind,
+  type ConversionTargets,
+  type MilestoneCode,
+  type PipelineCard,
+  type PipelineColumn,
+  type PipelineMove,
+  type PipelineStep,
+  type StepBand,
+  type StepHide,
 } from "./types";
 
 const now = () => new Date().toISOString();
@@ -362,60 +372,132 @@ export function restorePipelineCard(personId: string): void {
 }
 
 // ---------------------------------------------------------------------------
-// Steps (milestones are not steps: they can't be renamed, removed or reordered)
+// Steps (milestones are not steps: they can't be renamed, removed or reordered).
+// The same rules on both boards: `kind` picks the recruiting board (default)
+// or the customer board (src/data/customerPipeline), whose steps, hides and
+// cards live in their own tables.
 // ---------------------------------------------------------------------------
 
-export type StepResult = { ok: true; step?: PipelineStep } | { ok: false; error: string };
+export type StepResult = { ok: true; step?: PipelineStep<string> } | { ok: false; error: string };
 
-function bandLabels(band: StepBand, me: string, except?: string): string[] {
-  const { steps, hides } = pipeline();
-  const chain = chainFor(me);
-  return columnsFor(chain, steps, hides)
+interface StepTables {
+  def: BoardDef<string>;
+  steps(): PipelineStep<string>[];
+  hides(): StepHide[];
+  setSteps(fn: (steps: PipelineStep<string>[]) => PipelineStep<string>[]): void;
+  setHides(fn: (hides: StepHide[]) => StepHide[]): void;
+  /** Send the cards in a deleted step back to its band's milestone; returns how many moved. */
+  resetCards(stepId: string, band: string): number;
+}
+
+const RECRUITING_STEPS: StepTables = {
+  def: RECRUITING_BOARD as BoardDef<string>,
+  steps: () => pipeline().steps,
+  hides: () => pipeline().hides,
+  setSteps: (fn) => updatePipeline((s) => ({ steps: fn(s.steps) as PipelineStep[] })),
+  setHides: (fn) => updatePipeline((s) => ({ hides: fn(s.hides) })),
+  resetCards: (stepId, band) => {
+    const moved = pipeline().cards.filter((c) => c.column === stepId).length;
+    updatePipeline((s) => ({
+      cards: s.cards.map((c) =>
+        c.column === stepId ? { ...c, column: band, updatedAt: now() } : c,
+      ),
+    }));
+    return moved;
+  },
+};
+
+const CUSTOMER_STEPS: StepTables = {
+  def: CUSTOMER_BOARD as BoardDef<string>,
+  steps: () => customerPipeline().steps,
+  hides: () => customerPipeline().hides,
+  setSteps: (fn) =>
+    updateCustomerPipeline((s) => ({ steps: fn(s.steps) as CustomerPipelineData["steps"] })),
+  setHides: (fn) => updateCustomerPipeline((s) => ({ hides: fn(s.hides) })),
+  resetCards: (stepId, band) => {
+    const moved = customerPipeline().cards.filter((c) => c.column === stepId).length;
+    updateCustomerPipeline((s) => ({
+      cards: s.cards.map((c) =>
+        c.column === stepId ? { ...c, column: band, updatedAt: now() } : c,
+      ),
+    }));
+    return moved;
+  },
+};
+
+const stepTables = (kind: BoardKind): StepTables =>
+  kind === "customer" ? CUSTOMER_STEPS : RECRUITING_STEPS;
+
+/** Milestones and fixed columns aren't steps. */
+const isFixedColumn = (t: StepTables, id: string) =>
+  t.def.milestones.includes(id) || t.def.fixed.some((f) => f.id === id);
+
+function bandLabels(t: StepTables, band: string, me: string, except?: string): string[] {
+  return columnsFor(chainFor(me), t.steps(), t.hides(), t.def)
     .filter((c) => c.band === band && c.kind === "step" && c.id !== except)
     .map((c) => c.label);
 }
 
 /** Add one of your own steps at the end of your steps in a band. */
-export function addPipelineStep(band: StepBand, label: string): StepResult {
+export function addPipelineStep(
+  band: StepBand | CustomerStepBand,
+  label: string,
+  kind: BoardKind = "recruiting",
+): StepResult {
   const me = actor();
   if (!me) return { ok: false, error: "Candidates don't have a pipeline yet." };
-  const error = stepLabelError(label, bandLabels(band, me));
+  const t = stepTables(kind);
+  if (!t.def.stepBands.includes(band)) return { ok: false, error: "Steps can't go there." };
+  const error = stepLabelError(label, bandLabels(t, band, me), undefined, t.def.reserved);
   if (error) return { ok: false, error };
-  const step: PipelineStep = {
+  const step: PipelineStep<string> = {
     id: crypto.randomUUID(),
     ownerId: me,
     band,
     label: label.trim(),
-    position: nextPosition(pipeline().steps, me, band),
+    position: nextPosition(t.steps(), me, band),
     createdAt: now(),
   };
-  updatePipeline((s) => ({ steps: [...s.steps, step] }));
+  t.setSteps((steps) => [...steps, step]);
   return { ok: true, step };
 }
 
 /** Rename one of your own steps. */
-export function renamePipelineStep(stepId: string, label: string): StepResult {
+export function renamePipelineStep(
+  stepId: string,
+  label: string,
+  kind: BoardKind = "recruiting",
+): StepResult {
   const me = actor();
-  if (isMilestone(stepId)) return { ok: false, error: "Milestones can't be renamed." };
-  const step = pipeline().steps.find((s) => s.id === stepId);
+  const t = stepTables(kind);
+  if (isFixedColumn(t, stepId)) return { ok: false, error: "Milestones can't be renamed." };
+  const step = t.steps().find((s) => s.id === stepId);
   if (!me || !step || !canEditStep(step, me))
     return { ok: false, error: "Only the leader who added a step can rename it." };
-  const error = stepLabelError(label, bandLabels(step.band, me, stepId));
+  const error = stepLabelError(
+    label,
+    bandLabels(t, step.band, me, stepId),
+    undefined,
+    t.def.reserved,
+  );
   if (error) return { ok: false, error };
-  updatePipeline((s) => ({
-    steps: s.steps.map((x) => (x.id === stepId ? { ...x, label: label.trim() } : x)),
-  }));
+  t.setSteps((steps) => steps.map((x) => (x.id === stepId ? { ...x, label: label.trim() } : x)));
   return { ok: true };
 }
 
 /** Move one of your own steps up (-1) or down (+1) among your steps in its band. */
-export function movePipelineStep(stepId: string, dir: -1 | 1): StepResult {
+export function movePipelineStep(
+  stepId: string,
+  dir: -1 | 1,
+  kind: BoardKind = "recruiting",
+): StepResult {
   const me = actor();
-  if (!me || isMilestone(stepId)) return { ok: false, error: "Milestones can't be moved." };
-  const changed = reorderOwnSteps(pipeline().steps, me, stepId, dir);
+  const t = stepTables(kind);
+  if (!me || isFixedColumn(t, stepId)) return { ok: false, error: "Milestones can't be moved." };
+  const changed = reorderOwnSteps(t.steps(), me, stepId, dir);
   if (!changed.length) return { ok: false, error: "It can't move further." };
   const byId = new Map(changed.map((s) => [s.id, s]));
-  updatePipeline((s) => ({ steps: s.steps.map((x) => byId.get(x.id) ?? x) }));
+  t.setSteps((steps) => steps.map((x) => byId.get(x.id) ?? x));
   return { ok: true };
 }
 
@@ -425,42 +507,40 @@ export function movePipelineStep(stepId: string, dir: -1 | 1): StepResult {
  */
 export function deletePipelineStep(
   stepId: string,
+  kind: BoardKind = "recruiting",
 ): { ok: true; moved: number } | { ok: false; error: string } {
   const me = actor();
-  if (isMilestone(stepId)) return { ok: false, error: "Milestones can't be removed." };
-  const step = pipeline().steps.find((s) => s.id === stepId);
+  const t = stepTables(kind);
+  if (isFixedColumn(t, stepId)) return { ok: false, error: "Milestones can't be removed." };
+  const step = t.steps().find((s) => s.id === stepId);
   if (!me || !step || !canEditStep(step, me))
     return { ok: false, error: "Only the leader who added a step can delete it." };
-  const moved = pipeline().cards.filter((c) => c.column === stepId).length;
-  updatePipeline((s) => ({
-    steps: s.steps.filter((x) => x.id !== stepId),
-    hides: s.hides.filter((h) => h.stepId !== stepId),
-    cards: s.cards.map((c) =>
-      c.column === stepId ? { ...c, column: step.band, updatedAt: now() } : c,
-    ),
-  }));
+  t.setSteps((steps) => steps.filter((x) => x.id !== stepId));
+  t.setHides((hides) => hides.filter((h) => h.stepId !== stepId));
+  const moved = t.resetCards(stepId, step.band);
   return { ok: true, moved };
 }
 
 /** Hide an upline's step for your team (you and your downline). */
-export function hidePipelineStep(stepId: string): StepResult {
+export function hidePipelineStep(stepId: string, kind: BoardKind = "recruiting"): StepResult {
   const me = actor();
-  const step = pipeline().steps.find((s) => s.id === stepId);
+  const t = stepTables(kind);
+  const step = t.steps().find((s) => s.id === stepId);
   const chain = me ? chainFor(me) : [];
   if (!me || !step || !canHideStep(step, chain, me))
     return { ok: false, error: "You can hide steps you inherit from your upline." };
-  if (pipeline().hides.some((h) => h.personId === me && h.stepId === stepId)) return { ok: true };
-  updatePipeline((s) => ({ hides: [...s.hides, { personId: me, stepId, createdAt: now() }] }));
+  if (t.hides().some((h) => h.personId === me && h.stepId === stepId)) return { ok: true };
+  t.setHides((hides) => [...hides, { personId: me, stepId, createdAt: now() }]);
   return { ok: true };
 }
 
 /** Show a step you hid again. */
-export function showPipelineStep(stepId: string): void {
+export function showPipelineStep(stepId: string, kind: BoardKind = "recruiting"): void {
   const me = actor();
   if (!me) return;
-  updatePipeline((s) => ({
-    hides: s.hides.filter((h) => !(h.personId === me && h.stepId === stepId)),
-  }));
+  stepTables(kind).setHides((hides) =>
+    hides.filter((h) => !(h.personId === me && h.stepId === stepId)),
+  );
 }
 
 // ---------------------------------------------------------------------------

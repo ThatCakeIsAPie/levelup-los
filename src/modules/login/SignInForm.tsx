@@ -212,7 +212,9 @@ function DevAccounts({ onError }: { onError: (e: string | null) => void }) {
               <span className="min-w-0">
                 <span className="block truncate text-[13px] font-semibold">
                   {a.name}{" "}
-                  <span className="font-normal text-muted-foreground">· {roleLabel[a.role]}</span>
+                  <span className="font-normal text-muted-foreground">
+                    · {a.label ?? roleLabel[a.role]}
+                  </span>
                 </span>
                 <span className="block truncate text-[12px] text-muted-foreground">{a.email}</span>
               </span>

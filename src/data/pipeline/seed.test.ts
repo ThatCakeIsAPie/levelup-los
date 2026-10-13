@@ -57,8 +57,8 @@ describe("pipeline seed", () => {
     }
   });
 
-  it("keeps Jamal's branch as the integration tests expect (19 people)", () => {
-    expect(visibleIdSet(people, { personId: "4", role: "apprentice" }).size).toBe(19);
+  it("keeps Jamal's branch as the integration tests expect (20 people, with Tasha)", () => {
+    expect(visibleIdSet(people, { personId: "4", role: "apprentice" }).size).toBe(20);
   });
 
   it("business people have unique names", () => {

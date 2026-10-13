@@ -1,7 +1,8 @@
 import { BookOpen } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
-import { useChatAccess, type WinKind } from "@/data";
+import type { WinKind } from "@/data";
 import { WinCardFrame } from "@/modules/chat/cards";
+import { useCanShareWins } from "./canShareWins";
 
 export interface WinDraft {
   on: boolean;
@@ -12,7 +13,7 @@ export interface WinDraft {
 /**
  * "Share as a win": one switch that posts the logged record to Daily wins as
  * a win card. The preview is editable (title and detail); names of prospects
- * are never put in it. Hidden for people without chat.
+ * are never put in it. Hidden for people without chat, and while Chats is off.
  */
 export function ShareAsWin({
   id,
@@ -28,8 +29,8 @@ export function ShareAsWin({
   /** Learning posts a learning card instead of a win card. */
   learningTitle?: string;
 }) {
-  const { eligible } = useChatAccess();
-  if (!eligible) return null;
+  const canShare = useCanShareWins();
+  if (!canShare) return null;
   return (
     <div className="grid gap-2">
       <label
