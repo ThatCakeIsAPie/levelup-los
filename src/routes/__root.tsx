@@ -8,13 +8,21 @@ import {
   useNavigate,
   useRouterState,
 } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useEffect, type ReactNode } from "react";
 import { AppShell } from "@/components/shell/AppShell";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useIsDesktop } from "@/hooks/use-media-query";
 import { useTheme } from "@/lib/theme";
 import { useSession } from "@/data";
+import { IS_SUPABASE } from "@/lib/config";
+import { startAuth, useAuthStatus } from "@/modules/login/auth";
+import { AuthLoading } from "@/modules/login/AuthLayout";
+import { AccountErrorScreen, NoTeamScreen } from "@/modules/login/AccountScreens";
+
+// Real accounts: follow Supabase Auth from the first render (no-op in the
+// browser-storage demo).
+startAuth();
 
 function NotFoundComponent() {
   return (
@@ -109,27 +117,63 @@ function RootComponent() {
   );
 }
 
+/** Routes that render without a session (and without the shell). */
+const PUBLIC_ROUTES = new Set<string>(["/login", "/auth/callback", "/invite/$token"]);
+
 /**
- * Logged out: only /login renders (without the shell); anything else
- * redirects there. Logged in: every route renders inside <AppShell>.
+ * Logged out: only the public routes render (without the shell); anything
+ * else redirects to /login. Logged in: every route renders inside <AppShell>.
+ *
+ * With real accounts ("supabase" mode) there are more states: while the saved
+ * session restores, a loading screen (never a flash of /login); signed in
+ * without a team, the "not on a team yet" screen; signed in but the account
+ * didn't load, a retry screen. /auth/callback and /invite/$token always
+ * render, since they finish signing in and joining. /login leaves for Home
+ * once signed in.
  */
 function SessionGate() {
   const user = useSession();
+  const status = useAuthStatus();
   // Gate on the rendered matches, not location: during the redirect, location
   // flips to /login before its matches load, and <Outlet /> would briefly
   // render the previous (user-requiring) route with a null user.
-  const onLogin = useRouterState({
-    select: (s) => s.matches.some((m) => m.routeId === "/login"),
+  const publicRoute = useRouterState({
+    select: (s) => s.matches.find((m) => PUBLIC_ROUTES.has(m.routeId))?.routeId ?? null,
   });
+  const onLogin = publicRoute === "/login";
   const navigate = useNavigate();
+
+  // Where the gate sends you: /login when signed out, Home when a signed-in
+  // account is still on /login.
+  const toLogin = !user && !publicRoute && (status === "ready" || status === "signedOut");
+  const toHome = IS_SUPABASE && onLogin && status === "ready" && !!user;
   useEffect(() => {
-    if (!user && !onLogin) navigate({ to: "/login", replace: true });
-  }, [user, onLogin, navigate]);
-  if (onLogin) {
+    if (toLogin) navigate({ to: "/login", replace: true });
+    else if (toHome) navigate({ to: "/", replace: true });
+  }, [toLogin, toHome, navigate]);
+
+  // /auth/callback and /invite/$token handle every auth state themselves.
+  const selfManaged = publicRoute !== null && !onLogin;
+  if (!selfManaged) {
+    if (status === "loading" || toHome) return <AuthLoading />;
+    if (status === "noTeam")
+      return (
+        <PublicFrame>
+          <NoTeamScreen />
+        </PublicFrame>
+      );
+    if (status === "error")
+      return (
+        <PublicFrame>
+          <AccountErrorScreen />
+        </PublicFrame>
+      );
+  }
+  if (publicRoute) {
     return (
-      <div className="h-dvh overflow-y-auto bg-app">
+      <PublicFrame>
         <Outlet />
-      </div>
+      </PublicFrame>
     );
   }
   if (!user) return null;
@@ -138,4 +182,8 @@ function SessionGate() {
       <Outlet />
     </AppShell>
   );
+}
+
+function PublicFrame({ children }: { children: ReactNode }) {
+  return <div className="h-dvh overflow-y-auto bg-app">{children}</div>;
 }
