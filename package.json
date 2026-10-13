@@ -9,7 +9,13 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "db:start": "supabase start",
+    "db:stop": "supabase stop",
+    "db:seed": "tsx scripts/db/generate-seed.ts",
+    "db:reset": "npm run db:seed && supabase db reset",
+    "db:test": "supabase test db",
+    "db:types": "tsx scripts/db/gen-types.ts"
   },
   "dependencies": {
     "@fontsource-variable/plus-jakarta-sans": "^5.2.6",
