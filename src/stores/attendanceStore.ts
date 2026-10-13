@@ -34,6 +34,22 @@ interface AttendanceState {
   update: (id: string, patch: Partial<Attendance>) => void;
   remove: (id: string) => void;
   bulkUpdate: (ids: string[], patch: Partial<Attendance>) => void;
+  /** Drop rows silently (cascade for a deleted person or event). */
+  removeWhere: (pred: (a: Attendance) => boolean) => void;
+}
+
+/** Activity entries for a change: ticket bought, attended, no-show. */
+function logChange(prev: Attendance, patch: Partial<Attendance>) {
+  if (patch.hasTicket === true && !prev.hasTicket) {
+    logAttendance("ticket_purchased", prev.id, prev.personId, prev.eventId, "Ticket purchased");
+  }
+  if (patch.attended === true && !prev.attended) {
+    logAttendance("marked_attended", prev.id, prev.personId, prev.eventId, "Attended");
+  }
+  const hadTicket = patch.hasTicket ?? prev.hasTicket;
+  if (patch.attended === false && prev.attended !== false && hadTicket) {
+    logAttendance("marked_no_show", prev.id, prev.personId, prev.eventId, "No-show");
+  }
 }
 
 export const useAttendanceStore = create<AttendanceState>()(
@@ -67,16 +83,7 @@ export const useAttendanceStore = create<AttendanceState>()(
         if (!prev) return;
         const next = { ...prev, ...patch, updatedAt: new Date().toISOString() };
         set({ attendances: get().attendances.map((a) => (a.id === id ? next : a)) });
-
-        if (patch.hasTicket === true && !prev.hasTicket) {
-          logAttendance("ticket_purchased", id, prev.personId, prev.eventId, "Ticket purchased");
-        }
-        if (patch.attended === true && !prev.attended) {
-          logAttendance("marked_attended", id, prev.personId, prev.eventId, "Attended");
-        }
-        if (patch.attended === false && prev.attended !== false && prev.hasTicket) {
-          logAttendance("marked_no_show", id, prev.personId, prev.eventId, "No-show");
-        }
+        logChange(prev, patch);
       },
       remove: (id) => {
         const prev = get().attendances.find((a) => a.id === id);
@@ -85,12 +92,16 @@ export const useAttendanceStore = create<AttendanceState>()(
       },
       bulkUpdate: (ids, patch) => {
         const now = new Date().toISOString();
+        const wanted = new Set(ids);
+        const changed = get().attendances.filter((a) => wanted.has(a.id));
         set({
           attendances: get().attendances.map((a) =>
-            ids.includes(a.id) ? { ...a, ...patch, updatedAt: now } : a,
+            wanted.has(a.id) ? { ...a, ...patch, updatedAt: now } : a,
           ),
         });
+        changed.forEach((prev) => logChange(prev, patch));
       },
+      removeWhere: (pred) => set({ attendances: get().attendances.filter((a) => !pred(a)) }),
     }),
     {
       name: "levelup.attendance",

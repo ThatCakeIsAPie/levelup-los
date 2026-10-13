@@ -106,14 +106,17 @@ export function useLearningGoal(personId: string | undefined): LearningGoal {
 
 const me = () => useSessionStore.getState().user?.personId ?? "";
 
-/** Record a check-in / contact. `byId` defaults to the current user, `date` to today. */
+/**
+ * Record a check-in / contact. `byId` defaults to the current user, `date` to
+ * today. Returns the saved contact (pass its id to removeContact to undo).
+ */
 export function logContact(input: {
   personId: string;
   byId?: string;
   date?: string;
   note?: string;
-}): void {
-  useCrmStore.getState().logContact({
+}): Contact {
+  return useCrmStore.getState().logContact({
     personId: input.personId,
     byId: input.byId ?? me(),
     date: input.date ?? localDate(),
@@ -146,19 +149,29 @@ export function removeLearning(id: string): void {
   useCrmStore.getState().removeLearning(id);
 }
 
-/** Record a customer purchase. `date` defaults to today. */
+/** Record a customer purchase. `date` defaults to today. Returns the saved sale. */
 export function logSale(input: {
   customerId: string;
   product: string;
   date?: string;
   amount?: number;
-}): void {
-  useCrmStore.getState().logSale({
+}): Sale {
+  return useCrmStore.getState().logSale({
     customerId: input.customerId,
     product: input.product,
     date: input.date ?? localDate(),
     ...(input.amount !== undefined ? { amount: input.amount } : {}),
   });
+}
+
+/** Delete a logged check-in / contact (also used to undo logContact). */
+export function removeContact(id: string): void {
+  useCrmStore.getState().removeContact(id);
+}
+
+/** Delete a logged sale. */
+export function removeSale(id: string): void {
+  useCrmStore.getState().removeSale(id);
 }
 
 /** Update a person's weekly learning goal (partial patch). */

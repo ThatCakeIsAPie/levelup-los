@@ -1,6 +1,8 @@
 import { useMemo } from "react";
 import { useEventsStore, type CrmEvent } from "@/stores/eventsStore";
 import { useAttendanceStore, type Attendance } from "@/stores/attendanceStore";
+import { useOpsStore } from "@/stores/opsStore";
+import { upcomingAttentionCount } from "./attention";
 import { localDate } from "@/lib/dates";
 import { filterAttendances } from "./access";
 import { useVisibleIds } from "./people";
@@ -76,17 +78,14 @@ export function useVisibleAttendances(): Attendance[] {
 }
 
 /**
- * Number of visible people on upcoming events who said "yes" but still have
- * no ticket. Drives the count badge on the Events nav item.
+ * Visible people needing attention on events that haven't finished yet (same
+ * rule as the event cards: attentionItems in ./attention). Drives the count
+ * badge on the Events nav item.
  */
 export function useEventsAttentionCount(): number {
   const upcoming = useUpcomingEvents();
   const rows = useVisibleAttendances();
-  return useMemo(() => {
-    const ids = new Set(upcoming.map((e) => e.id));
-    return rows.filter((a) => ids.has(a.eventId) && !a.hasTicket && a.desireToAttend === "yes")
-      .length;
-  }, [upcoming, rows]);
+  return useMemo(() => upcomingAttentionCount(upcoming, rows), [upcoming, rows]);
 }
 
 // ---- Mutations ----
@@ -101,9 +100,11 @@ export function updateEvent(id: string, patch: Partial<CrmEvent>): void {
   useEventsStore.getState().update(id, patch);
 }
 
-/** Delete an event. */
+/** Delete an event with its attendance rows, travel plans, shared costs and their payments. */
 export function removeEvent(id: string): void {
   useEventsStore.getState().remove(id);
+  useAttendanceStore.getState().removeWhere((a) => a.eventId === id);
+  useOpsStore.getState().removeEvent(id);
 }
 
 /** Add a person to an event's roster (returns the existing row if already there). */
@@ -121,7 +122,7 @@ export function removeAttendance(id: string): void {
   useAttendanceStore.getState().remove(id);
 }
 
-/** Patch many attendance rows at once. */
+/** Patch many attendance rows at once (logs the same activity as single updates). */
 export function bulkUpdateAttendances(ids: string[], patch: Partial<Attendance>): void {
   useAttendanceStore.getState().bulkUpdate(ids, patch);
 }

@@ -22,11 +22,7 @@ interface EventsState {
   update: (id: string, patch: Partial<CrmEvent>) => void;
   remove: (id: string) => void;
   getById: (id: string) => CrmEvent | undefined;
-  /** Auto-picked comparison events for the audit tab. */
-  getComparisonEvents: (id: string) => { prior?: CrmEvent; lastYear?: CrmEvent };
 }
-
-const DAY = 24 * 60 * 60 * 1000;
 
 export const useEventsStore = create<EventsState>()(
   persist(
@@ -47,29 +43,6 @@ export const useEventsStore = create<EventsState>()(
         logEvent("deleted", id, "Deleted event");
       },
       getById: (id) => get().events.find((e) => e.id === id),
-      getComparisonEvents: (id) => {
-        const current = get().events.find((e) => e.id === id);
-        if (!current) return {};
-        const t = new Date(current.date).getTime();
-        const sameType = get().events.filter((e) => e.id !== id && e.type === current.type);
-
-        const earlier = sameType.filter((e) => new Date(e.date).getTime() < t);
-        const prior = earlier.sort(
-          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-        )[0];
-
-        const target = t - 365 * DAY;
-        const window = 90 * DAY;
-        const lastYear = sameType
-          .filter((e) => Math.abs(new Date(e.date).getTime() - target) <= window)
-          .sort(
-            (a, b) =>
-              Math.abs(new Date(a.date).getTime() - target) -
-              Math.abs(new Date(b.date).getTime() - target),
-          )[0];
-
-        return { prior, lastYear };
-      },
     }),
     {
       name: "levelup.events",

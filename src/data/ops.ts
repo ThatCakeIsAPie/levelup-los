@@ -2,13 +2,16 @@ import { useMemo } from "react";
 import {
   useOpsStore,
   invoicesFor,
+  paidShares,
   splitCost,
   type Campaign,
   type Invoice,
   type Logistics,
+  type Payment,
   type ReportSchedule,
   type SharedCost,
 } from "@/stores/opsStore";
+import { usePeopleStore } from "@/stores/peopleStore";
 import { useSessionStore } from "@/stores/sessionStore";
 import { useVisibleIds } from "./people";
 
@@ -19,6 +22,30 @@ export function useSharedCosts(eventId?: string): SharedCost[] {
     () => (eventId ? costs.filter((c) => c.eventId === eventId) : costs),
     [costs, eventId],
   );
+}
+
+/**
+ * Current share of every member of a cost, by person id. Members who already
+ * paid are fixed at what they paid; the rest follows the organizer's
+ * overrides, then an even split.
+ */
+export function useCostSplit(cost: SharedCost): Record<string, number> {
+  const payments = useOpsStore((s) => s.payments);
+  return useMemo(() => splitCost(cost, paidShares(cost, payments)), [cost, payments]);
+}
+
+/**
+ * How to name a cost's organizer: "You", their name when the current user may
+ * see them, otherwise "a team leader" (an upline outside the viewer's view).
+ */
+export function useCostOrganizerName(cost: SharedCost): string {
+  const me = useSessionStore((s) => s.user?.personId);
+  const ids = useVisibleIds();
+  const name = usePeopleStore((s) =>
+    ids.has(cost.ownerId) ? s.people.find((p) => p.id === cost.ownerId)?.name : undefined,
+  );
+  if (cost.ownerId === me) return "You";
+  return name ?? "a team leader";
 }
 
 /** Invoices for the current user (derived from shared costs + sandbox payments). */
@@ -79,15 +106,18 @@ export function setLogistics(eventId: string, personId: string, l: Logistics): v
 export function addSharedCost(c: Omit<SharedCost, "id" | "members" | "overrides">): void {
   useOpsStore.getState().addCost(c);
 }
-/** Opt a person in/out of a shared cost. */
+/** Opt a person in/out of a shared cost (no-op for a member who has already paid). */
 export function toggleCostOptIn(costId: string, personId: string): void {
   useOpsStore.getState().toggleOptIn(costId, personId);
 }
-/** Override one person's share (null clears the override). */
+/** Override one person's share (null clears it; no-op once they have paid). */
 export function setCostOverride(costId: string, personId: string, amount: number | null): void {
   useOpsStore.getState().setOverride(costId, personId, amount);
 }
-/** Mark an invoice paid (sandbox only; never stores card or bank data). */
+/**
+ * Mark an invoice paid (sandbox only; never stores card or bank data). The
+ * amount and cost name are frozen at payment time.
+ */
 export function paySandbox(costId: string, personId: string): void {
   useOpsStore.getState().pay(costId, personId);
 }
@@ -101,4 +131,4 @@ export function setReportSchedule(s: ReportSchedule | null, ownerId: string): vo
 }
 
 export { splitCost, invoicesFor };
-export type { Campaign, Invoice, Logistics, ReportSchedule, SharedCost };
+export type { Campaign, Invoice, Logistics, Payment, ReportSchedule, SharedCost };

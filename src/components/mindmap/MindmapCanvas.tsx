@@ -19,7 +19,7 @@ import { CustomerPanel } from "./CustomerPanel";
 import { NodeCard, type CardAction } from "./NodeCard";
 import { NODE_H, NODE_W, V_GAP, layout } from "./layout";
 import type { Edge, PositionedNode, TreeNode } from "./types";
-import { useTreeStore, type NewMemberClass } from "./useTreeStore";
+import { rosterIdOf, useTreeStore, type NewMemberClass } from "./useTreeStore";
 
 interface Props {
   root: TreeNode;
@@ -90,17 +90,24 @@ export function MindmapCanvas({ root, canAdd }: Props) {
     return out;
   }, [laid.nodes]);
 
-  // Tree nodes -> roster people (matched by the synced losUid, then by name).
+  // Tree nodes -> roster people: by roster id (roster maps), then the synced
+  // losUid (uploads), then by name only when exactly one visible person has it.
   const rosterFor = useMemo(() => {
+    const byId = new Map<string, CrmPerson>();
     const byUid = new Map<string, CrmPerson>();
-    const byName = new Map<string, CrmPerson>();
+    const byName = new Map<string, CrmPerson | null>();
     for (const p of visible) {
       if (p.bizClass === "customer") continue;
+      byId.set(p.id, p);
       if (p.losUid) byUid.set(p.losUid, p);
-      byName.set(p.name.trim().toLowerCase(), p);
+      const key = p.name.trim().toLowerCase();
+      byName.set(key, byName.has(key) ? null : p);
     }
-    return (n: PositionedNode): CrmPerson | undefined =>
-      byUid.get(n.person.uid) ?? byName.get(n.person.name.trim().toLowerCase());
+    return (n: PositionedNode): CrmPerson | undefined => {
+      const rosterId = rosterIdOf(n.person);
+      if (rosterId) return byId.get(rosterId);
+      return byUid.get(n.person.uid) ?? byName.get(n.person.name.trim().toLowerCase()) ?? undefined;
+    };
   }, [visible]);
 
   const customersByOwner = useMemo(() => {

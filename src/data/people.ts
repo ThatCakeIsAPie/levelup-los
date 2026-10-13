@@ -1,5 +1,7 @@
 import { useMemo } from "react";
-import { usePeopleStore, type CrmPerson } from "@/stores/peopleStore";
+import { usePeopleStore, type CrmPerson, type LosSyncEntry } from "@/stores/peopleStore";
+import { useAttendanceStore } from "@/stores/attendanceStore";
+import { useOpsStore } from "@/stores/opsStore";
 import { downlineOf, sponsorChain, visibleCustomers, visibleIdSet, type Viewer } from "./access";
 import { useViewer } from "./session";
 
@@ -129,7 +131,30 @@ export function updatePerson(id: string, patch: Partial<CrmPerson>): void {
   usePeopleStore.getState().update(id, patch);
 }
 
-/** Remove a person. */
+/**
+ * Delete a person. Their direct downline and any customers they own move to
+ * their sponsor (so nobody drops out of view); their attendance rows, travel
+ * plans and shared-cost memberships are removed, and shared costs they
+ * organized pass to that sponsor. Rules: src/data/cascade.ts.
+ */
 export function removePerson(id: string): void {
-  usePeopleStore.getState().remove(id);
+  if (!usePeopleStore.getState().getById(id)) return;
+  const heirId = usePeopleStore.getState().remove(id);
+  useAttendanceStore.getState().removeWhere((a) => a.personId === id);
+  useOpsStore.getState().removePerson(id, heirId);
+}
+
+// ---- Mind map sync (non-reactive; used by the mind map's tree store) ----
+
+/**
+ * Upsert mind-map members into the roster: match by losUid, then by a unique
+ * unclaimed name, else create (rules in src/data/losSync.ts).
+ */
+export function syncPeopleFromLos(entries: LosSyncEntry[]): void {
+  usePeopleStore.getState().syncFromLos(entries);
+}
+
+/** The roster person linked to a mind-map uid, if any (not visibility-filtered). */
+export function getPersonByLosUid(uid: string): CrmPerson | undefined {
+  return usePeopleStore.getState().getByLosUid(uid);
 }

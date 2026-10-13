@@ -1,8 +1,8 @@
 import type { Attendance } from "@/stores/attendanceStore";
 import type { CrmEvent } from "@/stores/eventsStore";
 import type { CrmPerson } from "@/stores/peopleStore";
-import { addDays } from "date-fns";
-import { localDate } from "@/lib/dates";
+import { addDays, differenceInCalendarDays, subYears } from "date-fns";
+import { localDate, parseDate } from "@/lib/dates";
 
 export interface ShowRate {
   attended: number;
@@ -83,16 +83,41 @@ export function getUpcomingFollowUps(
   });
 }
 
+/**
+ * Auto-picked comparison events for the audit (Compare) view: the previous
+ * event of the same type, and the same-type event closest to one year
+ * earlier (within 90 days). Calendar-day math on "YYYY-MM-DD" dates.
+ */
+export function getComparisonEvents(
+  current: CrmEvent,
+  events: CrmEvent[],
+): { prior?: CrmEvent; lastYear?: CrmEvent } {
+  const sameType = events.filter((e) => e.id !== current.id && e.type === current.type);
+  const prior = sameType
+    .filter((e) => e.date < current.date)
+    .sort((a, b) => b.date.localeCompare(a.date))[0];
+  const target = subYears(parseDate(current.date), 1);
+  const dist = (e: CrmEvent) => Math.abs(differenceInCalendarDays(parseDate(e.date), target));
+  const lastYear = sameType.filter((e) => dist(e) <= 90).sort((a, b) => dist(a) - dist(b))[0];
+  return { prior, lastYear };
+}
+
 export interface AuditDeltaRow {
   personId: string;
   personName: string;
   byEvent: Record<string, Attendance | undefined>;
 }
 
+/**
+ * One row per person on any of `eventIds`, with their attendance row for each
+ * event (undefined when they weren't on it), sorted by name. `people` is only
+ * used for names; unknown ids get `unknownName`.
+ */
 export function getAuditDelta(
   eventIds: string[],
   attendances: Attendance[],
   people: CrmPerson[],
+  unknownName = "(unknown)",
 ): AuditDeltaRow[] {
   const personIds = new Set<string>();
   attendances.filter((a) => eventIds.includes(a.eventId)).forEach((a) => personIds.add(a.personId));
@@ -103,7 +128,7 @@ export function getAuditDelta(
       eventIds.forEach((eid) => {
         byEvent[eid] = attendances.find((a) => a.eventId === eid && a.personId === pid);
       });
-      return { personId: pid, personName: person?.name ?? "(unknown)", byEvent };
+      return { personId: pid, personName: person?.name ?? unknownName, byEvent };
     })
     .sort((a, b) => a.personName.localeCompare(b.personName));
 }

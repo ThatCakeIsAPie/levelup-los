@@ -3,6 +3,10 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import { logPerson } from "./activityStore";
 import { parseDate } from "@/lib/dates";
 import { seedPeople, SEED_VERSION } from "@/data/seed";
+import { rosterWithout } from "@/data/cascade";
+import { syncLosEntries, type LosSyncEntry } from "@/data/losSync";
+
+export type { LosSyncEntry };
 
 /**
  * Two relationship paths:
@@ -50,21 +54,19 @@ export interface CrmPerson {
   losUid?: string;
 }
 
-export interface LosSyncEntry {
-  uid: string;
-  name: string;
-  sponsorUid: string | null;
-}
-
 interface PeopleState {
   people: CrmPerson[];
   add: (p: Omit<CrmPerson, "id"> & { id?: string }) => CrmPerson;
   update: (id: string, patch: Partial<CrmPerson>) => void;
-  remove: (id: string) => void;
+  /**
+   * Remove a person; their direct downline and customers move to the removed
+   * person's sponsor. Returns that sponsor's id (the "heir"), or null.
+   */
+  remove: (id: string) => string | null;
   getById: (id: string) => CrmPerson | undefined;
   getByLosUid: (uid: string) => CrmPerson | undefined;
   bulkAdd: (people: CrmPerson[]) => void;
-  /** Upsert mind-map members into the shared roster, matched by losUid/name. */
+  /** Upsert mind-map members into the shared roster (rules in src/data/losSync.ts). */
   syncFromLos: (entries: LosSyncEntry[]) => void;
 }
 
@@ -191,54 +193,28 @@ export const usePeopleStore = create<PeopleState>()(
         });
       },
       remove: (id) => {
-        const prev = get().people.find((p) => p.id === id);
-        set({ people: get().people.filter((p) => p.id !== id) });
-        if (prev) logPerson("deleted", id, `Removed ${prev.name}`);
+        const r = rosterWithout(get().people, id);
+        if (!r.removed) return null;
+        set({ people: r.people });
+        logPerson("deleted", id, `Removed ${r.removed.name}`);
+        const heir = r.heirId ? r.people.find((p) => p.id === r.heirId) : undefined;
+        for (const pid of r.moved) {
+          logPerson(
+            "updated",
+            pid,
+            heir
+              ? `Moved under ${heir.name} (${r.removed.name} was removed)`
+              : `Sponsor ${r.removed.name} was removed`,
+          );
+        }
+        return r.heirId;
       },
       getById: (id) => get().people.find((p) => p.id === id),
       getByLosUid: (uid) => get().people.find((p) => p.losUid === uid),
       bulkAdd: (people) => set({ people: [...get().people, ...people] }),
       syncFromLos: (entries) => {
-        const people = [...get().people];
-        const byUid = new Map(people.filter((p) => p.losUid).map((p) => [p.losUid!, p]));
-        const byName = new Map(people.map((p) => [p.name.trim().toLowerCase(), p] as const));
-        const uidToRosterId = new Map<string, string>();
-
-        // Pass 1: match or create.
-        for (const e of entries) {
-          const existing = byUid.get(e.uid) ?? byName.get(e.name.trim().toLowerCase());
-          if (existing) {
-            uidToRosterId.set(e.uid, existing.id);
-            if (existing.losUid !== e.uid) existing.losUid = e.uid;
-          } else {
-            const created: CrmPerson = {
-              id: `los-${e.uid.slice(0, 8)}-${people.length}`,
-              name: e.name,
-              bizClass: "ibo",
-              pipelineStage: "ibo",
-              sponsorId: null,
-              losUid: e.uid,
-            };
-            people.push(created);
-            byUid.set(e.uid, created);
-            byName.set(created.name.trim().toLowerCase(), created);
-            uidToRosterId.set(e.uid, created.id);
-          }
-        }
-
-        // Pass 2: keep sponsor links aligned with the mind map.
-        for (const e of entries) {
-          const rosterId = uidToRosterId.get(e.uid);
-          if (!rosterId) continue;
-          const person = people.find((p) => p.id === rosterId);
-          if (!person) continue;
-          const sponsorRosterId = e.sponsorUid ? (uidToRosterId.get(e.sponsorUid) ?? null) : null;
-          if (sponsorRosterId && person.sponsorId !== sponsorRosterId) {
-            person.sponsorId = sponsorRosterId;
-          }
-        }
-
-        set({ people: [...people] });
+        const { people } = syncLosEntries(get().people, entries);
+        if (people !== get().people) set({ people });
       },
     }),
     {

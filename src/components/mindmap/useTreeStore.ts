@@ -2,7 +2,13 @@ import { create } from "zustand";
 import type { Person, TreeNode } from "./types";
 import { buildForest, collectIds, normalizeForest, rowsToPeople } from "./buildTree";
 import type { FieldMap, Row } from "@/lib/parseSpreadsheet";
-import { usePeopleStore, type LosSyncEntry } from "@/stores/peopleStore";
+import {
+  addPerson,
+  getPersonByLosUid,
+  syncPeopleFromLos,
+  updatePerson,
+  type LosSyncEntry,
+} from "@/data";
 
 export type NewMemberClass = "apprentice" | "ibo";
 
@@ -69,6 +75,29 @@ function syncEntries(roots: TreeNode[]): LosSyncEntry[] {
   return out;
 }
 
+const ROSTER_UID = "roster:";
+
+/**
+ * The roster person id a map node stands for, when the map was drawn from
+ * the roster (their uid is "roster:<id>"). Uploaded maps link through
+ * `losUid` instead.
+ */
+export function rosterIdOf(p: Person): string | undefined {
+  return p.uid.startsWith(ROSTER_UID) ? p.uid.slice(ROSTER_UID.length) : undefined;
+}
+
+/**
+ * Stable uids so reloading the same source links to the same roster people:
+ * roster maps use the roster id; uploads use the sheet's own member id plus
+ * the name (re-uploading the same file matches by losUid instead of by name).
+ */
+function stampUids(people: Person[], source: TreeSource): void {
+  for (const p of people) {
+    p.uid =
+      source === "roster" ? `${ROSTER_UID}${p.id}` : `sheet:${p.id}:${p.name.trim().toLowerCase()}`;
+  }
+}
+
 function findNode(roots: TreeNode[], id: string): TreeNode | null {
   for (const r of roots) {
     if (r.person.id === id) return r;
@@ -91,6 +120,7 @@ export const useTreeStore = create<TreeState>((set, get) => ({
   loadRows: (rows, map, opts) => {
     const prev = get();
     const people = rowsToPeople(rows, map);
+    stampUids(people, opts.source);
     const roots = normalizeForest(buildForest(people));
     const flat = flatten(roots);
     let expanded = new Set<string>(roots.map((r) => r.person.id));
@@ -122,7 +152,8 @@ export const useTreeStore = create<TreeState>((set, get) => ({
       source: opts.source,
       sourceKey: opts.key,
     });
-    usePeopleStore.getState().syncFromLos(syncEntries(roots));
+    // A roster map is drawn from the roster itself: nothing to sync back.
+    if (opts.source === "upload") syncPeopleFromLos(syncEntries(roots));
   },
   toggle: (id) => {
     const next = new Set(get().expanded);
@@ -184,18 +215,22 @@ export const useTreeStore = create<TreeState>((set, get) => ({
 
     set({ roots: nextRoots, people: flat, expanded: nextExpanded });
 
-    const store = usePeopleStore.getState();
-    store.syncFromLos(syncEntries(nextRoots));
-    const rosterPerson = usePeopleStore.getState().getByLosUid(uid);
-    if (rosterPerson) {
-      store.update(rosterPerson.id, {
-        bizClass: input.bizClass,
-        pipelineStage: input.bizClass,
-        businessStartDate: input.businessStartDate,
-        iboNumber: input.iboNumber,
-        ltdNumber: input.ltdNumber,
-        location: input.location,
-      });
+    const details = {
+      bizClass: input.bizClass,
+      pipelineStage: input.bizClass,
+      businessStartDate: input.businessStartDate,
+      iboNumber: input.iboNumber,
+      ltdNumber: input.ltdNumber,
+      location: input.location,
+    };
+    const sponsorId = rosterIdOf(parent.person);
+    if (sponsorId) {
+      // Roster map: add them straight to the roster; the map redraws from it.
+      addPerson({ name: input.name, sponsorId, ...details });
+      return;
     }
+    syncPeopleFromLos(syncEntries(nextRoots));
+    const rosterPerson = getPersonByLosUid(uid);
+    if (rosterPerson) updatePerson(rosterPerson.id, details);
   },
 }));

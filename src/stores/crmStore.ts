@@ -53,8 +53,10 @@ interface CrmState {
   settings: Settings;
   /** Weekly learning goals by person id; missing = DEFAULT_LEARNING_GOAL. */
   goals: Record<string, LearningGoal>;
-  logSale: (s: Omit<Sale, "id">) => void;
-  logContact: (c: Omit<Contact, "id">) => void;
+  logSale: (s: Omit<Sale, "id">) => Sale;
+  logContact: (c: Omit<Contact, "id">) => Contact;
+  removeSale: (id: string) => void;
+  removeContact: (id: string) => void;
   logLearning: (l: Omit<Learning, "id">) => void;
   removeLearning: (id: string) => void;
   setSettings: (s: Partial<Settings>) => void;
@@ -75,8 +77,18 @@ export const useCrmStore = create<CrmState>()(
   persist(
     (set, get) => ({
       ...freshState(),
-      logSale: (s) => set({ sales: [{ ...s, id: crypto.randomUUID() }, ...get().sales] }),
-      logContact: (c) => set({ contacts: [{ ...c, id: crypto.randomUUID() }, ...get().contacts] }),
+      logSale: (s) => {
+        const sale: Sale = { ...s, id: crypto.randomUUID() };
+        set({ sales: [sale, ...get().sales] });
+        return sale;
+      },
+      logContact: (c) => {
+        const contact: Contact = { ...c, id: crypto.randomUUID() };
+        set({ contacts: [contact, ...get().contacts] });
+        return contact;
+      },
+      removeSale: (id) => set({ sales: get().sales.filter((s) => s.id !== id) }),
+      removeContact: (id) => set({ contacts: get().contacts.filter((c) => c.id !== id) }),
       logLearning: (l) => set({ learning: [{ ...l, id: crypto.randomUUID() }, ...get().learning] }),
       removeLearning: (id) => set({ learning: get().learning.filter((l) => l.id !== id) }),
       setSettings: (s) => set({ settings: { ...get().settings, ...s } }),

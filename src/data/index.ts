@@ -52,7 +52,11 @@ export {
   addPerson,
   updatePerson,
   removePerson,
+  syncPeopleFromLos,
+  getPersonByLosUid,
 } from "./people";
+export { syncLosEntries, type LosSyncEntry } from "./losSync";
+export { rosterWithout, opsWithoutPerson, opsWithoutEvent } from "./cascade";
 
 // Events + attendance
 export {
@@ -74,6 +78,13 @@ export {
   removeAttendance,
   bulkUpdateAttendances,
 } from "./events";
+export {
+  attentionItems,
+  upcomingAttentionCount,
+  needsTicket,
+  type AttentionCode,
+  type AttentionItem,
+} from "./attention";
 
 // Contacts, sales, learning
 export {
@@ -86,9 +97,11 @@ export {
   useTeamLearning,
   useLearningGoal,
   logContact,
+  removeContact,
   logLearning,
   removeLearning,
   logSale,
+  removeSale,
   setLearningGoal,
   setContactSettings,
 } from "./crm";
@@ -99,6 +112,8 @@ export { useActivity, useEventActivity } from "./activity";
 // Wallet, shared costs, travel, campaigns, report schedules
 export {
   useSharedCosts,
+  useCostSplit,
+  useCostOrganizerName,
   useMyInvoices,
   useVisibleInvoices,
   useLogistics,
@@ -116,6 +131,7 @@ export {
   type Campaign,
   type Invoice,
   type Logistics,
+  type Payment,
   type ReportSchedule,
   type SharedCost,
 } from "./ops";
@@ -150,7 +166,10 @@ export {
   getEventFunnel,
   getRiskFlags,
   getUpcomingFollowUps,
+  getAuditDelta,
+  getComparisonEvents,
   attendanceStatusLabel,
+  type AuditDeltaRow,
 } from "@/lib/selectors";
 
 // Types
