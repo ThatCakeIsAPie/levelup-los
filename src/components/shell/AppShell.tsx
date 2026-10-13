@@ -1,3 +1,4 @@
+import { IS_LOCAL_DEMO } from "@/lib/config";
 import { useState, type ReactNode } from "react";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
@@ -243,9 +244,11 @@ function UserMenu({ onReset }: { onReset: () => void }) {
           })}
         </DropdownMenuRadioGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={onReset}>
-          <RotateCcw /> Reset demo data
-        </DropdownMenuItem>
+        {IS_LOCAL_DEMO && (
+          <DropdownMenuItem onSelect={onReset}>
+            <RotateCcw /> Reset demo data
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem onSelect={() => logout()}>
           <LogOut /> Log out
         </DropdownMenuItem>
@@ -400,10 +403,12 @@ function MoreSheet({
         </div>
         <div className="my-3 border-t border-line" />
         <div className="grid gap-0.5 pb-2">
-          <button type="button" className={row} onClick={onReset}>
-            <RotateCcw className={icon} aria-hidden="true" />
-            Reset demo data
-          </button>
+          {IS_LOCAL_DEMO && (
+            <button type="button" className={row} onClick={onReset}>
+              <RotateCcw className={icon} aria-hidden="true" />
+              Reset demo data
+            </button>
+          )}
           <button
             type="button"
             className={row}

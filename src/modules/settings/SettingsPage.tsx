@@ -1,3 +1,4 @@
+import { IS_LOCAL_DEMO } from "@/lib/config";
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { BellRing, LogOut, RotateCcw, ShieldCheck, UserCircle } from "lucide-react";
@@ -32,17 +33,19 @@ export function SettingsPage() {
       <NotificationsCard />
       <SectionCard title="Data">
         <div>
-          <ActionRow
-            icon={RotateCcw}
-            iconTone="warn"
-            title="Reset demo data"
-            meta="Clears everything saved in this browser and reloads the demo"
-            action={
-              <Button size="sm" variant="outline" onClick={() => setResetOpen(true)}>
-                Reset
-              </Button>
-            }
-          />
+          {IS_LOCAL_DEMO && (
+            <ActionRow
+              icon={RotateCcw}
+              iconTone="warn"
+              title="Reset demo data"
+              meta="Clears everything saved in this browser and reloads the demo"
+              action={
+                <Button size="sm" variant="outline" onClick={() => setResetOpen(true)}>
+                  Reset
+                </Button>
+              }
+            />
+          )}
           <ActionRow
             icon={LogOut}
             iconTone="neutral"
