@@ -93,6 +93,7 @@ export function seedChat(people: CrmPerson[] = seedPeople(), nowMs: number = Dat
     retentionDays: null,
     createdBy: "1",
     createdAt: daysAgoAt(40, 9),
+    pinnedMessageId: null,
     ...o,
   });
   const conversations: Conversation[] = [
@@ -117,6 +118,7 @@ export function seedChat(people: CrmPerson[] = seedPeople(), nowMs: number = Dat
       icon: "sparkles",
       pinned: true,
       createdAt: daysAgoAt(40, 9, 2),
+      pinnedMessageId: "hs0",
     }),
     conv(CHAT_IDS.carpool, "group", "Fall Weekend carpool", {
       description: "Rides to Fall Leadership Weekend in Dallas.",
@@ -576,6 +578,5 @@ export function seedChat(people: CrmPerson[] = seedPeople(), nowMs: number = Dat
     reports,
     blocks: [],
     library,
-    pins: { [CHAT_IDS.highSignal]: "hs0" },
   };
 }

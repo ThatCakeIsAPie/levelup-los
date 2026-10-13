@@ -37,6 +37,8 @@ export interface Conversation {
   retentionDays: number | null;
   createdBy: string;
   createdAt: string;
+  /** The message pinned to the top of this chat, or null. */
+  pinnedMessageId: string | null;
 }
 
 export type ConversationRole = "admin" | "moderator" | "member";
@@ -203,9 +205,4 @@ export interface ChatData {
   reports: Report[];
   blocks: Block[];
   library: LibraryItem[];
-  /**
-   * Pinned message per conversation (conversationId -> messageId). NOT in the
-   * contract yet: needs a `conversations.pinned_message_id` column.
-   */
-  pins: Record<string, string>;
 }

@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
+import { persist } from "zustand/middleware";
+import { dataStorage, seedOr } from "./storage";
 import { seedActivity, SEED_VERSION } from "@/data/seed";
 
 export type ActivityEntity = "person" | "event" | "attendance";
@@ -40,7 +41,7 @@ const ACTOR = "You";
 export const useActivityStore = create<ActivityState>()(
   persist(
     (set, get) => ({
-      events: seedActivity(),
+      events: seedOr(seedActivity, []),
       log: (e) => {
         const entry: ActivityEvent = {
           ...e,
@@ -64,7 +65,7 @@ export const useActivityStore = create<ActivityState>()(
     }),
     {
       name: "levelup.activity",
-      storage: createJSONStorage(() => localStorage),
+      storage: dataStorage(),
       partialize: (s) => ({ events: s.events }),
       version: SEED_VERSION,
       migrate: () => ({ events: seedActivity() }) as unknown as ActivityState,

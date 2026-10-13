@@ -2,6 +2,8 @@ import { useMemo } from "react";
 import { useEventsStore, type CrmEvent } from "@/stores/eventsStore";
 import { useAttendanceStore, type Attendance } from "@/stores/attendanceStore";
 import { useOpsStore } from "@/stores/opsStore";
+import { IS_SUPABASE } from "@/lib/config";
+import { serverSide } from "./remote";
 import { upcomingAttentionCount } from "./attention";
 import { localDate } from "@/lib/dates";
 import { filterAttendances } from "./access";
@@ -102,9 +104,15 @@ export function updateEvent(id: string, patch: Partial<CrmEvent>): void {
 
 /** Delete an event with its attendance rows, travel plans, shared costs and their payments. */
 export function removeEvent(id: string): void {
+  const cascade = () => {
+    useAttendanceStore.getState().removeWhere((a) => a.eventId === id);
+    useOpsStore.getState().removeEvent(id);
+  };
+  // Real accounts: the database removes the event's rows by foreign-key
+  // cascade, so only the event itself is written.
+  if (IS_SUPABASE) serverSide(cascade);
   useEventsStore.getState().remove(id);
-  useAttendanceStore.getState().removeWhere((a) => a.eventId === id);
-  useOpsStore.getState().removeEvent(id);
+  if (!IS_SUPABASE) cascade();
 }
 
 /** Add a person to an event's roster (returns the existing row if already there). */

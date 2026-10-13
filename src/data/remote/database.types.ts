@@ -570,6 +570,7 @@ export type Database = {
           id: string;
           kind: string;
           pinned: boolean;
+          pinned_message_id: string | null;
           retention_days: number | null;
           title: string | null;
           workspace_id: string;
@@ -583,6 +584,7 @@ export type Database = {
           id?: string;
           kind: string;
           pinned?: boolean;
+          pinned_message_id?: string | null;
           retention_days?: number | null;
           title?: string | null;
           workspace_id?: string;
@@ -595,6 +597,7 @@ export type Database = {
           id?: string;
           kind?: string;
           pinned?: boolean;
+          pinned_message_id?: string | null;
           retention_days?: number | null;
           title?: string | null;
           workspace_id?: string;
@@ -612,6 +615,13 @@ export type Database = {
             columns: ["created_by"];
             isOneToOne: false;
             referencedRelation: "people";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "conversations_pinned_message_id_fkey";
+            columns: ["pinned_message_id"];
+            isOneToOne: false;
+            referencedRelation: "messages";
             referencedColumns: ["id"];
           },
           {
@@ -1788,10 +1798,15 @@ export type Database = {
     };
     Functions: {
       accept_invite: { Args: { p_token: string }; Returns: string };
-      approve_announcement: { Args: { p_draft_id: string }; Returns: string };
+      answer_event_post: { Args: { p_message_id: string }; Returns: string };
+      approve_announcement:
+        | { Args: { p_draft_id: string }; Returns: string }
+        | { Args: { p_draft_id: string; p_message_id: string }; Returns: string };
       can_dm: { Args: { a: string; b: string }; Returns: boolean };
+      can_edit_conversation: { Args: { p_conversation_id: string }; Returns: boolean };
       can_moderate_conversation: { Args: { p_conversation_id: string }; Returns: boolean };
       can_organize_costs: { Args: Record<PropertyKey, never>; Returns: boolean };
+      can_pin_conversation: { Args: { p_conversation_id: string }; Returns: boolean };
       can_see_person: { Args: { p_person_id: string }; Returns: boolean };
       chat_eligible: { Args: { p_person_id: string }; Returns: boolean };
       conversation_kind: { Args: { p_conversation_id: string }; Returns: string };
@@ -1799,7 +1814,9 @@ export type Database = {
       conversation_workspace: { Args: { p_conversation_id: string }; Returns: string };
       cost_owner: { Args: { p_cost_id: string }; Returns: string };
       cost_workspace: { Args: { p_cost_id: string }; Returns: string };
-      create_dm: { Args: { p_other_person_id: string }; Returns: string };
+      create_dm:
+        | { Args: { p_other_person_id: string }; Returns: string }
+        | { Args: { p_conversation_id: string; p_other_person_id: string }; Returns: string };
       current_member_role: { Args: Record<PropertyKey, never>; Returns: string };
       current_person_id: { Args: Record<PropertyKey, never>; Returns: string };
       current_workspace_id: { Args: Record<PropertyKey, never>; Returns: string };
@@ -1809,6 +1826,15 @@ export type Database = {
       effective_biz_class: {
         Args: { p_biz_class: string; p_business_start_date: string };
         Returns: string;
+      };
+      event_rsvp_counts: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          bought: number;
+          event_id: string;
+          going: number;
+          maybe: number;
+        }[];
       };
       event_workspace: { Args: { p_event_id: string }; Returns: string };
       get_invite: {

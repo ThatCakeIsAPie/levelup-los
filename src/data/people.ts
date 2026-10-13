@@ -2,6 +2,9 @@ import { useMemo } from "react";
 import { usePeopleStore, type CrmPerson, type LosSyncEntry } from "@/stores/peopleStore";
 import { useAttendanceStore } from "@/stores/attendanceStore";
 import { useOpsStore } from "@/stores/opsStore";
+import { IS_SUPABASE } from "@/lib/config";
+import { scheduleRefresh, serverSide } from "./remote";
+import { rosterWithout } from "./cascade";
 import { downlineOf, sponsorChain, visibleCustomers, visibleIdSet, type Viewer } from "./access";
 import { getViewer, useViewer } from "./session";
 
@@ -148,9 +151,34 @@ export function updatePerson(id: string, patch: Partial<CrmPerson>): void {
  */
 export function removePerson(id: string): void {
   if (!usePeopleStore.getState().getById(id)) return;
+  if (IS_SUPABASE) {
+    removePersonRemote(id);
+    return;
+  }
   const heirId = usePeopleStore.getState().remove(id);
   useAttendanceStore.getState().removeWhere((a) => a.personId === id);
   useOpsStore.getState().removePerson(id, heirId);
+}
+
+/**
+ * Real accounts: only the delete is written. The database moves the downline
+ * and customers, hands over costs, removes attendance / travel / cost rows and
+ * writes the activity entries itself (people_before_delete trigger and
+ * foreign-key cascades), so the same changes are shown here without writing
+ * them; the activity entries arrive with the next refetch.
+ */
+function removePersonRemote(id: string): void {
+  const people = usePeopleStore.getState().people;
+  const r = rosterWithout(people, id);
+  if (!r.removed) return;
+  const after = new Map(r.people.map((p) => [p.id, p]));
+  serverSide(() => {
+    usePeopleStore.setState({ people: people.map((p) => after.get(p.id) ?? p) });
+    useAttendanceStore.getState().removeWhere((a) => a.personId === id);
+    useOpsStore.getState().removePerson(id, r.heirId);
+  });
+  usePeopleStore.setState({ people: usePeopleStore.getState().people.filter((p) => p.id !== id) });
+  scheduleRefresh(["crm"], 1500);
 }
 
 // ---- Mind map sync (non-reactive; used by the mind map's tree store) ----

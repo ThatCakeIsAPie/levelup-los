@@ -12,6 +12,9 @@ import { useCrmStore } from "@/stores/crmStore";
 import { visibleIdSet } from "../access";
 import { getViewer } from "../session";
 import { useChatStore, chat } from "./store";
+import { chatPersonName } from "./people";
+import { useRemoteStore } from "@/data/remote/extras";
+import { IS_SUPABASE } from "@/lib/config";
 import {
   canDm,
   canModerate,
@@ -65,6 +68,8 @@ export const workspaceRoleLabel = (r: WorkspaceRole) => ROLE_LABEL[r];
 export function useChatPeople(): Map<string, ChatPerson> {
   const people = usePeopleStore((s) => s.people);
   const members = useChatStore((s) => s.members);
+  // Real accounts: chat members outside your CRM view come from the directory.
+  const directory = useRemoteStore((s) => s.directory);
   return useMemo(() => {
     const role = new Map(members.map((m) => [m.personId, m.role]));
     const out = new Map<string, ChatPerson>();
@@ -77,8 +82,17 @@ export function useChatPeople(): Map<string, ChatPerson> {
         role: role.get(p.id) ?? null,
       });
     }
+    for (const d of directory) {
+      if (out.has(d.personId)) continue;
+      out.set(d.personId, {
+        id: d.personId,
+        name: d.name,
+        stage: d.stage,
+        role: role.get(d.personId) ?? d.role,
+      });
+    }
     return out;
-  }, [people, members]);
+  }, [people, members, directory]);
 }
 
 /** Workspace members (sorted by name) with their person details. */
@@ -325,7 +339,7 @@ export function getConversationTitle(id: string): string | undefined {
   const otherId = s.conversationMembers.find(
     (m) => m.conversationId === id && m.personId !== me,
   )?.personId;
-  return usePeopleStore.getState().people.find((p) => p.id === otherId)?.name;
+  return chatPersonName(otherId);
 }
 
 export interface MemberView extends ChatPerson {
@@ -401,7 +415,7 @@ export function useMessages(conversationId: string | undefined): MessageView[] {
     const blocked = new Set(data.blocks.filter((b) => b.blockerId === me).map((b) => b.blockedId));
     const att = data.attachments.filter((a) => ids.has(a.messageId));
     const eventName = (id: string) => events.find((e) => e.id === id)?.name;
-    const pinnedId = data.pins[conv.id];
+    const pinnedId = conv.conversation.pinnedMessageId;
     return msgs.map((m) => {
       const rx = new Map<string, ReactionSummary>();
       for (const r of data.reactions) {
@@ -632,18 +646,23 @@ export function useEventRsvp(eventId: string): EventRsvp {
   const events = useEventsStore((s) => s.events);
   const rows = useAttendanceStore((s) => s.attendances);
   const me = useSessionStore((s) => s.user?.personId ?? "");
+  // Real accounts: you only hold the attendance rows you may see, so the team
+  // totals come from the database (event_rsvp_counts, no identities).
+  const serverCounts = useRemoteStore((s) => (IS_SUPABASE ? s.rsvpCounts : null));
   return useMemo(() => {
     const forEvent = rows.filter((a) => a.eventId === eventId);
     return {
       event: events.find((e) => e.id === eventId),
       mine: forEvent.find((a) => a.personId === me),
-      counts: {
-        bought: forEvent.filter((a) => a.hasTicket).length,
-        going: forEvent.filter((a) => !a.hasTicket && a.desireToAttend === "yes").length,
-        maybe: forEvent.filter((a) => !a.hasTicket && a.desireToAttend === "maybe").length,
-      },
+      counts: serverCounts
+        ? (serverCounts[eventId] ?? { bought: 0, going: 0, maybe: 0 })
+        : {
+            bought: forEvent.filter((a) => a.hasTicket).length,
+            going: forEvent.filter((a) => !a.hasTicket && a.desireToAttend === "yes").length,
+            maybe: forEvent.filter((a) => !a.hasTicket && a.desireToAttend === "maybe").length,
+          },
     };
-  }, [events, rows, eventId, me]);
+  }, [events, rows, eventId, me, serverCounts]);
 }
 
 export interface SearchHit {

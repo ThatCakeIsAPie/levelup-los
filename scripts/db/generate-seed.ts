@@ -643,6 +643,15 @@ emit(
       ]),
   ),
 );
+// Pinned messages (the column references messages, so it is set afterwards).
+for (const c of chat.conversations) {
+  if (c.pinnedMessageId) {
+    emit(
+      `update public.conversations set pinned_message_id = ${str(c.pinnedMessageId)} where id = ${str(c.id)};\n`,
+    );
+  }
+}
+emit("\n");
 emit(
   insert(
     "public.attachments",

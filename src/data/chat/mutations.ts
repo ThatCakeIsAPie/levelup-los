@@ -1,10 +1,21 @@
 /**
- * Chat writes. Plain functions acting as the current (demo) user; each one
- * checks the same rules the database enforces (./rules) and returns null /
- * false when the action isn't allowed. Side effects follow the contract:
- * mentions and replies notify, reports notify leaders, a conversation in both
- * directions logs a check-in (contacts with source "message") for both people.
+ * Chat writes. Plain functions acting as the current user; each one checks the
+ * same rules the database enforces (./rules) and returns null / false when the
+ * action isn't allowed. Side effects follow the contract: mentions and replies
+ * notify, reports notify leaders, a conversation in both directions logs a
+ * check-in (contacts with source "message") for both people.
+ *
+ * Two modes, one API:
+ *  - Browser-storage demo: the side effects (notifications, check-in contacts)
+ *    are written here.
+ *  - Real accounts ("supabase" mode): the store change is written to the
+ *    database by src/data/remote, and the database's triggers and RPCs create
+ *    the notifications and check-ins (so nothing is created twice). Anything
+ *    an RPC does is shown at once with `serverSide` and confirmed or rolled
+ *    back when the RPC answers.
  */
+import { IS_SUPABASE } from "@/lib/config";
+import { getSupabase } from "@/lib/supabase";
 import { localDate } from "@/lib/dates";
 import { usePeopleStore } from "@/stores/peopleStore";
 import { useSessionStore } from "@/stores/sessionStore";
@@ -12,7 +23,14 @@ import { useCrmStore } from "@/stores/crmStore";
 import { logContact } from "../crm";
 import { assignToEvent, updateAttendance } from "../events";
 import { useChatStore, updateChat, chat, withoutExpired } from "./store";
-import { deleteAttachment } from "./attachments";
+import {
+  deleteAttachment,
+  discardPendingAttachment,
+  isPendingPath,
+  uploadPendingAttachment,
+} from "./attachments";
+import { chatPeopleList, chatPersonName } from "./people";
+import { refreshRsvpCounts, saveFailed, scheduleRefresh, serverSide, whenIdle } from "../remote";
 import {
   canDeleteMessage,
   canDm,
@@ -50,6 +68,33 @@ import {
 const me = () => useSessionStore.getState().user?.personId ?? "";
 const nowIso = () => new Date().toISOString();
 const uid = () => crypto.randomUUID();
+/** The signed-in person's workspace (the demo has one: "w1"). */
+const workspaceId = () =>
+  (IS_SUPABASE ? useSessionStore.getState().account?.workspaceId : undefined) ?? WORKSPACE_ID;
+
+/**
+ * Real accounts: show what an RPC will do (`show`), run it after the writes
+ * already queued (e.g. the attendance row of an RSVP), and undo (`undo`), tell
+ * the person and re-sync if it fails.
+ */
+function viaRpc(
+  show: () => void,
+  call: () => PromiseLike<{ error: { message: string } | null }>,
+  undo: () => void,
+  after?: () => void,
+): void {
+  serverSide(show);
+  void whenIdle()
+    .then(() => call())
+    .then(({ error }) => {
+      if (error) throw new Error(error.message);
+      after?.();
+    })
+    .catch((e) => {
+      serverSide(undo);
+      saveFailed(e);
+    });
+}
 
 const memberOf = (s: ChatData, conversationId: string, personId: string) =>
   s.conversationMembers.find((m) => m.conversationId === conversationId && m.personId === personId);
@@ -76,7 +121,7 @@ function notification(
 }
 
 function nameOf(id: string): string {
-  return usePeopleStore.getState().people.find((p) => p.id === id)?.name ?? "";
+  return chatPersonName(id) ?? "";
 }
 
 // ---------------------------------------------------------------------------
@@ -85,6 +130,8 @@ function nameOf(id: string): string {
 
 /** Add a newly eligible person to the workspace and its team chats (idempotent). */
 export function joinWorkspace(personId: string): void {
+  // Real accounts: invites and the database's triggers handle membership.
+  if (IS_SUPABASE) return;
   updateChat((s) => {
     if (s.members.some((m) => m.personId === personId)) return {};
     const at = nowIso();
@@ -196,7 +243,7 @@ function postAs(
   const cms = s.conversationMembers.filter((m) => m.conversationId === c.id);
   const memberIds = new Set(cms.map((m) => m.personId));
   const muted = new Set(cms.filter((m) => m.muted).map((m) => m.personId));
-  const people = usePeopleStore.getState().people.filter((p) => memberIds.has(p.id));
+  const people = chatPeopleList().filter((p) => memberIds.has(p.id));
 
   const mentionIds = extractMentions(input.body, people).filter((id) => id !== authorId);
   const mentions: Mention[] = mentionIds.map((personId) => ({ messageId: message.id, personId }));
@@ -245,13 +292,51 @@ function postAs(
     messages: [...st.messages, message],
     attachments: [...st.attachments, ...attachments],
     mentions: [...st.mentions, ...mentions],
-    notifications: [...st.notifications, ...notes],
+    // Real accounts: the database notifies (triggers on messages and mentions).
+    notifications: IS_SUPABASE ? st.notifications : [...st.notifications, ...notes],
     conversationMembers: st.conversationMembers.map((m) =>
       m.conversationId === c.id && m.personId === authorId ? { ...m, lastReadAt: at } : m,
     ),
   }));
+  if (IS_SUPABASE) uploadThenSend(c.id, message.id, attachments);
 
   return { message, checkinWith: logConversationCheckin(c, message) };
+}
+
+/**
+ * Real accounts: a photo or voice note is uploaded to Storage first; the
+ * message (held back by the sync layer while its file is pending) is written
+ * once every file has its storage path. If an upload fails the message is
+ * taken back and the person is told.
+ */
+function uploadThenSend(conversationId: string, messageId: string, attachments: Attachment[]) {
+  const pending = attachments.filter((a) => isPendingPath(a.storagePath));
+  if (!pending.length) return;
+  void Promise.all(
+    pending.map(
+      async (a) =>
+        [a.id, await uploadPendingAttachment(conversationId, a.storagePath, a.mime)] as const,
+    ),
+  )
+    .then((paths) => {
+      const byId = new Map(paths);
+      updateChat((st) => ({
+        attachments: st.attachments.map((a) =>
+          byId.has(a.id) ? { ...a, storagePath: byId.get(a.id)! } : a,
+        ),
+      }));
+    })
+    .catch((e) => {
+      pending.forEach((a) => discardPendingAttachment(a.storagePath));
+      serverSide(() =>
+        updateChat((st) => ({
+          messages: st.messages.filter((m) => m.id !== messageId),
+          attachments: st.attachments.filter((a) => a.messageId !== messageId),
+          mentions: st.mentions.filter((m) => m.messageId !== messageId),
+        })),
+      );
+      saveFailed(e);
+    });
 }
 
 /** Apply the conversation check-in rule to a new message. Returns the other person's id. */
@@ -282,6 +367,12 @@ function logConversationCheckin(c: Conversation, message: Message): string | nul
           (x.personId === pair.a && x.byId === pair.b)),
     );
   if (already) return null;
+  // Real accounts: the database records the check-in (contacts for both
+  // people + notifications); the contacts arrive with the next refetch.
+  if (IS_SUPABASE) {
+    scheduleRefresh(["crm"], 1500);
+    return pair.b;
+  }
   const ab = logContact({ personId: pair.b, byId: pair.a, source: "message" });
   const ba = logContact({ personId: pair.a, byId: pair.b, source: "message" });
   const base = { conversationId: c.id, messageId: message.id };
@@ -306,23 +397,26 @@ export function editMessage(id: string, body: string): boolean {
       .filter((x) => x.conversationId === m.conversationId)
       .map((x) => x.personId),
   );
-  const people = usePeopleStore.getState().people.filter((p) => memberIds.has(p.id));
+  const people = chatPeopleList().filter((p) => memberIds.has(p.id));
   const ids = extractMentions(text, people).filter((x) => x !== m.authorId);
   const before = new Set(s.mentions.filter((x) => x.messageId === id).map((x) => x.personId));
   updateChat((st) => ({
     messages: st.messages.map((x) => (x.id === id ? { ...x, body: text, editedAt: nowIso() } : x)),
     mentions: [
-      ...st.mentions.filter((x) => x.messageId !== id),
-      ...ids.map((personId) => ({ messageId: id, personId })),
+      ...st.mentions.filter((x) => x.messageId !== id || ids.includes(x.personId)),
+      ...ids.filter((x) => !before.has(x)).map((personId) => ({ messageId: id, personId })),
     ],
-    notifications: [
-      ...st.notifications,
-      ...ids
-        .filter((x) => !before.has(x))
-        .map((x) =>
-          notification(x, "mention", { conversationId: m.conversationId, messageId: id }),
-        ),
-    ],
+    // Real accounts: new mentions notify through the database.
+    notifications: IS_SUPABASE
+      ? st.notifications
+      : [
+          ...st.notifications,
+          ...ids
+            .filter((x) => !before.has(x))
+            .map((x) =>
+              notification(x, "mention", { conversationId: m.conversationId, messageId: id }),
+            ),
+        ],
   }));
   return true;
 }
@@ -358,15 +452,24 @@ function removeMessageContent(id: string) {
   s.attachments
     .filter((a) => a.messageId === id)
     .forEach((a) => void deleteAttachment(a.storagePath));
+  const children = () =>
+    updateChat((st) => ({
+      attachments: st.attachments.filter((a) => a.messageId !== id),
+      reactions: st.reactions.filter((r) => r.messageId !== id),
+      mentions: st.mentions.filter((r) => r.messageId !== id),
+      conversations: st.conversations.map((c) =>
+        c.pinnedMessageId === id ? { ...c, pinnedMessageId: null } : c,
+      ),
+    }));
+  // Real accounts: the database removes the files' rows, reactions, mentions
+  // and pin itself when a message is removed; only the removal is written.
+  if (IS_SUPABASE) serverSide(children);
   updateChat((st) => ({
     messages: st.messages.map((x) =>
       x.id === id ? { ...x, body: "", card: null, deletedAt: nowIso() } : x,
     ),
-    attachments: st.attachments.filter((a) => a.messageId !== id),
-    reactions: st.reactions.filter((r) => r.messageId !== id),
-    mentions: st.mentions.filter((r) => r.messageId !== id),
-    pins: Object.fromEntries(Object.entries(st.pins).filter(([, mid]) => mid !== id)),
   }));
+  if (!IS_SUPABASE) children();
 }
 
 /** Add or remove your reaction (notifies the author when added). */
@@ -390,7 +493,7 @@ export function toggleReaction(messageId: string, emoji: string): void {
   updateChat((st) => ({
     reactions: [...st.reactions, { messageId, personId: who, emoji, createdAt: nowIso() }],
     notifications:
-      m.authorId !== who && authorMember && !authorMember.muted
+      !IS_SUPABASE && m.authorId !== who && authorMember && !authorMember.muted
         ? [
             ...st.notifications,
             notification(m.authorId, "reaction", {
@@ -430,12 +533,11 @@ export function pinMessage(conversationId: string, messageId: string | null): bo
   const c = s.conversations.find((x) => x.id === conversationId);
   if (!c || !memberOf(s, conversationId, me())) return false;
   if (c.kind !== "dm" && !moderatorIn(s, conversationId)) return false;
-  updateChat((st) => {
-    const pins = { ...st.pins };
-    if (messageId) pins[conversationId] = messageId;
-    else delete pins[conversationId];
-    return { pins };
-  });
+  updateChat((st) => ({
+    conversations: st.conversations.map((x) =>
+      x.id === conversationId ? { ...x, pinnedMessageId: messageId } : x,
+    ),
+  }));
   return true;
 }
 
@@ -463,7 +565,7 @@ export function createGroup(input: {
       ...st.conversations,
       {
         id,
-        workspaceId: WORKSPACE_ID,
+        workspaceId: workspaceId(),
         kind: "group",
         title,
         description: input.description?.trim() || null,
@@ -472,6 +574,7 @@ export function createGroup(input: {
         retentionDays: null,
         createdBy: who,
         createdAt: at,
+        pinnedMessageId: null,
       },
     ],
     conversationMembers: [
@@ -605,14 +708,22 @@ export function leaveConversation(conversationId: string): boolean {
           a.joinedAt.localeCompare(b.joinedAt),
       )[0] as ConversationMember | undefined)
     : undefined;
-  updateChat((st) => ({
-    conversationMembers: st.conversationMembers
-      .filter((m) => !(m.conversationId === conversationId && m.personId === who))
-      .map((m) =>
+  const handOver = () =>
+    updateChat((st) => ({
+      conversationMembers: st.conversationMembers.map((m) =>
         heir && m.conversationId === conversationId && m.personId === heir.personId
           ? { ...m, role: "admin" as const }
           : m,
       ),
+    }));
+  // Real accounts: the database makes the heir admin (same rule) when the
+  // last admin leaves; only leaving is written.
+  if (IS_SUPABASE) serverSide(handOver);
+  else handOver();
+  updateChat((st) => ({
+    conversationMembers: st.conversationMembers.filter(
+      (m) => !(m.conversationId === conversationId && m.personId === who),
+    ),
   }));
   return true;
 }
@@ -650,6 +761,12 @@ export function setRetention(conversationId: string, days: number | null): boole
   }));
   const s = chat();
   const purged = withoutExpired(s);
+  if (purged !== s && IS_SUPABASE) {
+    // Real accounts: the database deletes expired messages nightly; until
+    // then they're only hidden here (the client never deletes them).
+    serverSide(() => useChatStore.setState(purged, true));
+    return true;
+  }
   if (purged !== s) {
     const gone = new Set(s.messages.map((m) => m.id));
     purged.messages.forEach((m) => gone.delete(m.id));
@@ -665,7 +782,13 @@ export function setRetention(conversationId: string, days: number | null): boole
 export function createOrOpenDm(personId: string): string | null {
   const who = me();
   const s = chat();
-  const id = dmId(who, personId);
+  // Real accounts: a DM may have any id; find it by its two members.
+  const existing = IS_SUPABASE
+    ? s.conversations.find(
+        (c) => c.kind === "dm" && memberOf(s, c.id, who) && memberOf(s, c.id, personId),
+      )?.id
+    : undefined;
+  const id = existing ?? dmId(who, personId);
   if (s.conversations.some((c) => c.id === id) && memberOf(s, id, who)) {
     return isBlockedBetween(s.blocks, who, personId) ? null : id;
   }
@@ -682,30 +805,60 @@ export function createOrOpenDm(personId: string): string | null {
     muted: false,
     joinedAt: at,
   });
-  updateChat((st) => ({
-    conversations: st.conversations.some((c) => c.id === id)
-      ? st.conversations
-      : [
-          ...st.conversations,
-          {
-            id,
-            workspaceId: WORKSPACE_ID,
-            kind: "dm",
-            title: null,
-            description: null,
-            icon: null,
-            pinned: false,
-            retentionDays: null,
-            createdBy: who,
-            createdAt: at,
-          },
-        ],
-    conversationMembers: [
-      ...st.conversationMembers.filter((m) => m.conversationId !== id),
-      join(who),
-      join(personId),
-    ],
-  }));
+  const open = () =>
+    updateChat((st) => ({
+      conversations: st.conversations.some((c) => c.id === id)
+        ? st.conversations
+        : [
+            ...st.conversations,
+            {
+              id,
+              workspaceId: workspaceId(),
+              kind: "dm",
+              title: null,
+              description: null,
+              icon: null,
+              pinned: false,
+              retentionDays: null,
+              createdBy: who,
+              createdAt: at,
+              pinnedMessageId: null,
+            },
+          ],
+      conversationMembers: [
+        ...st.conversationMembers.filter((m) => m.conversationId !== id),
+        join(who),
+        join(personId),
+      ],
+    }));
+  if (!IS_SUPABASE) {
+    open();
+    return id;
+  }
+  // Real accounts: DMs are created by create_dm() (it checks the same rule),
+  // with the id shown here. If the database already had a DM between the two
+  // under another id, the chats are reloaded and that one is used.
+  const undo = () =>
+    updateChat((st) => ({
+      conversations: st.conversations.filter((c) => c.id !== id),
+      conversationMembers: st.conversationMembers.filter((m) => m.conversationId !== id),
+    }));
+  serverSide(open);
+  void whenIdle()
+    .then(() =>
+      getSupabase().rpc("create_dm", { p_other_person_id: personId, p_conversation_id: id }),
+    )
+    .then(({ data, error }) => {
+      if (error) throw new Error(error.message);
+      if (data && data !== id) {
+        serverSide(undo);
+        scheduleRefresh(["chat"], 0);
+      }
+    })
+    .catch((e) => {
+      serverSide(undo);
+      saveFailed(e);
+    });
   return id;
 }
 
@@ -745,21 +898,29 @@ export function submitAnnouncement(input: {
   const reviewers = s.members.filter((m) => canReviewDrafts(m.role)).map((m) => m.personId);
   updateChat((st) => ({
     drafts: [...st.drafts, draft],
-    notifications: [
-      ...st.notifications,
-      ...reviewers.map((r) =>
-        notification(r, "announcement_draft", { conversationId: c.id, refId: draft.id }),
-      ),
-    ],
+    // Real accounts: the database notifies the reviewers.
+    notifications: IS_SUPABASE
+      ? st.notifications
+      : [
+          ...st.notifications,
+          ...reviewers.map((r) =>
+            notification(r, "announcement_draft", { conversationId: c.id, refId: draft.id }),
+          ),
+        ],
   }));
   return { draft };
 }
 
-function review(id: string, status: "approved" | "rejected"): AnnouncementDraft | null {
-  const who = me();
+/** The draft, if it's pending and the current user may review it. */
+function reviewable(id: string): AnnouncementDraft | null {
   const s = chat();
   const d = s.drafts.find((x) => x.id === id);
-  if (!d || d.status !== "pending" || !canReviewDrafts(workspaceRole(s, who))) return null;
+  if (!d || d.status !== "pending" || !canReviewDrafts(workspaceRole(s, me()))) return null;
+  return d;
+}
+
+function markReviewed(id: string, status: "approved" | "rejected") {
+  const who = me();
   const at = nowIso();
   updateChat((st) => ({
     drafts: st.drafts.map((x) =>
@@ -770,15 +931,50 @@ function review(id: string, status: "approved" | "rejected"): AnnouncementDraft 
       n.type === "announcement_draft" && n.refId === id && !n.readAt ? { ...n, readAt: at } : n,
     ),
   }));
-  return d;
+}
+
+/** Real accounts: undo markReviewed (and drop the optimistic post) after a failed RPC. */
+function unreview(d: AnnouncementDraft, messageId?: string) {
+  updateChat((st) => ({
+    drafts: st.drafts.map((x) => (x.id === d.id ? d : x)),
+    notifications: st.notifications.map((n) =>
+      n.type === "announcement_draft" && n.refId === d.id ? { ...n, readAt: null } : n,
+    ),
+    messages: messageId ? st.messages.filter((m) => m.id !== messageId) : st.messages,
+  }));
 }
 
 /** Approve a draft: posts it as its author and tells them it's up. */
 export function approveDraft(id: string): Message | null {
-  const d = review(id, "approved");
+  const d = reviewable(id);
   if (!d) return null;
   const c = chat().conversations.find((x) => x.id === d.conversationId);
   if (!c) return null;
+  if (IS_SUPABASE) {
+    // approve_announcement() posts it (as the author, with this id) and
+    // notifies; the post is shown right away.
+    const message: Message = {
+      id: uid(),
+      conversationId: c.id,
+      authorId: d.authorId,
+      body: d.body,
+      replyToId: null,
+      card: d.card,
+      createdAt: nowIso(),
+      editedAt: null,
+      deletedAt: null,
+    };
+    viaRpc(
+      () => {
+        markReviewed(id, "approved");
+        updateChat((st) => ({ messages: [...st.messages, message] }));
+      },
+      () => getSupabase().rpc("approve_announcement", { p_draft_id: id, p_message_id: message.id }),
+      () => unreview(d, message.id),
+    );
+    return message;
+  }
+  markReviewed(id, "approved");
   const { message } = postAs(d.authorId, c, {
     body: d.body,
     replyToId: null,
@@ -801,7 +997,18 @@ export function approveDraft(id: string): Message | null {
 
 /** Reject a draft (the author sees it as rejected in their inbox). */
 export function rejectDraft(id: string): boolean {
-  return !!review(id, "rejected");
+  const d = reviewable(id);
+  if (!d) return false;
+  if (IS_SUPABASE) {
+    viaRpc(
+      () => markReviewed(id, "rejected"),
+      () => getSupabase().rpc("reject_announcement", { p_draft_id: id }),
+      () => unreview(d),
+    );
+    return true;
+  }
+  markReviewed(id, "rejected");
+  return true;
 }
 
 // ---------------------------------------------------------------------------
@@ -826,16 +1033,19 @@ export function reportMessage(messageId: string, reason: string): boolean {
   const leaders = s.members.filter((x) => x.role === "leader").map((x) => x.personId);
   updateChat((st) => ({
     reports: [...st.reports, report],
-    notifications: [
-      ...st.notifications,
-      ...leaders.map((l) =>
-        notification(l, "report", {
-          conversationId: m.conversationId,
-          messageId,
-          refId: report.id,
-        }),
-      ),
-    ],
+    // Real accounts: the database notifies the leaders.
+    notifications: IS_SUPABASE
+      ? st.notifications
+      : [
+          ...st.notifications,
+          ...leaders.map((l) =>
+            notification(l, "report", {
+              conversationId: m.conversationId,
+              messageId,
+              refId: report.id,
+            }),
+          ),
+        ],
   }));
   return true;
 }
@@ -957,6 +1167,19 @@ export function rsvpEvent(eventId: string, choice: RsvpChoice, messageId?: strin
       : { desireToAttend: choice === "going" ? "yes" : "maybe" },
   );
   const m = messageId ? chat().messages.find((x) => x.id === messageId) : undefined;
+  if (IS_SUPABASE) {
+    // The attendance row is written by the sync layer; then the card's author
+    // is told (answer_event_post) and the card's team totals are re-read.
+    void whenIdle()
+      .then(async () => {
+        if (m && m.authorId !== who) {
+          const { error } = await getSupabase().rpc("answer_event_post", { p_message_id: m.id });
+          if (error) console.warn("[chat] answer_event_post", error.message);
+        }
+      })
+      .finally(refreshRsvpCounts);
+    return row.id;
+  }
   if (m && m.authorId !== who) {
     updateChat((st) => ({
       // One row per person per post: replace an earlier answer.
@@ -975,8 +1198,30 @@ export function rsvpEvent(eventId: string, choice: RsvpChoice, messageId?: strin
   return row.id;
 }
 
-/** The Daily wins chat id (where shared wins go). */
+/** The Daily wins chat id in the demo (where shared wins go). */
 export const DAILY_WINS_ID = CHAT_IDS.dailyWins;
+
+/**
+ * The id of a team chat in the current workspace. The demo and the local
+ * seed use the readable ids in CHAT_IDS; a real workspace's ids are generated,
+ * so Announcements / Main chat are found by kind and the pinned groups by
+ * title. Falls back to the CHAT_IDS value.
+ */
+export function getTeamChatId(kind: keyof typeof CHAT_IDS): string {
+  const convs = chat().conversations;
+  const fallback = CHAT_IDS[kind];
+  if (convs.some((c) => c.id === fallback)) return fallback;
+  const title = { dailyWins: "daily wins", highSignal: "high signal" } as Record<string, string>;
+  const found =
+    kind === "announcements" || kind === "main"
+      ? convs.find((c) => c.kind === kind)
+      : convs.find(
+          (c) => c.kind === "group" && c.pinned && c.title?.trim().toLowerCase() === title[kind],
+        );
+  return found?.id ?? fallback;
+}
+
+const dailyWinsId = () => getTeamChatId("dailyWins");
 
 /**
  * Share a logged record as a win in Daily wins. The card points at the record
@@ -991,7 +1236,7 @@ export function postWin(input: {
   body?: string;
 }): Message | null {
   const r = sendMessage({
-    conversationId: DAILY_WINS_ID,
+    conversationId: dailyWinsId(),
     body: input.body ?? "",
     card: {
       type: "win",
@@ -1011,7 +1256,7 @@ export function postLearning(input: {
   body?: string;
 }): Message | null {
   const r = sendMessage({
-    conversationId: DAILY_WINS_ID,
+    conversationId: dailyWinsId(),
     body: input.body ?? "",
     card: { type: "learning", learningId: input.learningId, title: input.title },
   });
@@ -1032,12 +1277,16 @@ export function unpost(messageId: string): void {
   const s = chat();
   const m = s.messages.find((x) => x.id === messageId);
   if (!m || m.authorId !== me()) return;
-  updateChat((st) => ({
-    messages: st.messages.filter((x) => x.id !== messageId),
-    reactions: st.reactions.filter((x) => x.messageId !== messageId),
-    mentions: st.mentions.filter((x) => x.messageId !== messageId),
-    notifications: st.notifications.filter((x) => x.messageId !== messageId),
-  }));
+  const children = () =>
+    updateChat((st) => ({
+      reactions: st.reactions.filter((x) => x.messageId !== messageId),
+      mentions: st.mentions.filter((x) => x.messageId !== messageId),
+      notifications: st.notifications.filter((x) => x.messageId !== messageId),
+    }));
+  // Real accounts: deleting the message removes its rows by cascade.
+  if (IS_SUPABASE) serverSide(children);
+  else children();
+  updateChat((st) => ({ messages: st.messages.filter((x) => x.id !== messageId) }));
 }
 
 /** Display name helper for toasts. */

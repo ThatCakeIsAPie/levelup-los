@@ -4,9 +4,15 @@
  *   saveAttachment(blob)     -> Promise<{ storagePath }>
  *   useAttachmentUrl(path)   -> a URL the browser can display/play (or undefined while loading)
  *
- * This implementation keeps blobs in IndexedDB (database "levelup-chat-media",
- * store "blobs"; paths look like "idb:<uuid>"). The Supabase implementation
- * uploads to a Storage bucket and returns a signed URL for the same path.
+ * Two implementations behind the same calls:
+ *  - Browser-storage demo: blobs live in IndexedDB (database
+ *    "levelup-chat-media", store "blobs"; paths look like "idb:<uuid>").
+ *  - Real accounts ("supabase" mode): saveAttachment keeps the blob in memory
+ *    under a "pending:<uuid>" path (shown at once from a local object URL);
+ *    sendMessage uploads it to the private `chat-media` bucket as
+ *    "<conversation_id>/<uuid>.<ext>" before the message is written, and
+ *    useAttachmentUrl turns stored paths into signed URLs (cached until
+ *    shortly before they expire).
  * Demo seed media uses "seed:" paths and is synthesised on demand (a short
  * hummed voice note, a route map image), so the seed needs no binary files.
  *
@@ -15,6 +21,15 @@
  * waveform peaks decoded from the audio itself.
  */
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { IS_SUPABASE } from "@/lib/config";
+import { supabase } from "@/lib/supabase";
+import {
+  SIGNED_URL_TTL,
+  downloadMedia,
+  removeMedia,
+  signedUrl,
+  uploadMedia,
+} from "@/data/remote/storage";
 
 const DB_NAME = "levelup-chat-media";
 const STORE = "blobs";
@@ -51,9 +66,52 @@ function tx<T>(mode: IDBTransactionMode, run: (s: IDBObjectStore) => IDBRequest<
   );
 }
 
+// ---------------------------------------------------------------------------
+// Files waiting to be uploaded / already in this tab ("supabase" mode)
+// ---------------------------------------------------------------------------
+
+/** Blobs picked or recorded in this tab, by path (pending and uploaded). */
+const localBlobs = new Map<string, Blob>();
+
+/** A file saved with saveAttachment that sendMessage hasn't uploaded yet. */
+export const isPendingPath = (path: string) => path.startsWith("pending:");
+
+/** A path in the chat-media bucket (not seed / IndexedDB / pending). */
+const isStoragePath = (path: string) => IS_SUPABASE && !!path && !/^(seed|idb|pending):/.test(path);
+
+/**
+ * Upload a pending file into its conversation's folder and return the storage
+ * path to save on the attachment. The local copy keeps showing (no reload).
+ */
+export async function uploadPendingAttachment(
+  conversationId: string,
+  pendingPath: string,
+  mime?: string,
+): Promise<string> {
+  const blob = localBlobs.get(pendingPath);
+  if (!blob || !supabase) throw new Error("This file is no longer available.");
+  const path = await uploadMedia(supabase, conversationId, blob, mime || blob.type);
+  localBlobs.set(path, blob);
+  localBlobs.delete(pendingPath);
+  const entry = urlCache.get(pendingPath);
+  if (entry) urlCache.set(path, entry);
+  return path;
+}
+
+/** Forget a pending file that will never be sent. */
+export function discardPendingAttachment(path: string): void {
+  localBlobs.delete(path);
+}
+
 /** Store a blob and return the path to put in `Attachment.storagePath`. */
 export async function saveAttachment(blob: Blob): Promise<{ storagePath: string }> {
   const key = crypto.randomUUID();
+  if (IS_SUPABASE) {
+    const storagePath = `pending:${key}`;
+    localBlobs.set(storagePath, blob);
+    urlCache.set(storagePath, { status: "ready", url: URL.createObjectURL(blob) });
+    return { storagePath };
+  }
   await tx("readwrite", (s) => s.put(blob, key));
   return { storagePath: `idb:${key}` };
 }
@@ -61,6 +119,9 @@ export async function saveAttachment(blob: Blob): Promise<{ storagePath: string 
 /** Read a stored blob (null when missing). Seed paths are synthesised. */
 export async function loadAttachment(path: string): Promise<Blob | null> {
   if (path.startsWith("seed:")) return synthSeedMedia(path);
+  const local = localBlobs.get(path);
+  if (local) return local;
+  if (isStoragePath(path)) return supabase ? downloadMedia(supabase, path) : null;
   if (!path.startsWith("idb:")) return null;
   const v = await tx<unknown>("readonly", (s) => s.get(path.slice(4)));
   return v instanceof Blob ? v : null;
@@ -69,6 +130,11 @@ export async function loadAttachment(path: string): Promise<Blob | null> {
 /** Remove a stored blob (no-op for seed paths). */
 export async function deleteAttachment(path: string): Promise<void> {
   urlCache.delete(path);
+  localBlobs.delete(path);
+  if (isStoragePath(path)) {
+    if (supabase) await removeMedia(supabase, path);
+    return;
+  }
   if (!path.startsWith("idb:")) return;
   await tx("readwrite", (s) => s.delete(path.slice(4))).catch(() => undefined);
 }
@@ -83,7 +149,8 @@ export async function clearAttachments(): Promise<void> {
 // URLs
 // ---------------------------------------------------------------------------
 
-type UrlEntry = { status: "loading" | "ready" | "missing"; url?: string };
+/** `expiresAt` (ms): signed URLs are renewed shortly before it. */
+type UrlEntry = { status: "loading" | "ready" | "missing"; url?: string; expiresAt?: number };
 const urlCache = new Map<string, UrlEntry>();
 const listeners = new Set<() => void>();
 const emit = () => listeners.forEach((l) => l());
@@ -93,6 +160,22 @@ function requestUrl(path: string): UrlEntry {
   if (hit) return hit;
   const entry: UrlEntry = { status: "loading" };
   urlCache.set(path, entry);
+  if (isStoragePath(path) && !localBlobs.has(path)) {
+    const client = supabase;
+    const signed = client ? signedUrl(client, path) : Promise.resolve(null);
+    signed
+      .then((url) =>
+        urlCache.set(
+          path,
+          url
+            ? { status: "ready", url, expiresAt: Date.now() + SIGNED_URL_TTL * 1000 }
+            : { status: "missing" },
+        ),
+      )
+      .catch(() => urlCache.set(path, { status: "missing" }))
+      .finally(emit);
+    return entry;
+  }
   loadAttachment(path)
     .then((blob) => {
       urlCache.set(
@@ -121,11 +204,15 @@ export function useAttachmentUrl(path: string | null | undefined): string | null
     () => null,
   );
   useEffect(() => {
-    if (path && !urlCache.has(path)) {
+    if (!path) return;
+    const hit = urlCache.get(path);
+    // Signed URLs are renewed a minute before they expire.
+    if (hit?.expiresAt && hit.expiresAt - Date.now() < 60_000) urlCache.delete(path);
+    if (!urlCache.has(path)) {
       requestUrl(path);
       emit();
     }
-  }, [path]);
+  }, [path, entry]);
   if (!path) return null;
   if (!entry || entry.status === "loading") return undefined;
   return entry.status === "ready" ? entry.url : null;

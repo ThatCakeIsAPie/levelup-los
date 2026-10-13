@@ -1,11 +1,17 @@
 /**
  * Data access layer. Pages read and write ONLY through this module.
  *
- * Today every hook is backed by the Zustand stores in src/stores (persisted to
- * localStorage). Later each hook will be re-implemented on Supabase with the
- * same signature, so:
+ * Every hook is backed by the Zustand stores in src/stores, in both data
+ * sources (src/lib/config.ts):
+ *   - "local" (GitHub Pages demo): the stores persist to localStorage and are
+ *     seeded with demo data;
+ *   - "supabase": the stores live in memory, are filled from Postgres after
+ *     sign-in, and src/data/remote writes every change back (optimistic, rolled
+ *     back with a toast on failure) and merges realtime changes.
+ * So:
  *   - hooks return plain objects/arrays (never store instances),
- *   - writes are plain functions (fire-and-forget today; treat as async-safe),
+ *   - writes are plain functions (fire-and-forget; they apply at once and are
+ *     saved in the background),
  *   - visibility rules from ./access are already applied: anything a hook
  *     returns is something the current user may see; a non-visible id behaves
  *     exactly like a missing one.

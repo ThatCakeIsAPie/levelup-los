@@ -1,15 +1,18 @@
 /**
- * Browser-storage implementation of the chat tables (persisted to
+ * The chat tables on the client. In the browser-storage demo they persist to
  * localStorage key `levelup.chat`, versioned with the CRM seed so resetDemo and
- * SEED_VERSION bumps re-seed it like every other `levelup.*` store).
+ * SEED_VERSION bumps re-seed it like every other `levelup.*` store.
  *
  * Pages never import this: they use the hooks and mutations re-exported from
- * "@/data". A later Supabase implementation replaces this file and keeps the
- * same API (hooks.ts / mutations.ts).
+ * "@/data". With real accounts ("supabase" mode) the same store is kept in
+ * memory only: src/data/remote fills it from the database after sign-in,
+ * writes every change back and merges realtime changes from other people.
  */
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
+import { persist } from "zustand/middleware";
+import { IS_SUPABASE } from "@/lib/config";
 import { SEED_VERSION } from "@/data/seed";
+import { dataStorage } from "@/stores/storage";
 import { clearAttachments } from "./attachments";
 import { purgeExpired } from "./rules";
 import { seedChat } from "./seed";
@@ -17,7 +20,7 @@ import type { ChatData } from "./types";
 
 export const CHAT_STORAGE_KEY = "levelup.chat";
 /** Bump when the stored shape changes (resets everyone's chat demo data). */
-const CHAT_SCHEMA_VERSION = 1;
+const CHAT_SCHEMA_VERSION = 2;
 
 type ChatState = ChatData;
 
@@ -32,16 +35,37 @@ export function withoutExpired(s: ChatData, now = Date.now()): ChatData {
     reactions: s.reactions.filter((r) => !removed.has(r.messageId)),
     mentions: s.mentions.filter((m) => !removed.has(m.messageId)),
     reports: s.reports.filter((r) => !removed.has(r.messageId)),
-    pins: Object.fromEntries(Object.entries(s.pins).filter(([, mid]) => !removed.has(mid))),
+    conversations: s.conversations.map((c) =>
+      c.pinnedMessageId && removed.has(c.pinnedMessageId) ? { ...c, pinnedMessageId: null } : c,
+    ),
+  };
+}
+
+/** Every chat table, empty (real accounts: filled from the database after sign-in). */
+export function emptyChat(): ChatData {
+  return {
+    members: [],
+    conversations: [],
+    conversationMembers: [],
+    messages: [],
+    attachments: [],
+    reactions: [],
+    mentions: [],
+    drafts: [],
+    notifications: [],
+    reports: [],
+    blocks: [],
+    library: [],
   };
 }
 
 function fresh(): ChatData {
-  return seedChat();
+  return IS_SUPABASE ? emptyChat() : seedChat();
 }
 
-/** True when no chat data was saved yet (first run or after resetDemo). */
+/** True when no chat data was saved yet (first run or after resetDemo). Demo only. */
 export const isFirstRun = (() => {
+  if (IS_SUPABASE) return false;
   try {
     return localStorage.getItem(CHAT_STORAGE_KEY) === null;
   } catch {
@@ -54,14 +78,19 @@ if (isFirstRun) void clearAttachments();
 export const useChatStore = create<ChatState>()(
   persist(() => fresh(), {
     name: CHAT_STORAGE_KEY,
-    storage: createJSONStorage(() => localStorage),
+    storage: dataStorage(),
     version: SEED_VERSION * 100 + CHAT_SCHEMA_VERSION,
     migrate: () => fresh() as unknown as ChatState,
   }),
 );
 
-/** Apply retention now (localStorage hydration is synchronous, so the saved data is loaded). */
+/**
+ * Apply retention now (localStorage hydration is synchronous, so the saved
+ * data is loaded). With real accounts the database purges nightly and the
+ * hooks hide expired messages until then.
+ */
 export function purgeExpiredMessages(): void {
+  if (IS_SUPABASE) return;
   const s = useChatStore.getState();
   const purged = withoutExpired(s);
   if (purged !== s) useChatStore.setState(purged, true);

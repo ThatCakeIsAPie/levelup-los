@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
+import { persist } from "zustand/middleware";
+import { dataStorage, seedOr } from "./storage";
 import { seedOps, SEED_VERSION } from "@/data/seed";
 import { opsWithoutEvent, opsWithoutPerson } from "@/data/cascade";
 
@@ -114,7 +115,7 @@ interface OpsState {
 export const useOpsStore = create<OpsState>()(
   persist(
     (set) => ({
-      ...seedOps(),
+      ...seedOr(seedOps, { logistics: {}, costs: [] }),
       payments: {},
       campaigns: [],
       schedules: [],
@@ -179,7 +180,7 @@ export const useOpsStore = create<OpsState>()(
     }),
     {
       name: "levelup.ops",
-      storage: createJSONStorage(() => localStorage),
+      storage: dataStorage(),
       // Payments gained `amount` + `costName` in seed version 3; older saved
       // data is replaced by the fresh seed (like every other store).
       version: SEED_VERSION,

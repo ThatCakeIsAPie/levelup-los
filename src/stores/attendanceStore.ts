@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
+import { persist } from "zustand/middleware";
+import { dataStorage, seedOr } from "./storage";
 import { logAttendance } from "./activityStore";
 import { seedAttendances, SEED_VERSION } from "@/data/seed";
 
@@ -55,7 +56,7 @@ function logChange(prev: Attendance, patch: Partial<Attendance>) {
 export const useAttendanceStore = create<AttendanceState>()(
   persist(
     (set, get) => ({
-      attendances: seedAttendances(),
+      attendances: seedOr(seedAttendances, []),
       forEvent: (eventId) => get().attendances.filter((a) => a.eventId === eventId),
       forPerson: (personId) => get().attendances.filter((a) => a.personId === personId),
       forEventAndPerson: (eventId, personId) =>
@@ -105,7 +106,7 @@ export const useAttendanceStore = create<AttendanceState>()(
     }),
     {
       name: "levelup.attendance",
-      storage: createJSONStorage(() => localStorage),
+      storage: dataStorage(),
       partialize: (s) => ({ attendances: s.attendances }),
       version: SEED_VERSION,
       migrate: () => ({ attendances: seedAttendances() }) as unknown as AttendanceState,

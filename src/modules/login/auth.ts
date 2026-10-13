@@ -4,11 +4,14 @@
  * screens use. In "local" mode every hook here still works (useWorkspaceRole
  * derives from the demo role) and the calls are never reached.
  *
- * Data still comes from the local stores for now; only identity is real.
+ * After sign-in the person's data is loaded from the database (src/data/remote)
+ * before the status becomes "ready", so the app never shows empty stores; on
+ * sign-out the stores are emptied.
  */
 import type { Session } from "@supabase/supabase-js";
 import { appUrl, IS_SUPABASE } from "@/lib/config";
 import { getSupabase, supabase } from "@/lib/supabase";
+import { closeRemoteSession, openRemoteSession, remotePersonId } from "@/data/remote";
 import {
   useSessionStore,
   type Account,
@@ -47,6 +50,7 @@ async function applySession(session: Session | null): Promise<void> {
   const set = useSessionStore.setState;
   if (!session) {
     loadedUserId = null;
+    closeRemoteSession();
     set({ status: "signedOut", user: null, account: null, error: null });
     return;
   }
@@ -55,6 +59,7 @@ async function applySession(session: Session | null): Promise<void> {
   // accepting an invite); show the loading state for a new user.
   if (loadedUserId !== session.user.id) set({ status: "loading", account: base, error: null });
 
+  let loadingData = false;
   try {
     const client = getSupabase();
     const [sessionRes, workspaceRes] = await Promise.all([
@@ -67,15 +72,26 @@ async function applySession(session: Session | null): Promise<void> {
     const row = rows[0];
     loadedUserId = session.user.id;
     if (!row) {
+      closeRemoteSession();
       set({ status: "noTeam", user: null, account: base, error: null });
       return;
+    }
+    // Load everything this person may see before showing the app (once per
+    // person; a reload for the same person keeps the live data).
+    const user = sessionUserFrom(row);
+    if (remotePersonId() !== user.personId) {
+      loadingData = true;
+      if (useSessionStore.getState().status !== "loading") set({ status: "loading" });
+      await openRemoteSession({ personId: user.personId, name: user.name });
+      loadingData = false;
+      if (gen !== generation) return;
     }
     const workspace = workspaceRes.error
       ? null
       : (workspaceRes.data as { id: string; name: string } | null);
     set({
       status: "ready",
-      user: sessionUserFrom(row),
+      user,
       account: {
         ...base,
         workspaceId: row.workspace_id,
@@ -87,7 +103,14 @@ async function applySession(session: Session | null): Promise<void> {
   } catch (err) {
     if (gen !== generation) return;
     loadedUserId = null;
-    set({ status: "error", user: null, account: base, error: friendlyAuthError(err) });
+    set({
+      status: "error",
+      user: null,
+      account: base,
+      error: loadingData
+        ? "We couldn't load your team's data. Check your connection."
+        : friendlyAuthError(err),
+    });
   }
 }
 
@@ -256,6 +279,7 @@ export async function signOut(): Promise<void> {
   // Clear the UI right away; the SIGNED_OUT event confirms it.
   generation++;
   loadedUserId = null;
+  closeRemoteSession();
   useSessionStore.setState({ status: "signedOut", user: null, account: null, error: null });
   // "local" scope: this device only. Even if the network call fails the
   // stored session is removed.

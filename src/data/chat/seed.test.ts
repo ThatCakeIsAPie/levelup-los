@@ -76,8 +76,8 @@ describe("chat seed: messages", () => {
     }
     expect(data.mentions).toEqual([{ messageId: "hs3", personId: "1" }]);
     expect(msgById.get("hs3")?.body).toContain("@Maria Reyes");
-    for (const [cid, mid] of Object.entries(data.pins)) {
-      expect(msgById.get(mid)?.conversationId).toBe(cid);
+    for (const c of data.conversations) {
+      if (c.pinnedMessageId) expect(msgById.get(c.pinnedMessageId)?.conversationId).toBe(c.id);
     }
   });
 

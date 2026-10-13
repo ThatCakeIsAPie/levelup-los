@@ -17,6 +17,7 @@ import { useTheme } from "@/lib/theme";
 import { useSession } from "@/data";
 import { IS_SUPABASE } from "@/lib/config";
 import { startAuth, useAuthStatus } from "@/modules/login/auth";
+import { useRemoteStore } from "@/data/remote/extras";
 import { AuthLoading } from "@/modules/login/AuthLayout";
 import { AccountErrorScreen, NoTeamScreen } from "@/modules/login/AccountScreens";
 
@@ -124,6 +125,10 @@ const PUBLIC_ROUTES = new Set<string>(["/login", "/auth/callback", "/invite/$tok
  * Logged out: only the public routes render (without the shell); anything
  * else redirects to /login. Logged in: every route renders inside <AppShell>.
  *
+ * With real accounts the status stays "loading" until the person's data has
+ * loaded from the database ("Loading your team…"), so pages never render
+ * with empty stores.
+ *
  * With real accounts ("supabase" mode) there are more states: while the saved
  * session restores, a loading screen (never a flash of /login); signed in
  * without a team, the "not on a team yet" screen; signed in but the account
@@ -134,6 +139,8 @@ const PUBLIC_ROUTES = new Set<string>(["/login", "/auth/callback", "/invite/$tok
 function SessionGate() {
   const user = useSession();
   const status = useAuthStatus();
+  // Real accounts: after sign-in the team's data loads before the app shows.
+  const loadingData = useRemoteStore((s) => s.phase === "loading");
   // Gate on the rendered matches, not location: during the redirect, location
   // flips to /login before its matches load, and <Outlet /> would briefly
   // render the previous (user-requiring) route with a null user.
@@ -155,7 +162,8 @@ function SessionGate() {
   // /auth/callback and /invite/$token handle every auth state themselves.
   const selfManaged = publicRoute !== null && !onLogin;
   if (!selfManaged) {
-    if (status === "loading" || toHome) return <AuthLoading />;
+    if (status === "loading" || toHome)
+      return <AuthLoading label={loadingData ? "Loading your team…" : undefined} />;
     if (status === "noTeam")
       return (
         <PublicFrame>

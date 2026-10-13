@@ -1,7 +1,8 @@
 /**
- * Chat feature public API (re-exported from "@/data"). The browser-storage
- * implementation lives in ./store; a Supabase implementation replaces the
- * store and keeps these names and signatures.
+ * Chat feature public API (re-exported from "@/data"). The tables live in
+ * ./store (browser storage in the demo; in memory and synced with the
+ * database by src/data/remote with real accounts); the names and signatures
+ * are the same in both modes.
  */
 export * from "./types";
 export {
@@ -96,6 +97,7 @@ export {
   latestLearningId,
   unpost,
   DAILY_WINS_ID,
+  getTeamChatId,
   type AttachmentInput,
   type SendMessageInput,
   type SendResult,

@@ -32,7 +32,7 @@ select is((select count(*)::int from pg_class c join pg_namespace n on n.oid = c
 
 -- Chat data contract (field for field) ---------------------------------------------
 select columns_are('public', 'members', array['workspace_id', 'person_id', 'role', 'user_id', 'joined_at']);
-select columns_are('public', 'conversations', array['id', 'workspace_id', 'kind', 'title', 'description', 'icon', 'pinned', 'retention_days', 'created_by', 'created_at']);
+select columns_are('public', 'conversations', array['id', 'workspace_id', 'kind', 'title', 'description', 'icon', 'pinned', 'retention_days', 'created_by', 'created_at', 'pinned_message_id']);
 select columns_are('public', 'conversation_members', array['conversation_id', 'person_id', 'role', 'last_read_at', 'muted', 'joined_at']);
 select columns_are('public', 'messages', array['id', 'conversation_id', 'author_id', 'body', 'reply_to_id', 'card', 'created_at', 'edited_at', 'deleted_at']);
 select columns_are('public', 'attachments', array['id', 'message_id', 'kind', 'storage_path', 'mime', 'size', 'duration_ms', 'width', 'height']);
@@ -48,8 +48,9 @@ select has_column('public', 'contacts', 'source', 'contacts gained source');
 -- Realtime ---------------------------------------------------------------------------
 select set_eq(
   $$select tablename::text from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public'$$,
-  array['messages', 'reactions', 'notifications', 'conversation_members', 'announcement_drafts'],
-  'realtime publishes messages, reactions, notifications, conversation members and drafts');
+  array['messages', 'reactions', 'notifications', 'conversation_members', 'announcement_drafts',
+        'conversations', 'attachments', 'mentions', 'reports'],
+  'realtime publishes the chat tables the app follows live');
 
 -- Functions not meant for clients ------------------------------------------------------
 select ok(not has_function_privilege('authenticated', 'public.purge_expired_messages()', 'execute'),

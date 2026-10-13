@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
+import { persist } from "zustand/middleware";
+import { dataStorage, seedOr } from "./storage";
 import { daysFromToday, localDate } from "@/lib/dates";
 import {
   seedContacts,
@@ -75,14 +76,18 @@ interface CrmState {
   setLearningGoal: (personId: string, goal: Partial<LearningGoal>) => void;
 }
 
+/** The demo seed ("local" mode) or nothing until the database loads ("supabase" mode). */
 function freshState() {
-  return {
-    sales: seedSales(),
-    contacts: withSource(seedContacts()),
-    learning: seedLearning(),
-    settings: { ...DEFAULT_SETTINGS },
-    goals: seedLearningGoals(),
-  };
+  return seedOr(
+    () => ({
+      sales: seedSales(),
+      contacts: withSource(seedContacts()),
+      learning: seedLearning(),
+      settings: { ...DEFAULT_SETTINGS },
+      goals: seedLearningGoals(),
+    }),
+    { sales: [], contacts: [], learning: [], settings: { ...DEFAULT_SETTINGS }, goals: {} },
+  );
 }
 
 export const useCrmStore = create<CrmState>()(
@@ -114,7 +119,7 @@ export const useCrmStore = create<CrmState>()(
     }),
     {
       name: "levelup.crm",
-      storage: createJSONStorage(() => localStorage),
+      storage: dataStorage(),
       partialize: (s) => ({
         sales: s.sales,
         contacts: s.contacts,

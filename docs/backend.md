@@ -2,20 +2,21 @@
 
 The database for LevelUp LOS: Postgres with row-level security (RLS), auth, storage and realtime, run locally with the Supabase CLI in Docker. It holds all the app's data: the CRM (people, events, attendance, travel, shared costs, contacts, sales, learning, activity, campaigns) and chat. The agreed plan is [`plans/messaging-and-backend-plan-2026-10-12.md`](plans/messaging-and-backend-plan-2026-10-12.md); its "Chat data contract" is implemented field for field.
 
-The GitHub Pages demo does not use any of this: it keeps running on browser storage (`VITE_DATA_SOURCE=local`).
+The GitHub Pages demo does not use any of this: it keeps running on browser storage (`VITE_DATA_SOURCE=local`). With `VITE_DATA_SOURCE=supabase` the app loads everything from here after sign-in and writes every change back (see [Run the app against the local database](#run-the-app-against-the-local-database) and the frontend guide's "Two data sources").
 
 ## Run it locally
 
 Needs Docker Desktop running. Everything else comes from `npm install` (the `supabase` CLI and `tsx` are devDependencies).
 
-| Command            | What it does                                                                                                                                    |
-| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `npm run db:start` | Start the local stack (first run pulls the Docker images).                                                                                      |
-| `npm run db:stop`  | Stop it. Data is kept in Docker volumes.                                                                                                        |
-| `npm run db:reset` | Regenerate `supabase/seed.sql`, then drop and recreate the database: all migrations plus the seed. Dates are relative to the moment you run it. |
-| `npm run db:seed`  | Only regenerate `supabase/seed.sql` and `supabase/tests/001_visibility_parity.test.sql` from the TypeScript seeds.                              |
-| `npm run db:test`  | Run the pgTAP tests in `supabase/tests` against the running database.                                                                           |
-| `npm run db:types` | Regenerate `src/data/remote/database.types.ts` from the running database. Run it after changing a migration.                                    |
+| Command                    | What it does                                                                                                                                           |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `npm run db:start`         | Start the local stack (first run pulls the Docker images).                                                                                             |
+| `npm run db:stop`          | Stop it. Data is kept in Docker volumes.                                                                                                               |
+| `npm run db:reset`         | Regenerate `supabase/seed.sql`, then drop and recreate the database: all migrations plus the seed. Dates are relative to the moment you run it.        |
+| `npm run db:seed`          | Only regenerate `supabase/seed.sql` and `supabase/tests/001_visibility_parity.test.sql` from the TypeScript seeds.                                     |
+| `npm run db:test`          | Run the pgTAP tests in `supabase/tests` against the running database.                                                                                  |
+| `npm run db:types`         | Regenerate `src/data/remote/database.types.ts` from the running database. Run it after changing a migration.                                           |
+| `npm run test:integration` | The app's sync layer against the running, seeded database (sign-in as the demo users, load, write-through, realtime, storage). Not part of `npm test`. |
 
 Local endpoints (the CLI's default ports):
 
@@ -44,6 +45,19 @@ To browse tables, connect any Postgres client to port 54322, or set `[studio] en
 
 Auth config: email sign-in with magic link and with password, and no email confirmation locally. `site_url` is http://localhost:5173, and redirects are allowed for http://localhost:5173 through 5190.
 
+### Run the app against the local database
+
+1. `npm run db:start` (Docker Desktop running), then `npm run db:reset` for a fresh seed (dates are relative to now).
+2. `.env.local` needs `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (above). It may keep `VITE_DATA_SOURCE=local` for the demo; override it per run instead:
+   ```
+   VITE_DATA_SOURCE=supabase npm run dev -- --port 5180 --strictPort --host localhost
+   ```
+   (PowerShell: `$env:VITE_DATA_SOURCE="supabase"; npm run dev -- --port 5180 --strictPort --host localhost`.)
+3. Open http://localhost:5180/login and pick a demo account (development builds list them; password `levelup-local`), or use a magic link from Mailpit. "Loading your team…" shows while the person's data loads.
+4. To see live chat, sign in as a second person in another browser profile (or a private window): the two can't share one browser profile, because the session is kept in `localStorage`.
+
+Nothing is written to the demo's `levelup.*` storage keys in this mode, so switching `VITE_DATA_SOURCE` back and forth never mixes demo and real data.
+
 ## Demo logins (local only)
 
 The seed creates an auth user for each demo user, linked to their CRM person. **Password for all of them: `levelup-local`** (local development only; the seed is never pushed to a hosted project). Magic links also work: open the email in Mailpit.
@@ -61,17 +75,18 @@ Every other apprentice and IBO has a `members` row without a login (`user_id` nu
 
 Migrations live in `supabase/migrations`, in this order:
 
-| File                     | Contents                                                                                                  |
-| ------------------------ | --------------------------------------------------------------------------------------------------------- |
-| `…0100_core`             | `workspaces`, `people`, `members`, `invites`; identity helpers                                            |
-| `…0200_crm`              | events, attendance, travel, shared costs, contacts, sales, learning, goals, settings, activity, campaigns |
-| `…0300_chat`             | the chat tables from the contract, with indexes                                                           |
-| `…0400_helpers`          | visibility, eligibility, conversation and DM helpers                                                      |
-| `…0500_rls_crm`          | RLS for workspaces, members, invites and the CRM tables                                                   |
-| `…0600_rls_chat`         | RLS for chat tables, plus the `chat_directory` view                                                       |
-| `…0700_rpc`              | RPCs (`accept_invite`, `create_dm`, `approve_announcement`, …)                                            |
-| `…0800_triggers`         | guards, delete cascade, team-chat sync, notifications, check-ins, retention                               |
-| `…0900_storage_realtime` | storage buckets and policies; realtime publication                                                        |
+| File                         | Contents                                                                                                                                                                                                                                                                                                 |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `…0100_core`                 | `workspaces`, `people`, `members`, `invites`; identity helpers                                                                                                                                                                                                                                           |
+| `…0200_crm`                  | events, attendance, travel, shared costs, contacts, sales, learning, goals, settings, activity, campaigns                                                                                                                                                                                                |
+| `…0300_chat`                 | the chat tables from the contract, with indexes                                                                                                                                                                                                                                                          |
+| `…0400_helpers`              | visibility, eligibility, conversation and DM helpers                                                                                                                                                                                                                                                     |
+| `…0500_rls_crm`              | RLS for workspaces, members, invites and the CRM tables                                                                                                                                                                                                                                                  |
+| `…0600_rls_chat`             | RLS for chat tables, plus the `chat_directory` view                                                                                                                                                                                                                                                      |
+| `…0700_rpc`                  | RPCs (`accept_invite`, `create_dm`, `approve_announcement`, …)                                                                                                                                                                                                                                           |
+| `…0800_triggers`             | guards, delete cascade, team-chat sync, notifications, check-ins, retention                                                                                                                                                                                                                              |
+| `…0900_storage_realtime`     | storage buckets and policies; realtime publication                                                                                                                                                                                                                                                       |
+| `20261013000100_client_sync` | what the app's supabase mode needs: `conversations.pinned_message_id` (+ who may pin), message-removal cleanup, `announcement_posted` / `event_post` notifications, mute, group admin hand-over, client-chosen ids for `create_dm` / `approve_announcement`, `event_rsvp_counts()`, more realtime tables |
 
 Conventions:
 
@@ -146,13 +161,14 @@ RLS is on for every table. Policies apply to signed-in users (`authenticated`), 
 - **Chat access:** chat is only for eligible people (apprentices, IBOs and leaders). A prospect, customer or candidate reads nothing, even with a stray membership row.
 - **Reading:** you read conversations, members, messages, attachments, reactions and mentions only of conversations you belong to. **Nobody reads a DM they aren't in, leaders included.** You can also see (not read) the team chats you could rejoin, and groups you created.
 - **Team chats:** every eligible member belongs to Announcements and Main chat, and is added to the pinned team groups (Daily wins, High signal) on joining. You may rejoin a team chat yourself.
-- **Groups:** any eligible member creates one and becomes its `admin` (by trigger). Admins add people with any role and change roles. Group moderators add plain members. Only eligible people of the same workspace can be added. You can leave a group, but not Announcements, Main chat or a DM. Pinning a chat is for moderators and leaders.
+- **Groups:** any eligible member creates one and becomes its `admin` (by trigger). Admins add people with any role and change roles. Group moderators add plain members. Only eligible people of the same workspace can be added. You can leave a group, but not Announcements, Main chat or a DM. When a group's last admin leaves, the longest-standing moderator (else member) becomes admin. Pinning a chat is for moderators and leaders.
+- **Pinned message** (`conversations.pinned_message_id`): either member of a DM; in other chats whoever may moderate it (chat admins and moderators, workspace leaders and moderators). Group moderators may pin but not rename or otherwise edit the group. Only a message of the same chat can be pinned; removing it unpins it.
 - **DMs:** created only through `create_dm()`, and only when `can_dm` allows it. You can't post in a DM once either side has blocked the other.
 - **Posting:** you post as yourself, in your conversations. In Announcements only workspace moderators and leaders post directly; everyone else creates an `announcement_drafts` row.
 - **Editing and removing messages:**
   - Authors edit their own messages (which stamps `edited_at`) and remove them.
   - Group admins and moderators, and workspace moderators and leaders, may remove other people's messages in any non-DM chat they're in. They can only remove (set `deleted_at`), never rewrite.
-  - A removed message keeps no text or card.
+  - A removed message keeps no text or card; its attachment rows, reactions, mentions and pin are removed too.
 - **Drafts:** authors see and edit their own pending drafts. Leaders and moderators see all drafts and review them with `approve_announcement` or `reject_announcement`.
 - **Notifications:** only your own. Triggers and RPCs create them; you can only mark them read (`read_at`) or delete them.
 - **Reports:** you report messages you can see. The reporter and the workspace leaders see the report. Leaders resolve it; moderators don't see reports. For a DM a leader isn't in, they see the report but never the message.
@@ -162,24 +178,28 @@ RLS is on for every table. Policies apply to signed-in users (`authenticated`), 
 
 **Storage**
 
-- `chat-media` (private): object paths start with the conversation id, `<conversation_id>/<message_id>/<file>`. Members of that conversation read and upload; the uploader or a conversation moderator deletes.
+- `chat-media` (private): object paths start with the conversation id (the policies only check that first folder); the app uploads to `<conversation_id>/<uuid>.<ext>`. Members of that conversation read and upload; the uploader or a conversation moderator deletes. The app reads files through signed URLs (one hour).
 - `library` (private): paths start with the workspace id, `<workspace_id>/...`. Members read; leaders and moderators upload, replace and delete.
 
 ## RPCs
 
 Call these with `supabase.rpc(name, args)`.
 
-| Function                                    | Returns         | Notes                                                                                                                                                                                    |
-| ------------------------------------------- | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `get_session()`                             | one row         | `person_id`, `workspace_id`, `name`, `member_role`, `biz_class`, `effective_stage`, `app_role` (leader / ibo / apprentice / candidate, like the demo `Role`), `is_chat_eligible`         |
-| `get_invite(p_token)`                       | one row         | Preview for the invite page (anon allowed): workspace and sponsor name, stage, `is_valid`                                                                                                |
-| `accept_invite(p_token)`                    | person id       | Signed-in user only. Creates their person under the sponsor (stage from the invite) and their member row, then marks the invite used. Errors: not found, used, expired, already a member |
-| `create_dm(p_other_person_id)`              | conversation id | The existing DM, or a new one when `can_dm` allows it. Call it, then post in a separate request.                                                                                         |
-| `mark_conversation_read(p_conversation_id)` | timestamptz     | Sets your `last_read_at` to now                                                                                                                                                          |
-| `unread_counts()`                           | rows            | `conversation_id`, `unread` (others' messages after your `last_read_at`), `last_message_at`                                                                                              |
-| `approve_announcement(p_draft_id)`          | message id      | Leaders and moderators. Posts the draft as its author, clears the reviewers' draft notifications, and notifies the author (`announcement_posted`)                                        |
-| `reject_announcement(p_draft_id)`           | void            | Leaders and moderators                                                                                                                                                                   |
-| `pay_sandbox(p_cost_id)`                    | `payments` row  | Pays your share, using the same rules as `splitCost` (paid shares are fixed, then overrides, then an even split of the rest). The amount and cost name are frozen on the row             |
+| Function                                          | Returns         | Notes                                                                                                                                                                                    |
+| ------------------------------------------------- | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `get_session()`                                   | one row         | `person_id`, `workspace_id`, `name`, `member_role`, `biz_class`, `effective_stage`, `app_role` (leader / ibo / apprentice / candidate, like the demo `Role`), `is_chat_eligible`         |
+| `get_invite(p_token)`                             | one row         | Preview for the invite page (anon allowed): workspace and sponsor name, stage, `is_valid`                                                                                                |
+| `accept_invite(p_token)`                          | person id       | Signed-in user only. Creates their person under the sponsor (stage from the invite) and their member row, then marks the invite used. Errors: not found, used, expired, already a member |
+| `create_dm(p_other_person_id)`                    | conversation id | The existing DM, or a new one when `can_dm` allows it. Call it, then post in a separate request.                                                                                         |
+| `create_dm(p_other_person_id, p_conversation_id)` | conversation id | The same, creating the DM with the id the app already shows (an existing DM keeps its own id)                                                                                            |
+| `mark_conversation_read(p_conversation_id)`       | timestamptz     | Sets your `last_read_at` to now                                                                                                                                                          |
+| `unread_counts()`                                 | rows            | `conversation_id`, `unread` (others' messages after your `last_read_at`), `last_message_at`                                                                                              |
+| `approve_announcement(p_draft_id)`                | message id      | Leaders and moderators. Posts the draft as its author, clears the reviewers' draft notifications, and notifies the author (`announcement_posted`)                                        |
+| `approve_announcement(p_draft_id, p_message_id)`  | message id      | The same, posting with the id the app already shows                                                                                                                                      |
+| `reject_announcement(p_draft_id)`                 | void            | Leaders and moderators                                                                                                                                                                   |
+| `answer_event_post(p_message_id)`                 | notification id | After answering an event card (the attendance row is written directly): tells the card's author (`event_post`, `ref_id` = event id). One per person per post; a new answer replaces it   |
+| `event_rsvp_counts()`                             | rows            | `event_id`, `bought`, `going`, `maybe` for the whole workspace (no identities), for event cards                                                                                          |
+| `pay_sandbox(p_cost_id)`                          | `payments` row  | Pays your share, using the same rules as `splitCost` (paid shares are fixed, then overrides, then an even split of the rest). The amount and cost name are frozen on the row             |
 
 Errors use SQLSTATE codes:
 
@@ -207,8 +227,10 @@ Errors use SQLSTATE codes:
   - Attendance, travel, cost memberships, overrides and payments go by foreign-key cascade.
   - Activity entries are written ("Moved under X (Y was removed)" and "Removed Y"), so the client should not log the delete itself.
 - **Team chats.** When someone becomes a member, or later becomes eligible, they're added to Announcements and Main chat; on joining, also to the pinned team groups. A new group's creator becomes its admin. A new announcements, main or pinned chat gets every eligible member.
-- **Notifications.** Nobody is notified about their own action, or by someone they've blocked.
+- **Notifications.** Nobody is notified about their own action, or by someone they've blocked. In a muted chat ("Mentions only") replies, wins and reactions don't notify.
   - A reply notifies the quoted author (`reply`). If the reply also mentions them, they get one notification, as a `mention`.
+  - A post in Announcements notifies everyone else in it (`announcement_posted`; a mentioned member gets the `mention` instead). The author of an approved draft is also told by `approve_announcement` (`ref_id` = draft id).
+  - Answering an event card notifies the card's author (`event_post`, through `answer_event_post`).
   - A mention notifies the mentioned member (`mention`).
   - A reaction notifies the message author (`reaction`, with `ref_id` set to the emoji).
   - A win card notifies the author's upline (sponsor chain) members who are in that chat (`win`).
@@ -219,7 +241,25 @@ Errors use SQLSTATE codes:
 
 ## Realtime
 
-The `supabase_realtime` publication includes `messages`, `reactions`, `notifications`, `conversation_members` and `announcement_drafts`. Subscribers only receive rows their RLS lets them read.
+The `supabase_realtime` publication includes `messages`, `reactions`, `mentions`, `attachments`, `notifications`, `conversation_members`, `conversations`, `announcement_drafts` and `reports`. Subscribers only receive rows their RLS lets them read (deletes carry only the primary key).
+
+## What the client writes, and what the database does
+
+In supabase mode (`src/data/remote`) the app writes the rows a person changes, directly with their own token (RLS and the guard triggers check every write), and calls the RPCs where one exists. It never writes what a trigger or RPC produces, so nothing is created twice:
+
+| The app writes                                                                                                                                           | The database adds                                                                                                           |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| people, events, attendance, travel, shared costs (+ members, overrides), contacts, sales, learning, goals, contact settings, campaigns, report schedules | `last_updated_at` / `updated_at` stamps; the organizer's cost membership                                                    |
+| activity entries (as today), with `actor_name`                                                                                                           | activity for person deletes and invite sign-ups                                                                             |
+| delete a person                                                                                                                                          | moves their downline and customers, hands over their costs, removes their attendance, travel and cost rows                  |
+| delete an event                                                                                                                                          | removes its attendance, travel, costs and payments                                                                          |
+| `pay_sandbox(cost)`                                                                                                                                      | the payment row with the amount and cost name                                                                               |
+| messages, attachments (after the upload), mentions, reactions, drafts, reports, blocks, group members and roles, mute, pins                              | every notification; conversation check-ins (`contacts` with `source = 'message'` + `checkin_logged`); group admin hand-over |
+| `mark_conversation_read`, `create_dm`, `approve_announcement`, `reject_announcement`, `answer_event_post`                                                | what each RPC does                                                                                                          |
+| remove a message (only `deleted_at`)                                                                                                                     | blanks it; removes its attachment rows, reactions, mentions and pin                                                         |
+| notifications: `read_at` only                                                                                                                            | —                                                                                                                           |
+
+Reads: after sign-in the app loads every table the person may read (paged; the newest 10,000 messages, 5,000 activity entries and 2,000 notifications), the `chat_directory` view and `event_rsvp_counts()`. Chat tables then follow Realtime; CRM tables are refetched on focus, when the connection returns and every 3 minutes.
 
 ## Seed
 
@@ -237,16 +277,19 @@ The same script generates `supabase/tests/001_visibility_parity.test.sql`. It ru
 
 `npm run db:test` runs the pgTAP files in `supabase/tests`. Each runs in a transaction that's rolled back, and acts as a user by setting the JWT claims.
 
-| File                      | Covers                                                                                                                           |
-| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `001_visibility_parity`   | (generated) RLS matches `access.ts` for Maria, Anita, Jamal and Beau; anon sees nothing                                          |
-| `002_crm_rules`           | writes follow visibility, customer privacy, candidates, stage/sponsor guards, shared costs and `pay_sandbox`, the delete cascade |
-| `003_chat_access`         | eligibility (Beau and prospects can't read chats), DM privacy from leaders, `can_dm` / `create_dm`, blocks                       |
-| `004_announcements`       | member drafts vs leader/moderator posts, approve and reject, notifications                                                       |
-| `005_groups_moderation`   | creator is admin, roles, who may remove messages, reports notify leaders, reply/mention/reaction notifications                   |
-| `006_checkin`             | both directions within 24 hours makes exactly 2 contacts; one-way doesn't; no duplicate the same day; group replies              |
-| `007_workspace_isolation` | a second workspace's rows are invisible and unreachable                                                                          |
-| `008_schema_storage`      | contract columns, RLS on every table, realtime, function privileges, storage policies, retention purge                           |
+| File                      | Covers                                                                                                                                             |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `001_visibility_parity`   | (generated) RLS matches `access.ts` for Maria, Anita, Jamal and Beau; anon sees nothing                                                            |
+| `002_crm_rules`           | writes follow visibility, customer privacy, candidates, stage/sponsor guards, shared costs and `pay_sandbox`, the delete cascade                   |
+| `003_chat_access`         | eligibility (Beau and prospects can't read chats), DM privacy from leaders, `can_dm` / `create_dm`, blocks                                         |
+| `004_announcements`       | member drafts vs leader/moderator posts, approve and reject, notifications                                                                         |
+| `005_groups_moderation`   | creator is admin, roles, who may remove messages, reports notify leaders, reply/mention/reaction notifications                                     |
+| `006_checkin`             | both directions within 24 hours makes exactly 2 contacts; one-way doesn't; no duplicate the same day; group replies                                |
+| `007_workspace_isolation` | a second workspace's rows are invisible and unreachable                                                                                            |
+| `008_schema_storage`      | contract columns, RLS on every table, realtime, function privileges, storage policies, retention purge                                             |
+| `009_client_sync`         | pinned messages and who may pin, message removal cleanup, announcement / event-post notifications, mute, admin hand-over, client ids, event totals |
+
+`npm run test:integration` (vitest, `tests/integration`) runs the app's sync layer against the running database: what Jamal and Beau load, a CRM round trip with cascades, a refused write rolled back, a message reaching another person live (both directions), the DM check-in trigger, a photo upload read through a signed URL, and approving an announcement. It adds rows each run (re-runnable); `npm run db:reset` restores the seed.
 
 ## Moving to hosted Supabase
 
@@ -281,9 +324,11 @@ The same script generates `supabase/tests/001_visibility_parity.test.sql`. It ru
 - **`current_member_role()`** stands in for the `current_role()` named in the brief, because `current_role` is reserved in SQL.
 - **Chat child tables have no `workspace_id`.** They follow the contract exactly, and isolation comes from their conversation or person.
 - **The seed mirrors the browser demo, not the triggers.** For example, the demo's `checkin_logged` notification for Maria and Anita has no matching `contacts` row, and the High signal reply exchange between Maria and Jamal would count as a check-in if it were posted live. Change `src/data/chat/seed.ts` and re-run `npm run db:reset` to change the seed.
-- **Pinned message per chat.** The browser chat store has `pins`, which is not in the contract and has no column yet. It needs `conversations.pinned_message_id`.
+- **Pinned message per chat** is `conversations.pinned_message_id` (an addition to the contract; the browser store's `Conversation.pinnedMessageId`).
 - **Seed media aren't real files.** Seed attachments use `seed:` storage paths, which the client synthesizes, and seed library URLs are `library/...`. Real uploads must follow the bucket path rules above.
-- **`event_post` notifications aren't created by the database yet**: the seed has some, but no trigger writes them. RSVP counts on event cards come from `attendances`.
+- **`event_post`** means "someone answered your event card" (that's how the inbox shows it), so it comes from `answer_event_post()` after the RSVP rather than from a trigger on posting. Event card totals come from `event_rsvp_counts()`.
+- **Retention and storage.** The nightly purge deletes expired messages (and their attachment rows by cascade) but not the files in `chat-media`; a storage cleanup job is still to do.
+- **Team chat ids.** The seed keeps readable ids (`main`, `daily-wins`, …); a hosted workspace's are generated. The app finds team chats with `getTeamChatId()`.
 - **Activity rows and `stage_history` are still written by the client**, as today. The database writes activity only for person deletes and invite sign-ups.
 - **Reported DMs.** Leaders see the report and the reason, never the DM text. Moderation of DMs is therefore limited, by design ("nobody reads DMs").
 - **No "no DMs" setting.** It's possible later, as the plan says. Report and block are in place.

@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
+import { persist } from "zustand/middleware";
+import { dataStorage, seedOr } from "./storage";
 import { logEvent } from "./activityStore";
 import { seedEvents, SEED_VERSION } from "@/data/seed";
 
@@ -27,7 +28,7 @@ interface EventsState {
 export const useEventsStore = create<EventsState>()(
   persist(
     (set, get) => ({
-      events: seedEvents(),
+      events: seedOr(seedEvents, []),
       add: (e) => {
         const ev: CrmEvent = { ...e, id: crypto.randomUUID() };
         set({ events: [...get().events, ev] });
@@ -46,7 +47,7 @@ export const useEventsStore = create<EventsState>()(
     }),
     {
       name: "levelup.events",
-      storage: createJSONStorage(() => localStorage),
+      storage: dataStorage(),
       partialize: (s) => ({ events: s.events }),
       version: SEED_VERSION,
       migrate: () => ({ events: seedEvents() }) as unknown as EventsState,

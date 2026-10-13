@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
+import { persist } from "zustand/middleware";
+import { dataStorage, seedOr } from "./storage";
 import { logPerson } from "./activityStore";
 import { parseDate } from "@/lib/dates";
 import { seedPeople, SEED_VERSION } from "@/data/seed";
@@ -151,7 +152,7 @@ function defaultStage(bc: BizClass): PipelineStage | undefined {
 export const usePeopleStore = create<PeopleState>()(
   persist(
     (set, get) => ({
-      people: seedPeople(),
+      people: seedOr(seedPeople, []),
       add: (p) => {
         const stage =
           p.bizClass === "customer" ? undefined : (p.pipelineStage ?? defaultStage(p.bizClass));
@@ -219,7 +220,7 @@ export const usePeopleStore = create<PeopleState>()(
     }),
     {
       name: "levelup.people",
-      storage: createJSONStorage(() => localStorage),
+      storage: dataStorage(),
       partialize: (s) => ({ people: s.people }),
       version: SEED_VERSION,
       // Older saved data predates the relative-date seed: start fresh.
