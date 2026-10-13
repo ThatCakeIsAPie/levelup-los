@@ -144,8 +144,16 @@ function EventsPage() {
             {featured && (
               <FeaturedCard s={featured} candidate={candidate} className="lg:col-span-2" />
             )}
-            {others.map((s) => (
-              <UpcomingCard key={s.event.id} s={s} candidate={candidate} />
+            {others.map((s, i) => (
+              // A lone card in the last row spans both columns instead of leaving a gap.
+              <div
+                key={s.event.id}
+                className={
+                  others.length % 2 === 1 && i === others.length - 1 ? "grid lg:col-span-2" : "grid"
+                }
+              >
+                <UpcomingCard s={s} candidate={candidate} />
+              </div>
             ))}
           </div>
         )}

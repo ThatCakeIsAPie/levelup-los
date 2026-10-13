@@ -101,7 +101,7 @@ export function WalletPage() {
                 body="When you opt in to a shared cost, your share shows up here as an invoice."
               />
             ) : (
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className={`grid gap-3 ${sorted.length > 1 ? "sm:grid-cols-2" : ""}`}>
                 {sorted.map((inv) => {
                   const cost = costById.get(inv.costId);
                   return (
