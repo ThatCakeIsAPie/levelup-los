@@ -44,6 +44,7 @@ export {
   useVisiblePeople,
   useVisibleTeam,
   usePerson,
+  getPerson,
   useVisibleCustomers,
   useCustomersOf,
   useCustomerCounts,

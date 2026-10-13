@@ -131,8 +131,11 @@ export function FeedList({
             <AlertDialogTitle>Remove this {removing?.remove?.label}?</AlertDialogTitle>
             <AlertDialogDescription>
               {removing?.text}
-              {removing ? ` on ${fmtDate(removing.when.slice(0, 10))}` : ""}. It's removed from the
-              timeline and from "last contact" and sales totals. This can't be undone.
+              {removing ? ` on ${fmtDate(removing.when.slice(0, 10))}` : ""}.{" "}
+              {removing?.remove?.kind === "sale"
+                ? "It's removed from their purchase history and totals."
+                : 'It no longer counts toward "last contact".'}{" "}
+              This can't be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

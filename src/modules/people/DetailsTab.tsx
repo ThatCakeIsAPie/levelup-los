@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Link } from "@tanstack/react-router";
+import { Link, useRouter } from "@tanstack/react-router";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { Pencil, Trash2, X } from "lucide-react";
@@ -252,6 +252,7 @@ function DetailsForm({
   onDone: () => void;
 }) {
   const isCustomer = person.bizClass === "customer";
+  const router = useRouter();
   const team = useVisibleTeam();
   const downline = useDownline(person.id);
   const sponsorOptions = useMemo(() => {
@@ -319,6 +320,8 @@ function DetailsForm({
       patch.sponsorId = f.sponsorId === "none" ? null : f.sponsorId;
     }
     updatePerson(person.id, patch);
+    // Re-run the route loader so the tab title shows the new name.
+    if (patch.name !== person.name) void router.invalidate();
     toast.success("Details saved");
     onDone();
   };

@@ -17,6 +17,7 @@ import {
 import {
   daysSince,
   effectiveBizClass,
+  getPerson,
   getPersonShowRate,
   learningStreak,
   missingRequiredFields,
@@ -44,7 +45,6 @@ import {
 } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TooltipProvider } from "@/components/ui/tooltip";
 import { BusinessPathCard } from "@/modules/people/BusinessPath";
 import { EventsCard, EventsTab, NextEventCard } from "@/modules/people/Events";
 import { TeamCard } from "@/modules/people/TeamCard";
@@ -56,7 +56,11 @@ import { ProfileHero, type HeroAction } from "@/modules/people/Hero";
 import { daysLabel, FIELD_LABEL, firstName, fmtDate, fmtMoney } from "@/modules/people/format";
 
 export const Route = createFileRoute("/people/$id")({
-  head: () => ({ meta: [{ title: "Person — LevelUp LOS" }] }),
+  // The name for the tab title; a person you can't see stays "Person".
+  loader: ({ params }) => ({ name: getPerson(params.id)?.name }),
+  head: ({ loaderData }) => ({
+    meta: [{ title: `${loaderData?.name ?? "Person"} — LevelUp LOS` }],
+  }),
   component: PersonPage,
 });
 
@@ -65,11 +69,7 @@ const PAGE = "grid gap-[18px] px-4 py-5 lg:px-[26px] lg:py-[22px]";
 function PersonPage() {
   const { id } = Route.useParams();
   // Re-mount per person so tab / edit state never leaks between profiles.
-  return (
-    <TooltipProvider delayDuration={200}>
-      <PersonProfile key={id} id={id} />
-    </TooltipProvider>
-  );
+  return <PersonProfile key={id} id={id} />;
 }
 
 function PersonProfile({ id }: { id: string }) {

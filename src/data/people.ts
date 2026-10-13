@@ -3,7 +3,7 @@ import { usePeopleStore, type CrmPerson, type LosSyncEntry } from "@/stores/peop
 import { useAttendanceStore } from "@/stores/attendanceStore";
 import { useOpsStore } from "@/stores/opsStore";
 import { downlineOf, sponsorChain, visibleCustomers, visibleIdSet, type Viewer } from "./access";
-import { useViewer } from "./session";
+import { getViewer, useViewer } from "./session";
 
 // One shared computation per (people, viewer) pair, so many components calling
 // useVisibleIds() in the same render don't each walk the tree.
@@ -117,6 +117,15 @@ export function useDownline(
     () => (personId && ids.has(personId) ? downlineOf(people, ids, personId, directOnly) : []),
     [people, ids, personId, directOnly],
   );
+}
+
+/**
+ * Non-reactive lookup for code outside React (e.g. a route loader building the
+ * page title): the person, or undefined when missing or not visible.
+ */
+export function getPerson(id: string): CrmPerson | undefined {
+  const people = usePeopleStore.getState().people;
+  return visibleIdSet(people, getViewer()).has(id) ? people.find((p) => p.id === id) : undefined;
 }
 
 // ---- Mutations ----
