@@ -196,16 +196,6 @@ export function ticketStatus(a: Attendance, today = localDate()): { label: strin
 // Needs attention
 // ---------------------------------------------------------------------------
 
-export type AttentionCode =
-  "date_passed" | "no_helper" | "no_followup" | "buy_due" | "followup_due" | "unrecorded";
-
-export interface AttentionItem {
-  a: Attendance;
-  code: AttentionCode;
-  label: string;
-  tone: Tone;
-}
-
 /** Risk reasons for one row, most urgent first (replaces the old RiskFlags copy). */
 export function riskReasons(a: Attendance, today = localDate()): { label: string; tone: Tone }[] {
   const out: { label: string; tone: Tone }[] = [];
@@ -218,90 +208,5 @@ export function riskReasons(a: Attendance, today = localDate()): { label: string
   return out;
 }
 
-/**
- * Everyone on an event who needs a nudge this week, one item per person,
- * most urgent first. Past events only flag ticket holders whose attendance
- * was never recorded.
- */
-export function attentionItems(
-  event: Pick<CrmEvent, "date" | "endDate">,
-  rows: Attendance[],
-  now = new Date(),
-): AttentionItem[] {
-  const today = localDate(now);
-  const weekOut = localDate(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 7));
-  const finished = (event.endDate ?? event.date) < today;
-  const out: AttentionItem[] = [];
-  for (const a of rows) {
-    if (finished) {
-      if (a.hasTicket && a.attended === undefined)
-        out.push({ a, code: "unrecorded", label: "Attendance not recorded", tone: "warn" });
-      continue;
-    }
-    if (a.hasTicket || a.desireToAttend === "no") {
-      if (a.followUpDate && a.followUpDate >= today && a.followUpDate <= weekOut)
-        out.push({
-          a,
-          code: "followup_due",
-          label: `Follow up ${shortDate(a.followUpDate)}`,
-          tone: "info",
-        });
-      continue;
-    }
-    if (a.plannedPurchaseDate && a.plannedPurchaseDate < today) {
-      out.push({
-        a,
-        code: "date_passed",
-        label: `Planned to buy by ${shortDate(a.plannedPurchaseDate)}`,
-        tone: "bad",
-      });
-    } else if (a.plannedPurchaseDate && a.plannedPurchaseDate <= weekOut) {
-      out.push({
-        a,
-        code: "buy_due",
-        label: `Plans to buy by ${shortDate(a.plannedPurchaseDate)}`,
-        tone: "warn",
-      });
-    } else if (a.followUpDate && a.followUpDate >= today && a.followUpDate <= weekOut) {
-      out.push({
-        a,
-        code: "followup_due",
-        label: `Follow up ${shortDate(a.followUpDate)}`,
-        tone: "info",
-      });
-    } else if (a.desireToAttend === "yes" && !a.helperId) {
-      out.push({ a, code: "no_helper", label: "Wants to go, no helper", tone: "bad" });
-    } else if (a.desireToAttend === "yes" && !a.followUpDate) {
-      out.push({ a, code: "no_followup", label: "Wants to go, no follow-up set", tone: "warn" });
-    }
-  }
-  const rank: Record<AttentionCode, number> = {
-    date_passed: 0,
-    unrecorded: 0,
-    no_helper: 1,
-    buy_due: 2,
-    followup_due: 3,
-    no_followup: 4,
-  };
-  return out.sort((x, y) => rank[x.code] - rank[y.code]);
-}
-
-// ---------------------------------------------------------------------------
-// Compare
-// ---------------------------------------------------------------------------
-
-/** Auto-picked comparison events: the previous one of the same type, and the same one ~a year ago. */
-export function comparisonEvents(
-  current: CrmEvent,
-  events: CrmEvent[],
-): { prior?: CrmEvent; lastYear?: CrmEvent } {
-  const sameType = events.filter((e) => e.id !== current.id && e.type === current.type);
-  const prior = sameType
-    .filter((e) => e.date < current.date)
-    .sort((a, b) => b.date.localeCompare(a.date))[0];
-  const target = parseDate(current.date);
-  target.setFullYear(target.getFullYear() - 1);
-  const dist = (e: CrmEvent) => Math.abs(differenceInCalendarDays(parseDate(e.date), target));
-  const lastYear = sameType.filter((e) => dist(e) <= 90).sort((a, b) => dist(a) - dist(b))[0];
-  return { prior, lastYear };
-}
+// The shared rule lives in @/data so the nav badge and every card agree.
+export { attentionItems, type AttentionCode, type AttentionItem } from "@/data";

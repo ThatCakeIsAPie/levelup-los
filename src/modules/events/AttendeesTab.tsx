@@ -11,6 +11,7 @@ import {
   UserPlus,
   UserX,
   Users,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -25,6 +26,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Select,
   SelectContent,
@@ -49,6 +51,7 @@ import {
 import {
   bulkUpdateAttendances,
   effectiveBizClass,
+  needsTicket,
   updateAttendance,
   type Attendance,
   type CrmEvent,
@@ -65,16 +68,24 @@ import { Segmented } from "./Segmented";
 
 type View = "table" | "board";
 
+/** Roster filters reachable by link (`/events/$id?tab=attendees&filter=no-ticket`). */
+export type AttendeeFilter = "no-ticket";
+
 export function AttendeesTab({
   event,
   rows,
   finished,
   onEdit,
+  filter,
+  onClearFilter,
 }: {
   event: CrmEvent;
   rows: Attendance[];
   finished: boolean;
   onEdit: (attendanceId: string) => void;
+  /** "no-ticket": only people who still need a ticket (no ticket, haven't said no). */
+  filter?: AttendeeFilter;
+  onClearFilter?: () => void;
 }) {
   const desktop = useIsDesktop();
   const people = usePeopleMap();
@@ -85,11 +96,12 @@ export function AttendeesTab({
   const sorted = useMemo(() => {
     const q = query.trim().toLowerCase();
     return rows
+      .filter((a) => filter !== "no-ticket" || needsTicket(a))
       .filter((a) => !q || (people.get(a.personId)?.name ?? "").toLowerCase().includes(q))
       .sort((a, b) =>
         (people.get(a.personId)?.name ?? "").localeCompare(people.get(b.personId)?.name ?? ""),
       );
-  }, [rows, people, query]);
+  }, [rows, people, query, filter]);
 
   // Drop selections that are no longer on the roster.
   const selectedIds = rows.filter((a) => selected.has(a.id)).map((a) => a.id);
@@ -235,6 +247,21 @@ export function AttendeesTab({
         </DropdownMenu>
       </div>
 
+      {filter === "no-ticket" && (
+        <div className="flex flex-wrap items-center gap-2 text-[12.5px] text-muted-foreground">
+          <span>
+            Showing the{" "}
+            <b className="text-foreground tabular-nums">{rows.filter(needsTicket).length}</b>{" "}
+            {rows.filter(needsTicket).length === 1 ? "person" : "people"} who still need a ticket
+          </span>
+          {onClearFilter && (
+            <Button size="sm" variant="ghost" className="h-7 px-2" onClick={onClearFilter}>
+              <X /> Show everyone
+            </Button>
+          )}
+        </div>
+      )}
+
       {selectedIds.length > 0 && view === "table" && (
         <div
           className="flex flex-wrap items-center gap-2 rounded-card border border-line bg-primary-soft px-3 py-2 text-[13px] text-primary-ink"
@@ -276,7 +303,11 @@ export function AttendeesTab({
         <EmptyState
           icon={<Search />}
           title="No matches"
-          body={`Nobody on the roster matches “${query}”.`}
+          body={
+            query
+              ? `Nobody${filter ? " who still needs a ticket" : " on the roster"} matches “${query}”.`
+              : "Everyone on the roster has a ticket or has said they're not going."
+          }
         />
       ) : desktop ? (
         <SectionCard className="px-0 py-1 sm:px-0">
@@ -469,10 +500,17 @@ function AttendeeRow({
           {a.leadershipQualified && <ToneChip tone="good">Leadership</ToneChip>}
           {a.specialEventQualified && <ToneChip tone="info">Additional event</ToneChip>}
           {a.notes && (
-            <span className="inline-flex text-muted-foreground" title={a.notes}>
-              <NotebookPen className="size-3.5" aria-hidden="true" />
-              <span className="sr-only">Note: {a.notes}</span>
-            </span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-flex text-muted-foreground">
+                  <NotebookPen className="size-3.5" aria-hidden="true" />
+                  <span className="sr-only">Note: {a.notes}</span>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent aria-hidden="true" className="max-w-64 whitespace-pre-wrap">
+                {a.notes}
+              </TooltipContent>
+            </Tooltip>
           )}
         </div>
       </TableCell>

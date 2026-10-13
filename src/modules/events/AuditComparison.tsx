@@ -31,21 +31,19 @@ import {
 import {
   assignToEvent,
   effectiveBizClass,
+  getAuditDelta,
+  getComparisonEvents,
   parseDate,
   updateAttendance,
   useEvents,
   useVisibleAttendances,
-  type Attendance,
+  type AuditDeltaRow,
   type CrmEvent,
 } from "@/data";
 import { usePeopleMap } from "./hooks";
-import { attendanceStatus, comparisonEvents } from "./lib";
+import { attendanceStatus } from "./lib";
 
-interface DeltaRow {
-  personId: string;
-  name: string;
-  byEvent: Record<string, Attendance | undefined>;
-}
+type DeltaRow = AuditDeltaRow;
 
 /**
  * Compare this event's roster with the previous event of the same type and
@@ -57,7 +55,7 @@ export function AuditComparison({ event }: { event: CrmEvent }) {
   const attendances = useVisibleAttendances();
   const people = usePeopleMap();
   const desktop = useIsDesktop();
-  const auto = useMemo(() => comparisonEvents(event, events), [event, events]);
+  const auto = useMemo(() => getComparisonEvents(event, events), [event, events]);
   const others = useMemo(
     () => [...events].filter((e) => e.id !== event.id).reverse(),
     [events, event.id],
@@ -72,27 +70,21 @@ export function AuditComparison({ event }: { event: CrmEvent }) {
     return cols.filter((e, i) => cols.findIndex((x) => x.id === e.id) === i);
   }, [lastYear, prior, event]);
 
-  const rows = useMemo<DeltaRow[]>(() => {
-    const ids = new Set(uniqueCols.map((e) => e.id));
-    const personIds = new Set(attendances.filter((a) => ids.has(a.eventId)).map((a) => a.personId));
-    return [...personIds]
-      .map((pid) => ({
-        personId: pid,
-        name: people.get(pid)?.name ?? "Unknown person",
-        byEvent: Object.fromEntries(
-          uniqueCols.map((e) => [
-            e.id,
-            attendances.find((a) => a.eventId === e.id && a.personId === pid),
-          ]),
-        ),
-      }))
-      .sort((a, b) => {
+  const rows = useMemo<DeltaRow[]>(
+    () =>
+      getAuditDelta(
+        uniqueCols.map((e) => e.id),
+        attendances,
+        [...people.values()],
+        "Unknown person",
+      ).sort((a, b) => {
         // People missing from this event first: they're the ones to invite.
         const am = a.byEvent[event.id] ? 1 : 0;
         const bm = b.byEvent[event.id] ? 1 : 0;
-        return am - bm || a.name.localeCompare(b.name);
-      });
-  }, [attendances, people, event.id, uniqueCols]);
+        return am - bm || a.personName.localeCompare(b.personName);
+      }),
+    [attendances, people, event.id, uniqueCols],
+  );
 
   const count = (e?: CrmEvent) => (e ? attendances.filter((a) => a.eventId === e.id).length : 0);
   const currentCount = count(event);
@@ -110,7 +102,7 @@ export function AuditComparison({ event }: { event: CrmEvent }) {
   const invite = (r: DeltaRow) => {
     const a = assignToEvent(event.id, r.personId);
     updateAttendance(a.id, { desireToAttend: "maybe" });
-    toast.success(`${r.name} added as a maybe`);
+    toast.success(`${r.personName} added as a maybe`);
   };
 
   return (
@@ -207,7 +199,7 @@ export function AuditComparison({ event }: { event: CrmEvent }) {
                       <TableCell className="pl-4 sm:pl-[18px]">
                         <div className="flex items-center gap-2.5">
                           <PersonAvatar
-                            name={r.name}
+                            name={r.personName}
                             stage={p ? effectiveBizClass(p) : undefined}
                             size="sm"
                           />
@@ -216,7 +208,7 @@ export function AuditComparison({ event }: { event: CrmEvent }) {
                             params={{ id: r.personId }}
                             className="truncate rounded-sm font-semibold hover:underline focus-visible:outline-2 focus-visible:outline-ring"
                           >
-                            {r.name}
+                            {r.personName}
                           </Link>
                         </div>
                       </TableCell>
@@ -256,7 +248,7 @@ export function AuditComparison({ event }: { event: CrmEvent }) {
                 >
                   <div className="flex items-center gap-2.5">
                     <PersonAvatar
-                      name={r.name}
+                      name={r.personName}
                       stage={p ? effectiveBizClass(p) : undefined}
                       size="sm"
                     />
@@ -265,7 +257,7 @@ export function AuditComparison({ event }: { event: CrmEvent }) {
                       params={{ id: r.personId }}
                       className="min-w-0 flex-1 truncate rounded-sm text-[13px] font-semibold hover:underline"
                     >
-                      {r.name}
+                      {r.personName}
                     </Link>
                     {!r.byEvent[event.id] && (
                       <Button size="sm" variant="soft" onClick={() => invite(r)}>

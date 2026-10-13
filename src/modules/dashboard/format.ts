@@ -1,6 +1,6 @@
 import { addDays, differenceInCalendarDays, format } from "date-fns";
 import type { Tone } from "@/components/brand";
-import { localDate, parseDate, type Attendance, type CrmEvent } from "@/data";
+import { localDate, needsTicket, parseDate, type Attendance, type CrmEvent } from "@/data";
 
 /** "Oct 10" */
 export const shortDate = (d: string) => format(parseDate(d), "MMM d");
@@ -42,7 +42,7 @@ export function ticketStats(rows: Attendance[], today = localDate()) {
       a.plannedPurchaseDate >= today &&
       a.plannedPurchaseDate <= weekEnd,
   ).length;
-  const needTicket = rows.filter((a) => !a.hasTicket && a.desireToAttend !== "no").length;
+  const needTicket = rows.filter(needsTicket).length;
   return { invited, bought, plannedThisWeek, needTicket };
 }
 

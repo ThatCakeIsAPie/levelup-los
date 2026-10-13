@@ -34,7 +34,7 @@ import {
 } from "@/data";
 import { cn } from "@/lib/utils";
 import { AttendeeEditSheet } from "@/modules/events/AttendeeEditSheet";
-import { AttendeesTab } from "@/modules/events/AttendeesTab";
+import { AttendeesTab, type AttendeeFilter } from "@/modules/events/AttendeesTab";
 import { AttentionPanel } from "@/modules/events/AttentionPanel";
 import { AuditComparison } from "@/modules/events/AuditComparison";
 import { EventFormDialog } from "@/modules/events/EventFormDialog";
@@ -50,19 +50,42 @@ import {
   timingLabel,
 } from "@/modules/events/lib";
 
+type TabKey = "overview" | "attendees" | "travel" | "compare";
+const TABS: readonly TabKey[] = ["overview", "attendees", "travel", "compare"];
+
+/**
+ * `?tab=attendees&filter=no-ticket` opens the Attendees tab showing only the
+ * people who still need a ticket (used by the Dashboard and Events list).
+ */
+interface EventSearch {
+  tab?: TabKey;
+  filter?: AttendeeFilter;
+}
+
 export const Route = createFileRoute("/events/$id")({
+  validateSearch: (search: Record<string, unknown>): EventSearch => ({
+    tab: TABS.includes(search.tab as TabKey) ? (search.tab as TabKey) : undefined,
+    filter: search.filter === "no-ticket" ? "no-ticket" : undefined,
+  }),
   head: () => ({ meta: [{ title: "Event — LevelUp LOS" }] }),
   component: EventDetail,
 });
-
-type TabKey = "overview" | "attendees" | "travel" | "compare";
 
 function EventDetail() {
   const { id } = Route.useParams();
   const event = useEvent(id);
   const rows = useAttendancesForEvent(id);
   const user = useCurrentUser();
-  const [tab, setTab] = useState<TabKey>("overview");
+  const search = Route.useSearch();
+  const navigate = useNavigate({ from: Route.fullPath });
+  // The tab lives in the URL so links (and Back) can open a specific tab.
+  const setSearch = (next: (prev: EventSearch) => EventSearch) =>
+    navigate({ search: next, replace: true, resetScroll: false });
+  const setTab = (t: TabKey) =>
+    setSearch((prev) => ({
+      tab: t === "overview" ? undefined : t,
+      filter: t === "attendees" ? prev.filter : undefined,
+    }));
   // Keep the id while the sheet animates closed so its content doesn't blank out.
   const [edit, setEdit] = useState<{ id: string | null; open: boolean }>({
     id: null,
@@ -90,6 +113,11 @@ function EventDetail() {
   const timing = eventTiming(event);
   const finished = timing.kind === "past";
   const candidate = user.role === "candidate";
+  // Candidates only get Overview and Tickets and travel.
+  const tab: TabKey =
+    candidate && (search.tab === "attendees" || search.tab === "compare")
+      ? "overview"
+      : (search.tab ?? "overview");
   const editing = rows.find((a) => a.id === edit.id);
   const openEdit = (attendanceId: string) => setEdit({ id: attendanceId, open: true });
 
@@ -135,7 +163,14 @@ function EventDetail() {
         </TabsContent>
         {!candidate && (
           <TabsContent value="attendees" className="mt-0">
-            <AttendeesTab event={event} rows={rows} finished={finished} onEdit={openEdit} />
+            <AttendeesTab
+              event={event}
+              rows={rows}
+              finished={finished}
+              onEdit={openEdit}
+              filter={search.filter}
+              onClearFilter={() => setSearch((prev) => ({ ...prev, filter: undefined }))}
+            />
           </TabsContent>
         )}
         <TabsContent value="travel" className="mt-0">
@@ -275,9 +310,9 @@ function Hero({ event, manage }: { event: CrmEvent; manage: boolean }) {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete {event.name}?</AlertDialogTitle>
             <AlertDialogDescription>
-              The event disappears for everyone on the team, together with its roster, travel
-              plans and shared costs{costCount > 0 ? " (including sandbox payments)" : ""}. This
-              can't be undone.
+              The event disappears for everyone on the team, together with its roster, travel plans
+              and shared costs{costCount > 0 ? " (including sandbox payments)" : ""}. This can't be
+              undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

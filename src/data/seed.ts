@@ -10,7 +10,7 @@
  *   (generated downlines), customers "c1".."c10"; events "e1".."e6".
  * Prospects never have a downline: every sponsor is an apprentice or IBO.
  */
-import { addDays, addYears, subYears } from "date-fns";
+import { addDays, addYears, differenceInCalendarDays, subYears } from "date-fns";
 import { daysFromToday, localDate, parseDate } from "@/lib/dates";
 import type { BizClass, CrmPerson, PipelineStage } from "@/stores/peopleStore";
 import type { CrmEvent } from "@/stores/eventsStore";
@@ -675,6 +675,5 @@ export function seedActivity(
 
 /** Days from today to `iso` (negative = past). */
 function diffDays(iso: string): number {
-  const ms = new Date(`${iso}T12:00:00`).getTime() - new Date(`${localDate()}T12:00:00`).getTime();
-  return Math.round(ms / 86_400_000);
+  return differenceInCalendarDays(parseDate(iso), new Date());
 }

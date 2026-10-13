@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { CalendarDays } from "lucide-react";
+import { AlertTriangle, CalendarDays } from "lucide-react";
 import {
   DateBadge,
   EmptyState,
@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
+  attentionItems,
   useAttendancesForEvent,
   useAttendancesForPerson,
   useUpcomingEvents,
@@ -87,6 +88,8 @@ export function NextEventCard({
 function TeamEvent({ event, compact }: { event: CrmEvent; compact?: boolean }) {
   const rows = useAttendancesForEvent(event.id);
   const s = ticketStats(rows);
+  // Same rule as the Events nav badge and the Events list cards.
+  const attention = attentionItems(event, rows).length;
   const bar = (
     <SegmentedBar
       total={Math.max(1, s.invited)}
@@ -120,6 +123,7 @@ function TeamEvent({ event, compact }: { event: CrmEvent; compact?: boolean }) {
           {s.invited === 0
             ? "No one from your team is on the list yet"
             : `${s.bought} of ${s.invited} have tickets · ${s.needTicket} to go`}
+          {attention > 0 && ` · ${attention} need attention`}
         </span>
       </Link>
     );
@@ -148,10 +152,14 @@ function TeamEvent({ event, compact }: { event: CrmEvent; compact?: boolean }) {
           </div>
         </div>
       )}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {s.needTicket > 0 && (
           <Button asChild size="sm" className={SKY_BTN}>
-            <Link to="/events/$id" params={{ id: event.id }}>
+            <Link
+              to="/events/$id"
+              params={{ id: event.id }}
+              search={{ tab: "attendees", filter: "no-ticket" }}
+            >
               {s.needTicket} need a ticket
             </Link>
           </Button>
@@ -161,6 +169,11 @@ function TeamEvent({ event, compact }: { event: CrmEvent; compact?: boolean }) {
             Open event
           </Link>
         </Button>
+        {attention > 0 && (
+          <ToneChip tone="warn" icon={AlertTriangle}>
+            {attention} need attention
+          </ToneChip>
+        )}
       </div>
     </SectionCard>
   );

@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMemo } from "react";
-import { AlertTriangle, CalendarDays, CalendarPlus, MapPin, Plus } from "lucide-react";
+import { AlertTriangle, CalendarDays, CalendarPlus, MapPin, Plus, Ticket } from "lucide-react";
 import {
   DateBadge,
   EmptyState,
@@ -11,7 +11,9 @@ import {
 } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import {
+  daysFromToday,
   localDate,
+  needsTicket,
   useCurrentUser,
   usePastEvents,
   useUpcomingEvents,
@@ -47,6 +49,8 @@ interface EventSummary {
   bought: number;
   planned: number;
   plannedThisWeek: number;
+  /** Still need a ticket (no ticket, haven't said no): same rule as the Dashboard. */
+  needTicket: number;
   attention: number;
   attended: number;
   showRate: number | null;
@@ -60,7 +64,7 @@ function useEventSummaries(events: CrmEvent[]): EventSummary[] {
   return useMemo(() => {
     const byId = new Map(people.map((p) => [p.id, p]));
     const today = localDate();
-    const weekOut = localDate(new Date(Date.now() + 7 * 86_400_000));
+    const weekOut = daysFromToday(7);
     return events.map((event) => {
       const rows = all.filter((a) => a.eventId === event.id);
       const bought = rows.filter((a) => a.hasTicket).length;
@@ -79,6 +83,7 @@ function useEventSummaries(events: CrmEvent[]): EventSummary[] {
         plannedThisWeek: plannedRows.filter(
           (a) => a.plannedPurchaseDate! >= today && a.plannedPurchaseDate! <= weekOut,
         ).length,
+        needTicket: rows.filter(needsTicket).length,
         attention: attentionItems(event, rows).length,
         attended,
         showRate: eligible ? Math.round((attended / eligible) * 100) : null,
@@ -204,7 +209,6 @@ function FeaturedCard({
 }) {
   const { event } = s;
   const t = eventTiming(event);
-  const toGo = s.invited - s.bought;
   return (
     <SectionCard variant="event" className={cn("relative gap-4", className)}>
       <div className="flex items-start gap-3">
@@ -262,9 +266,9 @@ function FeaturedCard({
           <p className="text-[11.5px] text-muted-foreground">
             {s.invited === 0
               ? "Nobody invited yet"
-              : toGo === 0
-                ? "Everyone invited has a ticket"
-                : `${toGo} still need a ticket${
+              : s.needTicket === 0
+                ? "Everyone who's going has a ticket"
+                : `${s.needTicket} still need a ticket${
                     s.plannedThisWeek ? ` · ${s.plannedThisWeek} plan to buy this week` : ""
                   }`}
           </p>
@@ -278,6 +282,7 @@ function FeaturedCard({
             {s.attention} need attention
           </ToneChip>
         )}
+        {!candidate && s.needTicket > 0 && <NeedTicketLink s={s} onNavy />}
         <Button
           asChild
           size="sm"
@@ -289,6 +294,29 @@ function FeaturedCard({
         </Button>
       </div>
     </SectionCard>
+  );
+}
+
+/** "N need a ticket": opens the Attendees tab filtered to them. */
+function NeedTicketLink({ s, onNavy }: { s: EventSummary; onNavy?: boolean }) {
+  return (
+    <Button
+      asChild
+      size="sm"
+      variant="outline"
+      className={cn(
+        "relative h-7 px-2.5 text-xs",
+        onNavy && "border-white/25 bg-transparent text-event-fg hover:bg-white/10",
+      )}
+    >
+      <Link
+        to="/events/$id"
+        params={{ id: s.event.id }}
+        search={{ tab: "attendees", filter: "no-ticket" }}
+      >
+        <Ticket /> {s.needTicket} need a ticket
+      </Link>
+    </Button>
   );
 }
 
@@ -357,7 +385,7 @@ function UpcomingCard({ s, candidate }: { s: EventSummary; candidate: boolean })
         <p className="text-[12.5px] text-muted-foreground">Nobody invited yet.</p>
       )}
 
-      {!candidate && (s.people.length > 0 || s.attention > 0) && (
+      {!candidate && (s.people.length > 0 || s.attention > 0 || s.needTicket > 0) && (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <AvatarStack people={s.people} />
           {s.attention > 0 && (
@@ -365,6 +393,7 @@ function UpcomingCard({ s, candidate }: { s: EventSummary; candidate: boolean })
               {s.attention} need attention
             </ToneChip>
           )}
+          {s.needTicket > 0 && <NeedTicketLink s={s} />}
         </div>
       )}
     </SectionCard>
