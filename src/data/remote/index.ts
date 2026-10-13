@@ -33,6 +33,7 @@ import {
   onWriteError,
   startEngine,
   stopEngine,
+  suppressed,
   syncContext,
   whenIdle,
 } from "./engine";
@@ -148,7 +149,11 @@ async function open(person: { personId: string; name: string }, token: number): 
   useRemoteStore.setState({ phase: "ready" });
 }
 
-/** Stop syncing and empty every store (sign-out, or another account signs in). */
+/**
+ * Stop syncing and empty every store (sign-out, or another account signs in).
+ * The engine stops first, and the stores are emptied as a server-side change,
+ * so emptying them can never be sent as deletes.
+ */
 export function closeRemoteSession(cancelLoading = true): void {
   if (cancelLoading) {
     openToken++;
@@ -160,22 +165,24 @@ export function closeRemoteSession(cancelLoading = true): void {
   if (pendingTimer) clearTimeout(pendingTimer);
   pendingTimer = undefined;
   pendingScopes.clear();
-  usePeopleStore.setState({ people: [] });
-  useEventsStore.setState({ events: [] });
-  useAttendanceStore.setState({ attendances: [] });
-  useCrmStore.setState({
-    sales: [],
-    contacts: [],
-    learning: [],
-    settings: { ...DEFAULT_SETTINGS },
-    goals: {},
+  suppressed(() => {
+    usePeopleStore.setState({ people: [] });
+    useEventsStore.setState({ events: [] });
+    useAttendanceStore.setState({ attendances: [] });
+    useCrmStore.setState({
+      sales: [],
+      contacts: [],
+      learning: [],
+      settings: { ...DEFAULT_SETTINGS },
+      goals: {},
+    });
+    useOpsStore.setState({ logistics: {}, costs: [], payments: {}, campaigns: [], schedules: [] });
+    useActivityStore.setState({ events: [] });
+    useChatStore.setState(emptyChat());
+    useLibraryStore.setState(emptyLibrary());
+    usePipelineStore.setState(emptyPipeline());
   });
-  useOpsStore.setState({ logistics: {}, costs: [], payments: {}, campaigns: [], schedules: [] });
-  useActivityStore.setState({ events: [] });
-  useChatStore.setState(emptyChat());
-  useLibraryStore.setState(emptyLibrary());
   useLibraryExtras.setState({ teasers: [], names: {} });
-  usePipelineStore.setState(emptyPipeline());
   useRemoteStore.setState({ directory: [], rsvpCounts: null, chain: [], phase: "idle" });
 }
 
@@ -268,6 +275,12 @@ async function refresh(scopes: Scope[], attempt = 0): Promise<void> {
 /** Re-read the event card totals (after an RSVP). */
 export function refreshRsvpCounts(): void {
   scheduleRefresh(["counts"], 0);
+}
+
+// Dev server: this module holds the open session (timers, realtime, focus
+// listeners); a hot-swapped copy would run a second one. Reload instead.
+if (import.meta.hot) {
+  import.meta.hot.accept(() => window.location.reload());
 }
 
 // A failed write was rolled back: say so and re-sync with the server.

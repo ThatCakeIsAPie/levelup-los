@@ -17,6 +17,7 @@ import { reachesOf } from "@/data/pipeline/rules";
 import { addPipelineProspect, answerStatRequest, movePipelineCard, requestStats } from "@/data";
 import { useRemoteStore, whenIdle } from "@/data/remote";
 import { fetchPipeline } from "@/data/remote/hydrate";
+import { adminClient, must } from "./admin";
 
 const PASSWORD = "levelup-local";
 const URL_ = import.meta.env.VITE_SUPABASE_URL as string;
@@ -204,6 +205,12 @@ describe("moves from the app", () => {
     const added = addPipelineProspect({ name: `Pipeline Test ${stamp}`, source: "Gym" });
     expect(added).toBeTruthy();
     const id = added!.person.id;
+    // Runs last (after the person is gone): their timeline, including the
+    // "Removed …" entry the delete itself writes.
+    const admin = adminClient();
+    cleanup.push(() =>
+      must(admin.from("activity").delete().eq("related_person_id", id), "test person activity"),
+    );
     cleanup.push(() => anita.from("people").delete().eq("id", id));
     await whenIdle();
     expect(await cardColumn(anita, id)).toBe("contact");
@@ -261,6 +268,13 @@ describe("stat requests", () => {
     const req = usePipelineStore
       .getState()
       .requests.find((r) => r.requesterId === "2" && r.ownerId === "1" && r.status === "pending")!;
+    // An answered request can't be withdrawn by either person: the service
+    // role removes it and both notifications (012_pipeline expects the seed's).
+    const admin = adminClient();
+    cleanup.push(
+      () => must(admin.from("notifications").delete().eq("ref_id", req.id), "request notes"),
+      () => must(admin.from("stat_requests").delete().eq("id", req.id), "stat request"),
+    );
     const note = await maria
       .from("notifications")
       .select("type, actor_id")

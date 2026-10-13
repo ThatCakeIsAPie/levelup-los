@@ -9,14 +9,23 @@
  *    confirmed them (or as we optimistically sent them).
  *  - Mutations in src/data change the stores exactly as in local mode. The
  *    engine notices (store subscription), diffs the store against the
- *    baseline and turns the difference into inserts, updates and deletes,
- *    sent in order (parents before children; deletes children first) through
- *    one serial queue. The store already shows the change (optimistic).
+ *    baseline and turns the difference into inserts and updates, sent in
+ *    order (parents before children; deletes children first) through one
+ *    serial queue. The store already shows the change (optimistic).
+ *  - Deletes are never inferred from absence: a row is deleted only when a
+ *    local change (a mutation) was seen removing it. A row that leaves the
+ *    store any other way (a store emptied or replaced outside the engine) is
+ *    dropped from the baseline without a delete, and a change that empties a
+ *    whole table at once is never taken as deletes.
  *  - If a write fails, that change is rolled back in the store, a toast says
  *    so, and a reconcile (refetch) is scheduled.
  *  - Changes that come from the server (hydrate, refetch, realtime, RPC
- *    results) go through `replaceTables` / `applyRemote` / `serverSide`, which
+ *    results) go through `replaceStore` / `applyRemote` / `serverSide`, which
  *    update the store *and* the baseline, so they are never echoed back.
+ *  - One engine per page: a second copy of this module (a dev-server hot
+ *    update) stops the first, and the page reloads instead of hot-swapping it.
+ *    Two copies on the same stores took each other's loads and sign-out
+ *    clears for local edits and deleted the signed-in person's rows.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Row } from "./rows";
@@ -134,7 +143,10 @@ const unsubscribers: (() => void)[] = [];
 const specByTable = new Map<string, { spec: TableSpec<unknown>; binding: Binding<unknown> }>();
 const baselines = new Map<string, Map<string, Row>>();
 const dirty = new Set<Binding<unknown>>();
-let suppressDepth = 0;
+/** Keys a local change removed since the last flush, per table: the only rows deleted. */
+const removedLocally = new Map<string, Set<string>>();
+/** Keys with a delete queued or in flight, per table (server rows for them are dropped). */
+const deleting = new Map<string, Map<string, number>>();
 let flushScheduled = false;
 let queue: Promise<void> = Promise.resolve();
 let pendingBatches = 0;
@@ -143,6 +155,23 @@ const inflight = new Map<string, Map<string, number>>();
 const deferred = new Map<string, { table: string; upsert?: Row; del?: Row }>();
 /** Bumped whenever local changes are queued (refetches check it). */
 let localVersion = 0;
+
+/**
+ * State shared by every copy of this module in the page. Normally there is
+ * one; a dev-server hot update can load a second. Store changes made while
+ * `suppressDepth` > 0 are server-side for every copy, and loading a copy
+ * stops the previous copy's engine, so two engines never sync the same stores.
+ */
+interface SharedState {
+  suppressDepth: number;
+  stopPrevious: (() => void) | null;
+}
+const shared: SharedState = ((globalThis as { __levelupSync?: SharedState }).__levelupSync ??= {
+  suppressDepth: 0,
+  stopPrevious: null,
+});
+shared.stopPrevious?.();
+shared.stopPrevious = () => stopEngine();
 
 let errorHandler: (error: unknown, ops: { table: string; kind: string }[]) => void = (e) =>
   console.error("[sync] write failed", e);
@@ -217,8 +246,9 @@ export function startEngine(context: SyncContext, list: Binding<unknown>[]): voi
       baselines.set(spec.table, snapshot(spec, b.store.getState()));
     }
     unsubscribers.push(
-      b.store.subscribe(() => {
-        if (suppressDepth > 0 || !ctx) return;
+      b.store.subscribe((state, prev) => {
+        if (shared.suppressDepth > 0 || !ctx) return;
+        noteRemovals(b, state, prev);
         dirty.add(b);
         scheduleFlush();
       }),
@@ -226,7 +256,11 @@ export function startEngine(context: SyncContext, list: Binding<unknown>[]): voi
   }
 }
 
-/** Stop syncing (sign-out). Writes still in flight finish but are not rolled back. */
+/**
+ * Stop syncing (sign-out, another person signing in). A write already being
+ * sent finishes, but the rest of its batch is dropped (it would go out with
+ * the next person's session) and nothing is rolled back.
+ */
 export function stopEngine(): void {
   unsubscribers.splice(0).forEach((u) => u());
   ctx = null;
@@ -235,8 +269,43 @@ export function stopEngine(): void {
   specByTable.clear();
   baselines.clear();
   dirty.clear();
+  removedLocally.clear();
   inflight.clear();
+  deleting.clear();
   deferred.clear();
+}
+
+/**
+ * Remember which rows a local change removed: they are the only rows the next
+ * flush deletes. Rows the server doesn't have yet need no delete. A change
+ * that empties a whole table at once is a reset (sign-out, another copy of
+ * the app's data layer), never a person deleting their data: it deletes
+ * nothing.
+ */
+function noteRemovals(b: Binding<unknown>, state: unknown, prev: unknown): void {
+  for (const spec of b.specs) {
+    if (spec.delete === false) continue;
+    const base = baselines.get(spec.table);
+    if (!base?.size) continue;
+    const now = new Set(spec.rows(state).map((r) => keyOf(spec.pk, r)));
+    const gone: string[] = [];
+    for (const r of spec.rows(prev)) {
+      const key = keyOf(spec.pk, r);
+      if (!now.has(key) && base.has(key)) gone.push(key);
+    }
+    if (!gone.length) continue;
+    if (now.size === 0 && gone.length > 1) {
+      console.warn(`[sync] ${spec.table} was emptied outside a mutation; nothing is deleted`);
+      continue;
+    }
+    const set = removedLocally.get(spec.table) ?? new Set<string>();
+    for (const key of gone) {
+      set.add(key);
+      // An older server copy of the row must not bring it back.
+      deferred.delete(`${spec.table}\u0002${key}`);
+    }
+    removedLocally.set(spec.table, set);
+  }
 }
 
 function scheduleFlush() {
@@ -248,13 +317,16 @@ function scheduleFlush() {
   });
 }
 
-/** Run `fn` without the engine treating its store changes as local edits. */
-function suppressed(fn: () => void): void {
-  suppressDepth++;
+/**
+ * Run `fn` without the engine treating its store changes as local edits
+ * (server rows, rollbacks, emptying the stores on sign-out).
+ */
+export function suppressed(fn: () => void): void {
+  shared.suppressDepth++;
   try {
     fn();
   } finally {
-    suppressDepth--;
+    shared.suppressDepth--;
   }
 }
 
@@ -262,7 +334,11 @@ function suppressed(fn: () => void): void {
 // Local changes -> writes
 // ---------------------------------------------------------------------------
 
-/** Diff the changed stores against the baseline and queue the writes. */
+/**
+ * Diff the changed stores against the baseline and queue the writes. Rows
+ * missing from the store are deleted only if a local change removed them
+ * (see noteRemovals); any other missing row just leaves the baseline.
+ */
 export function flush(): void {
   if (!ctx || dirty.size === 0) return;
   const ops: Op[] = [];
@@ -281,9 +357,16 @@ export function flush(): void {
             ops.push({ spec, binding: b, kind: "update", key, row, prev, changes });
         }
       }
+      const removed = removedLocally.get(spec.table);
+      let dropped = 0;
       for (const [key, prev] of base) {
-        if (!cur.has(key)) ops.push({ spec, binding: b, kind: "delete", key, row: prev, prev });
+        if (cur.has(key)) continue;
+        if (removed?.has(key)) ops.push({ spec, binding: b, kind: "delete", key, row: prev, prev });
+        else dropped++;
       }
+      if (dropped)
+        console.warn(`[sync] ${dropped} ${spec.table} row(s) left the store without a delete`);
+      removedLocally.delete(spec.table);
       baselines.set(spec.table, cur);
     }
   }
@@ -298,20 +381,22 @@ export function flush(): void {
   if (writable.length) enqueue(writable);
 }
 
-function markInflight(ops: Op[], delta: number) {
+function count(map: Map<string, Map<string, number>>, ops: Op[], delta: number) {
   for (const op of ops) {
-    const m = inflight.get(op.spec.table) ?? new Map<string, number>();
+    const m = map.get(op.spec.table) ?? new Map<string, number>();
     const n = (m.get(op.key) ?? 0) + delta;
     if (n > 0) m.set(op.key, n);
     else m.delete(op.key);
-    inflight.set(op.spec.table, m);
+    map.set(op.spec.table, m);
   }
 }
 
 function enqueue(ops: Op[]) {
   localVersion++;
   pendingBatches++;
-  markInflight(ops, 1);
+  const deletes = ops.filter((o) => o.kind === "delete");
+  count(inflight, ops, 1);
+  count(deleting, deletes, 1);
   const gen = generation;
   queue = queue
     .then(() => execute(ops, gen))
@@ -319,14 +404,18 @@ function enqueue(ops: Op[]) {
     .finally(() => {
       pendingBatches--;
       if (gen !== generation) return;
-      markInflight(ops, -1);
+      count(inflight, ops, -1);
       applyDeferred();
+      count(deleting, deletes, -1);
     });
 }
 
 async function execute(ops: Op[], gen: number): Promise<void> {
   const c = ctx;
   if (!c || gen !== generation) return;
+  // Signed out or someone else signed in meanwhile: send nothing more (the
+  // client would send it with the next person's session).
+  const stale = () => gen !== generation;
   const upserts = ops
     .filter((o) => o.kind !== "delete")
     .sort((a, b) => orderOf(a.spec.table) - orderOf(b.spec.table));
@@ -349,10 +438,11 @@ async function execute(ops: Op[], gen: number): Promise<void> {
     const tableOps = upserts.filter((o) => o.spec.table === table);
     const inserts = tableOps.filter((o) => o.kind === "insert");
     const updates = tableOps.filter((o) => o.kind === "update");
-    if (inserts.length) await run(inserts, () => writeInserts(inserts, c));
-    if (updates.length) await writeUpdates(updates, c, run);
+    if (inserts.length && !stale()) await run(inserts, () => writeInserts(inserts, c));
+    if (updates.length && !stale()) await writeUpdates(updates, c, run);
   }
   for (const table of unique(deletes.map((o) => o.spec.table))) {
+    if (stale()) return;
     const tableOps = deletes.filter((o) => o.spec.table === table);
     await run(tableOps, () => writeDeletes(tableOps, c));
   }
@@ -518,9 +608,12 @@ export function applyRemote(table: string, upserts: Row[], deletes: Row[] = []):
   const busy = inflight.get(table);
   const ups: Row[] = [];
   const dels: Row[] = [];
+  const goingAway = deleting.get(table);
   for (const raw of upserts) {
     const row = spec.normalize(raw);
     const key = keyOf(spec.pk, row);
+    // Deleted here meanwhile (e.g. an undo while the move was being saved).
+    if (goingAway?.has(key)) continue;
     if (busy?.has(key)) {
       deferred.set(`${table}\u0002${key}`, { table, upsert: raw });
       continue;
@@ -586,4 +679,10 @@ export async function whenIdle(): Promise<void> {
 /** True while writes are queued or in flight. */
 export function isBusy(): boolean {
   return pendingBatches > 0 || dirty.size > 0;
+}
+
+// Dev server: never hot-swap the engine (the old copy would keep syncing the
+// same stores next to the new one); reload the page instead.
+if (import.meta.hot) {
+  import.meta.hot.accept(() => window.location.reload());
 }

@@ -36,6 +36,13 @@ export function startAuth(): void {
   if (started || !supabase) return;
   started = true;
   supabase.auth.onAuthStateChange((event, session) => {
+    // Signed out, or someone else signed in (possibly in another tab of this
+    // browser: the client already sends their token). Stop syncing the
+    // previous person's data right away, before the deferred reload below,
+    // so none of it is written with the new session.
+    if (loadedUserId !== null && (session?.user.id ?? null) !== loadedUserId) {
+      closeRemoteSession();
+    }
     // Never await Supabase calls inside this callback (it holds the auth
     // lock); defer the work instead.
     setTimeout(() => {

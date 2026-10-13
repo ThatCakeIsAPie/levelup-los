@@ -34,6 +34,7 @@ import { useRemoteStore, whenIdle } from "@/data/remote";
 import { fetchSnapshot } from "@/data/remote/hydrate";
 import { subscribeChanges, type LiveChange } from "@/data/remote/realtime";
 import { signedUrl } from "@/data/remote/storage";
+import { adminClient, must } from "./admin";
 
 const PASSWORD = "levelup-local";
 const URL_ = import.meta.env.VITE_SUPABASE_URL as string;
@@ -163,6 +164,21 @@ describe("write-through", () => {
     );
 
     const ev = addEvent({ name: `IT meeting ${stamp}`, type: "team_meeting", date: "2026-12-01" });
+    // The timeline is append-only for people; only the service role clears it.
+    const admin = adminClient();
+    cleanup.push(
+      () => must(admin.from("activity").delete().eq("related_event_id", ev.id), "event activity"),
+      () =>
+        must(
+          admin
+            .from("activity")
+            .delete()
+            .eq("related_person_id", "9")
+            .eq("summary", "Edited notes")
+            .gte("timestamp", startedAt),
+          "notes activity",
+        ),
+    );
     const att = assignToEvent(ev.id, "4");
     updateAttendance(att.id, { hasTicket: true, desireToAttend: "yes" });
     const contact = logContact({ personId: "2", note: `IT ${stamp}` });
@@ -204,6 +220,19 @@ describe("write-through", () => {
   it("a write the database refuses is rolled back in the store", async () => {
     await signInApp("jamal");
     const before = getPerson("4")?.sponsorId;
+    // The activity entry is written even though the edit is refused.
+    const admin = adminClient();
+    cleanup.push(() =>
+      must(
+        admin
+          .from("activity")
+          .delete()
+          .eq("related_person_id", "4")
+          .eq("summary", "Edited sponsorId")
+          .gte("timestamp", startedAt),
+        "refused edit activity",
+      ),
+    );
     updatePerson("4", { sponsorId: "9" }); // nobody re-sponsors themselves
     expect(getPerson("4")?.sponsorId).toBe("9"); // optimistic
     await whenIdle();
@@ -265,6 +294,24 @@ describe("chat", () => {
   it("a message sent by Maria reaches Anita live, and Anita's reaches Maria's app", async () => {
     const anita = await login("anita");
     const seenByAnita = await follow(anita, "anita");
+    // Posting marks Main chat read for Maria (here and in the photo test below).
+    const admin = adminClient();
+    const readAt = (
+      await admin
+        .from("conversation_members")
+        .select("last_read_at")
+        .match({ conversation_id: "main", person_id: "1" })
+        .single()
+    ).data?.last_read_at;
+    cleanup.push(() =>
+      must(
+        admin
+          .from("conversation_members")
+          .update({ last_read_at: readAt ?? null })
+          .match({ conversation_id: "main", person_id: "1" }),
+        "Maria's read state",
+      ),
+    );
     await signInApp("maria");
 
     const sent = sendMessage({ conversationId: "main", body: `Hello team ${stamp}` });
@@ -402,6 +449,11 @@ describe("chat", () => {
     const seenByJamal = await follow(jamal, "jamal");
     const leader = await login("maria");
     cleanup.push(() => leader.from("announcement_drafts").delete().eq("id", draftId));
+    // The draft's notifications to the leaders and moderators (not only Maria's).
+    const admin = adminClient();
+    cleanup.push(() =>
+      must(admin.from("notifications").delete().eq("ref_id", draftId), "draft notifications"),
+    );
 
     await signInApp("maria");
     const posted = approveDraft(draftId);

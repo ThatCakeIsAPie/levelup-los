@@ -190,11 +190,16 @@ export function movePipelineCard(
       removeMoves([move.id]);
       restoreCard(personId, stored ? card : null);
       if (registered) {
-        updatePerson(personId, {
-          bizClass: "prospect",
-          pipelineStage: "prospect",
-          businessStartDate: before.businessStartDate,
-        });
+        // Real accounts: deleting the move puts them back to prospect in the
+        // database (pipeline_moves_after_delete), in the same statement.
+        const unregister = () =>
+          updatePerson(personId, {
+            bizClass: "prospect",
+            pipelineStage: "prospect",
+            businessStartDate: before.businessStartDate,
+          });
+        if (IS_SUPABASE) serverSide(unregister);
+        else unregister();
       }
     },
   };

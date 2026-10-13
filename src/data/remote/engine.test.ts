@@ -3,10 +3,13 @@ import { create } from "zustand";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   applyRemote,
+  flush,
   onWriteError,
+  replaceStore,
   serverSide,
   startEngine,
   stopEngine,
+  suppressed,
   whenIdle,
   type Binding,
   type Row,
@@ -163,5 +166,74 @@ describe("sync engine", () => {
     useToy.setState({ events: [{ id: "e2", name: "Offline" }] });
     await whenIdle();
     expect(calls).toHaveLength(0);
+  });
+});
+
+const three = () => [
+  { id: "e1", name: "One" },
+  { id: "e2", name: "Two" },
+  { id: "e3", name: "Three" },
+];
+
+describe("sync engine: deletes", () => {
+  it("deletes only the rows a local change removed", async () => {
+    const { calls } = start();
+    replaceStore(binding, { events: three() });
+    useToy.setState((s) => ({ events: s.events.filter((e) => e.id !== "e2") }));
+    await whenIdle();
+    expect(calls.map((c) => `${c.kind} ${c.table} ${JSON.stringify(c.ids)}`)).toEqual([
+      'delete events ["e2"]',
+    ]);
+  });
+
+  it("never deletes rows that left the store without a local change", async () => {
+    const { calls } = start();
+    replaceStore(binding, { events: three() });
+    // E.g. a partial reload or another copy of the data layer replacing the store.
+    suppressed(() => useToy.setState({ events: [{ id: "e1", name: "One" }] }));
+    useToy.setState({ events: [{ id: "e1", name: "Renamed" }] });
+    await whenIdle();
+    expect(calls.map((c) => `${c.kind} ${c.table}`)).toEqual(["update events"]);
+  });
+
+  it("an emptied table is a reset, not deletes", async () => {
+    const { calls } = start();
+    replaceStore(binding, { events: three(), attendances: [{ id: "a1", event_id: "e1" }] });
+    useToy.setState({ events: [], attendances: [] });
+    await whenIdle();
+    // One row removed on its own is still a delete; a whole table at once never.
+    expect(calls.map((c) => `${c.kind} ${c.table}`)).toEqual(["delete attendances"]);
+  });
+
+  it("a server copy of a row being deleted doesn't bring it back", async () => {
+    start();
+    replaceStore(binding, { events: three() });
+    useToy.setState((s) => ({ events: s.events.filter((e) => e.id !== "e3") }));
+    flush();
+    applyRemote("events", [{ id: "e3", name: "Three" }]);
+    await whenIdle();
+    expect(useToy.getState().events.map((e) => e.id)).toEqual(["e1", "e2"]);
+  });
+
+  it("a second copy of the engine (dev hot update) stops the first", async () => {
+    const first = start();
+    replaceStore(binding, { events: three() });
+    // What a hot update does: the module runs again while the stores stay.
+    const again = "./engine?copy"; // (a variable: TypeScript can't resolve the query)
+    const copy = (await import(/* @vite-ignore */ again)) as typeof import("./engine");
+    expect(copy.startEngine).not.toBe(startEngine); // really a second copy
+    const second = fakeClient();
+    copy.startEngine({ client: second.client, me: "20", myName: "Beau" }, [
+      binding as unknown as Binding<unknown>,
+    ]);
+    // The new copy signs someone else in: empties and reloads the stores.
+    copy.suppressed(() => useToy.setState({ events: [], attendances: [] }));
+    copy.replaceStore(binding, { events: [{ id: "e9", name: "Theirs" }] });
+    useToy.setState({ events: [{ id: "e9", name: "Theirs, renamed" }] });
+    await copy.whenIdle();
+    await whenIdle();
+    expect(first.calls).toHaveLength(0);
+    expect(second.calls.map((c) => `${c.kind} ${c.table}`)).toEqual(["update events"]);
+    copy.stopEngine();
   });
 });
