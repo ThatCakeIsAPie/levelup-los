@@ -1,0 +1,36 @@
+/*
+ * Chat-only tokens (kept out of src/styles.css on purpose).
+ * --on-sky: text on a solid sky fill (same in both themes).
+ * --win-line: win card outline, the blue of the text (navy in light mode,
+ * light blue in dark mode). Used as border-[var(--win-line)].
+ */
+:root {
+  --win-line: #1a365d;
+  /* Text on the sky "selected" RSVP button (sky never carries white text). */
+  --on-sky: #062338;
+}
+.dark {
+  --win-line: #9dd5f3;
+}
+
+/* Brief highlight when jumping to a message (reply quote, pinned bar, links). */
+@keyframes chat-flash {
+  0%,
+  60% {
+    background-color: color-mix(in srgb, var(--brand-sky) 22%, transparent);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+.chat-flash {
+  animation: chat-flash 2.2s ease-out;
+  border-radius: 14px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .chat-flash {
+    animation: none;
+    outline: 2px solid var(--brand-sky);
+    outline-offset: 2px;
+  }
+}

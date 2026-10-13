@@ -64,7 +64,7 @@ export function usePersonFeed(personId: string): FeedItem[] {
         id: `contact-${c.id}`,
         at: timeOf(c.date),
         when: c.date,
-        text: `Checked in by ${by}`,
+        text: `Checked in by ${by}${c.source === "message" ? " via chat" : ""}`,
         sub: c.note,
         dot: "primary",
         // You can remove check-ins you logged; leaders can remove any.

@@ -1,16 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { EmptyState } from "@/components/brand";
+import { ChatsScreen } from "@/modules/chat/ChatsScreen";
 
-// Placeholder created so other pages can link here; replaced by the chat agent.
 export const Route = createFileRoute("/chats/")({
-  head: () => ({ meta: [{ title: "Chats — LevelUp LOS" }] }),
-  component: Placeholder,
+  head: () => ({
+    meta: [
+      { title: "Chats — LevelUp LOS" },
+      {
+        name: "description",
+        content: "Team announcements, the main chat, daily wins, groups and direct messages.",
+      },
+    ],
+  }),
+  component: ChatsIndex,
 });
 
-function Placeholder() {
-  return (
-    <div className="px-4 py-5 lg:px-[26px] lg:py-[22px]">
-      <EmptyState title="Chats" body="This page is being built." />
-    </div>
-  );
+function ChatsIndex() {
+  return <ChatsScreen />;
 }

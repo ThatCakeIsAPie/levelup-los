@@ -16,13 +16,25 @@ export interface Sale {
   date: string;
   amount?: number;
 }
+/** How a contact was recorded: by hand, from a chat conversation, or at an event. */
+export type ContactSource = "manual" | "message" | "event";
 export interface Contact {
   id: string;
   personId: string;
   byId: string;
   date: string;
   note?: string;
+  /**
+   * Always set by the store ("manual" when not given; older saved data is
+   * normalised on load). Optional in the type only because the CRM seed
+   * builds contacts without it.
+   */
+  source?: ContactSource;
 }
+
+/** Contacts with `source` filled in ("manual" when missing). */
+const withSource = (contacts: Contact[]): Contact[] =>
+  contacts.map((c) => (c.source ? c : { ...c, source: "manual" }));
 export type LearningKind = "podcast" | "pages" | "workshop" | "conference";
 export interface Learning {
   id: string;
@@ -66,7 +78,7 @@ interface CrmState {
 function freshState() {
   return {
     sales: seedSales(),
-    contacts: seedContacts(),
+    contacts: withSource(seedContacts()),
     learning: seedLearning(),
     settings: { ...DEFAULT_SETTINGS },
     goals: seedLearningGoals(),
@@ -83,7 +95,7 @@ export const useCrmStore = create<CrmState>()(
         return sale;
       },
       logContact: (c) => {
-        const contact: Contact = { ...c, id: crypto.randomUUID() };
+        const contact: Contact = { source: "manual", ...c, id: crypto.randomUUID() };
         set({ contacts: [contact, ...get().contacts] });
         return contact;
       },
@@ -112,6 +124,11 @@ export const useCrmStore = create<CrmState>()(
       }),
       version: SEED_VERSION,
       migrate: () => freshState() as unknown as CrmState,
+      // Contacts saved before `source` existed count as manual.
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<CrmState>;
+        return { ...current, ...p, contacts: withSource(p.contacts ?? current.contacts) };
+      },
     },
   ),
 );

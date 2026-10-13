@@ -3,6 +3,7 @@ import {
   useCrmStore,
   learningGoalFor,
   type Contact,
+  type ContactSource,
   type Learning,
   type LearningGoal,
   type LearningKind,
@@ -108,18 +109,22 @@ const me = () => useSessionStore.getState().user?.personId ?? "";
 
 /**
  * Record a check-in / contact. `byId` defaults to the current user, `date` to
- * today. Returns the saved contact (pass its id to removeContact to undo).
+ * today, `source` to "manual" ("message" = logged from a chat conversation,
+ * "event" = from an event). Returns the saved contact (pass its id to
+ * removeContact to undo).
  */
 export function logContact(input: {
   personId: string;
   byId?: string;
   date?: string;
   note?: string;
+  source?: ContactSource;
 }): Contact {
   return useCrmStore.getState().logContact({
     personId: input.personId,
     byId: input.byId ?? me(),
     date: input.date ?? localDate(),
+    source: input.source ?? "manual",
     ...(input.note ? { note: input.note } : {}),
   });
 }

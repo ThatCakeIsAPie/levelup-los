@@ -19,10 +19,12 @@ import { Route as MindmapRouteImport } from './routes/mindmap'
 import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as StyleguideRouteImport } from './routes/styleguide'
 import { Route as WalletRouteImport } from './routes/wallet'
+import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as ChatsIndexRouteImport } from './routes/chats.index'
 import { Route as ChatsIdRouteImport } from './routes/chats.$id'
 import { Route as EventsIndexRouteImport } from './routes/events.index'
 import { Route as EventsIdRouteImport } from './routes/events.$id'
+import { Route as InviteTokenRouteImport } from './routes/invite.$token'
 import { Route as PeopleIndexRouteImport } from './routes/people.index'
 import { Route as PeopleIdRouteImport } from './routes/people.$id'
 import { Route as SettingsIndexRouteImport } from './routes/settings.index'
@@ -78,6 +80,11 @@ const WalletRoute = WalletRouteImport.update({
   path: '/wallet',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthCallbackRoute = AuthCallbackRouteImport.update({
+  id: '/auth/callback',
+  path: '/auth/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ChatsIndexRoute = ChatsIndexRouteImport.update({
   id: '/chats/',
   path: '/chats/',
@@ -96,6 +103,11 @@ const EventsIndexRoute = EventsIndexRouteImport.update({
 const EventsIdRoute = EventsIdRouteImport.update({
   id: '/events/$id',
   path: '/events/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InviteTokenRoute = InviteTokenRouteImport.update({
+  id: '/invite/$token',
+  path: '/invite/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PeopleIndexRoute = PeopleIndexRouteImport.update({
@@ -130,8 +142,10 @@ export interface FileRoutesByFullPath {
   '/reports': typeof ReportsRoute
   '/styleguide': typeof StyleguideRoute
   '/wallet': typeof WalletRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/chats/$id': typeof ChatsIdRoute
   '/events/$id': typeof EventsIdRoute
+  '/invite/$token': typeof InviteTokenRoute
   '/people/$id': typeof PeopleIdRoute
   '/settings/team': typeof SettingsTeamRoute
   '/chats/': typeof ChatsIndexRoute
@@ -150,8 +164,10 @@ export interface FileRoutesByTo {
   '/reports': typeof ReportsRoute
   '/styleguide': typeof StyleguideRoute
   '/wallet': typeof WalletRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/chats/$id': typeof ChatsIdRoute
   '/events/$id': typeof EventsIdRoute
+  '/invite/$token': typeof InviteTokenRoute
   '/people/$id': typeof PeopleIdRoute
   '/settings/team': typeof SettingsTeamRoute
   '/chats': typeof ChatsIndexRoute
@@ -171,8 +187,10 @@ export interface FileRoutesById {
   '/reports': typeof ReportsRoute
   '/styleguide': typeof StyleguideRoute
   '/wallet': typeof WalletRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/chats/$id': typeof ChatsIdRoute
   '/events/$id': typeof EventsIdRoute
+  '/invite/$token': typeof InviteTokenRoute
   '/people/$id': typeof PeopleIdRoute
   '/settings/team': typeof SettingsTeamRoute
   '/chats/': typeof ChatsIndexRoute
@@ -193,8 +211,10 @@ export interface FileRouteTypes {
     | '/reports'
     | '/styleguide'
     | '/wallet'
+    | '/auth/callback'
     | '/chats/$id'
     | '/events/$id'
+    | '/invite/$token'
     | '/people/$id'
     | '/settings/team'
     | '/chats/'
@@ -213,8 +233,10 @@ export interface FileRouteTypes {
     | '/reports'
     | '/styleguide'
     | '/wallet'
+    | '/auth/callback'
     | '/chats/$id'
     | '/events/$id'
+    | '/invite/$token'
     | '/people/$id'
     | '/settings/team'
     | '/chats'
@@ -233,8 +255,10 @@ export interface FileRouteTypes {
     | '/reports'
     | '/styleguide'
     | '/wallet'
+    | '/auth/callback'
     | '/chats/$id'
     | '/events/$id'
+    | '/invite/$token'
     | '/people/$id'
     | '/settings/team'
     | '/chats/'
@@ -254,8 +278,10 @@ export interface RootRouteChildren {
   ReportsRoute: typeof ReportsRoute
   StyleguideRoute: typeof StyleguideRoute
   WalletRoute: typeof WalletRoute
+  AuthCallbackRoute: typeof AuthCallbackRoute
   ChatsIdRoute: typeof ChatsIdRoute
   EventsIdRoute: typeof EventsIdRoute
+  InviteTokenRoute: typeof InviteTokenRoute
   PeopleIdRoute: typeof PeopleIdRoute
   SettingsTeamRoute: typeof SettingsTeamRoute
   ChatsIndexRoute: typeof ChatsIndexRoute
@@ -336,6 +362,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WalletRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/auth/callback': {
+      id: '/auth/callback'
+      path: '/auth/callback'
+      fullPath: '/auth/callback'
+      preLoaderRoute: typeof AuthCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/chats/': {
       id: '/chats/'
       path: '/chats'
@@ -362,6 +395,13 @@ declare module '@tanstack/react-router' {
       path: '/events/$id'
       fullPath: '/events/$id'
       preLoaderRoute: typeof EventsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/invite/$token': {
+      id: '/invite/$token'
+      path: '/invite/$token'
+      fullPath: '/invite/$token'
+      preLoaderRoute: typeof InviteTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/people/': {
@@ -406,8 +446,10 @@ const rootRouteChildren: RootRouteChildren = {
   ReportsRoute: ReportsRoute,
   StyleguideRoute: StyleguideRoute,
   WalletRoute: WalletRoute,
+  AuthCallbackRoute: AuthCallbackRoute,
   ChatsIdRoute: ChatsIdRoute,
   EventsIdRoute: EventsIdRoute,
+  InviteTokenRoute: InviteTokenRoute,
   PeopleIdRoute: PeopleIdRoute,
   SettingsTeamRoute: SettingsTeamRoute,
   ChatsIndexRoute: ChatsIndexRoute,

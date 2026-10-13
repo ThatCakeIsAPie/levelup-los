@@ -29,6 +29,9 @@ export {
 // Navigation badges (chat feature)
 export { useUnreadChatsCount, useUnreadInboxCount } from "./badges";
 
+// Chats, notifications, announcements, attachments (src/data/chat)
+export * from "./chat";
+
 // Session
 export {
   useSession,
@@ -188,6 +191,7 @@ export type { CrmEvent, EventType } from "@/stores/eventsStore";
 export type { Attendance, DesireLevel, TicketType } from "@/stores/attendanceStore";
 export type {
   Contact,
+  ContactSource,
   Learning,
   LearningKind,
   LearningGoal,

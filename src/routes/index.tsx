@@ -14,6 +14,7 @@ import { pickFeaturedEvent } from "@/modules/dashboard/format";
 import { GoalCard, GoalTile, StreakCard, StreakTile } from "@/modules/dashboard/LearningCards";
 import { MyEventsCard, NextEventCard } from "@/modules/dashboard/EventCards";
 import { TodayCard } from "@/modules/dashboard/TodayCard";
+import { InboxCard } from "@/modules/dashboard/InboxCard";
 import { TeamCard, TeamLearningCard } from "@/modules/dashboard/TeamCards";
 import { MyLearningCard, PathCard } from "@/modules/dashboard/JourneyCards";
 
@@ -89,6 +90,7 @@ function Dashboard() {
           <GoalTile learning={learning} personId={user.personId} />
         </div>
         {event}
+        <InboxCard compact />
         {today}
         {candidate && <MyEventsCard viewerId={user.personId} />}
         {side}
@@ -106,6 +108,7 @@ function Dashboard() {
       </div>
       <div className="grid grid-cols-[1.6fr_1fr] items-start gap-4">
         <div className="grid min-w-0 content-start gap-4">
+          <InboxCard />
           {today}
           {candidate && <MyEventsCard viewerId={user.personId} />}
         </div>

@@ -1,16 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { EmptyState } from "@/components/brand";
+import { InboxPage } from "@/modules/inbox/InboxPage";
 
-// Placeholder created so other pages can link here; replaced by the chat agent.
 export const Route = createFileRoute("/inbox")({
-  head: () => ({ meta: [{ title: "Inbox — LevelUp LOS" }] }),
-  component: Placeholder,
+  head: () => ({
+    meta: [
+      { title: "Inbox — LevelUp LOS" },
+      {
+        name: "description",
+        content: "Mentions, replies, approvals, reports, wins and check-ins in one list.",
+      },
+    ],
+  }),
+  component: InboxPage,
 });
-
-function Placeholder() {
-  return (
-    <div className="px-4 py-5 lg:px-[26px] lg:py-[22px]">
-      <EmptyState title="Inbox" body="This page is being built." />
-    </div>
-  );
-}

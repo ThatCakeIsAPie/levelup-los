@@ -1,16 +1,21 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { EmptyState } from "@/components/brand";
+import { getConversationTitle } from "@/data";
+import { ChatsScreen } from "@/modules/chat/ChatsScreen";
 
-// Placeholder created so other pages can link here; replaced by the chat agent.
+type ChatSearch = { m?: string };
+
 export const Route = createFileRoute("/chats/$id")({
-  head: () => ({ meta: [{ title: "Chat — LevelUp LOS" }] }),
-  component: Placeholder,
+  validateSearch: (s: Record<string, unknown>): ChatSearch =>
+    typeof s.m === "string" && s.m ? { m: s.m } : {},
+  loader: ({ params }) => ({ title: getConversationTitle(params.id) }),
+  head: ({ loaderData }) => ({
+    meta: [{ title: `${loaderData?.title ?? "Chat"} — LevelUp LOS` }],
+  }),
+  component: ChatPage,
 });
 
-function Placeholder() {
-  return (
-    <div className="px-4 py-5 lg:px-[26px] lg:py-[22px]">
-      <EmptyState title="Chat" body="This page is being built." />
-    </div>
-  );
+function ChatPage() {
+  const { id } = Route.useParams();
+  const { m } = Route.useSearch();
+  return <ChatsScreen selectedId={id} focusMessageId={m} />;
 }
