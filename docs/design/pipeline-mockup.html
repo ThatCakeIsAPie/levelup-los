@@ -506,6 +506,38 @@ em.up { color:var(--ok); } em.dn { color:var(--danger); } em.flat { color:var(--
 .hc { text-align:center; font-weight:800; border-radius:7px; padding:7px 0; font-variant-numeric:tabular-nums; }
 .hn.tot { font-weight:800; border-top:1px solid var(--line); padding-top:6px; }
 .hc.tot { outline:1.5px solid currentColor; outline-offset:-1.5px; }
+
+/* ---------- pipeline v2: bands, milestones, swipe board ---------- */
+.boardwrap { overflow-x:auto; padding-bottom:6px; }
+.bands { display:flex; gap:14px; align-items:flex-start; width:max-content; }
+.band { display:grid; gap:8px; }
+.bandh { display:flex; align-items:center; gap:8px; font-size:12.5px; padding:0 2px; }
+.bandh .bn { width:20px; height:20px; border-radius:6px; display:grid; place-items:center; background:var(--fg); color:var(--surface); font-size:11px; font-weight:800; }
+.bandh .muted { font-size:11.5px; }
+.bandcols { display:flex; gap:8px; align-items:flex-start; padding:8px; border-radius:16px; background:var(--surface-2); }
+.band .col { width:186px; background:var(--app-bg); }
+.band .col.milestone { box-shadow:inset 0 3px 0 var(--navy); }
+.band .col.focus { box-shadow:inset 0 3px 0 var(--navy), inset 0 0 0 1.5px var(--sky); }
+.colh .ms, .colh .stepby { grid-column:1 / -1; font-size:10.5px; font-weight:700; display:inline-flex; gap:4px; align-items:center; }
+.colh .ms { color:var(--fg); }
+.colh .ms [data-lucide] { width:12px; height:12px; color:var(--amber-strong); }
+.colh .stepby { color:var(--faint); font-weight:600; }
+.colh .conv:empty { display:none; }
+.kpis5.four { grid-template-columns:repeat(4,minmax(0,1fr)); }
+.pboard { display:flex; gap:10px; overflow-x:auto; scroll-snap-type:x mandatory; margin:0 -14px; padding:0 14px 4px; }
+.pcol { flex:0 0 84%; scroll-snap-align:start; background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:10px 12px; display:grid; gap:0; align-content:start; }
+.pband { font-size:10px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--faint); }
+.pcolh { display:flex; align-items:center; gap:6px; padding:2px 0 6px; font-size:14px; }
+.pcolh .cnt { margin-left:auto; font-size:12px; font-weight:800; background:var(--surface-2); border-radius:999px; padding:1px 8px; }
+.pcolh .msf { width:14px; height:14px; color:var(--amber-strong); }
+.prow.stale .ps { color:var(--amber-ink); }
+.stepsplit { display:grid; gap:6px; border:1px solid var(--line); border-radius:10px; padding:10px 12px; font-size:12px; margin-top:6px; }
+.stepsplit .ss { display:flex; flex-wrap:wrap; align-items:center; gap:4px 6px; }
+.stepsplit .ss span { background:var(--surface-2); border-radius:7px; padding:3px 8px; font-weight:600; }
+.stepsplit .ss em { font-style:normal; color:var(--muted); font-weight:800; margin-left:3px; }
+.stepsplit .ss [data-lucide] { width:12px; height:12px; color:var(--faint); }
+.stepsplit small { color:var(--muted); }
+.heat.three { grid-template-columns:minmax(0,1.3fr) repeat(3, minmax(0,1fr)); }
 </style>
 
 <div class="sheet">
@@ -547,17 +579,17 @@ em.up { color:var(--ok); } em.dn { color:var(--danger); } em.flat { color:var(--
           </nav>
           <main class="main">
             <div class="top">
-              <div><h2>Pipeline</h2><p class="sub">Your whole team · October · 172 prospects in progress</p></div>
+              <div><h2>Pipeline</h2><p class="sub">Your whole team · October · 188 prospects in progress</p></div>
               <span class="sp" style="flex:1"></span>
               <span class="selectish"><i data-lucide="users"></i>Whole team<i data-lucide="chevron-down"></i></span>
               <span class="selectish"><i data-lucide="calendar"></i>October<i data-lucide="chevron-down"></i></span>
-              <button class="btn primary" type="button"><i data-lucide="plus"></i>Add prospect</button>
+              <button class="btn" type="button"><i data-lucide="columns-3"></i>Customize steps</button><button class="btn primary" type="button"><i data-lucide="plus"></i>Add prospect</button>
             </div>
 
             <div class="tabs"><span class="on">Board</span><span>Conversions</span></div>
             <div class="pulse">
               <div class="card goalcard">
-                <div class="card-h"><h3>MG1s this month</h3><span class="chip info">25% pace: 80 a month</span></div>
+                <div class="card-h"><h3>First meetings (MG1) this month</h3><span class="chip info">25% pace: 80 a month</span></div>
                 <div class="goalrow">
                   <div><div class="big num">62<span class="of"> / 80</span></div><p class="muted" style="font-size:12.5px">18 to go in 19 days · about 1 a day</p></div>
                   <div class="trend" aria-label="MG1s per month, last 6 months">
@@ -572,56 +604,15 @@ em.up { color:var(--ok); } em.dn { color:var(--danger); } em.flat { color:var(--
                 </div>
                 <div class="bar" style="height:8px"><span style="width:77.5%; background:var(--sky)"></span></div>
               </div>
-              <div class="kpis5">
-                <div class="kpi"><b class="num">214</b><span>New contacts</span><em class="up">+12%</em></div>
-                <div class="kpi"><b class="num">131</b><span>Invites</span><em class="up">+8%</em></div>
-                <div class="kpi hi"><b class="num">62</b><span>MG1s</span><em class="dn">−13% vs Sep</em></div>
-                <div class="kpi"><b class="num">27</b><span>MG2s</span><em class="up">+4%</em></div>
-                <div class="kpi"><b class="num">6</b><span>Registered</span><em class="flat">same</em></div>
+              <div class="kpis5 four">
+                <div class="kpi"><b class="num">214</b><span>Contacts made</span><em class="up">+12% vs Sep</em></div>
+                <div class="kpi hi"><b class="num">62</b><span>First meetings</span><em class="dn">−13% vs Sep</em></div>
+                <div class="kpi"><b class="num">27</b><span>First plans</span><em class="up">+4% vs Sep</em></div>
+                <div class="kpi"><b class="num">6</b><span>Registered</span><em class="flat">same as Sep</em></div>
               </div>
             </div>
 
-            <div class="board">
-              <div class="col">
-                <div class="colh"><b>New contact</b><span class="cnt">48</span><span class="conv">214 this month</span></div>
-                <div class="pcard"><div class="pr"><b>Tasha Reed</b><span class="age">2d</span></div><div class="pm"><span class="own"><span class="av ibo xs">MR</span>Maria</span><span>Met at the gym</span></div><div class="pn"><i data-lucide="calendar-clock"></i>Invite by Fri</div></div>
-                <div class="pcard"><div class="pr"><b>Omar Lewis</b><span class="age">4d</span></div><div class="pm"><span class="own"><span class="av app xs">JB</span>Jamal</span><span>Coworker</span></div></div>
-                <div class="pcard"><div class="pr"><b>Grace Kim</b><span class="age">6d</span></div><div class="pm"><span class="own"><span class="av ibo xs">AP</span>Anita</span><span>Referral</span></div></div>
-                <div class="more">+45 more</div>
-              </div>
-              <div class="col">
-                <div class="colh"><b>Invited</b><span class="cnt">31</span><span class="conv">61% from contact</span></div>
-                <div class="pcard"><div class="pr"><b>Devon Price</b><span class="age">1d</span></div><div class="pm"><span class="own"><span class="av ibo xs">DC</span>David</span></div><div class="pn"><i data-lucide="calendar-clock"></i>MG1 Thu 7 PM</div></div>
-                <div class="pcard"><div class="pr"><b>Lena Ortiz</b><span class="age">3d</span></div><div class="pm"><span class="own"><span class="av app xs">SK</span>Sarah</span></div><div class="pn"><i data-lucide="calendar-clock"></i>MG1 Sat</div></div>
-                <div class="pcard stale"><div class="pr"><b>Ray Collins</b><span class="age">16d</span></div><div class="pm"><span class="own"><span class="av ibo xs">PS</span>Priya</span></div><div class="pn warn"><i data-lucide="clock-alert"></i>No meeting set</div></div>
-                <div class="more">+28 more</div>
-              </div>
-              <div class="col focus">
-                <div class="colh"><b>MG1</b><span class="cnt">22</span><span class="conv">62 held this month</span></div>
-                <div class="pcard"><div class="pr"><b>Marcus Bell</b><span class="age">today</span></div><div class="pm"><span class="own"><span class="av ibo xs">AP</span>Anita</span><span class="tag hot">Hot</span></div><div class="pn"><i data-lucide="calendar-clock"></i>MG2 next Tue</div></div>
-                <div class="pcard"><div class="pr"><b>Nia Owens</b><span class="age">2d</span></div><div class="pm"><span class="own"><span class="av app xs">JB</span>Jamal</span></div><div class="pn"><i data-lucide="calendar-clock"></i>Follow up Mon</div></div>
-                <div class="pcard"><div class="pr"><b>Felix Wong</b><span class="age">5d</span></div><div class="pm"><span class="own"><span class="av ibo xs">MH</span>Marcus</span></div></div>
-                <div class="more">+19 more</div>
-              </div>
-              <div class="col">
-                <div class="colh"><b>MG2</b><span class="cnt">14</span><span class="conv">44% from MG1</span></div>
-                <div class="pcard"><div class="pr"><b>Layla Hassan</b><span class="age">3d</span></div><div class="pm"><span class="own"><span class="av ibo xs">MR</span>Maria</span><span class="tag hot">Hot</span></div><div class="pn"><i data-lucide="ticket"></i>Bringing to Fall Weekend</div></div>
-                <div class="pcard"><div class="pr"><b>Marco Diaz</b><span class="age">8d</span></div><div class="pm"><span class="own"><span class="av ibo xs">DC</span>David</span></div></div>
-                <div class="more">+12 more</div>
-              </div>
-              <div class="col">
-                <div class="colh"><b>Follow-up</b><span class="cnt">19</span><span class="conv">thinking it over</span></div>
-                <div class="pcard"><div class="pr"><b>June Park</b><span class="age">6d</span></div><div class="pm"><span class="own"><span class="av app xs">SK</span>Sarah</span></div><div class="pn"><i data-lucide="calendar-clock"></i>Call Wed</div></div>
-                <div class="pcard stale"><div class="pr"><b>Ed Miller Jr.</b><span class="age">21d</span></div><div class="pm"><span class="own"><span class="av ibo xs">AP</span>Anita</span></div><div class="pn warn"><i data-lucide="clock-alert"></i>No contact in 3 weeks</div></div>
-                <div class="more">+17 more</div>
-              </div>
-              <div class="col won">
-                <div class="colh"><b>Registered</b><span class="cnt">6</span><span class="conv">this month</span></div>
-                <div class="pcard"><div class="pr"><b>Sky Ortiz</b><span class="age">Oct 9</span></div><div class="pm"><span class="own"><span class="av ibo xs">AP</span>Anita</span><span class="chip app">Apprentice</span></div></div>
-                <div class="pcard"><div class="pr"><b>Joy Reed</b><span class="age">Oct 3</span></div><div class="pm"><span class="own"><span class="av app xs">JB</span>Jamal</span><span class="chip app">Apprentice</span></div></div>
-                <div class="more">+4 more</div>
-              </div>
-            </div>
+            <div class="boardwrap"><div class="bands"><div class="band b0"><div class="bandh"><span class="bn">1</span><b>Contact made</b><span class="muted">101 in this band</span></div><div class="bandcols"><div class="col milestone"><div class="colh"><b>Contact made</b><span class="cnt">48</span><span class="conv">214 this month</span><span class="ms"><i data-lucide="flag"></i>Milestone</span></div><div class="pcard"><div class="pr"><b>Tasha Reed</b><span class="age">2d</span></div><div class="pm"><span class="own"><span class="av ibo xs">MR</span>Maria</span><span>Gym</span></div><div class="pn"><i data-lucide="calendar-clock"></i>Share story by Fri</div></div><div class="pcard"><div class="pr"><b>Omar Lewis</b><span class="age">4d</span></div><div class="pm"><span class="own"><span class="av app xs">JB</span>Jamal</span><span>Coworker</span></div></div><div class="more">+46 more</div></div><div class="col"><div class="colh"><b>Shared Story</b><span class="cnt">22</span><span class="conv"></span><span class="stepby">Maria's step</span></div><div class="pcard"><div class="pr"><b>Grace Kim</b><span class="age">3d</span></div><div class="pm"><span class="own"><span class="av ibo xs">AP</span>Anita</span><span>Referral</span></div></div><div class="pcard stale"><div class="pr"><b>Ray Collins</b><span class="age">16d</span></div><div class="pm"><span class="own"><span class="av ibo xs">PS</span>Priya</span></div><div class="pn warn"><i data-lucide="clock-alert"></i>No movement in 16 days</div></div><div class="more">+20 more</div></div><div class="col"><div class="colh"><b>Opened the Door</b><span class="cnt">31</span><span class="conv"></span><span class="stepby">Maria's step</span></div><div class="pcard"><div class="pr"><b>Devon Price</b><span class="age">1d</span></div><div class="pm"><span class="own"><span class="av ibo xs">DC</span>David</span></div><div class="pn"><i data-lucide="calendar-clock"></i>MG1 Thu 7 PM</div></div><div class="pcard"><div class="pr"><b>Lena Ortiz</b><span class="age">3d</span></div><div class="pm"><span class="own"><span class="av app xs">SK</span>Sarah</span></div><div class="pn"><i data-lucide="calendar-clock"></i>MG1 Sat</div></div><div class="more">+29 more</div></div></div></div><div class="band b1"><div class="bandh"><span class="bn">2</span><b>First meeting</b><span class="muted">47 in this band</span></div><div class="bandcols"><div class="col milestone focus"><div class="colh"><b>First meeting (MG1)</b><span class="cnt">22</span><span class="conv">62 held this month</span><span class="ms"><i data-lucide="flag"></i>Milestone</span></div><div class="pcard"><div class="pr"><b>Marcus Bell</b><span class="age">today</span></div><div class="pm"><span class="own"><span class="av ibo xs">AP</span>Anita</span><span class="tag hot">Hot</span></div><div class="pn"><i data-lucide="calendar-clock"></i>MG2 next Tue</div></div><div class="pcard"><div class="pr"><b>Nia Owens</b><span class="age">2d</span></div><div class="pm"><span class="own"><span class="av app xs">JB</span>Jamal</span></div><div class="pn"><i data-lucide="calendar-clock"></i>Book Mon</div></div><div class="more">+20 more</div></div><div class="col"><div class="colh"><b>Book</b><span class="cnt">11</span><span class="conv"></span><span class="stepby">Maria's step</span></div><div class="pcard"><div class="pr"><b>Felix Wong</b><span class="age">5d</span></div><div class="pm"><span class="own"><span class="av ibo xs">MH</span>Marcus</span><span>Reading chapter 3</span></div></div><div class="more">+10 more</div></div><div class="col"><div class="colh"><b>MG2</b><span class="cnt">14</span><span class="conv"></span><span class="stepby">Maria's step</span></div><div class="pcard"><div class="pr"><b>Marco Diaz</b><span class="age">8d</span></div><div class="pm"><span class="own"><span class="av ibo xs">DC</span>David</span></div><div class="pn"><i data-lucide="calendar-clock"></i>Info Thu</div></div><div class="more">+13 more</div></div></div></div><div class="band b2"><div class="bandh"><span class="bn">3</span><b>First plan</b><span class="muted">34 in this band</span></div><div class="bandcols"><div class="col milestone"><div class="colh"><b>First plan (Info)</b><span class="cnt">9</span><span class="conv">27 this month</span><span class="ms"><i data-lucide="flag"></i>Milestone</span></div><div class="pcard"><div class="pr"><b>Layla Hassan</b><span class="age">3d</span></div><div class="pm"><span class="own"><span class="av ibo xs">MR</span>Maria</span><span class="tag hot">Hot</span></div><div class="pn"><i data-lucide="ticket"></i>Bringing to Fall Weekend</div></div><div class="more">+8 more</div></div><div class="col"><div class="colh"><b>F1</b><span class="cnt">8</span><span class="conv"></span><span class="stepby">Maria's step</span></div><div class="pcard"><div class="pr"><b>June Park</b><span class="age">6d</span></div><div class="pm"><span class="own"><span class="av app xs">SK</span>Sarah</span></div><div class="pn"><i data-lucide="calendar-clock"></i>Call Wed</div></div><div class="more">+7 more</div></div><div class="col"><div class="colh"><b>Info 2</b><span class="cnt">5</span><span class="conv"></span><span class="stepby">Maria's step</span></div><div class="pcard"><div class="pr"><b>Tom Reyes</b><span class="age">4d</span></div><div class="pm"><span class="own"><span class="av ibo xs">AP</span>Anita</span></div></div><div class="more">+4 more</div></div><div class="col"><div class="colh"><b>F2</b><span class="cnt">4</span><span class="conv"></span><span class="stepby">Maria's step</span></div><div class="pcard stale"><div class="pr"><b>Ed Miller Jr.</b><span class="age">21d</span></div><div class="pm"><span class="own"><span class="av ibo xs">AP</span>Anita</span></div><div class="pn warn"><i data-lucide="clock-alert"></i>No contact in 3 weeks</div></div><div class="more">+3 more</div></div><div class="col"><div class="colh"><b>Info 3</b><span class="cnt">2</span><span class="conv"></span><span class="stepby">Maria's step</span></div><div class="pcard"><div class="pr"><b>Ana Cruz</b><span class="age">2d</span></div><div class="pm"><span class="own"><span class="av ibo xs">PS</span>Priya</span></div></div><div class="more">+1 more</div></div><div class="col"><div class="colh"><b>F3+</b><span class="cnt">6</span><span class="conv"></span><span class="stepby">Maria's step</span></div><div class="pcard"><div class="pr"><b>Ben Ford</b><span class="age">12d</span></div><div class="pm"><span class="own"><span class="av ibo xs">DC</span>David</span></div></div><div class="more">+5 more</div></div></div></div><div class="band b3"><div class="bandh"><span class="bn">4</span><b>Registered</b><span class="muted">6 this month</span></div><div class="bandcols"><div class="col milestone won"><div class="colh"><b>Registered</b><span class="cnt">6</span><span class="conv">this month</span><span class="ms"><i data-lucide="flag"></i>Milestone</span></div><div class="pcard"><div class="pr"><b>Sky Ortiz</b><span class="age">Oct 9</span></div><div class="pm"><span class="own"><span class="av ibo xs">AP</span>Anita</span><span class="chip app">Apprentice</span></div></div><div class="pcard"><div class="pr"><b>Joy Reed</b><span class="age">Oct 3</span></div><div class="pm"><span class="own"><span class="av app xs">JB</span>Jamal</span><span class="chip app">Apprentice</span></div></div><div class="more">+4 more</div></div></div></div></div></div>
           </main>
         </div>
       </div>
@@ -635,7 +626,7 @@ em.up { color:var(--ok); } em.dn { color:var(--danger); } em.flat { color:var(--
         <div class="chrome"><b></b><b></b><b></b><span>levelup-los.app/pipeline/conversions</span></div>
         <main class="main convmain">
           <div class="top">
-            <div><h2>Pipeline</h2><p class="sub">Your whole team · last 90 days · 620 new contacts</p></div>
+            <div><h2>Pipeline</h2><p class="sub">Your whole team · last 90 days · 620 contacts made</p></div>
             <span style="flex:1"></span>
             <span class="selectish"><i data-lucide="calendar"></i>Last 90 days<i data-lucide="chevron-down"></i></span>
           </div>
@@ -645,33 +636,25 @@ em.up { color:var(--ok); } em.dn { color:var(--danger); } em.flat { color:var(--
             <div class="card">
               <div class="card-h"><h3>Where people drop off</h3><span class="legend"><span><i class="tick"></i>Target</span></span></div>
               <div class="funnel">
-                <div class="frow"><span class="fl">New contact</span><div class="fb"><i style="width:100%"></i></div><b class="num">620</b></div>
-                <div class="fstep good"><span>61% invited</span><em>target 60%</em><small>242 not invited</small></div>
-                <div class="frow"><span class="fl">Invited</span><div class="fb"><i style="width:calc(378/620*100%)"></i></div><b class="num">378</b></div>
-                <div class="fstep bad hot"><span>46% had an MG1</span><em>target 55% · biggest drop</em><small>206 invited, never met</small></div>
-                <div class="frow"><span class="fl">MG1</span><div class="fb"><i style="width:calc(172/620*100%)"></i></div><b class="num">172</b></div>
-                <div class="fstep warn"><span>44% went to MG2</span><em>target 45%</em><small>96 stopped after MG1</small></div>
-                <div class="frow"><span class="fl">MG2</span><div class="fb"><i style="width:calc(76/620*100%)"></i></div><b class="num">76</b></div>
-                <div class="fstep bad"><span>24% registered</span><em>target 30%</em><small>58 didn't register</small></div>
+                <div class="frow"><span class="fl">Contact made</span><div class="fb"><i style="width:100%"></i></div><b class="num">620</b></div>
+                <div class="fstep warn"><span>28% had a first meeting</span><em>target 30%</em><small>448 never met</small></div>
+                <div class="frow"><span class="fl">First meeting</span><div class="fb"><i style="width:calc(172/620*100%)"></i></div><b class="num">172</b></div>
+                <div class="fstep warn"><span>44% saw the plan</span><em>target 45%</em><small>96 stopped after MG1</small></div>
+                <div class="frow"><span class="fl">First plan</span><div class="fb"><i style="width:calc(76/620*100%)"></i></div><b class="num">76</b></div>
+                <div class="fstep bad hot"><span>24% registered</span><em>target 30% · biggest gap</em><small>58 didn't register</small></div>
                 <div class="frow"><span class="fl">Registered</span><div class="fb"><i class="won" style="width:calc(18/620*100%)"></i></div><b class="num">18</b></div>
               </div>
-              <div class="notice"><i data-lucide="lightbulb"></i><div><b>Biggest gap: Invited → MG1.</b> 206 people agreed to an invite but never met. Booking the MG1 during the invite would close most of this gap.</div></div>
+              <div class="stepsplit"><b>Inside your steps after First plan</b><div class="ss"><span>F1 <em>58</em></span><i data-lucide="arrow-right"></i><span>Info 2 <em>27</em></span><i data-lucide="arrow-right"></i><span>F2 <em>21</em></span><i data-lucide="arrow-right"></i><span>Info 3 <em>14</em></span><i data-lucide="arrow-right"></i><span>F3+ <em>11</em></span></div><small>31 of 58 stalled at F1, the biggest drop inside this band.</small></div>
+              <div class="notice"><i data-lucide="lightbulb"></i><div><b>Biggest gap: First plan → Registered.</b> Most people stall at F1, right after the plan. Booking Info 2 before leaving the first plan would close much of this gap.</div></div>
             </div>
 
             <div class="card">
-              <div class="card-h"><h3>Hotspots by team member</h3><span class="legend"><span><i class="sw good"></i>At target</span><span><i class="sw warn"></i>1–4 pts below</span><span><i class="sw bad"></i>5+ pts below</span></span></div>
-              <div class="heat">
-                <div class="hh"></div><div class="hh">Contact → Invite<small>60%</small></div><div class="hh">Invite → MG1<small>55%</small></div><div class="hh">MG1 → MG2<small>45%</small></div><div class="hh">MG2 → Registered<small>30%</small></div>
-                <div class="hn"><span class="av ibo xs">MR</span>Maria Reyes</div><div class="hc good">66%</div><div class="hc good">58%</div><div class="hc good">50%</div><div class="hc good">33%</div>
-                <div class="hn"><span class="av ibo xs">AP</span>Anita Patel</div><div class="hc good">63%</div><div class="hc warn">52%</div><div class="hc good">47%</div><div class="hc warn">29%</div>
-                <div class="hn"><span class="av ibo xs">MH</span>Marcus Hill</div><div class="hc good">64%</div><div class="hc bad">44%</div><div class="hc good">46%</div><div class="hc warn">27%</div>
-                <div class="hn"><span class="av ibo xs">PS</span>Priya Singh</div><div class="hc good">60%</div><div class="hc bad">49%</div><div class="hc warn">44%</div><div class="hc bad">25%</div>
-                <div class="hn"><span class="av app xs">SK</span>Sarah Kim</div><div class="hc good">62%</div><div class="hc good">57%</div><div class="hc warn">42%</div><div class="hc bad">20%</div>
-                <div class="hn"><span class="av ibo xs">DC</span>David Chen</div><div class="hc warn">58%</div><div class="hc bad">41%</div><div class="hc bad">40%</div><div class="hc bad">22%</div>
-                <div class="hn"><span class="av app xs">JB</span>Jamal Brown</div><div class="hc bad">55%</div><div class="hc bad">38%</div><div class="hc bad">36%</div><div class="hc bad">14%</div>
-                <div class="hn tot">Team</div><div class="hc good tot">61%</div><div class="hc bad tot">46%</div><div class="hc warn tot">44%</div><div class="hc bad tot">24%</div>
+              <div class="card-h"><h3>Hotspots by team member</h3><span class="legend"><span><i class="sw good"></i>At target</span><span><i class="sw warn"></i>Within 5 pts</span><span><i class="sw bad"></i>5+ pts below</span></span></div>
+              <div class="heat three">
+                <div class="hh"></div><div class="hh">Contact → First meeting<small>target 30%</small></div><div class="hh">First meeting → First plan<small>target 45%</small></div><div class="hh">First plan → Registered<small>target 30%</small></div>
+                <div class="hn"><span class="av ibo xs">MR</span>Maria Reyes</div><div class="hc good">33%</div><div class="hc good">50%</div><div class="hc good">33%</div><div class="hn"><span class="av ibo xs">AP</span>Anita Patel</div><div class="hc good">31%</div><div class="hc good">47%</div><div class="hc warn">29%</div><div class="hn"><span class="av ibo xs">MH</span>Marcus Hill</div><div class="hc warn">27%</div><div class="hc good">46%</div><div class="hc warn">27%</div><div class="hn"><span class="av ibo xs">PS</span>Priya Singh</div><div class="hc good">30%</div><div class="hc warn">44%</div><div class="hc bad">25%</div><div class="hn"><span class="av app xs">SK</span>Sarah Kim</div><div class="hc good">31%</div><div class="hc warn">42%</div><div class="hc bad">20%</div><div class="hn"><span class="av ibo xs">DC</span>David Chen</div><div class="hc bad">24%</div><div class="hc bad">40%</div><div class="hc bad">22%</div><div class="hn"><span class="av app xs">JB</span>Jamal Brown</div><div class="hc bad">21%</div><div class="hc bad">36%</div><div class="hc bad">14%</div><div class="hn tot">Team</div><div class="hc warn tot">28%</div><div class="hc warn tot">44%</div><div class="hc bad tot">24%</div>
               </div>
-              <p class="muted" style="font-size:12px">Tap a cell to see the people behind it. Members with fewer than 10 people at a step show "–" so small numbers don't mislead.</p>
+              <p class="muted" style="font-size:12px">Tap a cell to see the people behind it. Only your own row and your downline's are shown; crosslines see each other only if they share. Fewer than 10 people at a step shows "–".</p>
             </div>
           </div>
         </main>
@@ -688,22 +671,16 @@ em.up { color:var(--ok); } em.dn { color:var(--danger); } em.flat { color:var(--
           <div class="pbody">
             <div class="chathead"><i data-lucide="chevron-left"></i><h3>Pipeline</h3><span class="sp"></span><span class="iconbtn" aria-label="Filter"><i data-lucide="sliders-horizontal"></i></span></div>
             <div class="pc">
-              <div class="card-h"><h4>MG1s this month</h4><span class="chip info">Goal 80</span></div>
+              <div class="card-h"><h4>First meetings this month</h4><span class="chip info">Goal 80</span></div>
               <div style="display:flex; align-items:baseline; gap:6px"><b class="big num" style="font-size:24px">62</b><span class="muted" style="font-size:12px">/ 80 · 18 to go in 19 days</span></div>
               <div class="bar"><span style="width:77.5%; background:var(--sky)"></span></div>
             </div>
-            <div class="stagetabs"><span>New 48</span><span>Invited 31</span><span class="on">MG1 22</span><span>MG2 14</span><span>Follow-up 19</span></div>
-            <div class="pc" style="gap:0">
-              <div class="prow"><span class="av pro">MB</span><div><b>Marcus Bell</b><div class="ps">Anita's · MG1 today · MG2 next Tue</div></div><span class="tag hot">Hot</span></div>
-              <div class="prow"><span class="av pro">NO</span><div><b>Nia Owens</b><div class="ps">Jamal's · 2 days · follow up Mon</div></div><i data-lucide="chevron-right"></i></div>
-              <div class="prow"><span class="av pro">FW</span><div><b>Felix Wong</b><div class="ps">Marcus's · 5 days in stage</div></div><i data-lucide="chevron-right"></i></div>
-              <div class="prow"><span class="av pro">TB</span><div><b>Tina Brooks</b><div class="ps">David's · 9 days in stage</div></div><i data-lucide="chevron-right"></i></div>
-            </div>
-            <p class="faint" style="font-size:11.5px; text-align:center">Swipe a card to move it to the next stage</p>
+            <div class="pboard"><div class="pcol"><div class="pband">Contact made</div><div class="pcolh"><i data-lucide="flag" class="msf"></i><b>Contact made</b><span class="cnt">48</span></div><div class="prow"><span class="av pro">TR</span><div><b>Tasha Reed</b><div class="ps">Maria's · 2 days · share story by Fri</div></div><i data-lucide="grip-vertical"></i></div><div class="prow"><span class="av pro">OL</span><div><b>Omar Lewis</b><div class="ps">Jamal's · 4 days</div></div><i data-lucide="grip-vertical"></i></div><div class="prow"><span class="av pro">AL</span><div><b>Ana Lopez</b><div class="ps">Anita's · 6 days</div></div><i data-lucide="grip-vertical"></i></div><div class="prow"><span class="av pro">KB</span><div><b>Kim Brooks</b><div class="ps">David's · 7 days</div></div><i data-lucide="grip-vertical"></i></div><div class="prow"><span class="av pro">JH</span><div><b>Jay Holt</b><div class="ps">Priya's · 9 days</div></div><i data-lucide="grip-vertical"></i></div></div><div class="pcol"><div class="pband">Contact made</div><div class="pcolh"><b>Shared Story</b><span class="cnt">22</span></div><div class="prow"><span class="av pro">GK</span><div><b>Grace Kim</b><div class="ps">Anita's · 3 days</div></div><i data-lucide="grip-vertical"></i></div><div class="prow stale"><span class="av pro">RC</span><div><b>Ray Collins</b><div class="ps">Priya's · 16 days</div></div><i data-lucide="grip-vertical"></i></div></div></div>
+            <p class="faint" style="font-size:11.5px; text-align:center">Swipe sideways for more stages · hold a card to move it</p>
           </div>
           <div class="tabbar five"><div><i data-lucide="house"></i>Home</div><div><span class="ti"><i data-lucide="message-circle"></i><span class="tbadge">5</span></span>Chats</div><div><span class="fab"><i data-lucide="plus"></i></span></div><div class="on"><i data-lucide="briefcase"></i>My business</div><div><i data-lucide="menu"></i>More</div></div>
         </div>
-        <p class="pcap"><b>Phone.</b> Pick a stage from the tabs; swipe a card to move it forward. Moving a card logs the activity.</p>
+        <p class="pcap"><b>Phone.</b> The whole board scrolls sideways one full column at a time, with the next column peeking in. Hold a card to drag it; moving it logs the activity.</p>
       </div>
 
       <div class="pwrap">
@@ -713,9 +690,9 @@ em.up { color:var(--ok); } em.dn { color:var(--danger); } em.flat { color:var(--
             <div class="chathead"><h3>My business</h3></div>
             <div class="hub">
               <div class="tile wide"><div class="th"><span class="tic pipe"><i data-lucide="kanban"></i></span><b>Pipeline</b><i data-lucide="chevron-right" class="chev"></i></div>
-                <div class="tv"><span class="big num">62</span><span class="muted">MG1s this month · goal 80</span></div>
-                <div class="minifunnel"><span style="flex:48">48</span><span style="flex:31">31</span><span style="flex:22" class="hi">22</span><span style="flex:14">14</span><span style="flex:19">19</span></div>
-                <span class="muted" style="font-size:11px">New · Invited · MG1 · MG2 · Follow-up</span>
+                <div class="tv"><span class="big num">62</span><span class="muted">first meetings this month · goal 80</span></div>
+                <div class="minifunnel"><span style="flex:101">101</span><span style="flex:47" class="hi">47</span><span style="flex:34">34</span><span style="flex:12">6</span></div>
+                <span class="muted" style="font-size:11px">Contact · First meeting · First plan · Registered</span>
               </div>
               <div class="tile wide"><div class="th"><span class="tic team"><i data-lucide="network"></i></span><b>Team</b><i data-lucide="chevron-right" class="chev"></i></div><div class="tv"><span class="big num">65</span><span class="muted">people · +7 this month</span></div></div>
               <div class="tile"><div class="th"><span class="tic ppl"><i data-lucide="users"></i></span><b>People</b></div><div class="tv"><span class="big num">12</span></div><span class="chip warn">need attention</span></div>
@@ -733,13 +710,12 @@ em.up { color:var(--ok); } em.dn { color:var(--danger); } em.flat { color:var(--
     <div class="screen-head"><h2 id="notes-h">How it works</h2></div>
     <aside class="notes" style="max-width:760px">
       <ol>
-        <li><b>Two different numbers.</b> A column's count is who is in that stage right now. "62 held this month" counts MG1s that actually happened this month, which is the activity number the 25% pace is measured on.</li>
-        <li><b>Nobody counts by hand.</b> Logging "Booked a meeting" or "Showed the plan" from the + moves the card; dragging or swiping a card records the activity with today's date.</li>
-        <li><b>Leaders see the whole team</b> (their downline's prospects, with whose prospect it is). Everyone else sees their own team's pipeline. Same visibility rules as People.</li>
-        <li><b>Conversions show where people fall off.</b> Each step's rate is compared with a team target (the targets here are examples to set together); the biggest gap gets a plain-language tip, and the hotspot grid shows which team member needs help at which step.</li>
-        <li><b>Stale cards are flagged</b> (no movement or contact in 14+ days) so follow-ups don't slip.</li>
-        <li><b>The goal is a team setting</b> (80 MG1s a month for the 25% level after about 6 months), with the trend for the last six months.</li>
-        <li><b>Registered</b> means they became an apprentice; the card leaves the board after the month and the person continues on the business path.</li>
+        <li><b>Four fixed milestones:</b> Contact made, First meeting, First plan and Registered. Nobody can rename, remove or reorder them, so every team's numbers line up and roll up to the upline.</li>
+        <li><b>Leaders add their own steps between milestones</b> (here Maria's: Shared Story, Opened the Door, Book, MG2, F1, Info 2, F2, Info 3, F3+). Downlines inherit their leader's steps, can hide them and add their own, but can't change a milestone.</li>
+        <li><b>The board is grouped into four bands,</b> one per milestone. On a phone the whole board scrolls sideways a full column at a time; no tapping small buttons.</li>
+        <li><b>Activity is counted for you:</b> moving a card or logging from the + records it with the date. The page leads with this month's first meetings against the goal of 80.</li>
+        <li><b>Conversions compare milestones across the team,</b> and show your own steps inside each band so you can see exactly where people stall.</li>
+        <li><b>Per-person numbers:</b> you see yours and your downline's; crosslines never, uplines only if shared. Request access from someone's profile, or share yours from your own.</li>
       </ol>
     </aside>
   </section>
