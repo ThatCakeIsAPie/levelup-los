@@ -5,6 +5,9 @@
  *    including people outside your CRM visibility, so authors and DM partners
  *    have names);
  *  - team-wide totals for event cards (no identities);
+ *  - the signed-in person's sponsor line (root first, themselves last), which
+ *    the pipeline needs for inherited steps and goals (uplines aren't in the
+ *    CRM view);
  *  - where loading the data stands.
  */
 import { create } from "zustand";
@@ -31,12 +34,20 @@ interface RemoteState {
   directory: DirectoryEntry[];
   /** null until loaded (local mode never loads it). */
   rsvpCounts: Record<string, RsvpCounts> | null;
+  /** sponsor_chain(me): root first, the signed-in person last. */
+  chain: ChainEntry[];
   phase: SyncPhase;
+}
+
+export interface ChainEntry {
+  personId: string;
+  name: string;
 }
 
 export const useRemoteStore = create<RemoteState>()(() => ({
   directory: [],
   rsvpCounts: null,
+  chain: [],
   phase: "idle",
 }));
 

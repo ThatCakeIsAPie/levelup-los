@@ -24,6 +24,7 @@ import type { ChatData } from "@/data/chat/types";
 import { isPendingPath } from "@/data/chat/attachments";
 import type { LibraryData } from "@/data/library/types";
 import { useLibraryExtras, type ChannelTeaser, type LibraryExtras } from "@/data/library/extras";
+import type { PipelineData } from "@/data/pipeline/types";
 import {
   activityBinding,
   attendanceBinding,
@@ -33,9 +34,10 @@ import {
   eventsBinding,
   opsBinding,
   peopleBinding,
+  pipelineBinding,
 } from "./bindings";
 import { replaceStore } from "./engine";
-import { useRemoteStore, type DirectoryEntry, type RsvpCounts } from "./extras";
+import { useRemoteStore, type ChainEntry, type DirectoryEntry, type RsvpCounts } from "./extras";
 import * as m from "./rows";
 import type { Row } from "./rows";
 
@@ -92,10 +94,17 @@ export interface LibrarySnapshot {
   extras: LibraryExtras;
 }
 
+export interface PipelineSnapshot {
+  data: PipelineData;
+  /** sponsor_chain(me): root first, the signed-in person last. */
+  chain: ChainEntry[];
+}
+
 export interface Snapshot {
   crm: CrmSnapshot;
   chat: ChatData;
   library: LibrarySnapshot;
+  pipeline: PipelineSnapshot;
   directory: DirectoryEntry[];
   rsvpCounts: Record<string, RsvpCounts>;
 }
@@ -395,16 +404,67 @@ export async function fetchLibrary(client: SupabaseClient): Promise<LibrarySnaps
   };
 }
 
+/**
+ * The pipeline the caller may see: steps, hides and goals of their sponsor
+ * line and team, cards of visible prospects, moves of their team's prospects,
+ * their own shares and requests, plus their sponsor line (for inheritance).
+ */
+export async function fetchPipeline(client: SupabaseClient, me: string): Promise<PipelineSnapshot> {
+  const all = (t: string, order: Order[]) => fetchAll(client, t, order);
+  const [steps, hides, cards, moves, settings, shares, requests, chain] = await Promise.all([
+    all("pipeline_steps", [
+      ["created_at", true],
+      ["id", true],
+    ]),
+    all("pipeline_step_hides", [
+      ["person_id", true],
+      ["step_id", true],
+    ]),
+    all("pipeline_cards", [["person_id", true]]),
+    all("pipeline_moves", [
+      ["moved_at", true],
+      ["id", true],
+    ]),
+    all("pipeline_team_settings", [["person_id", true]]),
+    all("stat_shares", [
+      ["owner_id", true],
+      ["viewer_id", true],
+    ]),
+    all("stat_requests", [
+      ["created_at", true],
+      ["id", true],
+    ]),
+    client.rpc("sponsor_chain", { p_person_id: me }),
+  ]);
+  if (chain.error) throw new Error(`sponsor_chain: ${chain.error.message}`);
+  return {
+    data: {
+      steps: steps.map((r) => m.stepFromRow(r)),
+      hides: hides.map((r) => m.hideFromRow(r)),
+      cards: cards.map((r) => m.cardFromRow(r)),
+      moves: moves.map((r) => m.moveFromRow(r)),
+      settings: settings.map((r) => m.teamSettingFromRow(r)),
+      shares: shares.map((r) => m.shareFromRow(r)),
+      requests: requests.map((r) => m.statRequestFromRow(r)),
+    },
+    chain: ((chain.data ?? []) as Row[]).map((r) => ({
+      personId: String(r.person_id),
+      name: String(r.name ?? ""),
+    })),
+  };
+}
+
 /** Everything the signed-in person may see, in store shapes. */
 export async function fetchSnapshot(client: SupabaseClient, me: string): Promise<Snapshot> {
-  const [crm, chat, library, directory, rsvpCounts] = await Promise.all([
+  const [crm, chat, library, pipeline, directory, rsvpCounts] = await Promise.all([
     fetchCrm(client, me),
     fetchChat(client),
     fetchLibrary(client),
+    fetchPipeline(client, me),
     fetchDirectory(client),
     fetchRsvpCounts(client),
   ]);
-  return { crm, chat, library, directory, rsvpCounts };
+  return { crm, chat, library, pipeline, directory, rsvpCounts };
 }
 
 // ---------------------------------------------------------------------------
@@ -456,9 +516,15 @@ export function applyLibrary(s: LibrarySnapshot): void {
   useLibraryExtras.setState(s.extras);
 }
 
+export function applyPipeline(s: PipelineSnapshot): void {
+  useRemoteStore.setState({ chain: s.chain });
+  replaceStore(pipelineBinding, s.data);
+}
+
 export function applySnapshot(s: Snapshot): void {
   applyCrm(s.crm);
   applyChat(s.chat);
   applyLibrary(s.library);
+  applyPipeline(s.pipeline);
   useRemoteStore.setState({ directory: s.directory, rsvpCounts: s.rsvpCounts });
 }

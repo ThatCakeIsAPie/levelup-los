@@ -3,6 +3,7 @@ import {
   AtSign,
   CalendarDays,
   CornerUpLeft,
+  Eye,
   Flag,
   Megaphone,
   MessageCircle,
@@ -20,15 +21,19 @@ import {
   useMessageIndex,
   useNotifications,
   useReports,
+  useStatRequests,
   useVisibleDrafts,
   type AnnouncementDraft,
   type Notification,
+  type StatRequest,
 } from "@/data";
 
 export type InboxTarget =
   | { kind: "chat"; conversationId: string; messageId?: string }
   | { kind: "person"; id: string }
-  | { kind: "team" };
+  | { kind: "team" }
+  | { kind: "pipeline"; tab?: "conversions" }
+  | { kind: "profile" };
 
 export interface InboxRow {
   key: string;
@@ -48,6 +53,8 @@ export interface InboxRow {
   draft?: AnnouncementDraft;
   /** An open report to review. */
   openReport?: boolean;
+  /** A request to see your pipeline numbers, waiting for your answer. */
+  statRequest?: StatRequest;
   target: InboxTarget | null;
 }
 
@@ -74,6 +81,7 @@ export function useInboxRows(): InboxRow[] {
   const reports = useReports();
   const events = useEvents();
   const access = useChatAccess();
+  const statRequests = useStatRequests();
 
   return useMemo(() => {
     const title = new Map(convs.map((c) => [c.id, c.title]));
@@ -201,6 +209,42 @@ export function useInboxRows(): InboxRow[] {
               n.actorId && canOpenPerson(n.actorId) ? { kind: "person", id: n.actorId } : chat(n),
           });
           break;
+        case "stat_request": {
+          const r = statRequests.find((x) => x.id === n.refId);
+          const pending = r?.status === "pending";
+          rows.push({
+            ...base,
+            icon: Eye,
+            tone: TONE.at,
+            title: `${actor ?? "Someone"} asks to see your pipeline numbers`,
+            sub: pending
+              ? "Their conversions page would show your row. You can revoke it any time."
+              : r?.status === "approved"
+                ? "You shared your numbers"
+                : r?.status === "declined"
+                  ? "You declined"
+                  : "Withdrawn",
+            needsYou: pending,
+            statRequest: pending ? r : undefined,
+            target: { kind: "profile" },
+          });
+          break;
+        }
+        case "stat_request_answered": {
+          const r = statRequests.find((x) => x.id === n.refId);
+          const ok = r?.status === "approved";
+          rows.push({
+            ...base,
+            icon: Eye,
+            tone: ok ? TONE.contact : TONE.neutral,
+            title: ok
+              ? `${first(actor)} shared their pipeline numbers with you`
+              : `${first(actor)} declined to share their pipeline numbers`,
+            sub: ok ? "They show under “Shared with you” in Conversions" : "",
+            target: ok ? { kind: "pipeline", tab: "conversions" } : null,
+          });
+          break;
+        }
         case "reaction":
           rows.push({
             ...base,
@@ -235,5 +279,5 @@ export function useInboxRows(): InboxRow[] {
     }
 
     return rows.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  }, [list, people, convs, messages, drafts, reports, events, access]);
+  }, [list, people, convs, messages, drafts, reports, events, access, statRequests]);
 }

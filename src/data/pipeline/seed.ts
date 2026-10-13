@@ -116,7 +116,7 @@ export function seedShares(): StatShare[] {
   // Marcus mentors Anita's leg and shares his numbers with her (a crossline).
   return [
     {
-      id: "share-6-2",
+      id: "6:2",
       ownerId: "6",
       viewerId: "2",
       createdAt: subDays(new Date(), 21).toISOString(),

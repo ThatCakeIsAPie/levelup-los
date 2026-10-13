@@ -43,6 +43,17 @@ import type {
   LibraryTopic,
   Speaker,
 } from "@/data/library/types";
+import type {
+  MilestoneCode,
+  PipelineCard,
+  PipelineMove,
+  PipelineStep,
+  StatRequest,
+  StatShare,
+  StepBand,
+  StepHide,
+  TeamSetting,
+} from "@/data/pipeline/types";
 
 export type Row = Record<string, unknown>;
 type R<T extends keyof import("./database.types").Database["public"]["Tables"]> = Partial<
@@ -836,5 +847,160 @@ export function progressToRow(p: LibraryProgress): Row {
     position_sec: p.positionSec,
     completed_at: iso(p.completedAt),
     updated_at: iso(p.updatedAt),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Pipeline (src/data/pipeline)
+// ---------------------------------------------------------------------------
+
+export function stepFromRow(r: R<"pipeline_steps">): PipelineStep {
+  return {
+    id: r.id!,
+    ownerId: r.owner_id!,
+    band: r.band as StepBand,
+    label: r.label ?? "",
+    position: Number(r.position ?? 0),
+    createdAt: isoOr(r.created_at),
+  };
+}
+
+export function stepToRow(s: PipelineStep): Row {
+  return {
+    id: s.id,
+    owner_id: s.ownerId,
+    band: s.band,
+    label: s.label,
+    position: s.position,
+    created_at: iso(s.createdAt),
+  };
+}
+
+export function hideFromRow(r: R<"pipeline_step_hides">): StepHide {
+  return { personId: r.person_id!, stepId: r.step_id!, createdAt: isoOr(r.created_at) };
+}
+
+export function hideToRow(h: StepHide): Row {
+  return { person_id: h.personId, step_id: h.stepId, created_at: iso(h.createdAt) };
+}
+
+/** `column_id` and `entered_at` only change through moves (see the cards binding). */
+export function cardFromRow(r: R<"pipeline_cards">): PipelineCard {
+  return {
+    personId: r.person_id!,
+    column: r.column_id ?? "contact",
+    enteredAt: isoOr(r.entered_at),
+    nextStep: r.next_step ?? null,
+    nextStepDate: r.next_step_date ?? null,
+    hot: !!r.hot,
+    source: r.source ?? null,
+    droppedAt: iso(r.dropped_at),
+    updatedAt: isoOr(r.updated_at),
+  };
+}
+
+/** `updated_at` is the database's (stamped on every change): never sent. */
+export function cardToRow(c: PipelineCard): Row {
+  return {
+    person_id: c.personId,
+    column_id: c.column,
+    entered_at: iso(c.enteredAt),
+    next_step: c.nextStep,
+    next_step_date: c.nextStepDate,
+    hot: c.hot,
+    source: c.source,
+    dropped_at: iso(c.droppedAt),
+  };
+}
+
+export function moveFromRow(r: R<"pipeline_moves">): PipelineMove {
+  return {
+    id: r.id!,
+    personId: r.person_id!,
+    ownerId: r.owner_id ?? "",
+    from: r.from_column ?? null,
+    to: r.to_column!,
+    milestone: r.milestone as MilestoneCode,
+    movedAt: isoOr(r.moved_at),
+    movedBy: r.moved_by ?? "",
+  };
+}
+
+export function moveToRow(m: PipelineMove): Row {
+  return {
+    id: m.id,
+    person_id: m.personId,
+    owner_id: m.ownerId || null,
+    from_column: m.from,
+    to_column: m.to,
+    milestone: m.milestone,
+    moved_at: iso(m.movedAt),
+    moved_by: m.movedBy || null,
+  };
+}
+
+export function teamSettingFromRow(r: R<"pipeline_team_settings">): TeamSetting {
+  const t1 = r.target_contact_to_meeting;
+  return {
+    personId: r.person_id!,
+    mg1Goal: r.mg1_goal ?? null,
+    targets:
+      t1 === null || t1 === undefined
+        ? null
+        : {
+            contactToMeeting: Number(t1),
+            meetingToPlan: Number(r.target_meeting_to_plan),
+            planToRegistered: Number(r.target_plan_to_registered),
+          },
+    updatedAt: isoOr(r.updated_at),
+  };
+}
+
+/** `updated_at` is stamped by the database: never sent. */
+export function teamSettingToRow(t: TeamSetting): Row {
+  return {
+    person_id: t.personId,
+    mg1_goal: t.mg1Goal,
+    target_contact_to_meeting: t.targets?.contactToMeeting ?? null,
+    target_meeting_to_plan: t.targets?.meetingToPlan ?? null,
+    target_plan_to_registered: t.targets?.planToRegistered ?? null,
+  };
+}
+
+/** A share's id is its owner and viewer (the table's key). */
+export const shareId = (ownerId: string, viewerId: string) => `${ownerId}:${viewerId}`;
+
+export function shareFromRow(r: R<"stat_shares">): StatShare {
+  return {
+    id: shareId(r.owner_id!, r.viewer_id!),
+    ownerId: r.owner_id!,
+    viewerId: r.viewer_id!,
+    createdAt: isoOr(r.created_at),
+  };
+}
+
+export function shareToRow(s: StatShare): Row {
+  return { owner_id: s.ownerId, viewer_id: s.viewerId, created_at: iso(s.createdAt) };
+}
+
+export function statRequestFromRow(r: R<"stat_requests">): StatRequest {
+  return {
+    id: r.id!,
+    requesterId: r.requester_id!,
+    ownerId: r.owner_id!,
+    status: (r.status ?? "pending") as StatRequest["status"],
+    createdAt: isoOr(r.created_at),
+    decidedAt: iso(r.decided_at),
+  };
+}
+
+export function statRequestToRow(q: StatRequest): Row {
+  return {
+    id: q.id,
+    requester_id: q.requesterId,
+    owner_id: q.ownerId,
+    status: q.status,
+    created_at: iso(q.createdAt),
+    decided_at: iso(q.decidedAt),
   };
 }

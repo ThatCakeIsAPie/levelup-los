@@ -47,8 +47,10 @@ export const nextMilestone = (m: MilestoneCode): MilestoneCode | null =>
 /**
  * Sponsor chain root-first, ending with `personId` itself (all people, no
  * visibility filter: inherited steps and settings come from the whole chain).
+ * With real accounts the people list stops at your own team: pass your
+ * uplines (root first) to complete it.
  */
-export function chainOf(people: CrmPerson[], personId: string): string[] {
+export function chainOf(people: CrmPerson[], personId: string, uplines: string[] = []): string[] {
   const byId = new Map(people.map((p) => [p.id, p]));
   const out = [personId];
   const seen = new Set(out);
@@ -58,7 +60,17 @@ export function chainOf(people: CrmPerson[], personId: string): string[] {
     out.unshift(cur.sponsorId);
     cur = byId.get(cur.sponsorId);
   }
-  return out;
+  return withUplines(out, uplines);
+}
+
+/**
+ * Complete a chain whose top is missing from the people list (real accounts
+ * only load your own team) with your uplines (`sponsor_chain(me)`, root first).
+ */
+export function withUplines(chain: string[], uplines: string[]): string[] {
+  if (!uplines.length || !chain.length) return chain;
+  const i = uplines.indexOf(chain[0]);
+  return i > 0 ? [...uplines.slice(0, i), ...chain] : chain;
 }
 
 /**
@@ -289,6 +301,17 @@ export const shiftMonth = (key: string, n: number): string =>
 export const monthName = (key: string, style: "short" | "long" = "long"): string =>
   format(parseDate(`${key}-01`), style === "short" ? "MMM" : "MMMM");
 
+/**
+ * The period a month's activity is compared with. Now: the whole previous
+ * month, also while the current month is still running (as the design shows,
+ * "62 · −13% vs Sep"). Kept on its own so it can switch to "the same days of
+ * last month" in one place.
+ */
+export function comparisonPeriod(key: string, today: string): { from: string; to: string } {
+  void today;
+  return monthBounds(shiftMonth(key, -1));
+}
+
 export interface MonthActivity {
   counts: MilestoneCounts;
   /** The whole previous month. */
@@ -309,7 +332,7 @@ export function monthActivity(
 ): MonthActivity {
   const { from, to } = monthBounds(key);
   const partial = monthOf(today) === key;
-  const prev = monthBounds(shiftMonth(key, -1));
+  const prev = comparisonPeriod(key, today);
   return {
     counts: countReaches(reaches, owners, from, partial ? today : to),
     previous: countReaches(reaches, owners, prev.from, prev.to),
@@ -716,8 +739,12 @@ export function canRequestStats(
  * People who already see `ownerId`'s numbers without a share: everyone above
  * them in the sponsor chain (uplines never need to ask).
  */
-export function automaticViewers(people: CrmPerson[], ownerId: string): string[] {
-  return chainOf(people, ownerId).slice(0, -1);
+export function automaticViewers(
+  people: CrmPerson[],
+  ownerId: string,
+  uplines: string[] = [],
+): string[] {
+  return chainOf(people, ownerId, uplines).slice(0, -1);
 }
 
 /** Can `ownerId` share with `viewerId`? (Not themselves, not twice, not an upline.) */
@@ -726,8 +753,9 @@ export function canShareWith(
   ownerId: string,
   viewerId: string,
   shares: StatShare[],
+  uplines: string[] = [],
 ): boolean {
   if (ownerId === viewerId) return false;
-  if (automaticViewers(people, ownerId).includes(viewerId)) return false;
+  if (automaticViewers(people, ownerId, uplines).includes(viewerId)) return false;
   return !shares.some((s) => s.ownerId === ownerId && s.viewerId === viewerId);
 }

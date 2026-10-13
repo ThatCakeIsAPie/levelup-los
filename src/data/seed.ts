@@ -21,7 +21,7 @@ import type { Logistics, SharedCost } from "@/stores/opsStore";
 import { pipelineSeedPeople } from "./pipeline/seedPeople";
 
 /** Bump to reset every persisted store to a fresh seed on next load. */
-export const SEED_VERSION = 4;
+export const SEED_VERSION = 5;
 
 const ago = (n: number) => daysFromToday(-n);
 const ahead = (n: number) => daysFromToday(n);

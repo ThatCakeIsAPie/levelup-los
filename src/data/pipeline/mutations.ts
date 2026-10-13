@@ -7,7 +7,12 @@
  * so a first meeting is counted once whichever way it was recorded.
  */
 import { usePeopleStore, type CrmPerson } from "@/stores/peopleStore";
+import { IS_SUPABASE } from "@/lib/config";
 import { localDate } from "@/lib/dates";
+import { serverSide } from "../remote";
+import { useRemoteStore } from "../remote/extras";
+import { updateChat } from "../chat/store";
+import type { Notification } from "../chat/types";
 import { addPerson, removePerson, updatePerson } from "../people";
 import { logContact, removeContact } from "../crm";
 import { getViewer } from "../session";
@@ -44,6 +49,29 @@ import type {
 
 const now = () => new Date().toISOString();
 
+/** Real accounts: your uplines (root first), which the people list doesn't hold. */
+const uplines = () => useRemoteStore.getState().chain.map((c) => c.personId);
+const chainFor = (id: string) => chainOf(usePeopleStore.getState().people, id, uplines());
+
+/**
+ * Browser demo only: write an inbox notification. With real accounts the
+ * database writes them (stat_requests trigger, answer_stat_request()).
+ */
+function notifyLocal(
+  n: Omit<Notification, "id" | "createdAt" | "readAt" | "conversationId" | "messageId">,
+) {
+  if (IS_SUPABASE || n.recipientId === n.actorId) return;
+  const note: Notification = {
+    ...n,
+    id: crypto.randomUUID(),
+    conversationId: null,
+    messageId: null,
+    createdAt: now(),
+    readAt: null,
+  };
+  updateChat((c) => ({ notifications: [note, ...c.notifications] }));
+}
+
 /** The current user, when they may use the pipeline. */
 function actor(): string | null {
   const v = getViewer();
@@ -60,9 +88,9 @@ function visiblePerson(id: string): CrmPerson | undefined {
 function columnsForMove(person: CrmPerson, me: string): PipelineColumn[] {
   const { steps, hides } = pipeline();
   const people = usePeopleStore.getState().people;
-  const mine = columnsFor(chainOf(people, me), steps, hides);
+  const mine = columnsFor(chainOf(people, me, uplines()), steps, hides);
   if (!person.sponsorId || person.sponsorId === me) return mine;
-  const theirs = columnsFor(chainOf(people, person.sponsorId), steps, hides);
+  const theirs = columnsFor(chainOf(people, person.sponsorId, uplines()), steps, hides);
   const ids = new Set(mine.map((c) => c.id));
   return [...mine, ...theirs.filter((c) => !ids.has(c.id))];
 }
@@ -148,7 +176,12 @@ export function movePipelineCard(
   updatePipeline((s) => ({ moves: [...s.moves, move] }));
   const registered = to === "registered";
   const before = { businessStartDate: person.businessStartDate };
-  if (registered) updatePerson(personId, registrationPatch(localDate()));
+  if (registered) {
+    // Real accounts: move_pipeline_card() registers them (and logs the activity).
+    const register = () => updatePerson(personId, registrationPatch(localDate()));
+    if (IS_SUPABASE) serverSide(register);
+    else register();
+  }
   return {
     ok: true,
     move,
@@ -320,8 +353,7 @@ export function restorePipelineCard(personId: string): void {
   const person = actor() ? visiblePerson(personId) : undefined;
   if (!person) return;
   const stored = pipeline().cards.find((c) => c.personId === personId);
-  if (stored?.droppedAt)
-    putCard({ ...stored, droppedAt: null, enteredAt: now(), updatedAt: now() });
+  if (stored?.droppedAt) putCard({ ...stored, droppedAt: null, updatedAt: now() });
 }
 
 // ---------------------------------------------------------------------------
@@ -332,7 +364,7 @@ export type StepResult = { ok: true; step?: PipelineStep } | { ok: false; error:
 
 function bandLabels(band: StepBand, me: string, except?: string): string[] {
   const { steps, hides } = pipeline();
-  const chain = chainOf(usePeopleStore.getState().people, me);
+  const chain = chainFor(me);
   return columnsFor(chain, steps, hides)
     .filter((c) => c.band === band && c.kind === "step" && c.id !== except)
     .map((c) => c.label);
@@ -409,7 +441,7 @@ export function deletePipelineStep(
 export function hidePipelineStep(stepId: string): StepResult {
   const me = actor();
   const step = pipeline().steps.find((s) => s.id === stepId);
-  const chain = me ? chainOf(usePeopleStore.getState().people, me) : [];
+  const chain = me ? chainFor(me) : [];
   if (!me || !step || !canHideStep(step, chain, me))
     return { ok: false, error: "You can hide steps you inherit from your upline." };
   if (pipeline().hides.some((h) => h.personId === me && h.stepId === stepId)) return { ok: true };
@@ -477,8 +509,9 @@ export function shareStats(viewerIds: string[]): number {
   updatePipeline((s) => {
     const shares = [...s.shares];
     for (const id of viewerIds) {
-      if (!canShareWith(people, me, id, shares)) continue;
-      shares.push({ id: crypto.randomUUID(), ownerId: me, viewerId: id, createdAt: at });
+      if (!canShareWith(people, me, id, shares, uplines())) continue;
+      // The id is the pair (the table's key), so a share is never made twice.
+      shares.push({ id: `${me}:${id}`, ownerId: me, viewerId: id, createdAt: at });
       added++;
     }
     return { shares };
@@ -502,19 +535,14 @@ export function requestStats(ownerId: string): { ok: true } | { ok: false; reaso
   const s = pipeline();
   const check = canRequestStats(usePeopleStore.getState().people, v, ownerId, s.shares, s.requests);
   if (!me || !check.ok) return { ok: false, reason: check.ok ? "candidate" : check.reason };
+  const id = crypto.randomUUID();
   updatePipeline((d) => ({
     requests: [
       ...d.requests,
-      {
-        id: crypto.randomUUID(),
-        requesterId: me,
-        ownerId,
-        status: "pending",
-        createdAt: now(),
-        decidedAt: null,
-      },
+      { id, requesterId: me, ownerId, status: "pending", createdAt: now(), decidedAt: null },
     ],
   }));
+  notifyLocal({ recipientId: ownerId, type: "stat_request", actorId: me, refId: id });
   return { ok: true };
 }
 
@@ -530,6 +558,19 @@ export function answerStatRequest(requestId: string, approve: boolean): void {
     ),
   }));
   if (approve) shareStats([req.requesterId]);
+  if (!IS_SUPABASE) {
+    updateChat((c) => ({
+      notifications: c.notifications.map((n) =>
+        n.type === "stat_request" && n.refId === requestId && !n.readAt ? { ...n, readAt: at } : n,
+      ),
+    }));
+  }
+  notifyLocal({
+    recipientId: req.requesterId,
+    type: "stat_request_answered",
+    actorId: me,
+    refId: requestId,
+  });
 }
 
 /** Withdraw your own pending request. */
@@ -541,4 +582,11 @@ export function cancelStatRequest(requestId: string): void {
       (r) => !(r.id === requestId && r.requesterId === me && r.status === "pending"),
     ),
   }));
+  // The database removes the owner's notification itself (trigger).
+  if (!IS_SUPABASE)
+    updateChat((c) => ({
+      notifications: c.notifications.filter(
+        (n) => !(n.type === "stat_request" && n.refId === requestId),
+      ),
+    }));
 }

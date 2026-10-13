@@ -17,6 +17,7 @@
 import { addDays, format } from "date-fns";
 import { parseDate } from "@/lib/dates";
 import { seedEvents, seedLearning, seedPeople, seedSales } from "@/data/seed";
+import { seedRequests } from "@/data/pipeline/seed";
 import type { CrmPerson } from "@/stores/peopleStore";
 import { dmId } from "./rules";
 import {
@@ -544,6 +545,24 @@ export function seedChat(people: CrmPerson[] = seedPeople(), nowMs: number = Dat
     refId: "🎉",
     createdAt: minsAgo(70),
   });
+
+  // Pipeline: requests to see someone's numbers (src/data/pipeline/seed.ts).
+  for (const r of seedRequests()) {
+    if (r.status === "pending") {
+      notify(r.ownerId, "stat_request", {
+        actorId: r.requesterId,
+        refId: r.id,
+        createdAt: r.createdAt,
+      });
+    } else {
+      notify(r.requesterId, "stat_request_answered", {
+        actorId: r.ownerId,
+        refId: r.id,
+        createdAt: r.decidedAt ?? r.createdAt,
+        readAt: r.decidedAt ?? r.createdAt,
+      });
+    }
+  }
 
   return {
     members,

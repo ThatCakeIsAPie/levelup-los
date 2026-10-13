@@ -4,7 +4,8 @@
  * of prospects owned by people in the chosen scope (always inside the
  * viewer's own team), and per-person rows follow canSeeStatsOf.
  */
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { IS_SUPABASE } from "@/lib/config";
 import {
   usePeopleStore,
   effectiveBizClass,
@@ -18,6 +19,8 @@ import { useLastContactMap } from "../crm";
 import { useVisibleIds } from "../people";
 import { useViewer } from "../session";
 import { useChatPeople, useWorkspaceMembers } from "../chat/hooks";
+import { useRemoteStore } from "../remote/extras";
+import { fetchPipelineCounts } from "../remote";
 import { usePipelineStore } from "./store";
 import {
   automaticViewers,
@@ -68,6 +71,16 @@ import { columnsFor } from "./rules";
 // ---------------------------------------------------------------------------
 // Shared helpers
 // ---------------------------------------------------------------------------
+
+const NO_UPLINES: string[] = [];
+let uplineCache: { chain: unknown; ids: string[] } | null = null;
+/** Real accounts: the signed-in person's sponsor line (root first); [] in the demo. */
+function useUplines(): string[] {
+  const chain = useRemoteStore((s) => s.chain);
+  if (!chain.length) return NO_UPLINES;
+  if (uplineCache?.chain !== chain) uplineCache = { chain, ids: chain.map((c) => c.personId) };
+  return uplineCache.ids;
+}
 
 let reachCache: { moves: PipelineMove[]; reaches: Reach[] } | null = null;
 /** Milestones reached, computed once per moves table. */
@@ -141,13 +154,14 @@ export function useScope(scope: PipelineScope): ScopeOption | undefined {
 /** The board's columns for a person (their chain's steps, minus hidden ones). */
 export function usePipelineColumns(personId: string | undefined): PipelineColumn[] {
   const people = usePeopleStore((s) => s.people);
+  const uplines = useUplines();
   const steps = usePipelineStore((s) => s.steps);
   const hides = usePipelineStore((s) => s.hides);
   const chatPeople = useChatPeople();
   const viewer = useViewer();
   return useMemo(() => {
     if (!personId) return [];
-    return columnsFor(chainOf(people, personId), steps, hides).map((c) =>
+    return columnsFor(chainOf(people, personId, uplines), steps, hides).map((c) =>
       c.ownerId
         ? {
             ...c,
@@ -158,7 +172,7 @@ export function usePipelineColumns(personId: string | undefined): PipelineColumn
           }
         : c,
     );
-  }, [people, personId, steps, hides, chatPeople, viewer]);
+  }, [people, personId, steps, hides, chatPeople, viewer, uplines]);
 }
 
 /** "Maria" or "You". */
@@ -349,6 +363,7 @@ export interface PipelineActivity {
 export function usePipelineActivity(scope: PipelineScope, month: string): PipelineActivity | null {
   const opt = useScope(scope);
   const people = usePeopleStore((s) => s.people);
+  const uplines = useUplines();
   const moves = usePipelineStore((s) => s.moves);
   const settings = usePipelineStore((s) => s.settings);
   const name = useNamer();
@@ -357,7 +372,7 @@ export function usePipelineActivity(scope: PipelineScope, month: string): Pipeli
     if (!opt) return null;
     const reaches = reachesFor(moves);
     const act = monthActivity(reaches, opt.owners, month, today);
-    const eff = effectiveSettings(chainOf(people, opt.leaderId), settings);
+    const eff = effectiveSettings(chainOf(people, opt.leaderId, uplines), settings);
     const goal = scope === "mine" ? null : eff.mg1Goal;
     return {
       ...act,
@@ -369,7 +384,7 @@ export function usePipelineActivity(scope: PipelineScope, month: string): Pipeli
           ? goalPace(act.counts.first_meeting, goal, today)
           : null,
     };
-  }, [opt, people, moves, settings, name, month, today, scope]);
+  }, [opt, people, moves, settings, name, month, today, scope, uplines]);
 }
 
 /** Months that have activity (oldest first, up to 12), always including this one. */
@@ -430,12 +445,13 @@ export interface TeamSettingsView {
 export function useTeamSettings(scope: PipelineScope): TeamSettingsView | null {
   const opt = useScope(scope);
   const people = usePeopleStore((s) => s.people);
+  const uplines = useUplines();
   const settings = usePipelineStore((s) => s.settings);
   const viewer = useViewer();
   const name = useNamer();
   return useMemo(() => {
     if (!opt || !viewer) return null;
-    const chain = chainOf(people, opt.leaderId);
+    const chain = chainOf(people, opt.leaderId, uplines);
     const eff = effectiveSettings(chain, settings);
     const up = effectiveSettings(chain.slice(0, -1), settings);
     return {
@@ -453,7 +469,7 @@ export function useTeamSettings(scope: PipelineScope): TeamSettingsView | null {
         from: up.goalFrom ? name(up.goalFrom) : null,
       },
     };
-  }, [opt, people, settings, viewer, name]);
+  }, [opt, people, settings, viewer, name, uplines]);
 }
 
 // ---------------------------------------------------------------------------
@@ -483,6 +499,37 @@ export interface PipelineConversions {
   sharedRows: HotspotRow[];
 }
 
+/**
+ * Real accounts: milestone totals of people who shared their numbers with you
+ * (their prospects and moves aren't loaded; pipeline_person_counts() returns
+ * totals only). Null while loading; the demo computes them from its moves.
+ */
+function useSharedCounts(
+  ownerIds: string[],
+  from: string,
+  to: string,
+): Map<string, MilestoneCounts> | null {
+  const key = `${ownerIds.join(",")}|${from}|${to}`;
+  const [state, setState] = useState<{ key: string; counts: Map<string, MilestoneCounts> } | null>(
+    null,
+  );
+  useEffect(() => {
+    if (!IS_SUPABASE || !ownerIds.length) return;
+    let alive = true;
+    fetchPipelineCounts(ownerIds, from, to)
+      .then((c) => {
+        if (alive && c) setState({ key, counts: new Map(Object.entries(c)) });
+      })
+      .catch((e) => console.warn("[pipeline] shared counts", e));
+    return () => {
+      alive = false;
+    };
+    // `key` covers ownerIds, from and to.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+  return state?.key === key ? state.counts : null;
+}
+
 export const PERIODS = [30, 90, 180, 365] as const;
 export type PeriodDays = (typeof PERIODS)[number];
 
@@ -492,6 +539,7 @@ export function usePipelineConversions(
 ): PipelineConversions | null {
   const opt = useScope(scope);
   const people = usePeopleStore((s) => s.people);
+  const uplines = useUplines();
   const moves = usePipelineStore((s) => s.moves);
   const settings = usePipelineStore((s) => s.settings);
   const shares = usePipelineStore((s) => s.shares);
@@ -499,13 +547,24 @@ export function usePipelineConversions(
   const columns = usePipelineColumns(opt?.leaderId);
   const chatPeople = useChatPeople();
   const today = localDate();
+  const from = localDate(subDays(new Date(), periodDays - 1));
+  const to = today;
+  // People outside the scope who shared their numbers with you.
+  const sharers = useMemo(
+    () =>
+      viewer && opt
+        ? shares
+            .filter((s) => s.viewerId === viewer.personId && !opt.owners.has(s.ownerId))
+            .map((s) => s.ownerId)
+        : [],
+    [shares, viewer, opt],
+  );
+  const remoteShared = useSharedCounts(IS_SUPABASE ? sharers : [], from, to);
   return useMemo(() => {
     if (!opt || !viewer) return null;
-    const to = today;
-    const from = localDate(subDays(new Date(), periodDays - 1));
     const reaches = reachesFor(moves);
     const counts = countReaches(reaches, opt.owners, from, to);
-    const { targets } = effectiveSettings(chainOf(people, opt.leaderId), settings);
+    const { targets } = effectiveSettings(chainOf(people, opt.leaderId, uplines), settings);
     const stats = transitionStats(counts, targets);
     const gap = biggestGap(stats);
     const breakdowns = STEP_BANDS.map((b) =>
@@ -534,11 +593,12 @@ export function usePipelineConversions(
           Number(b.personId === viewer.personId) - Number(a.personId === viewer.personId) ||
           b.counts.contact - a.counts.contact,
       );
-    const sharers = shares
-      .filter((s) => s.viewerId === viewer.personId && !opt.owners.has(s.ownerId))
-      .map((s) => s.ownerId);
-    const perSharer = countReachesByOwner(reaches, sharers, from, to);
-    const sharedRows = sharers.map((id) => rowFor(id, perSharer.get(id)!, true));
+    const perSharer = IS_SUPABASE
+      ? (remoteShared ?? new Map<string, MilestoneCounts>())
+      : countReachesByOwner(reaches, sharers, from, to);
+    const sharedRows = sharers
+      .filter((id) => perSharer.has(id))
+      .map((id) => rowFor(id, perSharer.get(id)!, true));
     const stall = gap ? breakdowns.find((b) => b.band === gap.from) : undefined;
     return {
       from,
@@ -552,7 +612,21 @@ export function usePipelineConversions(
       rows,
       sharedRows,
     };
-  }, [opt, viewer, today, periodDays, moves, people, settings, columns, shares, chatPeople]);
+  }, [
+    opt,
+    viewer,
+    from,
+    to,
+    moves,
+    people,
+    settings,
+    columns,
+    shares,
+    sharers,
+    remoteShared,
+    chatPeople,
+    uplines,
+  ]);
 }
 
 // ---------------------------------------------------------------------------
@@ -653,13 +727,14 @@ export interface StepsEditorBand {
 export function useStepsEditor(): StepsEditorBand[] {
   const viewer = useViewer();
   const people = usePeopleStore((s) => s.people);
+  const uplines = useUplines();
   const steps = usePipelineStore((s) => s.steps);
   const hides = usePipelineStore((s) => s.hides);
   const cards = usePipelineStore((s) => s.cards);
   const name = useNamer();
   return useMemo(() => {
     if (!viewer) return [];
-    const chain = chainOf(people, viewer.personId);
+    const chain = chainOf(people, viewer.personId, uplines);
     const counts = new Map<string, number>();
     for (const c of cards) if (!c.droppedAt) counts.set(c.column, (counts.get(c.column) ?? 0) + 1);
     return STEP_BANDS.map((band) => ({
@@ -671,7 +746,7 @@ export function useStepsEditor(): StepsEditorBand[] {
         cards: counts.get(s.step.id) ?? 0,
       })),
     }));
-  }, [viewer, people, steps, hides, cards, name]);
+  }, [viewer, people, steps, hides, cards, name, uplines]);
 }
 
 // ---------------------------------------------------------------------------
@@ -704,6 +779,7 @@ export interface StatSharing {
 export function useStatSharing(): StatSharing | null {
   const viewer = useViewer();
   const people = usePeopleStore((s) => s.people);
+  const uplines = useUplines();
   const shares = usePipelineStore((s) => s.shares);
   const requests = usePipelineStore((s) => s.requests);
   const members = useWorkspaceMembers();
@@ -715,7 +791,7 @@ export function useStatSharing(): StatSharing | null {
       const p = chatPeople.get(id);
       return { id, name: p?.name ?? "Someone", stage: p?.stage };
     };
-    const auto = new Set(automaticViewers(people, me));
+    const auto = new Set(automaticViewers(people, me, uplines));
     const sharesOut = shares.filter((s) => s.ownerId === me);
     const sharesIn = shares.filter((s) => s.viewerId === me);
     const pendingOut = requests.filter((r) => r.requesterId === me && r.status === "pending");
@@ -742,7 +818,31 @@ export function useStatSharing(): StatSharing | null {
         )
         .map((m) => ({ id: m.id, name: m.name, stage: m.stage })),
     };
-  }, [viewer, people, shares, requests, members, chatPeople]);
+  }, [viewer, people, shares, requests, members, chatPeople, uplines]);
+}
+
+/** Requests to and from the viewer (for the inbox rows). */
+export function useStatRequests(): StatRequest[] {
+  const viewer = useViewer();
+  const requests = usePipelineStore((s) => s.requests);
+  return useMemo(
+    () =>
+      viewer
+        ? requests.filter((r) => r.ownerId === viewer.personId || r.requesterId === viewer.personId)
+        : [],
+    [viewer, requests],
+  );
+}
+
+/** Requests waiting for the viewer's answer. */
+export function usePendingStatRequests(): StatRequest[] {
+  const viewer = useViewer();
+  const requests = usePipelineStore((s) => s.requests);
+  return useMemo(
+    () =>
+      viewer ? requests.filter((r) => r.ownerId === viewer.personId && r.status === "pending") : [],
+    [viewer, requests],
+  );
 }
 
 /** Stat requests waiting for the viewer's answer (for an inbox badge). */

@@ -2041,6 +2041,340 @@ export type Database = {
           },
         ];
       };
+      pipeline_cards: {
+        Row: {
+          column_id: string;
+          dropped_at: string | null;
+          entered_at: string;
+          hot: boolean;
+          next_step: string | null;
+          next_step_date: string | null;
+          person_id: string;
+          source: string | null;
+          updated_at: string;
+          workspace_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          column_id: string;
+          dropped_at?: string | null;
+          entered_at?: string;
+          hot?: boolean;
+          next_step?: string | null;
+          next_step_date?: string | null;
+          person_id: string;
+          source?: string | null;
+          updated_at?: string;
+          workspace_id?: string;
+        };
+        Update: {
+          column_id?: string;
+          dropped_at?: string | null;
+          entered_at?: string;
+          hot?: boolean;
+          next_step?: string | null;
+          next_step_date?: string | null;
+          person_id?: string;
+          source?: string | null;
+          updated_at?: string;
+          workspace_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "pipeline_cards_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: true;
+            referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "pipeline_cards_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: true;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "pipeline_cards_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: true;
+            referencedRelation: "people";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "pipeline_cards_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      pipeline_moves: {
+        Row: {
+          from_column: string | null;
+          id: string;
+          milestone: string;
+          moved_at: string;
+          moved_by: string | null;
+          owner_id: string | null;
+          person_id: string;
+          to_column: string;
+          workspace_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          from_column?: string | null;
+          id?: string;
+          milestone: string;
+          moved_at?: string;
+          moved_by?: string | null;
+          owner_id?: string | null;
+          person_id: string;
+          to_column: string;
+          workspace_id?: string;
+        };
+        Update: {
+          from_column?: string | null;
+          id?: string;
+          milestone?: string;
+          moved_at?: string;
+          moved_by?: string | null;
+          owner_id?: string | null;
+          person_id?: string;
+          to_column?: string;
+          workspace_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "pipeline_moves_moved_by_fkey";
+            columns: ["moved_by"];
+            isOneToOne: false;
+            referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "pipeline_moves_moved_by_fkey";
+            columns: ["moved_by"];
+            isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "pipeline_moves_moved_by_fkey";
+            columns: ["moved_by"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "pipeline_moves_owner_id_fkey";
+            columns: ["owner_id"];
+            isOneToOne: false;
+            referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "pipeline_moves_owner_id_fkey";
+            columns: ["owner_id"];
+            isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "pipeline_moves_owner_id_fkey";
+            columns: ["owner_id"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "pipeline_moves_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      pipeline_step_hides: {
+        Row: {
+          created_at: string;
+          person_id: string;
+          step_id: string;
+          workspace_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          created_at?: string;
+          person_id?: string;
+          step_id: string;
+          workspace_id?: string;
+        };
+        Update: {
+          created_at?: string;
+          person_id?: string;
+          step_id?: string;
+          workspace_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "pipeline_step_hides_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: false;
+            referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "pipeline_step_hides_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "pipeline_step_hides_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "pipeline_step_hides_step_id_fkey";
+            columns: ["step_id"];
+            isOneToOne: false;
+            referencedRelation: "pipeline_steps";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "pipeline_step_hides_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      pipeline_steps: {
+        Row: {
+          band: string;
+          created_at: string;
+          id: string;
+          label: string;
+          owner_id: string;
+          position: number;
+          workspace_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          band: string;
+          created_at?: string;
+          id?: string;
+          label: string;
+          owner_id?: string;
+          position?: number;
+          workspace_id?: string;
+        };
+        Update: {
+          band?: string;
+          created_at?: string;
+          id?: string;
+          label?: string;
+          owner_id?: string;
+          position?: number;
+          workspace_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "pipeline_steps_owner_id_fkey";
+            columns: ["owner_id"];
+            isOneToOne: false;
+            referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "pipeline_steps_owner_id_fkey";
+            columns: ["owner_id"];
+            isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "pipeline_steps_owner_id_fkey";
+            columns: ["owner_id"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "pipeline_steps_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      pipeline_team_settings: {
+        Row: {
+          mg1_goal: number | null;
+          person_id: string;
+          target_contact_to_meeting: number | null;
+          target_meeting_to_plan: number | null;
+          target_plan_to_registered: number | null;
+          updated_at: string;
+          workspace_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          mg1_goal?: number | null;
+          person_id?: string;
+          target_contact_to_meeting?: number | null;
+          target_meeting_to_plan?: number | null;
+          target_plan_to_registered?: number | null;
+          updated_at?: string;
+          workspace_id?: string;
+        };
+        Update: {
+          mg1_goal?: number | null;
+          person_id?: string;
+          target_contact_to_meeting?: number | null;
+          target_meeting_to_plan?: number | null;
+          target_plan_to_registered?: number | null;
+          updated_at?: string;
+          workspace_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "pipeline_team_settings_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: true;
+            referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "pipeline_team_settings_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: true;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "pipeline_team_settings_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: true;
+            referencedRelation: "people";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "pipeline_team_settings_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       reactions: {
         Row: {
           created_at: string;
@@ -2396,6 +2730,159 @@ export type Database = {
           },
         ];
       };
+      stat_requests: {
+        Row: {
+          created_at: string;
+          decided_at: string | null;
+          id: string;
+          owner_id: string;
+          requester_id: string;
+          status: string;
+          workspace_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          created_at?: string;
+          decided_at?: string | null;
+          id?: string;
+          owner_id: string;
+          requester_id?: string;
+          status?: string;
+          workspace_id?: string;
+        };
+        Update: {
+          created_at?: string;
+          decided_at?: string | null;
+          id?: string;
+          owner_id?: string;
+          requester_id?: string;
+          status?: string;
+          workspace_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "stat_requests_owner_id_fkey";
+            columns: ["owner_id"];
+            isOneToOne: false;
+            referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "stat_requests_owner_id_fkey";
+            columns: ["owner_id"];
+            isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "stat_requests_owner_id_fkey";
+            columns: ["owner_id"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "stat_requests_requester_id_fkey";
+            columns: ["requester_id"];
+            isOneToOne: false;
+            referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "stat_requests_requester_id_fkey";
+            columns: ["requester_id"];
+            isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "stat_requests_requester_id_fkey";
+            columns: ["requester_id"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "stat_requests_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      stat_shares: {
+        Row: {
+          created_at: string;
+          owner_id: string;
+          viewer_id: string;
+          workspace_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          created_at?: string;
+          owner_id?: string;
+          viewer_id: string;
+          workspace_id?: string;
+        };
+        Update: {
+          created_at?: string;
+          owner_id?: string;
+          viewer_id?: string;
+          workspace_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "stat_shares_owner_id_fkey";
+            columns: ["owner_id"];
+            isOneToOne: false;
+            referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "stat_shares_owner_id_fkey";
+            columns: ["owner_id"];
+            isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "stat_shares_owner_id_fkey";
+            columns: ["owner_id"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "stat_shares_viewer_id_fkey";
+            columns: ["viewer_id"];
+            isOneToOne: false;
+            referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "stat_shares_viewer_id_fkey";
+            columns: ["viewer_id"];
+            isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "stat_shares_viewer_id_fkey";
+            columns: ["viewer_id"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "stat_shares_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       workspaces: {
         Row: {
           colors: NonNullable<Json>;
@@ -2457,6 +2944,24 @@ export type Database = {
     Functions: {
       accept_invite: { Args: { p_token: string }; Returns: string };
       answer_event_post: { Args: { p_message_id: string }; Returns: string };
+      answer_stat_request: {
+        Args: { p_approve: boolean; p_request_id: string };
+        Returns: {
+          created_at: string;
+          decided_at: string | null;
+          id: string;
+          owner_id: string;
+          requester_id: string;
+          status: string;
+          workspace_id: string;
+        };
+        SetofOptions: {
+          from: "*";
+          to: "stat_requests";
+          isOneToOne: true;
+          isSetofReturn: false;
+        };
+      };
       approve_announcement:
         | { Args: { p_draft_id: string }; Returns: string }
         | { Args: { p_draft_id: string; p_message_id: string }; Returns: string };
@@ -2563,6 +3068,19 @@ export type Database = {
       mark_conversation_read: { Args: { p_conversation_id: string }; Returns: string };
       message_author_id: { Args: { p_message_id: string }; Returns: string };
       message_conversation_id: { Args: { p_message_id: string }; Returns: string };
+      move_pipeline_card: {
+        Args: {
+          p_hot?: boolean;
+          p_move_id?: string;
+          p_next_step?: string;
+          p_next_step_date?: string;
+          p_person_id: string;
+          p_source?: string;
+          p_to: string;
+        };
+        Returns: Json;
+      };
+      my_chain_ids: { Args: Record<PropertyKey, never>; Returns: string[] };
       my_conversation_ids: { Args: Record<PropertyKey, never>; Returns: string[] };
       notify: {
         Args: {
@@ -2595,6 +3113,23 @@ export type Database = {
         };
       };
       person_workspace: { Args: { p_person_id: string }; Returns: string };
+      pipeline_milestone_index: { Args: { p_milestone: string }; Returns: number };
+      pipeline_move_is_latest: { Args: { p_move_id: string }; Returns: boolean };
+      pipeline_person_counts: {
+        Args: { p_from: string; p_owner_ids: string[]; p_to: string };
+        Returns: {
+          contact: number;
+          first_meeting: number;
+          first_plan: number;
+          owner_id: string;
+          registered: number;
+        }[];
+      };
+      pipeline_stats_visible: { Args: { p_owner_id: string }; Returns: boolean };
+      pipeline_team_row_visible: {
+        Args: { p_person_id: string; p_workspace_id: string };
+        Returns: boolean;
+      };
       purge_expired_messages: { Args: Record<PropertyKey, never>; Returns: number };
       record_conversation_checkin: {
         Args: {
@@ -2607,6 +3142,14 @@ export type Database = {
       };
       reject_announcement: { Args: { p_draft_id: string }; Returns: undefined };
       shares_conversation: { Args: { a: string; b: string }; Returns: boolean };
+      sponsor_chain: {
+        Args: { p_person_id: string };
+        Returns: {
+          depth: number;
+          name: string;
+          person_id: string;
+        }[];
+      };
       sync_team_chats: {
         Args: { p_include_pinned: boolean; p_person_id: string };
         Returns: undefined;

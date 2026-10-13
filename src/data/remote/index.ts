@@ -10,8 +10,9 @@
  *  - every store change made by src/data mutations is written to Postgres
  *    (./engine.ts, ./bindings.ts); failures roll back with a toast;
  *  - chat tables follow Realtime (./realtime.ts);
- *  - CRM tables are refetched when the window regains focus, when the
- *    connection comes back, and every few minutes.
+ *  - CRM, library and pipeline tables are refetched when the window regains
+ *    focus, when the connection comes back, and every few minutes (the
+ *    pipeline also when a stat request notification arrives).
  */
 import { getSupabase } from "@/lib/supabase";
 import { usePeopleStore } from "@/stores/peopleStore";
@@ -23,6 +24,7 @@ import { useActivityStore } from "@/stores/activityStore";
 import { emptyChat, useChatStore } from "@/data/chat/store";
 import { emptyLibrary, useLibraryStore } from "@/data/library/store";
 import { useLibraryExtras } from "@/data/library/extras";
+import { emptyPipeline, usePipelineStore } from "@/data/pipeline/store";
 import { ALL_BINDINGS } from "./bindings";
 import {
   applyRemote,
@@ -40,11 +42,13 @@ import {
   applyChat,
   applyCrm,
   applyLibrary,
+  applyPipeline,
   applySnapshot,
   fetchChat,
   fetchCrm,
   fetchDirectory,
   fetchLibrary,
+  fetchPipeline,
   fetchRsvpCounts,
   fetchSnapshot,
 } from "./hydrate";
@@ -104,7 +108,7 @@ async function open(person: { personId: string; name: string }, token: number): 
     onChange: onLiveChange,
     // After a reconnect, changes may have been missed: catch up.
     onSubscribed: (resumed) =>
-      resumed && scheduleRefresh(["chat", "crm", "library", "directory", "counts"]),
+      resumed && scheduleRefresh(["chat", "crm", "library", "pipeline", "directory", "counts"]),
     onError: (status, err) => console.warn(`[realtime] ${status}`, err ?? ""),
   });
 
@@ -112,12 +116,13 @@ async function open(person: { personId: string; name: string }, token: number): 
     if (document.visibilityState !== "visible") return;
     if (Date.now() - lastFocusRefresh < FOCUS_THROTTLE_MS) return;
     lastFocusRefresh = Date.now();
-    scheduleRefresh(["crm", "chat", "library", "directory", "counts"]);
+    scheduleRefresh(["crm", "chat", "library", "pipeline", "directory", "counts"]);
   };
-  const onOnline = () => scheduleRefresh(["crm", "chat", "library", "directory", "counts"]);
+  const onOnline = () =>
+    scheduleRefresh(["crm", "chat", "library", "pipeline", "directory", "counts"]);
   let lastFocusRefresh = Date.now();
   const timer = setInterval(
-    () => scheduleRefresh(["crm", "library", "directory", "counts"]),
+    () => scheduleRefresh(["crm", "library", "pipeline", "directory", "counts"]),
     REFRESH_EVERY_MS,
   );
   // (No window in the Node integration tests.)
@@ -170,7 +175,8 @@ export function closeRemoteSession(cancelLoading = true): void {
   useChatStore.setState(emptyChat());
   useLibraryStore.setState(emptyLibrary());
   useLibraryExtras.setState({ teasers: [], names: {} });
-  useRemoteStore.setState({ directory: [], rsvpCounts: null, phase: "idle" });
+  usePipelineStore.setState(emptyPipeline());
+  useRemoteStore.setState({ directory: [], rsvpCounts: null, chain: [], phase: "idle" });
 }
 
 // ---------------------------------------------------------------------------
@@ -194,6 +200,9 @@ function onLiveChange(ch: LiveChange): void {
   } else if (ch.table === "notifications" && ch.type === "INSERT") {
     // The database logged a conversation check-in (contacts) for me.
     if (ch.row.type === "checkin_logged") scheduleRefresh(["crm"]);
+    // Someone asked to see my numbers, or answered my request (share).
+    if (ch.row.type === "stat_request" || ch.row.type === "stat_request_answered")
+      scheduleRefresh(["pipeline"]);
   } else if (ch.table === "messages" && ch.type === "INSERT") {
     const author = String(ch.row.author_id ?? "");
     const known =
@@ -207,7 +216,7 @@ function onLiveChange(ch: LiveChange): void {
 // Refetching
 // ---------------------------------------------------------------------------
 
-type Scope = "crm" | "chat" | "library" | "directory" | "counts";
+type Scope = "crm" | "chat" | "library" | "pipeline" | "directory" | "counts";
 const pendingScopes = new Set<Scope>();
 let pendingTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -231,10 +240,11 @@ async function refresh(scopes: Scope[], attempt = 0): Promise<void> {
   await whenIdle();
   const version = localChangeVersion();
   try {
-    const [crm, chat, library, directory, counts] = await Promise.all([
+    const [crm, chat, library, pipeline, directory, counts] = await Promise.all([
       scopes.includes("crm") ? fetchCrm(ctx.client, ctx.me) : null,
       scopes.includes("chat") ? fetchChat(ctx.client) : null,
       scopes.includes("library") ? fetchLibrary(ctx.client) : null,
+      scopes.includes("pipeline") ? fetchPipeline(ctx.client, ctx.me) : null,
       scopes.includes("directory") ? fetchDirectory(ctx.client) : null,
       scopes.includes("counts") ? fetchRsvpCounts(ctx.client) : null,
     ]);
@@ -247,6 +257,7 @@ async function refresh(scopes: Scope[], attempt = 0): Promise<void> {
     if (crm) applyCrm(crm);
     if (chat) applyChat(chat);
     if (library) applyLibrary(library);
+    if (pipeline) applyPipeline(pipeline);
     if (directory) useRemoteStore.setState({ directory });
     if (counts) useRemoteStore.setState({ rsvpCounts: counts });
   } catch (e) {
@@ -261,4 +272,42 @@ export function refreshRsvpCounts(): void {
 
 // A failed write was rolled back: say so and re-sync with the server.
 onWriteError((error) => saveFailed(error));
-setReconcile(() => scheduleRefresh(["crm", "chat", "library", "directory", "counts"], 1000));
+setReconcile(() =>
+  scheduleRefresh(["crm", "chat", "library", "pipeline", "directory", "counts"], 1000),
+);
+
+/**
+ * Milestones reached per owner (totals only) for people whose numbers you
+ * may see but whose prospects you can't (they shared with you). Null when
+ * signed out.
+ */
+export async function fetchPipelineCounts(
+  ownerIds: string[],
+  from: string,
+  to: string,
+): Promise<Record<
+  string,
+  Record<"contact" | "first_meeting" | "first_plan" | "registered", number>
+> | null> {
+  const ctx = syncContext();
+  if (!ctx || !ownerIds.length) return ctx ? {} : null;
+  const { data, error } = await ctx.client.rpc("pipeline_person_counts", {
+    p_owner_ids: ownerIds,
+    p_from: from,
+    p_to: to,
+  });
+  if (error) throw new Error(`pipeline_person_counts: ${error.message}`);
+  const out: Record<
+    string,
+    Record<"contact" | "first_meeting" | "first_plan" | "registered", number>
+  > = {};
+  for (const r of data ?? []) {
+    out[r.owner_id] = {
+      contact: r.contact,
+      first_meeting: r.first_meeting,
+      first_plan: r.first_plan,
+      registered: r.registered,
+    };
+  }
+  return out;
+}

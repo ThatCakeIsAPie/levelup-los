@@ -2,7 +2,7 @@
 -- demo seed. Do not edit by hand: run `npm run db:seed`.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(30);
+select plan(38);
 
 -- Act as a person: gives them a local auth user (and links their member row)
 -- if they have none yet, then switches to the authenticated role.
@@ -39,6 +39,8 @@ select is((select count(*)::int from public.contacts where id = any(array['k-c1'
 select is((select count(*)::int from public.sales where id = any(array['s0', 's1', 's10', 's2', 's3', 's4', 's5', 's6', 's7', 's8', 's9']::text[])), 5, 'Maria Reyes: sales of visible customers');
 select is((select count(*)::int from public.learning where id = any(array['l0', 'l1', 'l10', 'l11', 'l12', 'l13', 'l14', 'l15', 'l16', 'l17', 'l18', 'l19', 'l2', 'l20', 'l21', 'l22', 'l23', 'l24', 'l25', 'l26', 'l27', 'l28', 'l29', 'l3', 'l30', 'l4', 'l5', 'l6', 'l7', 'l8', 'l9']::text[])), 31, 'Maria Reyes: learning of visible people');
 select is((select count(*)::int from public.events where id = any(array['e1', 'e2', 'e3', 'e4', 'e5', 'e6']::text[])), 6, 'Maria Reyes: everyone sees every event');
+select is((select count(*)::int from public.pipeline_cards where person_id = any(array['10', '100', '101', '102', '103', '105', '110', '113', '12', '15', '16', '18', '20', '200', '202', '204', '205', '207', '209', '21', '212', '214', '304', '305', '308', '309', '310', '311', '5', '500', '501', '502', '503', '504', '505', '506', '507', '508', '509', '510', '511', '512', '513', '514', '515', '516', '517', '518', '519', '520', '521', '522', '523', '524', '525', '526', '527', '528', '529', '530', '531', '532', '533', '534', '535', '536', '537', '538', '539', '540', '541', '542', '543', '544', '9']::text[])), 75, 'Maria Reyes: pipeline cards of visible prospects');
+select is((select count(*)::int from public.pipeline_moves where id like 'pm%'), 3882, 'Maria Reyes: pipeline moves of their team');
 select pg_temp.logout();
 
 select pg_temp.login('2'); -- Anita Patel (ibo)
@@ -49,6 +51,8 @@ select is((select count(*)::int from public.contacts where id = any(array['k-c1'
 select is((select count(*)::int from public.sales where id = any(array['s0', 's1', 's10', 's2', 's3', 's4', 's5', 's6', 's7', 's8', 's9']::text[])), 2, 'Anita Patel: sales of visible customers');
 select is((select count(*)::int from public.learning where id = any(array['l0', 'l1', 'l10', 'l11', 'l12', 'l13', 'l14', 'l15', 'l16', 'l17', 'l18', 'l19', 'l2', 'l20', 'l21', 'l22', 'l23', 'l24', 'l25', 'l26', 'l27', 'l28', 'l29', 'l3', 'l30', 'l4', 'l5', 'l6', 'l7', 'l8', 'l9']::text[])), 6, 'Anita Patel: learning of visible people');
 select is((select count(*)::int from public.events where id = any(array['e1', 'e2', 'e3', 'e4', 'e5', 'e6']::text[])), 6, 'Anita Patel: everyone sees every event');
+select is((select count(*)::int from public.pipeline_cards where person_id = any(array['10', '100', '101', '102', '103', '105', '110', '113', '12', '15', '16', '18', '20', '200', '202', '204', '205', '207', '209', '21', '212', '214', '304', '305', '308', '309', '310', '311', '5', '500', '501', '502', '503', '504', '505', '506', '507', '508', '509', '510', '511', '512', '513', '514', '515', '516', '517', '518', '519', '520', '521', '522', '523', '524', '525', '526', '527', '528', '529', '530', '531', '532', '533', '534', '535', '536', '537', '538', '539', '540', '541', '542', '543', '544', '9']::text[])), 28, 'Anita Patel: pipeline cards of visible prospects');
+select is((select count(*)::int from public.pipeline_moves where id like 'pm%'), 1339, 'Anita Patel: pipeline moves of their team');
 select pg_temp.logout();
 
 select pg_temp.login('4'); -- Jamal Brown (apprentice)
@@ -59,6 +63,8 @@ select is((select count(*)::int from public.contacts where id = any(array['k-c1'
 select is((select count(*)::int from public.sales where id = any(array['s0', 's1', 's10', 's2', 's3', 's4', 's5', 's6', 's7', 's8', 's9']::text[])), 1, 'Jamal Brown: sales of visible customers');
 select is((select count(*)::int from public.learning where id = any(array['l0', 'l1', 'l10', 'l11', 'l12', 'l13', 'l14', 'l15', 'l16', 'l17', 'l18', 'l19', 'l2', 'l20', 'l21', 'l22', 'l23', 'l24', 'l25', 'l26', 'l27', 'l28', 'l29', 'l3', 'l30', 'l4', 'l5', 'l6', 'l7', 'l8', 'l9']::text[])), 3, 'Jamal Brown: learning of visible people');
 select is((select count(*)::int from public.events where id = any(array['e1', 'e2', 'e3', 'e4', 'e5', 'e6']::text[])), 6, 'Jamal Brown: everyone sees every event');
+select is((select count(*)::int from public.pipeline_cards where person_id = any(array['10', '100', '101', '102', '103', '105', '110', '113', '12', '15', '16', '18', '20', '200', '202', '204', '205', '207', '209', '21', '212', '214', '304', '305', '308', '309', '310', '311', '5', '500', '501', '502', '503', '504', '505', '506', '507', '508', '509', '510', '511', '512', '513', '514', '515', '516', '517', '518', '519', '520', '521', '522', '523', '524', '525', '526', '527', '528', '529', '530', '531', '532', '533', '534', '535', '536', '537', '538', '539', '540', '541', '542', '543', '544', '9']::text[])), 10, 'Jamal Brown: pipeline cards of visible prospects');
+select is((select count(*)::int from public.pipeline_moves where id like 'pm%'), 496, 'Jamal Brown: pipeline moves of their team');
 select pg_temp.logout();
 
 select pg_temp.login('20'); -- Beau Foster (candidate)
@@ -69,6 +75,8 @@ select is((select count(*)::int from public.contacts where id = any(array['k-c1'
 select is((select count(*)::int from public.sales where id = any(array['s0', 's1', 's10', 's2', 's3', 's4', 's5', 's6', 's7', 's8', 's9']::text[])), 0, 'Beau Foster: sales of visible customers');
 select is((select count(*)::int from public.learning where id = any(array['l0', 'l1', 'l10', 'l11', 'l12', 'l13', 'l14', 'l15', 'l16', 'l17', 'l18', 'l19', 'l2', 'l20', 'l21', 'l22', 'l23', 'l24', 'l25', 'l26', 'l27', 'l28', 'l29', 'l3', 'l30', 'l4', 'l5', 'l6', 'l7', 'l8', 'l9']::text[])), 1, 'Beau Foster: learning of visible people');
 select is((select count(*)::int from public.events where id = any(array['e1', 'e2', 'e3', 'e4', 'e5', 'e6']::text[])), 6, 'Beau Foster: everyone sees every event');
+select is((select count(*)::int from public.pipeline_cards where person_id = any(array['10', '100', '101', '102', '103', '105', '110', '113', '12', '15', '16', '18', '20', '200', '202', '204', '205', '207', '209', '21', '212', '214', '304', '305', '308', '309', '310', '311', '5', '500', '501', '502', '503', '504', '505', '506', '507', '508', '509', '510', '511', '512', '513', '514', '515', '516', '517', '518', '519', '520', '521', '522', '523', '524', '525', '526', '527', '528', '529', '530', '531', '532', '533', '534', '535', '536', '537', '538', '539', '540', '541', '542', '543', '544', '9']::text[])), 0, 'Beau Foster: pipeline cards of visible prospects');
+select is((select count(*)::int from public.pipeline_moves where id like 'pm%'), 0, 'Beau Foster: pipeline moves of their team');
 select pg_temp.logout();
 
 select * from finish();

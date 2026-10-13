@@ -26,6 +26,8 @@ import {
   transitionStats,
   validateMove,
   boardCards,
+  withUplines,
+  comparisonPeriod,
 } from "./rules";
 import {
   DEFAULT_TARGETS,
@@ -88,6 +90,16 @@ describe("columns: milestones, bands and inherited steps", () => {
   it("chainOf is root-first and ends with the person", () => {
     expect(chainOf(people, "4")).toEqual(["1", "2", "4"]);
     expect(chainOf(people, "1")).toEqual(["1"]);
+  });
+
+  it("real accounts: a chain cut off at your own sponsor is completed with your uplines", () => {
+    // Jamal's people list has no Maria: chainOf stops at his sponsor's id.
+    const mine = people.filter((p) => p.id !== "1" && p.id !== "2");
+    expect(chainOf(mine, "9")).toEqual(["2", "4", "9"]);
+    expect(chainOf(mine, "9", ["1", "2", "4"])).toEqual(["1", "2", "4", "9"]);
+    expect(withUplines(["4"], ["1", "2", "4"])).toEqual(["1", "2", "4"]);
+    expect(withUplines(["1", "2", "4"], ["1", "2", "4"])).toEqual(["1", "2", "4"]); // already complete
+    expect(withUplines(["2", "4"], [])).toEqual(["2", "4"]);
   });
 
   it("the four milestones are always there, in order, with steps in the band after their milestone", () => {
@@ -298,6 +310,17 @@ describe("activity: milestones reached", () => {
     const full = monthActivity(reachesOf(moves), null, "2026-09", "2026-10-13");
     expect(full.partial).toBe(false);
     expect(full.counts.first_meeting).toBe(2);
+  });
+
+  it("a month is compared with the whole previous month (one place to change it)", () => {
+    expect(comparisonPeriod("2026-10", "2026-10-13")).toEqual({
+      from: "2026-09-01",
+      to: "2026-09-30",
+    });
+    expect(comparisonPeriod("2026-03", "2026-10-13")).toEqual({
+      from: "2026-02-01",
+      to: "2026-02-28",
+    });
   });
 
   it("goal pace: what's left over the days left, today included", () => {

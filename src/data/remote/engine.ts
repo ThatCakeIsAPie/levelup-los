@@ -98,6 +98,15 @@ export const TABLE_ORDER = [
   "library_channel_sections",
   "library_channel_items",
   "library_progress",
+  // Moves before cards: move_pipeline_card() creates / moves the card first.
+  "pipeline_steps",
+  "pipeline_step_hides",
+  "pipeline_moves",
+  "pipeline_cards",
+  "pipeline_team_settings",
+  // Requests before shares: approving makes the share in the database.
+  "stat_requests",
+  "stat_shares",
 ] as const;
 const orderOf = (t: string) => {
   const i = (TABLE_ORDER as readonly string[]).indexOf(t);

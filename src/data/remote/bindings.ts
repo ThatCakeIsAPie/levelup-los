@@ -33,6 +33,17 @@ import type {
   LibraryProgress,
   LibraryTopic,
 } from "@/data/library/types";
+import { usePipelineStore } from "@/data/pipeline/store";
+import type {
+  PipelineCard,
+  PipelineData,
+  PipelineMove,
+  PipelineStep,
+  StatRequest,
+  StatShare,
+  StepHide,
+  TeamSetting,
+} from "@/data/pipeline/types";
 import { applyRemote, keyOf, syncContext, type Binding, type Row, type TableSpec } from "./engine";
 import * as m from "./rows";
 
@@ -785,6 +796,162 @@ export const libraryBinding: Binding<LibS> = {
   ],
 };
 
+// ---------------------------------------------------------------------------
+// Pipeline (src/data/pipeline). Moves go through move_pipeline_card(), which
+// also creates or moves the card; a card's column and entry time belong to
+// the database (they change only through moves, undo and step deletes).
+// ---------------------------------------------------------------------------
+
+type PipeS = PipelineData;
+/** Card columns the client never sends (the database owns them). */
+const SERVER_CARD_COLS = ["person_id", "column_id", "entered_at"];
+const cardPatch = (row: Row): Row =>
+  Object.fromEntries(Object.entries(row).filter(([k]) => !SERVER_CARD_COLS.includes(k)));
+
+function rpcError(what: string, error: { message: string; code?: string }): Error {
+  const e = new Error(`${what}: ${error.message}`) as Error & { code?: string };
+  e.code = error.code;
+  return e;
+}
+
+export const pipelineBinding: Binding<PipeS> = {
+  name: "pipeline",
+  store: usePipelineStore,
+  specs: [
+    listSpec<PipeS, PipelineStep>({
+      table: "pipeline_steps",
+      pk: ["id"],
+      get: (s) => s.steps,
+      set: (steps) => ({ steps }),
+      toRow: m.stepToRow,
+      fromRow: m.stepFromRow,
+    }),
+    listSpec<PipeS, StepHide>({
+      table: "pipeline_step_hides",
+      pk: ["person_id", "step_id"],
+      get: (s) => s.hides,
+      set: (hides) => ({ hides }),
+      toRow: m.hideToRow,
+      fromRow: m.hideFromRow,
+      insert: "ignore",
+      update: false,
+    }),
+    listSpec<PipeS, PipelineMove>({
+      table: "pipeline_moves",
+      pk: ["id"],
+      get: (s) => s.moves,
+      set: (moves) => ({ moves }),
+      toRow: m.moveToRow,
+      fromRow: m.moveFromRow,
+      // Undo deletes; nobody edits a move.
+      update: false,
+      writeInsert: async (rows, c) => {
+        const sorted = [...rows].sort((a, b) =>
+          String(a.moved_at).localeCompare(String(b.moved_at)),
+        );
+        for (const r of sorted) {
+          const card = usePipelineStore.getState().cards.find((x) => x.personId === r.person_id);
+          const { data, error } = await c.client.rpc("move_pipeline_card", {
+            p_person_id: r.person_id as string,
+            p_to: r.to_column as string,
+            p_move_id: r.id as string,
+            p_next_step: card?.nextStep ?? undefined,
+            p_next_step_date: card?.nextStepDate ?? undefined,
+            p_source: card?.source ?? undefined,
+            p_hot: card?.hot ?? undefined,
+          });
+          if (error) throw rpcError("move_pipeline_card", error);
+          const out = (data ?? {}) as { move?: Row; card?: Row };
+          queueMicrotask(() => {
+            if (out.move) applyRemote("pipeline_moves", [out.move]);
+            if (out.card) applyRemote("pipeline_cards", [out.card]);
+          });
+        }
+      },
+    }),
+    listSpec<PipeS, PipelineCard>({
+      table: "pipeline_cards",
+      pk: ["person_id"],
+      get: (s) => s.cards,
+      set: (cards) => ({ cards }),
+      toRow: m.cardToRow,
+      fromRow: m.cardFromRow,
+      // A card usually comes from its first move (written just before). A
+      // prospect without one (added on the People page) gets it here, in
+      // Contact made, the first time it is edited.
+      writeInsert: async (rows, c) => {
+        const ids = rows.map((r) => r.person_id as string);
+        const { data, error } = await c.client
+          .from("pipeline_cards")
+          .select("person_id")
+          .in("person_id", ids);
+        if (error) throw rpcError("load pipeline_cards", error);
+        const have = new Set((data ?? []).map((r) => String(r.person_id)));
+        for (const r of rows) {
+          const res = have.has(String(r.person_id))
+            ? await c.client
+                .from("pipeline_cards")
+                .update(cardPatch(r))
+                .eq("person_id", r.person_id as string)
+            : await c.client
+                .from("pipeline_cards")
+                .insert({ ...r, column_id: "contact" }, { defaultToNull: false });
+          if (res.error) throw rpcError("write pipeline_cards", res.error);
+        }
+      },
+      writeUpdate: async (row, changes, _prev, c) => {
+        const patch = cardPatch(changes);
+        if (!Object.keys(patch).length) return;
+        const { data, error } = await c.client
+          .from("pipeline_cards")
+          .update(patch)
+          .eq("person_id", row.person_id as string)
+          .select("person_id");
+        if (error) throw rpcError("update pipeline_cards", error);
+        if (!data?.length) throw new Error("update pipeline_cards: not allowed");
+      },
+    }),
+    listSpec<PipeS, TeamSetting>({
+      table: "pipeline_team_settings",
+      pk: ["person_id"],
+      get: (s) => s.settings,
+      set: (settings) => ({ settings }),
+      toRow: m.teamSettingToRow,
+      fromRow: m.teamSettingFromRow,
+      insert: "upsert",
+    }),
+    listSpec<PipeS, StatRequest>({
+      table: "stat_requests",
+      pk: ["id"],
+      get: (s) => s.requests,
+      set: (requests) => ({ requests }),
+      toRow: m.statRequestToRow,
+      fromRow: m.statRequestFromRow,
+      // Answering goes through answer_stat_request() (share + notification).
+      writeUpdate: async (row, changes, _prev, c) => {
+        if (!changes.status) return;
+        const { data, error } = await c.client.rpc("answer_stat_request", {
+          p_request_id: row.id as string,
+          p_approve: changes.status === "approved",
+        });
+        if (error) throw rpcError("answer_stat_request", error);
+        if (data) queueMicrotask(() => applyRemote("stat_requests", [data as unknown as Row]));
+      },
+    }),
+    listSpec<PipeS, StatShare>({
+      table: "stat_shares",
+      pk: ["owner_id", "viewer_id"],
+      get: (s) => s.shares,
+      set: (shares) => ({ shares }),
+      toRow: m.shareToRow,
+      fromRow: m.shareFromRow,
+      // answer_stat_request() may have made it already.
+      insert: "ignore",
+      update: false,
+    }),
+  ],
+};
+
 export const ALL_BINDINGS = [
   peopleBinding,
   eventsBinding,
@@ -794,4 +961,5 @@ export const ALL_BINDINGS = [
   activityBinding,
   chatBinding,
   libraryBinding,
+  pipelineBinding,
 ] as unknown as Binding<unknown>[];

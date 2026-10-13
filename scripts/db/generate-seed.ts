@@ -4,6 +4,8 @@
  *   - CRM: src/data/seed.ts (people, events, attendance, contacts, ...)
  *   - chat: src/data/chat/seed.ts seedChat() (every chat table, row for row)
  *   - library: src/data/library/seed.ts seedLibrary() (catalog, channels, progress)
+ *   - pipeline: src/data/pipeline/seed.ts seedPipeline() (steps, cards, moves,
+ *     goals, stat shares and requests)
  * plus the local demo logins. Also generates the visibility-parity pgTAP test
  * (supabase/tests/001_visibility_parity.test.sql) from src/data/access.ts.
  *
@@ -31,6 +33,7 @@ import {
 } from "@/data/seed";
 import { seedChat } from "@/data/chat/seed";
 import { seedLibrary } from "@/data/library/seed";
+import { seedPipeline } from "@/data/pipeline/seed";
 import { WORKSPACE_ID } from "@/data/chat/types";
 import { filterAttendances, visibleCustomers, visibleIdSet, type Viewer } from "@/data/access";
 import type { CrmPerson } from "@/stores/peopleStore";
@@ -150,6 +153,7 @@ const ops = seedOps();
 const activity = seedActivity(people, attendances);
 const chat = seedChat(people, NOW);
 const library = seedLibrary(new Date(NOW));
+const pipeline = seedPipeline(people, new Date(NOW));
 
 // Workspace members: the chat seed's members (apprentices, IBOs, the leader)
 // plus any demo user who isn't one (Beau, the candidate: can sign in, no chat).
@@ -677,6 +681,166 @@ emit(
   ),
 );
 
+section("Pipeline (seedPipeline)");
+emit(`-- History moves of prospects who have left the CRM keep their "x..." person
+-- ids (moves keep no link to people). Stat request notifications come with
+-- the chat seed, so the request trigger is off while they load.
+alter table public.stat_requests disable trigger user;
+
+`);
+emit(
+  insert(
+    "public.pipeline_steps",
+    [
+      ["id", "text"],
+      ["workspace_id", "text"],
+      ["owner_id", "text"],
+      ["band", "text"],
+      ["label", "text"],
+      ["position", "num"],
+      ["created_at", "ts"],
+    ],
+    pipeline.steps.map((x) => [
+      x.id,
+      WORKSPACE_ID,
+      x.ownerId,
+      x.band,
+      x.label,
+      x.position,
+      x.createdAt,
+    ]),
+  ),
+);
+emit(
+  insert(
+    "public.pipeline_step_hides",
+    [
+      ["person_id", "text"],
+      ["step_id", "text"],
+      ["workspace_id", "text"],
+      ["created_at", "ts"],
+    ],
+    pipeline.hides.map((h) => [h.personId, h.stepId, WORKSPACE_ID, h.createdAt]),
+  ),
+);
+emit(
+  insert(
+    "public.pipeline_cards",
+    [
+      ["person_id", "text"],
+      ["workspace_id", "text"],
+      ["column_id", "text"],
+      ["entered_at", "ts"],
+      ["next_step", "text"],
+      ["next_step_date", "date"],
+      ["hot", "bool"],
+      ["source", "text"],
+      ["dropped_at", "ts"],
+      ["updated_at", "ts"],
+    ],
+    pipeline.cards.map((c) => [
+      c.personId,
+      WORKSPACE_ID,
+      c.column,
+      c.enteredAt,
+      c.nextStep,
+      c.nextStepDate,
+      c.hot,
+      c.source,
+      c.droppedAt,
+      c.updatedAt,
+    ]),
+  ),
+);
+emit(
+  insert(
+    "public.pipeline_moves",
+    [
+      ["id", "text"],
+      ["workspace_id", "text"],
+      ["person_id", "text"],
+      ["owner_id", "text"],
+      ["from_column", "text"],
+      ["to_column", "text"],
+      ["milestone", "text"],
+      ["moved_at", "ts"],
+      ["moved_by", "text"],
+    ],
+    pipeline.moves.map((m) => [
+      m.id,
+      WORKSPACE_ID,
+      m.personId,
+      m.ownerId,
+      m.from,
+      m.to,
+      m.milestone,
+      m.movedAt,
+      m.movedBy,
+    ]),
+  ),
+);
+emit(
+  insert(
+    "public.pipeline_team_settings",
+    [
+      ["person_id", "text"],
+      ["workspace_id", "text"],
+      ["mg1_goal", "num"],
+      ["target_contact_to_meeting", "num"],
+      ["target_meeting_to_plan", "num"],
+      ["target_plan_to_registered", "num"],
+      ["updated_at", "ts"],
+    ],
+    pipeline.settings.map((t) => [
+      t.personId,
+      WORKSPACE_ID,
+      t.mg1Goal,
+      t.targets?.contactToMeeting,
+      t.targets?.meetingToPlan,
+      t.targets?.planToRegistered,
+      t.updatedAt,
+    ]),
+  ),
+);
+emit(
+  insert(
+    "public.stat_shares",
+    [
+      ["owner_id", "text"],
+      ["viewer_id", "text"],
+      ["workspace_id", "text"],
+      ["created_at", "ts"],
+    ],
+    pipeline.shares.map((x) => [x.ownerId, x.viewerId, WORKSPACE_ID, x.createdAt]),
+  ),
+);
+emit(
+  insert(
+    "public.stat_requests",
+    [
+      ["id", "text"],
+      ["workspace_id", "text"],
+      ["requester_id", "text"],
+      ["owner_id", "text"],
+      ["status", "text"],
+      ["created_at", "ts"],
+      ["decided_at", "ts"],
+    ],
+    pipeline.requests.map((r) => [
+      r.id,
+      WORKSPACE_ID,
+      r.requesterId,
+      r.ownerId,
+      r.status,
+      r.createdAt,
+      r.decidedAt,
+    ]),
+  ),
+);
+emit(`
+alter table public.stat_requests enable trigger user;
+`);
+
 section("Chat (seedChat, row for row)");
 emit(`-- The browser demo's chat seed already contains the notifications, read
 -- state and roles the triggers would create, so user triggers are off while
@@ -956,7 +1120,8 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 writeFileSync(resolve(root, "supabase/seed.sql"), out.join(""), "utf8");
 console.log(
   `Wrote supabase/seed.sql: ${people.length} people, ${members.length} members, ` +
-    `${chat.conversations.length} conversations, ${chat.messages.length} messages.`,
+    `${chat.conversations.length} conversations, ${chat.messages.length} messages, ` +
+    `${pipeline.moves.length} pipeline moves.`,
 );
 
 // ---------------------------------------------------------------------------
@@ -1003,6 +1168,14 @@ for (const u of DEMO_USERS) {
   );
   check(
     `select is((select count(*)::int from public.events where id = any(${arr(events.map((e) => e.id))})), ${events.length}, ${str(`${u.name}: everyone sees every event`)});`,
+  );
+  // Pipeline: cards of visible prospects and moves of visible owners (not candidates).
+  const candidate = u.role === "candidate";
+  check(
+    `select is((select count(*)::int from public.pipeline_cards where person_id = any(${arr(pipeline.cards.map((c) => c.personId))})), ${candidate ? 0 : pipeline.cards.filter((c) => ids.has(c.personId)).length}, ${str(`${u.name}: pipeline cards of visible prospects`)});`,
+  );
+  check(
+    `select is((select count(*)::int from public.pipeline_moves where id like 'pm%'), ${candidate ? 0 : pipeline.moves.filter((m) => ids.has(m.ownerId)).length}, ${str(`${u.name}: pipeline moves of their team`)});`,
   );
   t.push(`select pg_temp.logout();`);
 }

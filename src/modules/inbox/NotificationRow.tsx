@@ -2,15 +2,18 @@ import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { approveDraft, markNotificationsRead } from "@/data";
+import { answerStatRequest, approveDraft, markNotificationsRead, useCurrentUser } from "@/data";
 import { shortAgo } from "@/modules/chat/format";
 import type { InboxRow, InboxTarget } from "./model";
 
 export function useOpenInboxTarget() {
   const navigate = useNavigate();
+  const me = useCurrentUser().personId;
   return (t: InboxTarget | null) => {
     if (!t) return;
     if (t.kind === "person") navigate({ to: "/people/$id", params: { id: t.id } });
+    else if (t.kind === "profile") navigate({ to: "/people/$id", params: { id: me } });
+    else if (t.kind === "pipeline") navigate({ to: "/pipeline", search: { tab: t.tab } });
     else if (t.kind === "team") navigate({ to: "/settings/team" });
     else if (t.conversationId) {
       navigate({
@@ -24,7 +27,8 @@ export function useOpenInboxTarget() {
 
 /**
  * One inbox row: tinted icon, bold title when unread, a one-line detail,
- * inline Approve / Review for drafts and Review report for leaders. The
+ * inline Approve / Review for drafts, Review report for leaders and Approve /
+ * Decline for requests to see your pipeline numbers. The
  * title opens the target (the whole row is clickable) and marks it read.
  */
 export function NotificationRow({ row, compact }: { row: InboxRow; compact?: boolean }) {
@@ -61,7 +65,7 @@ export function NotificationRow({ row, compact }: { row: InboxRow; compact?: boo
             {row.sub}
           </p>
         )}
-        {(row.draft || row.openReport) && !compact && (
+        {(row.draft || row.openReport || row.statRequest) && !compact && (
           <div className="relative z-10 mt-2 flex flex-wrap gap-1.5">
             {row.draft && (
               <>
@@ -79,6 +83,33 @@ export function NotificationRow({ row, compact }: { row: InboxRow; compact?: boo
                 </Button>
                 <Button size="sm" variant="outline" className="h-7 px-2.5 text-xs" onClick={go}>
                   Review
+                </Button>
+              </>
+            )}
+            {row.statRequest && (
+              <>
+                <Button
+                  size="sm"
+                  className="h-7 px-2.5 text-xs"
+                  onClick={() => {
+                    answerStatRequest(row.statRequest!.id, true);
+                    markNotificationsRead(row.ids);
+                    toast.success("Shared: they can now see your numbers");
+                  }}
+                >
+                  Approve
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 px-2.5 text-xs"
+                  onClick={() => {
+                    answerStatRequest(row.statRequest!.id, false);
+                    markNotificationsRead(row.ids);
+                    toast("Request declined");
+                  }}
+                >
+                  Decline
                 </Button>
               </>
             )}

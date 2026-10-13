@@ -147,12 +147,15 @@ export type NotificationType =
   | "event_post"
   | "win"
   | "checkin_logged"
-  | "reaction";
+  | "reaction"
+  | "stat_request"
+  | "stat_request_answered";
 
 /**
  * `notifications` table. `refId` depends on the type: draft id
  * (announcement_draft), report id (report), event id (event_post), contact id
- * (checkin_logged), the emoji (reaction).
+ * (checkin_logged), the emoji (reaction), the stat request id (stat_request,
+ * stat_request_answered; see src/data/pipeline).
  */
 export interface Notification {
   id: string;
