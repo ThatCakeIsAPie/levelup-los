@@ -495,6 +495,35 @@ p { margin:0; }
 .loggedtoast { display:flex; gap:8px; align-items:center; font-size:11.5px; color:var(--amber-ink); background:var(--amber-soft); border-radius:10px; padding:8px 10px; }
 .loggedtoast [data-lucide] { width:15px; height:15px; color:var(--amber-strong); }
 .fld div .chic.sm { margin-right:2px; }
+
+/* ---------- all talks ---------- */
+.talksmain { padding:22px 26px 28px; }
+.filters2 { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+.selectish.on { background:var(--primary-soft); border-color:transparent; color:var(--primary-ink); }
+.topicchips { display:flex; flex-wrap:wrap; gap:6px; }
+.topicchips span { font-size:12px; font-weight:600; padding:4px 11px; border-radius:999px; border:1px solid var(--line); color:var(--muted); background:var(--surface); }
+.topicchips span.on { background:var(--fg); color:var(--surface); border-color:var(--fg); }
+.topicchips.sm span { font-size:11.5px; padding:3px 9px; }
+.ttable { background:var(--surface); border:1px solid var(--line); border-radius:var(--r-card); overflow:hidden; }
+.thead, .trow { display:grid; grid-template-columns:34px minmax(0,2.2fr) 90px minmax(0,1.3fr) minmax(0,1.4fr) 110px 70px 90px; gap:14px; align-items:center; padding:10px 16px; }
+.thead { font-size:11px; font-weight:700; color:var(--faint); text-transform:uppercase; letter-spacing:.06em; border-bottom:1px solid var(--line); }
+.trow { font-size:13px; border-top:1px solid var(--line); }
+.trow:first-of-type { border-top:0; }
+.tt small, .trow small { display:block; font-size:11.5px; color:var(--muted); }
+.tt b { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.fmt { font-size:11.5px; font-weight:700; color:var(--fg); background:var(--surface-2); border-radius:999px; padding:2px 9px; justify-self:start; }
+.tags { display:flex; gap:4px; flex-wrap:wrap; }
+.tg { font-size:10.5px; font-weight:700; padding:1px 7px; border-radius:999px; background:var(--sky-soft); color:var(--sky-ink); }
+.st { display:inline-flex; gap:4px; align-items:center; font-size:11px; font-weight:700; color:var(--muted); }
+.st [data-lucide] { width:13px; height:13px; }
+.st.ok { color:var(--ok); }
+.st.nw { color:#3A2200; background:var(--amber); padding:1px 8px; border-radius:999px; }
+.seg2 { display:grid; grid-template-columns:1fr 1fr; background:var(--surface-2); border-radius:10px; padding:3px; font-size:12px; font-weight:700; color:var(--muted); text-align:center; }
+.seg2 span { padding:6px 0; border-radius:8px; }
+.seg2 span.on { background:var(--surface); color:var(--fg); box-shadow:0 1px 2px rgba(0,0,0,.08); }
+.prow2 { display:grid; grid-template-columns:34px minmax(0,1fr) auto; gap:10px; align-items:center; padding:9px 0; border-top:1px solid var(--line); font-size:12.5px; }
+.prow2:first-child { border-top:0; }
+.prow2 small { display:block; font-size:11px; color:var(--muted); }
 </style>
 
 <div class="sheet">
@@ -584,6 +613,38 @@ p { margin:0; }
     </div>
   </section>
 
+  <section class="screen" aria-labelledby="talks-h">
+    <div class="screen-head"><h2 id="talks-h">All talks</h2><p>The full catalog: every talk, panel and workshop, sorted and filtered your way. Channels are hand-picked selections from it.</p></div>
+    <div class="scroller">
+      <div class="desk wide" role="img" aria-label="All talks catalog mockup">
+        <div class="chrome"><b></b><b></b><b></b><span>levelup-los.app/library/talks</span></div>
+        <main class="main talksmain">
+          <div class="top">
+            <div><h2>Library</h2><p class="sub">186 talks, panels and workshops</p></div>
+            <span style="flex:1"></span>
+            <button class="btn primary" type="button"><i data-lucide="upload"></i>Add a talk</button>
+          </div>
+          <div class="tabs"><span>Channels</span><span class="on">All talks</span></div>
+          <div class="filters2">
+            <div class="search2" style="min-width:260px"><i data-lucide="search"></i>Search titles, speakers, topics</div>
+            <span class="selectish"><i data-lucide="user"></i>Speaker: Any<i data-lucide="chevron-down"></i></span>
+            <span class="selectish"><i data-lucide="users"></i>Format: Any<i data-lucide="chevron-down"></i></span>
+            <span class="selectish on"><i data-lucide="tag"></i>Topic: Recruiting<i data-lucide="x"></i></span>
+            <span class="selectish"><i data-lucide="file-audio"></i>Type: Any<i data-lucide="chevron-down"></i></span>
+            <span class="selectish"><i data-lucide="calendar"></i>Event: Any<i data-lucide="chevron-down"></i></span>
+            <span style="flex:1"></span>
+            <span class="selectish"><i data-lucide="arrow-down-up"></i>Newest first<i data-lucide="chevron-down"></i></span>
+          </div>
+          <div class="topicchips"><span class="on">All topics</span><span>Recruiting 64</span><span>Sales 41</span><span>Customers 22</span><span>Mindset 38</span><span>The plan 12</span><span>Leadership 19</span></div>
+          <div class="ttable">
+            <div class="thead"><span></span><span>Title and speaker</span><span>Format</span><span>Topics</span><span>Recorded at</span><span>Length</span><span>Date</span><span></span></div>
+            <div class="trow"><span class="lk au"><i data-lucide="headphones"></i></span><div class="tt"><b>Retail is a people business</b><small>Maria Reyes</small></div><span class="fmt">Talk</span><div class="tags"><span class="tg">Sales</span><span class="tg">Customers</span></div><small class="ev">Fall Leadership Weekend 2025</small><small class="len">Audio · 42 min</small><small class="dt">Sep 2025</small><span class="st ok"><i data-lucide="circle-check"></i>Done</span></div><div class="trow"><span class="lk vi"><i data-lucide="play"></i></span><div class="tt"><b>Leaders panel: your first 90 days</b><small>Maria Reyes, Anita Patel, David Chen</small></div><span class="fmt">Panel</span><div class="tags"><span class="tg">Recruiting</span><span class="tg">Mindset</span></div><small class="ev">Spring Conference 2026</small><small class="len">Video · 58 min</small><small class="dt">Sep 2026</small><span class="st nw">New</span></div><div class="trow"><span class="lk dc"><i data-lucide="presentation"></i></span><div class="tt"><b>The plan, slide by slide</b><small>Anita Patel</small></div><span class="fmt">Workshop</span><div class="tags"><span class="tg">Recruiting</span><span class="tg">The plan</span></div><small class="ev">June Team Meeting</small><small class="len">Slides · 24 slides</small><small class="dt">Jun 2026</small><span></span></div><div class="trow"><span class="lk au"><i data-lucide="headphones"></i></span><div class="tt"><b>Q&A: handling objections</b><small>David Chen</small></div><span class="fmt">Q&A</span><div class="tags"><span class="tg">Recruiting</span></div><small class="ev">August Team Meeting</small><small class="len">Audio · 31 min</small><small class="dt">Aug 2026</small><span class="st"><i data-lucide="circle-dashed"></i>Half done</span></div><div class="trow"><span class="lk au"><i data-lucide="headphones"></i></span><div class="tt"><b>Why consistency wins</b><small>Guest: Sam Ortega</small></div><span class="fmt">Talk</span><div class="tags"><span class="tg">Mindset</span></div><small class="ev">Summer Conference 2025</small><small class="len">Audio · 37 min</small><small class="dt">Jul 2025</small><span></span></div><div class="trow"><span class="lk vi"><i data-lucide="play"></i></span><div class="tt"><b>Customer follow-up that feels natural</b><small>Priya Singh</small></div><span class="fmt">Workshop</span><div class="tags"><span class="tg">Sales</span><span class="tg">Customers</span></div><small class="ev">—</small><small class="len">Video · 22 min</small><small class="dt">Oct 2026</small><span class="st nw">New</span></div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </section>
+
   <section class="screen" aria-labelledby="phone-h">
     <div class="screen-head"><h2 id="phone-h">On a phone</h2><p>Library, a channel, the player, and making a channel as a leader</p></div>
     <div class="phones">
@@ -603,6 +664,26 @@ p { margin:0; }
           <div class="tabbar five"><div class="on"><i data-lucide="house"></i>Home</div><div><span class="ti"><i data-lucide="message-circle"></i><span class="tbadge">3</span></span>Chats</div><div><span class="fab"><i data-lucide="plus"></i></span></div><div><i data-lucide="briefcase"></i>My business</div><div><i data-lucide="menu"></i>More</div></div>
         </div>
         <p class="pcap"><b>Library.</b> "Continue" picks up exactly where you stopped. Channels show your progress at a glance. Reached from Home and My business.</p>
+      </div>
+
+      <div class="pwrap">
+        <div class="phone" role="img" aria-label="All talks on a phone">
+          <div class="status"><span>7:42</span><span class="notch"></span><span>5G</span></div>
+          <div class="pbody">
+            <div class="chathead"><h3>Library</h3><span class="sp"></span><span class="iconbtn" aria-label="Filters"><i data-lucide="sliders-horizontal"></i></span></div>
+            <div class="seg2"><span>Channels</span><span class="on">All talks</span></div>
+            <div class="search2"><i data-lucide="search"></i>Search talks</div>
+            <div class="topicchips sm"><span class="on">Recruiting</span><span>Panels</span><span>Maria</span><span>Video</span></div>
+            <div class="pc" style="gap:0">
+              <div class="prow2"><span class="lk vi"><i data-lucide="play"></i></span><div><b>Leaders panel: your first 90 days</b><small>Panel · Maria, Anita, David · 58 min</small></div><span class="st nw">New</span></div>
+              <div class="prow2"><span class="lk dc"><i data-lucide="presentation"></i></span><div><b>The plan, slide by slide</b><small>Workshop · Anita Patel · 24 slides</small></div></div>
+              <div class="prow2"><span class="lk au"><i data-lucide="headphones"></i></span><div><b>Q&amp;A: handling objections</b><small>Q&amp;A · David Chen · 31 min · half done</small></div></div>
+              <div class="prow2"><span class="lk au"><i data-lucide="headphones"></i></span><div><b>Opening the door</b><small>Talk · Maria Reyes · 17 min · done</small></div></div>
+            </div>
+          </div>
+          <div class="tabbar five"><div><i data-lucide="house"></i>Home</div><div><span class="ti"><i data-lucide="message-circle"></i><span class="tbadge">3</span></span>Chats</div><div><span class="fab"><i data-lucide="plus"></i></span></div><div class="on"><i data-lucide="briefcase"></i>My business</div><div><i data-lucide="menu"></i>More</div></div>
+        </div>
+        <p class="pcap"><b>All talks on a phone.</b> Quick filter chips for the common ones; the filter button opens speaker, format, topic, type and event.</p>
       </div>
 
       <div class="pwrap">
@@ -670,11 +751,12 @@ p { margin:0; }
     <div class="screen-head"><h2 id="notes-h">How it works</h2></div>
     <aside class="notes" style="max-width:760px">
       <ol>
+        <li><b>All talks is the full catalog.</b> Filter by speaker, format (talk, panel, Q&amp;A, workshop), topic, type (audio, video, slides, document) and event; channels are hand-picked selections from it, so a talk is uploaded once and can appear in several channels.</li>
         <li><b>Channels, not folders.</b> Each channel is a short course: lessons in order, optionally grouped into sections, with "Continue" taking you to the next one.</li>
         <li><b>Lessons are audio, video or documents.</b> Audio and video remember where you stopped; documents open in the app.</li>
         <li><b>Finishing a lesson logs it to your learning</b> automatically, so it counts toward your streak and weekly goal.</li>
         <li><b>Who builds channels:</b> team leaders and moderators for everyone; smaller leaders for their own downline (shown as "From Anita"). Channels can be limited, e.g. "for IBOs".</li>
-        <li><b>Rights:</b> every upload asks "I have permission to share this"; videos can start as unlisted YouTube or Vimeo links to keep costs down.</li>
+        <li><b>Rights and tagging:</b> every upload asks "I have permission to share this" and for the speaker(s), format, topics and optional event. Slideshows upload as PDF or link a Google Slides deck; videos can start as unlisted YouTube or Vimeo links to keep costs down.</li>
         <li><b>Share to chat:</b> any lesson becomes a playable card in a chat, like the talk Anita shared in High signal.</li>
       </ol>
     </aside>
