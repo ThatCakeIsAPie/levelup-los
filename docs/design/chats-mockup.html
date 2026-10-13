@@ -392,13 +392,36 @@ p { margin:0; }
 .ico.at { background:var(--sky-soft); color:var(--sky-ink); }
 .ico.win { background:var(--amber-soft); color:var(--amber-strong); }
 .inboxcard .nrow { padding:8px 0; }
+
+/* my business hub + grouped sidebar */
+.navlabel { font-size:10px; font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:var(--side-fg); opacity:.7; padding:12px 10px 4px; }
+.hub { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.tile { background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:11px 12px; display:grid; gap:7px; align-content:start; min-width:0; }
+.tile.wide { grid-column:span 2; }
+.tile .th { display:flex; align-items:center; gap:8px; font-size:12.5px; }
+.tile .chev { margin-left:auto; color:var(--faint); width:15px; height:15px; }
+.tile .tv { display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; font-size:12px; }
+.tile .big { font-size:22px; }
+.tile .chip { justify-self:start; }
+.tic { width:28px; height:28px; border-radius:8px; display:grid; place-items:center; }
+.tic [data-lucide] { width:15px; height:15px; }
+.tic.team { background:var(--ibo-bg); color:var(--ibo-fg); }
+.tic.ppl { background:var(--primary-soft); color:var(--primary-ink); }
+.tic.cus { background:var(--amber-soft); color:var(--amber-ink); }
+.tic.evi { background:rgba(255,255,255,.12); color:#fff; }
+.tic.wal { background:var(--sky-soft); color:var(--sky-ink); }
+.tic.cam { background:var(--surface-2); color:var(--muted); }
+.tile.ev { background:var(--event-bg); border-color:transparent; color:#fff; }
+.tile.ev .chev { color:#BFD0E6; }
+.tile.ev .evm { color:#BFD0E6; font-size:11.5px; }
+.tile.ev .bar { background:rgba(255,255,255,.15); }
 </style>
 
 <div class="sheet">
   <header class="intro">
     <span class="eyebrow">Design direction · chats</span>
     <h1><span class="logo" aria-hidden="true"><i></i><i></i><i></i></span> LevelUp LOS chats</h1>
-    <p>Mockups of team messaging: the chat list, conversations with event and win posts, quick logging that shares a win, and the notifications inbox. Shown as Maria Reyes (leader). People and numbers come from the demo data; the messages are made-up examples.</p>
+    <p>Mockups of team messaging: the chat list, conversations with event and win posts, quick logging that shares a win, and the notifications inbox. Shown as Maria Reyes (leader). Updated with the My business tab. People and numbers come from the demo data; the messages are made-up examples.</p>
     <div class="themer" role="group" aria-label="Theme">
       <button type="button" id="theme-light" data-t="light" aria-pressed="false">Light</button>
       <button type="button" id="theme-dark" data-t="dark" aria-pressed="false">Dark</button>
@@ -418,12 +441,16 @@ p { margin:0; }
             <div class="nav"><i data-lucide="layout-dashboard"></i>Home</div>
             <div class="nav on"><i data-lucide="message-circle"></i>Chats<span class="count">5</span></div>
             <div class="nav"><i data-lucide="bell"></i>Inbox<span class="count">4</span></div>
+            <div class="navlabel">My business</div>
+            <div class="nav"><i data-lucide="network"></i>Team</div>
             <div class="nav"><i data-lucide="users"></i>People</div>
-            <div class="nav"><i data-lucide="network"></i>Mindmap</div>
-            <div class="nav"><i data-lucide="calendar-days"></i>Events</div>
             <div class="nav"><i data-lucide="contact"></i>Customers</div>
+            <div class="nav"><i data-lucide="calendar-days"></i>Events</div>
             <div class="nav"><i data-lucide="wallet"></i>Wallet</div>
+            <div class="nav"><i data-lucide="megaphone"></i>Campaigns</div>
+            <div class="navlabel">More</div>
             <div class="nav"><i data-lucide="file-bar-chart"></i>Reports</div>
+            <div class="nav"><i data-lucide="settings"></i>Settings</div>
             <div class="grow"></div>
             <div class="me"><span class="av ibo">MR</span><div>Maria Reyes<small>Leader</small></div></div>
           </nav>
@@ -510,7 +537,7 @@ p { margin:0; }
               <div class="act"><span class="ico contact"><i data-lucide="message-circle"></i></span><div><div class="t" style="font-size:12.5px">Finley Underwood</div><div class="d" style="font-size:11px">Prospect · 22 days</div></div><button class="btn soft" type="button" aria-label="Check in"><i data-lucide="check"></i></button></div>
             </div>
           </div>
-          <div class="tabbar five"><div class="on"><i data-lucide="house"></i>Home</div><div><span class="ti"><i data-lucide="message-circle"></i><span class="tbadge">5</span></span>Chats</div><div><span class="fab"><i data-lucide="plus"></i></span></div><div><i data-lucide="users"></i>People</div><div><i data-lucide="menu"></i>More</div></div>
+          <div class="tabbar five"><div class="on"><i data-lucide="house"></i>Home</div><div><span class="ti"><i data-lucide="message-circle"></i><span class="tbadge">5</span></span>Chats</div><div><span class="fab"><i data-lucide="plus"></i></span></div><div><i data-lucide="briefcase"></i>My business</div><div><i data-lucide="menu"></i>More</div></div>
         </div>
         <p class="pcap"><b>Home first.</b> A new Inbox card sits above the Today list, so notifications and to-dos are in one place.</p>
       </div>
@@ -533,9 +560,28 @@ p { margin:0; }
               <div class="crow"><span class="av ibo">DC</span><div style="min-width:0"><div class="cname"><span>David Chen</span></div><div class="cprev">Voice note (1:05)</div></div><div class="cmeta">Sun</div></div>
             </div>
           </div>
-          <div class="tabbar five"><div><i data-lucide="house"></i>Home</div><div class="on"><span class="ti"><i data-lucide="message-circle"></i><span class="tbadge">5</span></span>Chats</div><div><span class="fab"><i data-lucide="plus"></i></span></div><div><i data-lucide="users"></i>People</div><div><i data-lucide="menu"></i>More</div></div>
+          <div class="tabbar five"><div><i data-lucide="house"></i>Home</div><div class="on"><span class="ti"><i data-lucide="message-circle"></i><span class="tbadge">5</span></span>Chats</div><div><span class="fab"><i data-lucide="plus"></i></span></div><div><i data-lucide="briefcase"></i>My business</div><div><i data-lucide="menu"></i>More</div></div>
         </div>
         <p class="pcap"><b>Chats, WhatsApp-style.</b> The four team chats are pinned on top, then side groups and direct messages by most recent.</p>
+      </div>
+
+      <div class="pwrap">
+        <div class="phone" role="img" aria-label="My business tab">
+          <div class="status"><span>7:42</span><span class="notch"></span><span>5G</span></div>
+          <div class="pbody">
+            <div class="chathead"><h3>My business</h3><span class="sp"></span><span class="iconbtn" aria-label="Search"><i data-lucide="search"></i></span></div>
+            <div class="hub">
+              <div class="tile wide"><div class="th"><span class="tic team"><i data-lucide="network"></i></span><b>Team</b><i data-lucide="chevron-right" class="chev"></i></div><div class="tv"><span class="big num">65</span><span class="muted">people · +7 this month</span></div><div class="bar" style="height:7px"><span style="width:29%; background:var(--navy)"></span><span style="width:25%; background:var(--teal)"></span><span style="width:46%; background:var(--sky)"></span></div></div>
+              <div class="tile"><div class="th"><span class="tic ppl"><i data-lucide="users"></i></span><b>People</b></div><div class="tv"><span class="big num">12</span></div><span class="chip warn">need attention</span></div>
+              <div class="tile"><div class="th"><span class="tic cus"><i data-lucide="contact"></i></span><b>Customers</b></div><div class="tv"><span class="big num">4</span><span class="muted">$455/mo</span></div><span class="chip warn">2 due for contact</span></div>
+              <div class="tile wide ev"><div class="th"><span class="tic evi"><i data-lucide="calendar-days"></i></span><b>Events</b><i data-lucide="chevron-right" class="chev"></i></div><div class="tv"><span style="font-weight:700">Fall Leadership Weekend</span><span class="evm">in 26 days</span></div><div class="bar" style="height:7px"><span style="width:60%; background:var(--sky)"></span><span style="width:15%; background:var(--amber)"></span></div><span class="evm">12 of 20 tickets · 7 need a ticket</span></div>
+              <div class="tile"><div class="th"><span class="tic wal"><i data-lucide="wallet"></i></span><b>Wallet</b></div><div class="tv"><span class="big num">$200</span></div><span class="muted" style="font-size:11.5px">you owe · 1 invoice</span></div>
+              <div class="tile"><div class="th"><span class="tic cam"><i data-lucide="megaphone"></i></span><b>Campaigns</b></div><div class="tv"><span class="big num">1</span></div><span class="muted" style="font-size:11.5px">scheduled for Friday</span></div>
+            </div>
+          </div>
+          <div class="tabbar five"><div><i data-lucide="house"></i>Home</div><div><span class="ti"><i data-lucide="message-circle"></i><span class="tbadge">5</span></span>Chats</div><div><span class="fab"><i data-lucide="plus"></i></span></div><div class="on"><i data-lucide="briefcase"></i>My business</div><div><i data-lucide="menu"></i>More</div></div>
+        </div>
+        <p class="pcap"><b>My business.</b> Every tile shows a live number or the next thing to do, so the tab is worth opening on its own. Tap a tile to open that page.</p>
       </div>
 
       <div class="pwrap">
@@ -605,7 +651,7 @@ p { margin:0; }
               <div class="nrow"><span class="ico contact"><i data-lucide="message-circle"></i></span><div><div class="nt">Check-in with Anita logged</div><div class="ns">From your conversation yesterday</div></div><div class="ntime">1d</div></div>
             </div>
           </div>
-          <div class="tabbar five"><div class="on"><i data-lucide="house"></i>Home</div><div><span class="ti"><i data-lucide="message-circle"></i><span class="tbadge">5</span></span>Chats</div><div><span class="fab"><i data-lucide="plus"></i></span></div><div><i data-lucide="users"></i>People</div><div><i data-lucide="menu"></i>More</div></div>
+          <div class="tabbar five"><div class="on"><i data-lucide="house"></i>Home</div><div><span class="ti"><i data-lucide="message-circle"></i><span class="tbadge">5</span></span>Chats</div><div><span class="fab"><i data-lucide="plus"></i></span></div><div><i data-lucide="briefcase"></i>My business</div><div><i data-lucide="menu"></i>More</div></div>
         </div>
         <p class="pcap"><b>Inbox.</b> Approvals and reports come first. "Check-in logged" shows the automatic contact from a conversation.</p>
       </div>
@@ -618,6 +664,7 @@ p { margin:0; }
     <aside class="notes" style="max-width:760px">
       <ol>
         <li><b>Four team chats are pinned:</b> Announcements (drafts need approval; leaders skip it), Main chat, Daily wins and High signal. Anyone on the team can start a side group and becomes its admin.</li>
+        <li><b>Tabs: Home · Chats · + · My business · More.</b> My business holds Team (mindmap), People, Customers, Events, Wallet and Campaigns as live tiles; More keeps Reports, settings and team admin. The desktop sidebar uses the same groups.</li>
         <li><b>Only apprentices, IBOs and leaders use chat.</b> Prospects and candidates don't see the Chats tab.</li>
         <li><b>Direct messages</b> go to anyone you share a chat with. Report and block are in every message's menu; reports notify the leader.</li>
         <li><b>Posts write data.</b> Event cards record Going, Maybe and Bought ticket; win cards are the logged sale, contact or ticket; a conversation in both directions logs a check-in for both people.</li>

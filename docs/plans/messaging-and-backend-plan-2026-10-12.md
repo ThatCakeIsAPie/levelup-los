@@ -52,7 +52,10 @@ Navigation:
 - The app still opens on **Home** (the Dashboard). Home gains an **Inbox** section showing the latest notifications next to the Today list.
 - **Chats** opens straight to the list of chats, like WhatsApp.
 - The **+** button stays in the middle of the phone tab bar for quick logging.
-- Phone tabs: Home · Chats · + · People · More. Events moves into More but stays one tap away from Home (next event card) and from event posts in chat. Lyle's concern is that this could feel crowded; the mockups test it.
+- Phone tabs: **Home · Chats · + · My business · More**.
+  - **My business** is a hub of live tiles: Team (mindmap), People, Customers, Events, Wallet and Campaigns. Each tile shows a number or the next thing to do (e.g. "12 need attention", "Fall Leadership Weekend in 26 days · 7 need a ticket"), so the tab is worth opening on its own. Tiles adapt to the role (no Customers or Campaigns for candidates).
+  - **More** is for things used rarely: Reports, settings, team admin (moderators, approvals), theme, help, sign out. Lyle's experience is that anything in "More" goes unvisited, so nothing used weekly goes there.
+- The desktop sidebar uses the same groups: Home, Chats, Inbox, then a "My business" section, then a "More" section.
 
 ### Messages
 
@@ -140,7 +143,7 @@ Note: the GitHub Pages demo is a static site and can't run a database, so it sta
 
 Answered 2026-10-12 (see the decisions table). Still open:
 
-1. Does Home · Chats · + · People · More feel crowded in practice? Check with the mockups.
+1. Does the My business hub work in practice? Check with the mockups and early users.
 2. Should engagement numbers exist at all, and with what limits? (Lyle and partner to discuss.)
 
 ## Later
