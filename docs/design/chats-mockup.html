@@ -333,12 +333,11 @@ p { margin:0; }
 .evfoot a { color:#fff; font-weight:700; text-decoration:none; display:inline-flex; gap:4px; align-items:center; }
 .evfoot [data-lucide] { width:13px; height:13px; }
 .wincard { background:transparent; border:1.5px solid var(--win-line); color:var(--muted); border-radius:12px; padding:10px 12px; display:grid; grid-template-columns:34px minmax(0,1fr); gap:10px; align-items:center; }
-/* Activity messages: a plain gold line outside the bubble, on the side away from the screen edge. */
-.msg.activity .bub { position:relative; }
-.msg.activity .bub::after { content:""; position:absolute; top:0; bottom:0; right:-12px; width:3px; background:var(--amber); }
-.msg.me.activity .bub::after { right:auto; left:-12px; }
-.msg.activity { padding-right:14px; }
-.msg.me.activity { padding-right:0; padding-left:14px; }
+/* Activity messages: the bubble's own edge becomes a 5px gold band on the side away from the screen edge. */
+.msg.activity .bub { position:relative; overflow:hidden; padding-right:16px; }
+.msg.activity .bub::after { content:""; position:absolute; top:0; bottom:0; right:0; width:5px; background:var(--amber); }
+.msg.me.activity .bub { padding-right:11px; padding-left:16px; }
+.msg.me.activity .bub::after { right:auto; left:0; }
 .wincard .wi { width:34px; height:34px; border-radius:10px; background:var(--amber-soft); color:var(--amber-strong); display:grid; place-items:center; }
 .wincard .wt { font-weight:800; font-size:13px; color:var(--fg); }
 .wincard .ws { font-size:11.5px; }
