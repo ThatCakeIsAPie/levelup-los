@@ -164,6 +164,16 @@ Rules (implemented as pure functions on the client and as row-level security / t
 - **Conversation check-in:** when person A posts in a DM (or replies to B in a group) and B posted to A in that conversation within the previous 24 hours, record one `contacts` row for each direction (`source = "message"`), at most once per pair per local day, and notify both (`checkin_logged`).
 - **Retention:** `retentionDays` null keeps forever; otherwise messages older than that are deleted.
 
+## Pipeline and conversions (next feature)
+
+Mockup: [`docs/design/pipeline-mockup.html`](../design/pipeline-mockup.html). Agreed 2026-10-12, details still open.
+
+- **Board:** every prospect is a card; stages are columns (draft: New contact → Invited → MG1 → MG2 → Follow-up → Registered). Cards show whose prospect it is, days in stage, the next step, and a stale flag after 14 days without movement.
+- **Activity, counted automatically:** the page leads with this month's activity (new contacts, invites, MG1s, MG2s, registrations) against the team goal — **80 MG1s a month**, the activity needed to reach the 25% level after about 6 months. Moving a card or logging "Booked a meeting" / "Showed the plan" from the + records the activity with its date, so nobody counts by hand. "In this stage now" and "happened this month" are separate numbers.
+- **Conversions:** step-by-step conversion rates over a period, compared with team targets, with the biggest drop-off called out — so leaders can see where the process loses people and coach on it.
+- **Per-person conversions (hotspot grid):** each person sees their **own** numbers and their **downline's** — leaders and smaller leaders alike, since uplines are invested in their downline's success. **Crosslines never see each other's numbers, and downlines don't see their upline's, unless that person chooses to share** with someone specific (e.g. a mentor in another leg). Steps with fewer than 10 people show "–" so small samples don't mislead.
+- **Open:** final stage names (and whether a seminar/event step sits between MG2 and registering); who sets conversion targets (proposed: leaders, per team); how sharing permission is granted and revoked.
+
 ## Phases
 
 0. **Database and accounts.** Local Supabase in Docker; schema and row-level security for the existing CRM data; `@/data` hooks re-implemented on Supabase; real sign-in with invite links that place new people under their sponsor; seed data for development. The demo-user picker stays available in development and in the browser-storage demo build (GitHub Pages), which keeps working without a database.
