@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { toast } from "sonner";
+import { quickCheckIn } from "@/components/log/quickLog";
 import {
   BookOpen,
   CalendarDays,
@@ -19,7 +19,6 @@ import {
   effectiveBizClass,
   getPersonShowRate,
   learningStreak,
-  logContact,
   missingRequiredFields,
   openLog,
   useAttendancesForPerson,
@@ -229,7 +228,7 @@ function RecentActivityCard({
         ) : undefined
       }
     >
-      <FeedList items={items} showSub={expanded} />
+      <FeedList items={items} showSub={expanded} removable={expanded} />
     </SectionCard>
   );
 }
@@ -260,7 +259,7 @@ function ActivityTab({ personId }: { personId: string }) {
   const feed = usePersonFeed(personId);
   return (
     <SectionCard title={`Activity${feed.length ? ` (${feed.length})` : ""}`}>
-      <FeedList items={feed} showSub />
+      <FeedList items={feed} showSub removable />
     </SectionCard>
   );
 }
@@ -377,10 +376,10 @@ function BusinessProfile({ person }: { person: CrmPerson }) {
           label: "Check in",
           icon: Check,
           primary: true,
-          onClick: () => {
-            logContact({ personId: person.id });
-            toast.success(`Checked in with ${name}`, { description: "Logged for today" });
-          },
+          onClick: () =>
+            void quickCheckIn(person.id, `Checked in with ${name}`, {
+              description: "Logged for today",
+            }),
         },
       ];
 

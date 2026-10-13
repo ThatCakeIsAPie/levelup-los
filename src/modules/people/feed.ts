@@ -22,6 +22,8 @@ export interface FeedItem {
   text: string;
   sub?: string;
   dot: Dot;
+  /** A logged check-in or sale the current user may delete. */
+  remove?: { kind: "contact" | "sale"; id: string; label: string };
 }
 
 const STAGE_NAME: Record<string, string> = {
@@ -65,6 +67,11 @@ export function usePersonFeed(personId: string): FeedItem[] {
         text: `Checked in by ${by}`,
         sub: c.note,
         dot: "primary",
+        // You can remove check-ins you logged; leaders can remove any.
+        remove:
+          c.byId === me.personId || me.role === "leader"
+            ? { kind: "contact", id: c.id, label: "check-in" }
+            : undefined,
       });
     }
 
@@ -87,11 +94,12 @@ export function usePersonFeed(personId: string): FeedItem[] {
         when: s.date,
         text: `Bought ${s.product}${s.amount !== undefined ? ` · ${fmtMoney(s.amount)}` : ""}`,
         dot: "amber",
+        remove: me.role !== "candidate" ? { kind: "sale", id: s.id, label: "sale" } : undefined,
       });
     }
 
     return out.sort((a, b) => b.at - a.at);
-  }, [activity, contacts, learning, sales, events, people, me.personId, personId]);
+  }, [activity, contacts, learning, sales, events, people, me.personId, me.role, personId]);
 }
 
 function fromActivity(e: ActivityEvent, eventName: Map<string, string>): FeedItem {

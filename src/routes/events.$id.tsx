@@ -28,6 +28,7 @@ import {
   useAttendancesForEvent,
   useCurrentUser,
   useEvent,
+  useSharedCosts,
   type Attendance,
   type CrmEvent,
 } from "@/data";
@@ -176,6 +177,7 @@ function Hero({ event, manage }: { event: CrmEvent; manage: boolean }) {
   const navigate = useNavigate();
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const costCount = useSharedCosts(event.id).length;
   const t = eventTiming(event);
   const navy = t.kind !== "past";
 
@@ -273,7 +275,9 @@ function Hero({ event, manage }: { event: CrmEvent; manage: boolean }) {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete {event.name}?</AlertDialogTitle>
             <AlertDialogDescription>
-              The event disappears for everyone on the team. This can't be undone.
+              The event disappears for everyone on the team, together with its roster, travel
+              plans and shared costs{costCount > 0 ? " (including sandbox payments)" : ""}. This
+              can't be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

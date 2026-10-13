@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import {
   Check,
@@ -8,6 +8,7 @@ import {
   ShoppingBag,
   Ticket,
   TrendingUp,
+  Undo2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ActionRow, EmptyState, STAGE_LABEL, StageChip, type IconTone } from "@/components/brand";
@@ -16,9 +17,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { quickCheckIn } from "@/components/log/quickLog";
 import {
   effectiveBizClass,
-  logContact,
+  removeContact,
   openLog,
   setContactSettings,
   useContactSettings,
@@ -58,8 +60,42 @@ export function TodayCard({
 }) {
   const [filter, setFilter] = useState<Filter>("all");
   const [expanded, setExpanded] = useState(false);
-  const counts = countByFilter(items);
-  const shown = filter === "all" ? items : items.filter((i) => i.filter === filter);
+  // Rows checked off here stay in place (as "Done · Undo") until the page is
+  // left, so the next row never slides under the pointer mid double-click.
+  const [done, setDone] = useState<Map<string, DoneEntry>>(() => new Map());
+  const list = useMemo(() => {
+    const out = items.filter((i) => !done.has(i.key));
+    [...done.values()]
+      .sort((a, b) => a.index - b.index)
+      .forEach((d) => out.splice(Math.min(d.index, out.length), 0, d.item));
+    return out;
+  }, [items, done]);
+  const forget = (key: string) =>
+    setDone((m) => {
+      if (!m.has(key)) return m;
+      const next = new Map(m);
+      next.delete(key);
+      return next;
+    });
+  const checkIn = (item: TodayItem) => {
+    const { contactId, toastId } = quickCheckIn(
+      item.person.id,
+      item.kind === "customer"
+        ? `Contact with ${item.person.name} logged`
+        : `Check-in with ${item.person.name} logged`,
+      { onUndo: () => forget(item.key) },
+    );
+    const index = list.findIndex((i) => i.key === item.key);
+    setDone((m) => new Map(m).set(item.key, { item, index, contactId, toastId, at: Date.now() }));
+  };
+  const undo = (d: DoneEntry) => {
+    removeContact(d.contactId);
+    toast.dismiss(d.toastId);
+    forget(d.item.key);
+  };
+
+  const counts = countByFilter(items.filter((i) => !done.has(i.key)));
+  const shown = filter === "all" ? list : list.filter((i) => i.filter === filter);
   const limit = compact ? 3 : 5;
   const visible = expanded ? shown : shown.slice(0, limit);
   const hidden = shown.length - visible.length;
@@ -115,9 +151,14 @@ export function TodayCard({
         </p>
       ) : (
         <div>
-          {visible.map((item) => (
-            <TodayRow key={item.key} item={item} compact={compact} />
-          ))}
+          {visible.map((item) => {
+            const d = done.get(item.key);
+            return d ? (
+              <DoneRow key={item.key} entry={d} compact={compact} onUndo={() => undo(d)} />
+            ) : (
+              <TodayRow key={item.key} item={item} compact={compact} onCheckIn={checkIn} />
+            );
+          })}
         </div>
       )}
 
@@ -250,16 +291,68 @@ function DaysField({
   );
 }
 
-function checkIn(item: TodayItem) {
-  logContact({ personId: item.person.id });
-  toast.success(
-    item.kind === "customer"
-      ? `Contact with ${item.person.name} logged`
-      : `Check-in with ${item.person.name} logged`,
+interface DoneEntry {
+  item: TodayItem;
+  /** Position in the list when it was checked off. */
+  index: number;
+  contactId: string;
+  toastId: string | number;
+  at: number;
+}
+
+/** Ignore an Undo that lands within this long of the check-in (a double-click). */
+const UNDO_GUARD_MS = 700;
+
+/** A row just checked off: stays put with an Undo until the page is left. */
+function DoneRow({
+  entry,
+  compact,
+  onUndo,
+}: {
+  entry: DoneEntry;
+  compact: boolean;
+  onUndo: () => void;
+}) {
+  const p = entry.item.person;
+  const customer = entry.item.kind === "customer";
+  return (
+    <ActionRow
+      icon={CircleCheck}
+      iconTone="good"
+      title={
+        <span className="text-muted-foreground">
+          {customer ? `Contact with ${p.name} logged` : `Checked in with ${p.name}`}
+        </span>
+      }
+      link={{ to: "/people/$id", params: { id: p.id } }}
+      meta={<span className="font-semibold text-good">Done · logged for today</span>}
+      action={
+        <Button
+          size="sm"
+          variant="ghost"
+          autoFocus
+          aria-label={`Undo ${customer ? "contact" : "check-in"} with ${p.name}`}
+          onClick={() => {
+            if (Date.now() - entry.at >= UNDO_GUARD_MS) onUndo();
+          }}
+        >
+          <Undo2 /> Undo
+        </Button>
+      }
+      className={cn(compact && "gap-2.5 py-[9px]")}
+    />
   );
 }
 
-function TodayRow({ item, compact }: { item: TodayItem; compact: boolean }) {
+function TodayRow({
+  item,
+  compact,
+  onCheckIn: checkIn,
+}: {
+  item: TodayItem;
+  compact: boolean;
+  onCheckIn: (item: TodayItem) => void;
+}) {
   const { icon, tone } = ICON[item.kind];
   const p = item.person;
   const first = p.name.split(" ")[0];

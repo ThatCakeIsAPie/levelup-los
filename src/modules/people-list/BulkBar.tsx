@@ -24,9 +24,11 @@ import {
   bulkUpdateAttendances,
   localDate,
   logContact,
+  removeContact,
   useUpcomingEvents,
   useVisibleAttendances,
 } from "@/data";
+import { toastWithUndo } from "@/components/log/quickLog";
 import { exportRowsCsv } from "./exportCsv";
 import { plural, shortDate, type PersonRow, type Segment } from "./model";
 
@@ -45,11 +47,13 @@ export function BulkBar({
   const customers = segment === "customers";
 
   const checkInAll = () => {
-    rows.forEach((r) => logContact({ personId: r.person.id }));
-    toast.success(
+    const ids = rows.map((r) => logContact({ personId: r.person.id }).id);
+    toastWithUndo(
       customers
         ? `Contact logged for ${plural(n, "customer")}`
         : `Check-in logged for ${plural(n, "person", "people")}`,
+      () => ids.forEach(removeContact),
+      { undoneMessage: n === 1 ? "Check-in removed" : "Check-ins removed" },
     );
     onClear();
   };

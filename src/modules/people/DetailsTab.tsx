@@ -9,8 +9,11 @@ import {
   missingRequiredFields,
   removePerson,
   updatePerson,
+  useCurrentUser,
+  useCustomerCounts,
   useDownline,
   usePerson,
+  useSponsorChain,
   useVisibleTeam,
   type CrmPerson,
   type PipelineStage,
@@ -531,13 +534,39 @@ function Field({
 }
 
 function DangerZone({ person, onDeleted }: { person: CrmPerson; onDeleted: () => void }) {
+  const me = useCurrentUser();
   const downline = useDownline(person.id, { directOnly: true });
+  const customers = useCustomerCounts()[person.id] ?? 0;
+  const chain = useSponsorChain(person.id, 1);
+  const customer = person.bizClass === "customer";
+  const sponsor = chain[0]?.id === person.sponsorId ? chain[0] : undefined;
+  const heir = !person.sponsorId
+    ? null
+    : sponsor?.id === me.personId
+      ? "you"
+      : (sponsor?.name ?? "their sponsor");
+  const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+  const moves = [
+    downline.length > 0 && plural(downline.length, "person they sponsor", "people they sponsor"),
+    customers > 0 && plural(customers, "customer", "customers"),
+  ].filter(Boolean);
+  const consequences = customer
+    ? "Their check-ins and purchases stop showing anywhere."
+    : [
+        moves.length > 0 &&
+          (heir
+            ? `${moves.join(" and ")} will move to ${heir}.`
+            : `${moves.join(" and ")} will be left without a sponsor.`),
+        "They come off every event roster, travel plan and shared cost.",
+      ]
+        .filter(Boolean)
+        .join(" ");
   return (
     <section className="flex flex-wrap items-center justify-between gap-3 rounded-card border border-destructive/30 bg-bad-soft/40 px-4 py-4 sm:px-[18px]">
       <div className="min-w-0">
         <h2 className="text-sm font-bold">Delete {person.name}</h2>
         <p className="text-[12.5px] text-muted-foreground">
-          Removes their profile from your team list for good.
+          Removes their profile from your {customer ? "customers" : "team list"} for good.
         </p>
       </div>
       <AlertDialog>
@@ -552,11 +581,7 @@ function DangerZone({ person, onDeleted }: { person: CrmPerson; onDeleted: () =>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete {person.name}?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This can't be undone.
-              {downline.length > 0 &&
-                ` ${downline.length} ${downline.length === 1 ? "person they sponsor" : "people they sponsor"} will be left without a sponsor until you reassign them.`}
-            </AlertDialogDescription>
+            <AlertDialogDescription>{consequences} This can't be undone.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Keep</AlertDialogCancel>

@@ -1,6 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
 import { Check, MessageSquarePlus, MoreHorizontal, ShoppingBag, UserRound } from "lucide-react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -8,15 +7,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { logContact, openLog } from "@/data";
+import { openLog } from "@/data";
+import { quickCheckIn } from "@/components/log/quickLog";
 import { cn } from "@/lib/utils";
 import type { PersonRow } from "./model";
 
-/** One-tap check-in (logs a contact for today). */
+/** One-tap check-in (logs a contact for today, with Undo on the toast). */
 function checkIn(row: PersonRow) {
-  logContact({ personId: row.person.id });
   const customer = row.person.bizClass === "customer";
-  toast.success(
+  quickCheckIn(
+    row.person.id,
     customer ? `Contact with ${row.person.name} logged` : `Check-in with ${row.person.name} logged`,
   );
 }

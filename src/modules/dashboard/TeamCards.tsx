@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { Link } from "@tanstack/react-router";
 import { Check, Flame, Users } from "lucide-react";
-import { toast } from "sonner";
+import { quickCheckIn } from "@/components/log/quickLog";
 import {
   EmptyState,
   PersonAvatar,
@@ -17,7 +17,6 @@ import {
   daysFromToday,
   effectiveBizClass,
   localDate,
-  logContact,
   useContacts,
   useCustomerCounts,
   useTeamLearning,
@@ -185,10 +184,7 @@ export function TeamLearningCard({
                   size="sm"
                   variant="outline"
                   aria-label={`Nudge ${p.name} about learning`}
-                  onClick={() => {
-                    logContact({ personId: p.id, note: NUDGE_NOTE });
-                    toast.success("Nudge logged");
-                  }}
+                  onClick={() => quickCheckIn(p.id, "Nudge logged", { note: NUDGE_NOTE })}
                 >
                   Nudge
                 </Button>

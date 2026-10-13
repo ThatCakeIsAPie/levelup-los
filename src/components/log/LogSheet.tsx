@@ -23,9 +23,12 @@ import {
 import { EmptyState } from "@/components/brand";
 import { useIsDesktop } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
+import { toastWithUndo } from "./quickLog";
 import { localDate } from "@/lib/dates";
 import {
   logContact,
+  removeContact,
+  removeSale,
   logLearning,
   logSale,
   openLog,
@@ -309,9 +312,13 @@ function ContactForm({
 
   const save = () => {
     if (!personId) return;
-    logContact({ personId, date, note: note.trim() || undefined });
+    const contact = logContact({ personId, date, note: note.trim() || undefined });
     const name = options.find((p) => p.id === personId)?.name ?? "";
-    toast.success(kind === "team" ? `Check-in with ${name} logged` : `Contact with ${name} logged`);
+    toastWithUndo(
+      kind === "team" ? `Check-in with ${name} logged` : `Contact with ${name} logged`,
+      () => removeContact(contact.id),
+      { undoneMessage: "Check-in removed" },
+    );
     closeLog();
   };
 
@@ -384,13 +391,13 @@ function SaleForm({ initialCustomerId }: { initialCustomerId?: string }) {
   const save = () => {
     if (!valid) return;
     const n = Number(amount);
-    logSale({
+    const sale = logSale({
       customerId,
       product: product.trim(),
       date,
       amount: amount !== "" && Number.isFinite(n) ? n : undefined,
     });
-    toast.success("Sale logged");
+    toastWithUndo("Sale logged", () => removeSale(sale.id), { undoneMessage: "Sale removed" });
     closeLog();
   };
 

@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { format } from "date-fns";
 import { Check, Contact, Mail, Phone, Plus, Receipt, Search, X } from "lucide-react";
-import { toast } from "sonner";
+import { quickCheckIn } from "@/components/log/quickLog";
 import {
   EmptyState,
   PageHeader,
@@ -18,7 +18,6 @@ import { Input } from "@/components/ui/input";
 import {
   daysSince,
   lastSale,
-  logContact,
   openLog,
   useContactSettings,
   useCurrentUser,
@@ -344,10 +343,7 @@ function RowActions({ person, compact }: { person: CrmPerson; compact?: boolean 
       <Button
         size="sm"
         variant="soft"
-        onClick={() => {
-          logContact({ personId: person.id });
-          toast.success(`Contact logged for ${person.name}`);
-        }}
+        onClick={() => quickCheckIn(person.id, `Contact logged for ${person.name}`)}
         className={compact ? "w-full" : undefined}
       >
         <Check /> Log contact
