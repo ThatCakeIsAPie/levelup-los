@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { CalendarDays, Columns3, Kanban, Plus, Target, Users } from "lucide-react";
+import { CalendarDays, Columns3, Kanban, Plus, Target } from "lucide-react";
 import { EmptyState, PageHeader } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import {
@@ -31,6 +31,7 @@ import {
 import { BoardTab } from "./BoardTab";
 import { ownCards } from "./format";
 import { ConversionsTab } from "./ConversionsTab";
+import { ScopeToggle } from "./ScopeToggle";
 import { CustomizeStepsDialog } from "./CustomizeStepsDialog";
 import { AddProspectDialog } from "./AddProspectDialog";
 import { StatRequestsPanel } from "./StatsSharing";
@@ -88,7 +89,11 @@ function Pipeline({ tab, onTab }: { tab: PipelineTab; onTab: (tab: PipelineTab) 
   );
 
   const who =
-    scope === "team" ? "Your whole team" : scope === "mine" ? "Your prospects" : (opt?.label ?? "");
+    scope === "team"
+      ? "Your whole business"
+      : scope === "mine"
+        ? "Just your prospects"
+        : (opt?.label ?? "");
   const subtitle =
     tab === "board"
       ? `${who} · ${monthName(month)} · ${board?.inProgress ?? 0} prospects in progress${own?.mixed ? ` · ${own.mine} yours` : ""}`
@@ -101,22 +106,7 @@ function Pipeline({ tab, onTab }: { tab: PipelineTab; onTab: (tab: PipelineTab) 
         subtitle={subtitle}
         actions={
           <>
-            <Select value={scope} onValueChange={(v) => setScope(v as PipelineScope)}>
-              <SelectTrigger
-                className="h-9 w-auto min-w-0 max-w-[13rem] gap-1.5 text-[13px] font-semibold"
-                aria-label="Whose pipeline"
-              >
-                <Users className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="max-h-80">
-                {scopes.map((s) => (
-                  <SelectItem key={s.value} value={s.value}>
-                    {s.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <ScopeToggle scopes={scopes} scope={scope} onScope={setScope} />
             {tab === "board" ? (
               <Select value={month} onValueChange={setMonth}>
                 <SelectTrigger
