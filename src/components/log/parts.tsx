@@ -9,7 +9,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { daysSince, type CrmPerson } from "@/data";
+import { daysSince, type CrmPerson, type PodcastUnit, type ReadingUnit } from "@/data";
 
 export function Field({
   label,
@@ -118,6 +118,53 @@ export function OptionGrid<T extends string>({
           </button>
         );
       })}
+    </div>
+  );
+}
+
+export const READING_UNITS: { value: ReadingUnit; label: string }[] = [
+  { value: "minutes", label: "Minutes" },
+  { value: "pages", label: "Pages" },
+  { value: "chapters", label: "Chapters" },
+];
+
+export const PODCAST_UNITS: { value: PodcastUnit; label: string }[] = [
+  { value: "minutes", label: "Minutes" },
+  { value: "episodes", label: "Episodes" },
+];
+
+/** Small segmented control for picking how something is measured. */
+export function UnitToggle<T extends string>({
+  options,
+  value,
+  onChange,
+  label,
+}: {
+  options: { value: T; label: string }[];
+  value: T;
+  onChange: (v: T) => void;
+  label: string;
+}) {
+  return (
+    <div
+      className="grid auto-cols-fr grid-flow-col gap-1 rounded-lg bg-surface-2 p-1"
+      role="group"
+      aria-label={label}
+    >
+      {options.map((o) => (
+        <button
+          key={o.value}
+          type="button"
+          aria-pressed={value === o.value}
+          onClick={() => onChange(o.value)}
+          className={cn(
+            "rounded-md px-2 py-1.5 text-[12.5px] font-semibold text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring",
+            value === o.value && "bg-surface text-foreground shadow-sm",
+          )}
+        >
+          {o.label}
+        </button>
+      ))}
     </div>
   );
 }

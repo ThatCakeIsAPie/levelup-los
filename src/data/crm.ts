@@ -7,6 +7,7 @@ import {
   type Learning,
   type LearningGoal,
   type LearningKind,
+  type LearningUnit,
   type Sale,
   type Settings,
 } from "@/stores/crmStore";
@@ -142,12 +143,14 @@ export function logContact(input: {
 
 /**
  * Log learning. `personId` defaults to the current user, `date` to today and
- * `amount` to 1 (pass the page count for kind "pages").
+ * `amount` to 1. For reading and podcasts, `amount` is in `unit` (missing =
+ * pages for reading, episodes for podcasts).
  */
 export function logLearning(input: {
   kind: LearningKind;
   title: string;
   amount?: number;
+  unit?: LearningUnit;
   date?: string;
   personId?: string;
 }): void {
@@ -156,6 +159,7 @@ export function logLearning(input: {
     kind: input.kind,
     title: input.title,
     amount: input.amount ?? 1,
+    ...(input.unit ? { unit: input.unit } : {}),
     date: input.date ?? localDate(),
   });
 }

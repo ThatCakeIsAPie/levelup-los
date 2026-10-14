@@ -2,7 +2,14 @@ import { BookOpen, Headphones, Presentation } from "lucide-react";
 import { SectionCard } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { effectiveBizClass, openLog, type CrmPerson, type Learning } from "@/data";
+import {
+  effectiveBizClass,
+  learningUnit,
+  openLog,
+  unitAmount,
+  type CrmPerson,
+  type Learning,
+} from "@/data";
 import { shortDate } from "./format";
 
 const STEPS = [
@@ -75,8 +82,13 @@ const KIND_ICON = {
 } as const;
 
 function entryDetail(e: Learning): string {
-  if (e.kind === "pages") return `${e.amount} ${e.amount === 1 ? "page" : "pages"}`;
-  if (e.kind === "podcast") return "Podcast";
+  const unit = learningUnit(e);
+  if (e.kind === "pages") return unitAmount(e.amount, unit!);
+  if (e.kind === "podcast") {
+    return unit === "minutes" || e.amount !== 1
+      ? `Podcast · ${unitAmount(e.amount, unit!)}`
+      : "Podcast";
+  }
   return e.kind === "workshop" ? "Workshop" : "Conference";
 }
 

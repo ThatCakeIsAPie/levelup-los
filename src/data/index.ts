@@ -190,6 +190,8 @@ export {
   learningStreak,
   bestLearningStreak,
   learningGoalFor,
+  learningUnit,
+  unitAmount,
   DEFAULT_LEARNING_GOAL,
   DEFAULT_SETTINGS,
 } from "@/stores/crmStore";
@@ -237,6 +239,9 @@ export type {
   Learning,
   LearningKind,
   LearningGoal,
+  LearningUnit,
+  ReadingUnit,
+  PodcastUnit,
   Sale,
   Settings as ContactSettings,
 } from "@/stores/crmStore";
