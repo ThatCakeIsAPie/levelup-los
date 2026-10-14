@@ -9,6 +9,7 @@ import type { CrmPerson } from "@/stores/peopleStore";
 import { downlineIds, type Viewer } from "../access";
 import {
   DEFAULT_MG1_GOAL,
+  DO_NOT_CONTACT,
   DEFAULT_TARGETS,
   MILESTONES,
   MIN_SAMPLE,
@@ -23,6 +24,7 @@ import {
   type PipelineMove,
   type PipelineStep,
   type RateTone,
+  type RecruitingBand,
   type StatRequest,
   type StatShare,
   type StepBand,
@@ -35,7 +37,8 @@ import {
 // Milestones, bands and columns
 // ---------------------------------------------------------------------------
 
-export const bandIndex = (m: MilestoneCode): number => MILESTONES.indexOf(m);
+/** Position of a milestone (0 … 3); -1 for the start and outcome bands. */
+export const bandIndex = (m: RecruitingBand): number => MILESTONES.indexOf(m as MilestoneCode);
 
 export const isMilestone = (id: string): id is MilestoneCode =>
   (MILESTONES as readonly string[]).includes(id);
@@ -165,8 +168,8 @@ export function resolveColumn(
   return columnIds.has(columnId) ? columnId : band;
 }
 
-/** The milestone band of a column id, or null for an unknown step. */
-export function bandOf(columnId: string, steps: PipelineStep[]): MilestoneCode | null;
+/** The band of a column id (a milestone, a fixed column or a step), or null for an unknown step. */
+export function bandOf(columnId: string, steps: PipelineStep[]): RecruitingBand | null;
 /** On another board layout: the band of a milestone, fixed column or step. */
 export function bandOf<B extends string>(
   columnId: string,
@@ -183,6 +186,13 @@ export function bandOf(
   if (fixed) return fixed.band;
   return steps.find((s) => s.id === columnId)?.band ?? null;
 }
+
+/** The band of a card's column on the recruiting board (a deleted or unknown step counts as Contact made). */
+export const recruitingBand = (column: string, steps: PipelineStep[]): RecruitingBand =>
+  bandOf(column, steps) ?? "contact";
+
+/** Bands where a card can go quiet: the milestones (not "Not contacted yet" or the outcomes). */
+export const isMilestoneBand = (b: RecruitingBand): b is MilestoneCode => bandIndex(b) >= 0;
 
 // ---------------------------------------------------------------------------
 // Moves
@@ -513,7 +523,8 @@ export function bandBreakdown(
   to: string,
 ): BandBreakdown {
   const ids = new Set(columns.map((c) => c.id));
-  const pos = new Map(columns.map((c, i) => [c.id, i]));
+  // "Not contacted yet" and the outcomes are not progress through a band.
+  const pos = new Map(columns.flatMap((c, i) => (c.kind === "fixed" ? [] : [[c.id, i] as const])));
   const cohort = new Set(
     reaches
       .filter(
@@ -573,6 +584,16 @@ export function gapTip(gap: TransitionStat, stall: BandBreakdown | undefined): s
 // ---------------------------------------------------------------------------
 // Cards
 // ---------------------------------------------------------------------------
+
+/**
+ * Prospects hidden from every reminder: those whose card is in "Do not
+ * contact" (and still on the board).
+ */
+export function prospectDoNotContactIds(cards: PipelineCard[]): Set<string> {
+  return new Set(
+    cards.filter((c) => c.column === DO_NOT_CONTACT && !c.droppedAt).map((c) => c.personId),
+  );
+}
 
 /** True for people who belong on the board (business path, prospect). */
 export const isPipelineProspect = (p: CrmPerson): boolean => p.bizClass === "prospect";

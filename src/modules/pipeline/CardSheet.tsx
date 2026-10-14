@@ -16,7 +16,7 @@ import {
 import { toastWithUndo } from "@/components/log/quickLog";
 import { cn } from "@/lib/utils";
 import {
-  MILESTONE_LABEL,
+  RECRUITING_BAND_LABEL,
   dropPipelineCard,
   updatePipelineCard,
   type BoardCard,
@@ -101,7 +101,9 @@ function CardDetails({
             <SheetTitle className="truncate text-base font-extrabold">{card.name}</SheetTitle>
             <SheetDescription className="text-[12.5px]">
               {card.ownerName ? `${card.ownerName}'s prospect · ` : ""}
-              {col ? `${MILESTONE_LABEL[col.band]} band` : ""}
+              {col
+                ? `${RECRUITING_BAND_LABEL[col.band]}${col.kind === "fixed" ? "" : " band"}`
+                : ""}
             </SheetDescription>
           </div>
         </div>

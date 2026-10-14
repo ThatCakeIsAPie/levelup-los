@@ -162,7 +162,9 @@ export function seedPipeline(people: CrmPerson[], now: Date = new Date()): Pipel
   const columnsOf = (ownerId: string) => {
     let c = colCache.get(ownerId);
     if (!c) {
-      c = columnsFor(chainOf(people, ownerId), steps, hides);
+      // Paths run through the milestones and steps ("Not contacted yet" and
+      // the outcomes hold nobody in the seed).
+      c = columnsFor(chainOf(people, ownerId), steps, hides).filter((x) => x.kind !== "fixed");
       colCache.set(ownerId, c);
     }
     return c;
