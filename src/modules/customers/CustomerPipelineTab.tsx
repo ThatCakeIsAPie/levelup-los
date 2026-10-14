@@ -22,6 +22,7 @@ import { BoardView } from "@/modules/pipeline/Board";
 import { Kpis, type KpiItem } from "@/modules/pipeline/BoardTab";
 import { CustomizeStepsDialog } from "@/modules/pipeline/CustomizeStepsDialog";
 import { pct, plural } from "@/modules/pipeline/format";
+import { InPipelineCard } from "@/modules/pipeline/InPipelineCard";
 import { ScopeToggle } from "@/modules/pipeline/ScopeToggle";
 import { CustomerCardSheet } from "./CustomerCardSheet";
 import { ListEntryDialog, type EntryDialogMode } from "./ListEntryDialog";
@@ -42,9 +43,16 @@ const KPI: KpiItem[] = [
   { m: "on_ditto", label: "On Ditto", short: "Ditto", milestone: "On Ditto" },
 ];
 
+/** In the pipeline: First meeting and First sale (with their steps). */
+const IN_PIPELINE = (["first_meeting", "first_sale"] as const).map((id) => ({
+  id,
+  label: CUSTOMER_MILESTONE_LABEL[id],
+}));
+
 /**
- * The customer pipeline: this month's milestones, conversions, then the board
- * (same board as the recruiting pipeline, with the customer layout).
+ * The customer pipeline: this month's milestones, conversions, how many are
+ * in the pipeline now, then the board (same board as the recruiting
+ * pipeline, with the customer layout).
  */
 export function CustomerPipelineTab({ tabs }: { tabs: ReactNode }) {
   const scopes = usePipelineScopes();
@@ -90,6 +98,13 @@ export function CustomerPipelineTab({ tabs }: { tabs: ReactNode }) {
           </div>
           <Conversions funnel={funnel} />
         </div>
+      )}
+      {board && (
+        <InPipelineCard
+          board={board as unknown as PipelineBoard<string>}
+          bands={IN_PIPELINE}
+          until="they're on Ditto"
+        />
       )}
       {board && (
         <CustomerBoard

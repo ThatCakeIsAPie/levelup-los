@@ -10,9 +10,13 @@ import {
   type PipelineBoard,
 } from "@/data";
 import { Board } from "./Board";
+import { InPipelineCard } from "./InPipelineCard";
 import { deltaText, plural } from "./format";
 
-/** Board tab: this month's first meetings against the goal, milestone activity, then the board. */
+/**
+ * Board tab: this month's first meetings against the goal, milestone activity,
+ * how many are in the pipeline now, then the board.
+ */
 export function BoardTab({
   board,
   activity,
@@ -30,10 +34,21 @@ export function BoardTab({
         <GoalCard activity={activity} month={month} isThisMonth={isThisMonth} />
         <Kpis activity={activity} month={month} />
       </div>
+      <InPipelineCard
+        board={board as unknown as PipelineBoard<string>}
+        bands={IN_PIPELINE}
+        until="they register"
+      />
       <Board board={board} month={month} />
     </div>
   );
 }
+
+/** In the pipeline: First meeting and First plan (with their steps). */
+const IN_PIPELINE = (["first_meeting", "first_plan"] as const).map((id) => ({
+  id,
+  label: MILESTONE_LABEL[id],
+}));
 
 function perDayText(perDay: number): string {
   if (perDay <= 0) return "";
