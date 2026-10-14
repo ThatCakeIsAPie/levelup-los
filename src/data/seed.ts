@@ -26,7 +26,7 @@ import type { Logistics, SharedCost } from "@/stores/opsStore";
 import { pipelineSeedPeople } from "./pipeline/seedPeople";
 
 /** Bump to reset every persisted store to a fresh seed on next load. */
-export const SEED_VERSION = 9;
+export const SEED_VERSION = 10;
 
 const ago = (n: number) => daysFromToday(-n);
 const ahead = (n: number) => daysFromToday(n);
@@ -652,7 +652,53 @@ export function seedSales(): Sale[] {
     pv,
     personId: owner(customerId),
   }));
-  return [...base, ...growthSales()];
+  return [...base, ...growthSales(), ...teamMonthSales()];
+}
+
+/** Everyone under a person (business path), not counting them. */
+function downlineIds(people: CrmPerson[], id: string): Set<string> {
+  const out = new Set<string>();
+  const stack = [id];
+  while (stack.length) {
+    const c = stack.pop()!;
+    for (const p of people) {
+      if (p.sponsorId === c && !out.has(p.id)) {
+        out.add(p.id);
+        stack.push(p.id);
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * A personal order this month for the other apprentices and IBOs, so the team
+ * map and growth paths show varied PV, 50 to 570 (with their customers'
+ * orders nobody passes 600). Prospects have no PV. Deterministic.
+ */
+function teamMonthSales(): Sale[] {
+  const people = seedPeople();
+  const rng = makeRng(4242);
+  // Anita and Jamal's whole line keep the PV growthSales gives them (any more
+  // and Jamal reaches Bronze foundation); Anita's line stays at 50 to 250 so
+  // she stays under 7,500 Platinum while she works on 6/25.
+  const skip = new Set(["2", "4", ...downlineIds(people, "4")]);
+  const anita = downlineIds(people, "2");
+  return people
+    .filter((p) => (p.bizClass === "apprentice" || p.bizClass === "ibo") && !skip.has(p.id))
+    .map((p) => {
+      const top = anita.has(p.id) ? 200 : 520;
+      const pv = 50 + Math.round((rng() * top) / 5) * 5;
+      return {
+        id: `sm${p.id}`,
+        customerId: p.id,
+        personId: p.id,
+        product: "Personal order",
+        date: thisMonthAgo(1 + Math.floor(rng() * 10)),
+        amount: Math.round(pv * 3),
+        pv,
+      };
+    });
 }
 
 /**
