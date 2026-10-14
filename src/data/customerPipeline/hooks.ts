@@ -46,7 +46,6 @@ import {
   CUSTOMER_BOARD,
   CUSTOMER_MILESTONES,
   CUSTOMER_STEP_BANDS,
-  NEW_CONTACT,
   NOT_CONTACTED,
   type CustomerBand,
   type CustomerCard,
@@ -332,12 +331,8 @@ export function useCustomerSummary(scope: PipelineScope): {
   return useMemo(() => {
     if (!board) return { inProgress: 0, customers: 0, onDitto: 0 };
     const band = (b: CustomerBand) => board.bands.find((x) => x.milestone === b)?.count ?? 0;
-    const newContacts =
-      board.bands
-        .find((x) => x.milestone === "start")
-        ?.columns.find((c) => c.column.id === NEW_CONTACT)?.cards.length ?? 0;
     return {
-      inProgress: newContacts + band("contact") + band("first_meeting"),
+      inProgress: band("contact") + band("first_meeting"),
       customers: band("first_sale") + band("on_ditto"),
       onDitto: band("on_ditto"),
     };

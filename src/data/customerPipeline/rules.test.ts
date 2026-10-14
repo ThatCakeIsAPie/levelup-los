@@ -95,7 +95,6 @@ describe("the customer board layout", () => {
     const cols = columnsFor(chainOf(people, "4"), steps, [], CUSTOMER_BOARD);
     expect(cols.map((c) => c.id)).toEqual([
       "not_contacted",
-      "new_contact",
       "contact",
       "sampled",
       "first_meeting",
@@ -256,7 +255,7 @@ describe("cards and moves", () => {
 
   it("counts each milestone once per name; start and outcome columns count nothing", () => {
     const moves = [
-      move("a", "new_contact", "start", "2026-10-01T10:00:00.000Z"),
+      move("a", "not_contacted", "start", "2026-10-01T10:00:00.000Z"),
       move("a", "contact", "contact", "2026-10-02T10:00:00.000Z"),
       move("a", "sbox", "first_sale", "2026-10-05T10:00:00.000Z"), // skips First meeting
       move("a", "contact", "contact", "2026-10-06T10:00:00.000Z"), // back again

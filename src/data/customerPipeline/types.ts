@@ -13,7 +13,7 @@
  *    sale) and `prospectId` (put on the recruiting pipeline). One name can be
  *    on both boards.
  *  - The board is the recruiting board's layout with other bands
- *    (`CUSTOMER_BOARD`): two start columns, four fixed milestones (Contact →
+ *    (`CUSTOMER_BOARD`): a start column, four fixed milestones (Contact →
  *    First meeting → First sale → On Ditto), leader steps between them
  *    (inherited down the sponsor line, hidden or added like recruiting
  *    steps), and two outcome columns.
@@ -54,15 +54,13 @@ export const CUSTOMER_MILESTONE_LABEL: Record<CustomerMilestone, string> = {
 
 /** The fixed start and outcome columns. */
 export const NOT_CONTACTED = "not_contacted";
-export const NEW_CONTACT = "new_contact";
 export const NOT_INTERESTED = "not_interested";
 export const DO_NOT_CONTACT = "do_not_contact";
 export type FixedCustomerColumn =
-  typeof NOT_CONTACTED | typeof NEW_CONTACT | typeof NOT_INTERESTED | typeof DO_NOT_CONTACT;
+  typeof NOT_CONTACTED | typeof NOT_INTERESTED | typeof DO_NOT_CONTACT;
 
 export const FIXED_CUSTOMER_COLUMNS = [
   { id: NOT_CONTACTED, band: "start", label: "Not contacted yet", hint: "From your list" },
-  { id: NEW_CONTACT, band: "start", label: "New contacts", hint: "Met in the marketplace" },
   { id: NOT_INTERESTED, band: "out", label: "Not interested", hint: "Revisit in 6 months" },
   { id: DO_NOT_CONTACT, band: "out", label: "Do not contact", hint: "Hidden from reminders" },
 ] as const satisfies readonly {
