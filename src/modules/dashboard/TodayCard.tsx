@@ -4,11 +4,13 @@ import {
   Check,
   CircleCheck,
   MessageCircle,
+  NotebookPen,
   Settings2,
   ShoppingBag,
   Ticket,
   TrendingUp,
   Undo2,
+  UserX,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ActionRow, EmptyState, STAGE_LABEL, StageChip, type IconTone } from "@/components/brand";
@@ -19,12 +21,14 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { quickCheckIn } from "@/components/log/quickLog";
 import {
+  EVENT_TYPE_LABEL,
   effectiveBizClass,
   removeContact,
   openLog,
   setContactSettings,
   useContactSettings,
 } from "@/data";
+import { MissedNoteDialog } from "@/modules/events/MissedNoteDialog";
 import { plural, relativeDay, shortDate } from "./format";
 import { countByFilter, type TodayFilter, type TodayItem } from "./today";
 
@@ -43,6 +47,7 @@ const ICON: Record<TodayItem["kind"], { icon: typeof Ticket; tone: IconTone }> =
   customer: { icon: ShoppingBag, tone: "warn" },
   anniversary: { icon: TrendingUp, tone: "info" },
   team: { icon: MessageCircle, tone: "primary" },
+  missed: { icon: UserX, tone: "warn" },
 };
 
 /**
@@ -354,6 +359,7 @@ function TodayRow({
   onCheckIn: (item: TodayItem) => void;
 }) {
   const { icon, tone } = ICON[item.kind];
+  const [noteOpen, setNoteOpen] = useState(false);
   const p = item.person;
   const first = p.name.split(" ")[0];
   const stage = item.kind === "customer" ? "customer" : effectiveBizClass(p);
@@ -448,6 +454,41 @@ function TodayRow({
           : `Last contact ${plural(item.days ?? 0, "day")} ago · your goal is ${item.threshold}`;
       action = quick("Check in");
       break;
+    case "missed": {
+      const { latest, lastAttended, missed } = item.streak;
+      title = compact ? p.name : `${p.name} missed ${latest.name}`;
+      detail = compact
+        ? `Missed ${EVENT_TYPE_LABEL[latest.type]} ${shortDate(latest.date)}`
+        : `${EVENT_TYPE_LABEL[latest.type]} ${shortDate(latest.date)} · ${
+            missed.length > 1
+              ? `missed the last ${missed.length}`
+              : `came ${shortDate(lastAttended.date)}`
+          }`;
+      action = (
+        <span className="flex items-center gap-1.5">
+          {quick("Check in")}
+          <Button
+            size="icon"
+            variant="outline"
+            className="size-8"
+            aria-label={`Already handled: note about ${p.name}`}
+            title="Already handled"
+            onClick={() => setNoteOpen(true)}
+          >
+            <NotebookPen />
+          </Button>
+          <MissedNoteDialog
+            open={noteOpen}
+            onOpenChange={setNoteOpen}
+            personId={p.id}
+            personName={p.name}
+            eventId={latest.id}
+            eventName={latest.name}
+          />
+        </span>
+      );
+      break;
+    }
   }
 
   if (item.kind === "ticket" || item.kind === "followup") {

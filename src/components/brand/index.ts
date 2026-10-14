@@ -2,7 +2,7 @@
  * LevelUp LOS brand components. Styled only with design tokens (see the
  * reference at the top of src/styles.css). Live examples: /styleguide.
  */
-export { Logo } from "./Logo";
+export { Logo, LogoMark } from "./Logo";
 export { StageChip, ToneChip, PersonAvatar } from "./chips";
 export {
   PageHeader,

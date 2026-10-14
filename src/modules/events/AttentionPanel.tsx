@@ -9,6 +9,7 @@ import {
   openLog,
   updateAttendance,
   useCurrentUser,
+  useDoNotContactIds,
   type Attendance,
   type CrmEvent,
 } from "@/data";
@@ -59,7 +60,8 @@ export function AttentionPanel({
   const user = useCurrentUser();
   const people = usePeopleMap();
   const [showAll, setShowAll] = useState(false);
-  const items = attentionItems(event, rows);
+  const skip = useDoNotContactIds();
+  const items = attentionItems(event, rows, undefined, skip);
   const finished = (event.endDate ?? event.date) < daysFromToday(0);
   const shown = showAll ? items : items.slice(0, 6);
 
@@ -77,7 +79,7 @@ export function AttentionPanel({
             onClick={() =>
               patchWithUndo(
                 a,
-                { hasTicket: true, ticketType: a.ticketType ?? "in_person", desireToAttend: "yes" },
+                { hasTicket: true, mode: a.mode ?? "in_person", desireToAttend: "yes" },
                 `${name} has a ticket`,
               )
             }

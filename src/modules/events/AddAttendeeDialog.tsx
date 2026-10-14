@@ -111,7 +111,7 @@ function AddForm({
       <DialogHeader className="text-left">
         <DialogTitle>Add attendee</DialogTitle>
         <DialogDescription>
-          Track their ticket, travel and follow-ups for this event.
+          Add someone from your team, or someone new, to this event.
         </DialogDescription>
       </DialogHeader>
       <Segmented<"existing" | "new">

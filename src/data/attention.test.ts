@@ -77,3 +77,20 @@ describe("getComparisonEvents", () => {
     expect(getComparisonEvents(event("e5"), events).prior?.id).toBe("e4");
   });
 });
+
+describe("do not contact", () => {
+  it("leaves people in Do not contact out of every reminder", () => {
+    const e = event("e1");
+    const all = forEvent("e1");
+    const skip = new Set(["7"]); // Sarah Kim
+    const items = attentionItems(e, all, undefined, skip);
+    expect(items.some((i) => i.a.personId === "7")).toBe(false);
+    expect(items.length).toBe(attentionItems(e, all).length - 1);
+    expect(upcomingAttentionCount(events, rows, undefined, skip)).toBe(
+      upcomingAttentionCount(
+        events,
+        rows.filter((a) => a.personId !== "7"),
+      ),
+    );
+  });
+});

@@ -11,10 +11,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
+  EVENT_TYPE_LABEL,
   attentionItems,
   useAttendancesForEvent,
   useAttendancesForPerson,
+  useDoNotContactIds,
   useUpcomingEvents,
+  usesTickets,
   type Attendance,
   type CrmEvent,
 } from "@/data";
@@ -46,7 +49,7 @@ function Countdown({ event, compact }: { event: CrmEvent; compact?: boolean }) {
   );
 }
 
-const SKY_BTN = "bg-sky text-navy hover:bg-sky/90";
+const SKY_BTN = "bg-sky text-on-sky hover:bg-sky/90";
 const GHOST_BTN = "border border-white/25 bg-transparent text-event-fg hover:bg-white/10";
 
 /** Navy "next event" card. Leaders see team ticket progress; candidates see their own status. */
@@ -87,9 +90,10 @@ export function NextEventCard({
 
 function TeamEvent({ event, compact }: { event: CrmEvent; compact?: boolean }) {
   const rows = useAttendancesForEvent(event.id);
+  const skip = useDoNotContactIds();
   const s = ticketStats(rows);
   // Same rule as the Events nav badge and the Events list cards.
-  const attention = attentionItems(event, rows).length;
+  const attention = attentionItems(event, rows, undefined, skip).length;
   const bar = (
     <SegmentedBar
       total={Math.max(1, s.invited)}
@@ -100,9 +104,18 @@ function TeamEvent({ event, compact }: { event: CrmEvent; compact?: boolean }) {
       ]}
     />
   );
-  const meta = [dateRange(event), event.location, `${s.invited} invited`]
+  const tickets = usesTickets(event.type);
+  const coming = rows.filter((a) => a.desireToAttend === "yes").length;
+  const meta = [
+    EVENT_TYPE_LABEL[event.type],
+    dateRange(event),
+    event.location,
+    tickets ? `${s.invited} invited` : null,
+  ]
     .filter(Boolean)
     .join(" · ");
+  // Events without tickets (Night Owls, trainings...): just who's coming.
+  const comingLine = coming > 0 ? `${coming} coming` : "Nobody has said they're coming yet";
 
   if (compact) {
     return (
@@ -118,11 +131,13 @@ function TeamEvent({ event, compact }: { event: CrmEvent; compact?: boolean }) {
           </span>
           <Countdown event={event} compact />
         </span>
-        {s.invited > 0 && bar}
+        {tickets && s.invited > 0 && bar}
         <span className="text-[11.5px] text-event-muted">
-          {s.invited === 0
-            ? "No one from your team is on the list yet"
-            : `${s.bought} of ${s.invited} have tickets · ${s.needTicket} to go`}
+          {!tickets
+            ? comingLine
+            : s.invited === 0
+              ? "No one from your team is on the list yet"
+              : `${s.bought} of ${s.invited} have tickets · ${s.needTicket} to go`}
           {attention > 0 && ` · ${attention} need attention`}
         </span>
       </Link>
@@ -132,7 +147,9 @@ function TeamEvent({ event, compact }: { event: CrmEvent; compact?: boolean }) {
   return (
     <SectionCard variant="event" title={event.name} action={<Countdown event={event} />}>
       <p className="-mt-1.5 text-[12.5px] text-muted-foreground">{meta}</p>
-      {s.invited === 0 ? (
+      {!tickets ? (
+        <p className="text-[12.5px]">{comingLine}</p>
+      ) : s.invited === 0 ? (
         <p className="text-[12.5px] text-muted-foreground">
           No one from your team is on the list yet.
         </p>
@@ -153,7 +170,7 @@ function TeamEvent({ event, compact }: { event: CrmEvent; compact?: boolean }) {
         </div>
       )}
       <div className="flex flex-wrap items-center gap-2">
-        {s.needTicket > 0 && (
+        {tickets && s.needTicket > 0 && (
           <Button asChild size="sm" className={SKY_BTN}>
             <Link
               to="/events/$id"
@@ -189,7 +206,10 @@ function CandidateEvent({
   compact?: boolean;
 }) {
   const mine = useAttendancesForPerson(viewerId);
-  const status = attendanceStatus(mine.find((a) => a.eventId === event.id));
+  const status = attendanceStatus(
+    mine.find((a) => a.eventId === event.id),
+    event,
+  );
   const meta = [dateRange(event), event.location].filter(Boolean).join(" · ");
   return (
     <SectionCard
@@ -242,7 +262,7 @@ export function MyEventsCard({ viewerId }: { viewerId: string }) {
       ) : (
         <div>
           {list.map((e) => {
-            const st = attendanceStatus(byEvent.get(e.id));
+            const st = attendanceStatus(byEvent.get(e.id), e);
             return (
               <div
                 key={e.id}

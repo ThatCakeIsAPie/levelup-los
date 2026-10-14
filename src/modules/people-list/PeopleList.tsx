@@ -4,6 +4,7 @@ import { EmptyState, PageHeader, SectionCard, useIsDesktop } from "@/components/
 import { Button } from "@/components/ui/button";
 import { useCurrentUser } from "@/data";
 import { cn } from "@/lib/utils";
+import { InviteButton } from "@/modules/invites/InviteDialog";
 import { AddPersonDialog } from "./AddPersonDialog";
 import { BulkBar } from "./BulkBar";
 import { exportRowsCsv } from "./exportCsv";
@@ -216,6 +217,7 @@ export function PeopleList() {
               <Download />
               <span className="hidden sm:inline">Export</span>
             </Button>
+            <InviteButton />
             <Button onClick={() => openAdd(segment === "customers" ? "customer" : "business")}>
               <UserPlus /> Add person
             </Button>

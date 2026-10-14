@@ -11,10 +11,15 @@ import {
 } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import {
+  EVENT_TYPE_INFO,
+  EVENT_TYPES,
   daysFromToday,
+  isEventType,
   localDate,
   needsTicket,
+  useCanManageEvents,
   useCurrentUser,
+  useDoNotContactIds,
   usePastEvents,
   useUpcomingEvents,
   useVisibleAttendances,
@@ -22,6 +27,8 @@ import {
   type Attendance,
   type CrmEvent,
   type CrmPerson,
+  type EventType,
+  usesTickets,
 } from "@/data";
 import { cn } from "@/lib/utils";
 import { AvatarStack } from "@/modules/events/AvatarStack";
@@ -30,13 +37,22 @@ import {
   EVENT_TYPE_LABEL,
   attendanceStatus,
   attentionItems,
-  canManageEvents,
   eventTiming,
   formatEventRange,
   timingLabel,
 } from "@/modules/events/lib";
+import { EventFormatChip, EventTypeChip } from "@/modules/events/typeMeta";
+import { EVENT_TYPE_ICON } from "@/modules/events/typeIcons";
+
+/** `?type=night_owls` shows one type of event. */
+interface EventsSearch {
+  type?: EventType;
+}
 
 export const Route = createFileRoute("/events/")({
+  validateSearch: (search: Record<string, unknown>): EventsSearch => ({
+    type: isEventType(search.type) ? search.type : undefined,
+  }),
   head: () => ({ meta: [{ title: "Events — LevelUp LOS" }] }),
   component: EventsPage,
 });
@@ -53,6 +69,10 @@ interface EventSummary {
   needTicket: number;
   attention: number;
   attended: number;
+  /** Came virtually (of `attended`). */
+  attendedVirtual: number;
+  /** Said they're coming (events without tickets). */
+  going: number;
   showRate: number | null;
   mine?: Attendance;
 }
@@ -61,6 +81,7 @@ function useEventSummaries(events: CrmEvent[]): EventSummary[] {
   const all = useVisibleAttendances();
   const people = useVisiblePeople();
   const user = useCurrentUser();
+  const skip = useDoNotContactIds();
   return useMemo(() => {
     const byId = new Map(people.map((p) => [p.id, p]));
     const today = localDate();
@@ -84,26 +105,41 @@ function useEventSummaries(events: CrmEvent[]): EventSummary[] {
           (a) => a.plannedPurchaseDate! >= today && a.plannedPurchaseDate! <= weekOut,
         ).length,
         needTicket: rows.filter(needsTicket).length,
-        attention: attentionItems(event, rows).length,
+        attention: attentionItems(event, rows, undefined, skip).length,
         attended,
+        attendedVirtual: rows.filter((a) => a.attended === true && a.mode === "virtual").length,
+        going: rows.filter((a) => a.desireToAttend === "yes").length,
         showRate: eligible ? Math.round((attended / eligible) * 100) : null,
         mine: rows.find((a) => a.personId === user.personId),
       };
     });
-  }, [events, all, people, user.personId]);
+  }, [events, all, people, user.personId, skip]);
 }
 
 function EventsPage() {
   const user = useCurrentUser();
   const navigate = useNavigate();
-  const upcoming = useEventSummaries(useUpcomingEvents());
-  const past = useEventSummaries(usePastEvents());
-  const manage = canManageEvents(user.role);
+  const { type } = Route.useSearch();
+  const allUpcoming = useUpcomingEvents();
+  const allPast = usePastEvents();
+  const upcoming = useEventSummaries(
+    useMemo(() => allUpcoming.filter((e) => !type || e.type === type), [allUpcoming, type]),
+  );
+  const past = useEventSummaries(
+    useMemo(() => allPast.filter((e) => !type || e.type === type), [allPast, type]),
+  );
+  // Filter chips for the types that have events.
+  const types = useMemo(() => {
+    const have = new Set([...allUpcoming, ...allPast].map((e) => e.type));
+    return EVENT_TYPES.filter((t) => have.has(t));
+  }, [allUpcoming, allPast]);
+  const manage = useCanManageEvents();
   const candidate = user.role === "candidate";
 
   // The next conference gets the navy feature card; the rest are regular cards.
   const featured = upcoming.find((s) => s.event.type === "conference");
   const others = upcoming.filter((s) => s !== featured);
+  const kind = type ? EVENT_TYPE_INFO[type].plural.toLowerCase() : "events";
 
   const newEvent = (label = "New event") =>
     manage ? (
@@ -124,6 +160,8 @@ function EventsPage() {
         actions={newEvent()}
       />
 
+      {types.length > 1 && <TypeFilter types={types} value={type} />}
+
       <section aria-labelledby="upcoming-h" className="grid gap-3">
         <h2 id="upcoming-h" className="text-sm font-bold">
           Upcoming
@@ -131,11 +169,11 @@ function EventsPage() {
         {upcoming.length === 0 ? (
           <EmptyState
             icon={<CalendarPlus />}
-            title="No upcoming events"
+            title={`No upcoming ${kind}`}
             body={
               manage
-                ? "Add the next conference or team meeting so your team can plan tickets and travel."
-                : "When your team adds the next conference or meeting, it shows up here."
+                ? "Add the next one so your team can see it and say they're coming."
+                : "When your team adds the next one, it shows up here."
             }
             action={newEvent("Add an event")}
           />
@@ -166,8 +204,8 @@ function EventsPage() {
         {past.length === 0 ? (
           <EmptyState
             icon={<CalendarDays />}
-            title="No past events yet"
-            body="Finished events move here with their attendance and show rate."
+            title={`No past ${kind} yet`}
+            body="Finished events move here with who came."
           />
         ) : (
           <SectionCard className="py-2 sm:py-2">
@@ -180,6 +218,40 @@ function EventsPage() {
         )}
       </section>
     </div>
+  );
+}
+
+/** One chip per event type that has events, plus "All". Lives in the URL (`?type=`). */
+function TypeFilter({ types, value }: { types: EventType[]; value?: EventType }) {
+  const chip = (t: EventType | undefined, label: string) => {
+    const Icon = t ? EVENT_TYPE_ICON[t] : null;
+    const on = value === t;
+    return (
+      <Link
+        key={t ?? "all"}
+        to="/events"
+        search={t ? { type: t } : {}}
+        replace
+        aria-current={on ? "page" : undefined}
+        className={cn(
+          "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px] font-semibold leading-none transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+          on
+            ? "border-foreground bg-foreground text-background"
+            : "border-line text-muted-foreground hover:text-foreground",
+        )}
+      >
+        {Icon && <Icon className="size-3.5" aria-hidden="true" />}
+        {label}
+      </Link>
+    );
+  };
+  return (
+    <nav aria-label="Show one type of event" className="-mx-4 overflow-x-auto px-4 lg:mx-0 lg:px-0">
+      <div className="flex w-max gap-1.5 lg:w-auto lg:flex-wrap">
+        {chip(undefined, "All")}
+        {types.map((t) => chip(t, EVENT_TYPE_INFO[t].plural))}
+      </div>
+    </nav>
   );
 }
 
@@ -294,7 +366,7 @@ function FeaturedCard({
         <Button
           asChild
           size="sm"
-          className="ml-auto bg-sky text-navy hover:bg-sky/90 focus-visible:ring-offset-event"
+          className="ml-auto bg-sky text-on-sky hover:bg-sky/90 focus-visible:ring-offset-event"
         >
           <Link to="/events/$id" params={{ id: event.id }}>
             Open event
@@ -363,7 +435,8 @@ function UpcomingCard({ s, candidate }: { s: EventSummary; candidate: boolean })
           </h3>
           <MetaLine event={event} className="mt-0.5" />
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-            <ToneChip tone="neutral">{EVENT_TYPE_LABEL[event.type]}</ToneChip>
+            <EventTypeChip type={event.type} />
+            <EventFormatChip event={event} />
             <ToneChip tone={t.kind === "now" || t.days <= 7 ? "warn" : "info"}>
               {timingLabel(t)}
             </ToneChip>
@@ -373,6 +446,16 @@ function UpcomingCard({ s, candidate }: { s: EventSummary; candidate: boolean })
 
       {candidate ? (
         <CandidateStatus mine={s.mine} />
+      ) : !usesTickets(event.type) ? (
+        <p className="text-[12.5px] text-muted-foreground">
+          {s.going > 0 ? (
+            <>
+              <b className="font-bold tabular-nums text-foreground">{s.going}</b> coming
+            </>
+          ) : (
+            "Nobody has said they're coming yet."
+          )}
+        </p>
       ) : s.invited > 0 ? (
         <div className="grid gap-1.5">
           <div className="flex items-baseline justify-between gap-2 text-[12.5px]">
@@ -401,7 +484,7 @@ function UpcomingCard({ s, candidate }: { s: EventSummary; candidate: boolean })
               {s.attention} need attention
             </ToneChip>
           )}
-          {s.needTicket > 0 && <NeedTicketLink s={s} />}
+          {usesTickets(event.type) && s.needTicket > 0 && <NeedTicketLink s={s} />}
         </div>
       )}
     </SectionCard>
@@ -435,14 +518,17 @@ function PastRow({ s, candidate }: { s: EventSummary; candidate: boolean }) {
           <>
             <span className="text-muted-foreground">
               <b className="text-[13px] font-bold tabular-nums text-foreground">{s.attended}</b>{" "}
-              attended
+              came
+              {s.attendedVirtual > 0 && ` · ${s.attendedVirtual} virtual`}
             </span>
-            <span className="text-muted-foreground">
-              Show rate{" "}
-              <b className="text-[13px] font-bold tabular-nums text-foreground">
-                {s.showRate === null ? "–" : `${s.showRate}%`}
-              </b>
-            </span>
+            {usesTickets(event.type) && (
+              <span className="text-muted-foreground">
+                Show rate{" "}
+                <b className="text-[13px] font-bold tabular-nums text-foreground">
+                  {s.showRate === null ? "–" : `${s.showRate}%`}
+                </b>
+              </span>
+            )}
           </>
         )}
       </div>

@@ -182,3 +182,15 @@ describe("buildTodayItems (rules)", () => {
     expect(items[0].kind === "team" && items[0].never).toBe(true);
   });
 });
+
+describe("do not contact", () => {
+  it("drops every item about people in Do not contact", () => {
+    const input = inputFor("1", "leader");
+    const all = buildTodayItems(input);
+    const customer = all.find((i) => i.kind === "customer")!;
+    const skip = new Set([customer.person.id, "7"]);
+    const left = buildTodayItems({ ...input, doNotContact: skip });
+    expect(left.some((i) => skip.has(i.person.id))).toBe(false);
+    expect(left.length).toBe(all.filter((i) => !skip.has(i.person.id)).length);
+  });
+});

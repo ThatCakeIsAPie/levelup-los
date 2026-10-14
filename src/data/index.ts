@@ -1,11 +1,17 @@
 /**
  * Data access layer. Pages read and write ONLY through this module.
  *
- * Today every hook is backed by the Zustand stores in src/stores (persisted to
- * localStorage). Later each hook will be re-implemented on Supabase with the
- * same signature, so:
+ * Every hook is backed by the Zustand stores in src/stores, in both data
+ * sources (src/lib/config.ts):
+ *   - "local" (GitHub Pages demo): the stores persist to localStorage and are
+ *     seeded with demo data;
+ *   - "supabase": the stores live in memory, are filled from Postgres after
+ *     sign-in, and src/data/remote writes every change back (optimistic, rolled
+ *     back with a toast on failure) and merges realtime changes.
+ * So:
  *   - hooks return plain objects/arrays (never store instances),
- *   - writes are plain functions (fire-and-forget today; treat as async-safe),
+ *   - writes are plain functions (fire-and-forget; they apply at once and are
+ *     saved in the background),
  *   - visibility rules from ./access are already applied: anything a hook
  *     returns is something the current user may see; a non-visible id behaves
  *     exactly like a missing one.
@@ -25,6 +31,43 @@ export {
   downlineOf,
   type Viewer,
 } from "./access";
+
+// Navigation badges (chat feature)
+export { useUnreadChatsCount, useUnreadInboxCount } from "./badges";
+
+// Chats, notifications, announcements, attachments (src/data/chat)
+export * from "./chat";
+
+// Recruiting pipeline: board, activity goal, conversions, stat sharing (src/data/pipeline)
+export * from "./pipeline";
+
+// Your list and the customer pipeline (src/data/customerPipeline)
+export * from "./customerPipeline";
+
+// Library: All talks catalog, channels, progress (src/data/library)
+export * from "./library";
+
+// Growth path: milestone engine, monthly PV, hand-marked milestones (src/data/growth)
+export * from "./growth";
+
+// Event types, quick attendance, missed-event follow-ups (src/data/eventTypes)
+export * from "./eventTypes";
+
+// Unlocks (what each person sees), feature switches, leader deputies (src/data/team)
+export * from "./team";
+export {
+  computeUnlocks,
+  unlockStage,
+  routeAccess,
+  NEXT_UNLOCK_TEXT,
+  type Unlocks,
+  type UnlockArea,
+  type UnlockInput,
+  type UnlockStage,
+  type NextUnlock,
+  type LockReason,
+  type RouteAccess,
+} from "./unlocks";
 
 // Session
 export {
@@ -181,10 +224,16 @@ export type {
   PersonPath,
   ApprenticeAlert,
 } from "@/stores/peopleStore";
-export type { CrmEvent, EventType } from "@/stores/eventsStore";
-export type { Attendance, DesireLevel, TicketType } from "@/stores/attendanceStore";
+export type { CrmEvent, EventFormat, EventType } from "@/stores/eventsStore";
+export type {
+  Attendance,
+  AttendMode,
+  DesireLevel,
+  MissedEventNote,
+} from "@/stores/attendanceStore";
 export type {
   Contact,
+  ContactSource,
   Learning,
   LearningKind,
   LearningGoal,

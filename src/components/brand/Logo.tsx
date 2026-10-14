@@ -1,15 +1,12 @@
 import { cn } from "@/lib/utils";
 
-const SIZES = {
-  sm: { box: "h-4 gap-[1.5px]", bar: "w-[5px]", h: ["h-[7px]", "h-[11px]", "h-4"] },
-  md: { box: "h-5 gap-[2px]", bar: "w-1.5", h: ["h-[9px]", "h-[14px]", "h-5"] },
-  lg: { box: "h-8 gap-[3px]", bar: "w-2.5", h: ["h-[14px]", "h-[22px]", "h-8"] },
-} as const;
+const SIZES = { sm: "size-4", md: "size-6", lg: "size-9" } as const;
 
 /**
- * LevelUp LOS mark: three rising bars (navy-ish, teal, sky). Set `wordmark`
- * to add "LevelUp LOS" (and `tagline` for "LTD · LevelUp team"); the wordmark
- * inherits the current text color, so it works on the navy sidebar and on cards.
+ * LevelUp Leadership mark: a grey ring holding a green up-arrow over a grey
+ * down-arrow. Set `wordmark` to add "LevelUp LOS" in the typewriter face (and
+ * `tagline` for "LevelUp Leadership · LTD"); the wordmark inherits the current
+ * text color, so it works on the charcoal sidebar and on cards.
  */
 export function Logo({
   size = "md",
@@ -22,14 +19,7 @@ export function Logo({
   tagline?: boolean;
   className?: string;
 }) {
-  const s = SIZES[size];
-  const mark = (
-    <span className={cn("inline-flex shrink-0 items-end", s.box)} aria-hidden="true">
-      <i className={cn("block rounded-[1.5px] bg-logo-1", s.bar, s.h[0])} />
-      <i className={cn("block rounded-[1.5px] bg-logo-2", s.bar, s.h[1])} />
-      <i className={cn("block rounded-[1.5px] bg-sky", s.bar, s.h[2])} />
-    </span>
-  );
+  const mark = <LogoMark className={SIZES[size]} />;
   if (!wordmark) {
     return (
       <span className={cn("inline-flex", className)} role="img" aria-label="LevelUp LOS">
@@ -41,13 +31,24 @@ export function Logo({
     <span className={cn("inline-flex items-center gap-2.5", className)}>
       {mark}
       <span className="leading-tight">
-        <span className="block text-[15px] font-extrabold tracking-tight">LevelUp LOS</span>
+        <span className="block font-wordmark text-[17px] tracking-[0.01em]">LevelUp LOS</span>
         {tagline && (
           <span className="block text-[10.5px] font-medium tracking-wide opacity-75">
-            LTD · LevelUp team
+            LevelUp Leadership · LTD
           </span>
         )}
       </span>
     </span>
+  );
+}
+
+/** The bare mark as an SVG (scales with its box). */
+export function LogoMark({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={cn("shrink-0", className)} aria-hidden="true">
+      <circle cx="12" cy="12" r="10.6" fill="none" className="stroke-logo-ring" strokeWidth="2.2" />
+      <path d="M12 4.9 17.3 11H6.7Z" className="fill-sky" />
+      <path d="M6.7 13h10.6L12 19.1Z" className="fill-logo-ring" />
+    </svg>
   );
 }

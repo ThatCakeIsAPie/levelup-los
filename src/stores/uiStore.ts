@@ -1,7 +1,7 @@
 import { create } from "zustand";
 
 /** Tabs of the global Log sheet (src/components/log/LogSheet.tsx). */
-export type LogTab = "learning" | "checkin" | "customer" | "sale";
+export type LogTab = "learning" | "checkin" | "customer" | "sale" | "attendance";
 
 export interface LogSheetState {
   open: boolean;

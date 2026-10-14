@@ -6,6 +6,7 @@ import {
   useAttendancesForPerson,
   useCurrentUser,
   useMe,
+  useUnlocks,
   useUpcomingEvents,
   useVisibleTeam,
 } from "@/data";
@@ -14,8 +15,11 @@ import { pickFeaturedEvent } from "@/modules/dashboard/format";
 import { GoalCard, GoalTile, StreakCard, StreakTile } from "@/modules/dashboard/LearningCards";
 import { MyEventsCard, NextEventCard } from "@/modules/dashboard/EventCards";
 import { TodayCard } from "@/modules/dashboard/TodayCard";
+import { InboxCard } from "@/modules/dashboard/InboxCard";
 import { TeamCard, TeamLearningCard } from "@/modules/dashboard/TeamCards";
 import { MyLearningCard, PathCard } from "@/modules/dashboard/JourneyCards";
+import { ContinueLearningCard } from "@/modules/library/HomeCards";
+import { FirstSponsorCelebration, NextMilestoneCard } from "@/modules/growth/HomeCards";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -40,11 +44,17 @@ function Dashboard() {
   const me = useMe();
   const desktop = useIsDesktop();
   const candidate = user.role === "candidate";
+  // Home cards follow what the person has unlocked (src/data/unlocks.ts): a
+  // new apprentice gets the next milestone, learning and upcoming events.
+  const { can, stage } = useUnlocks();
+  const starter = stage === "new_apprentice";
   const items = useTodayItems();
   const learning = useMyLearning(user.personId);
   const upcoming = useUpcomingEvents();
   const myRows = useAttendancesForPerson(user.personId);
-  const featured = pickFeaturedEvent(upcoming, myRows, candidate);
+  // Before First sponsor the event card is about your own plans, like a candidate's.
+  const personalEvents = candidate || starter;
+  const featured = pickFeaturedEvent(upcoming, myRows, personalEvents);
   const visibleTeam = useVisibleTeam();
   const team = useMemo(
     () => visibleTeam.filter((p) => p.id !== user.personId),
@@ -63,7 +73,7 @@ function Dashboard() {
   const event = (
     <NextEventCard
       event={featured}
-      candidate={candidate}
+      candidate={personalEvents}
       viewerId={user.personId}
       compact={!desktop}
     />
@@ -71,6 +81,11 @@ function Dashboard() {
   const side = candidate ? (
     <>
       <PathCard me={me} />
+      <MyLearningCard entries={learning.entries} />
+    </>
+  ) : starter ? (
+    <>
+      <MyEventsCard viewerId={user.personId} />
       <MyLearningCard entries={learning.entries} />
     </>
   ) : (
@@ -84,11 +99,15 @@ function Dashboard() {
     return (
       <div className="grid content-start gap-3 px-4 py-5">
         {header}
+        {!candidate && <NextMilestoneCard />}
+        {!candidate && <FirstSponsorCelebration />}
         <div className="grid grid-cols-2 gap-2.5">
           <StreakTile learning={learning} />
           <GoalTile learning={learning} personId={user.personId} />
         </div>
+        {can.library && <ContinueLearningCard />}
         {event}
+        {can.inbox && <InboxCard compact />}
         {today}
         {candidate && <MyEventsCard viewerId={user.personId} />}
         {side}
@@ -106,6 +125,10 @@ function Dashboard() {
       </div>
       <div className="grid grid-cols-[1.6fr_1fr] items-start gap-4">
         <div className="grid min-w-0 content-start gap-4">
+          {!candidate && <NextMilestoneCard />}
+          {!candidate && <FirstSponsorCelebration />}
+          {can.library && <ContinueLearningCard />}
+          {can.inbox && <InboxCard />}
           {today}
           {candidate && <MyEventsCard viewerId={user.personId} />}
         </div>

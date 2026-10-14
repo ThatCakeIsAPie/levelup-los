@@ -5,6 +5,9 @@
  *  - leader, ibo, apprentice: themselves + their downline on the business
  *    path, plus ONLY the customers they own (never another person's customers).
  *  - candidate: only themselves.
+ *  - a leader's deputy (viewer.deputyOf): also the leader and the leader's
+ *    business downline; never the leader's customers (customers stay private
+ *    to their owner).
  *  - Events: everyone sees the event list; attendance rows / rosters are
  *    filtered to visible people.
  *  - A person id that is not visible behaves as "not found".
@@ -16,8 +19,11 @@ import type { CrmPerson } from "@/stores/peopleStore";
 import type { Attendance } from "@/stores/attendanceStore";
 import type { Role } from "@/stores/sessionStore";
 
-/** Who is looking. `null` = nobody logged in (sees nothing). */
-export type Viewer = { personId: string; role: Role } | null;
+/**
+ * Who is looking. `null` = nobody logged in (sees nothing). `deputyOf` lists
+ * the leaders this person is a deputy of (src/data/team).
+ */
+export type Viewer = { personId: string; role: Role; deputyOf?: readonly string[] } | null;
 
 /** Business-path children by sponsor id (customers never have a downline). */
 function childrenIndex(people: CrmPerson[]): Map<string, string[]> {
@@ -53,6 +59,10 @@ export function visibleIdSet(people: CrmPerson[], viewer: Viewer): Set<string> {
   if (!viewer) return new Set();
   if (viewer.role === "candidate") return new Set([viewer.personId]);
   const team = downlineIds(people, viewer.personId);
+  // A deputy also sees their leader and the leader's business downline.
+  for (const leaderId of viewer.deputyOf ?? []) {
+    for (const id of downlineIds(people, leaderId)) team.add(id);
+  }
   const out = new Set<string>();
   for (const p of people) {
     if (p.bizClass === "customer" ? p.ownerId === viewer.personId : team.has(p.id)) out.add(p.id);

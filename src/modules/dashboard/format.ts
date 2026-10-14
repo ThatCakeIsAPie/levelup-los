@@ -1,6 +1,13 @@
 import { addDays, differenceInCalendarDays, format } from "date-fns";
 import type { Tone } from "@/components/brand";
-import { localDate, needsTicket, parseDate, type Attendance, type CrmEvent } from "@/data";
+import {
+  localDate,
+  needsTicket,
+  parseDate,
+  usesTickets,
+  type Attendance,
+  type CrmEvent,
+} from "@/data";
 
 /** "Oct 10" */
 export const shortDate = (d: string) => format(parseDate(d), "MMM d");
@@ -61,12 +68,22 @@ export function pickFeaturedEvent(
 }
 
 /** Status of one person's attendance row, for chips. */
-export function attendanceStatus(a: Attendance | undefined): {
+export function attendanceStatus(
+  a: Attendance | undefined,
+  /** Events without tickets read "Coming" / "Maybe" / "Can't make it". */
+  event?: Pick<CrmEvent, "type">,
+): {
   tone: Tone;
   label: string;
   detail?: string;
 } {
   if (!a) return { tone: "neutral", label: "Not on the list yet" };
+  if (event && !usesTickets(event.type)) {
+    if (a.desireToAttend === "yes") return { tone: "good", label: "Coming" };
+    if (a.desireToAttend === "maybe") return { tone: "info", label: "Maybe" };
+    if (a.desireToAttend === "no") return { tone: "neutral", label: "Can't make it" };
+    return { tone: "neutral", label: "Invited" };
+  }
   if (a.hasTicket) return { tone: "good", label: "Ticket bought" };
   if (a.desireToAttend === "no") return { tone: "neutral", label: "Not going" };
   const detail = a.plannedPurchaseDate
@@ -74,6 +91,6 @@ export function attendanceStatus(a: Attendance | undefined): {
     : a.followUpDate
       ? `Follow-up ${shortDate(a.followUpDate)}`
       : undefined;
-  if (a.desireToAttend === "maybe") return { tone: "info", label: "Thinking about it", detail };
+  if (a.desireToAttend === "maybe") return { tone: "info", label: "Maybe", detail };
   return { tone: "warn", label: "No ticket yet", detail };
 }

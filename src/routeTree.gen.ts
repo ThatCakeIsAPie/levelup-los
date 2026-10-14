@@ -10,21 +10,40 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as BusinessRouteImport } from './routes/business'
 import { Route as CampaignsRouteImport } from './routes/campaigns'
 import { Route as CustomersRouteImport } from './routes/customers'
+import { Route as InboxRouteImport } from './routes/inbox'
+import { Route as LearningRouteImport } from './routes/learning'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as MindmapRouteImport } from './routes/mindmap'
+import { Route as PipelineRouteImport } from './routes/pipeline'
 import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as StyleguideRouteImport } from './routes/styleguide'
 import { Route as WalletRouteImport } from './routes/wallet'
+import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
+import { Route as ChatsIndexRouteImport } from './routes/chats.index'
+import { Route as ChatsIdRouteImport } from './routes/chats.$id'
 import { Route as EventsIndexRouteImport } from './routes/events.index'
 import { Route as EventsIdRouteImport } from './routes/events.$id'
+import { Route as InviteTokenRouteImport } from './routes/invite.$token'
+import { Route as LibraryIndexRouteImport } from './routes/library.index'
+import { Route as LibraryChannelIdRouteImport } from './routes/library.$channelId'
+import { Route as LibraryTalksRouteImport } from './routes/library.talks'
 import { Route as PeopleIndexRouteImport } from './routes/people.index'
 import { Route as PeopleIdRouteImport } from './routes/people.$id'
+import { Route as SettingsIndexRouteImport } from './routes/settings.index'
+import { Route as SettingsTeamRouteImport } from './routes/settings.team'
+import { Route as LibraryItemItemIdRouteImport } from './routes/library.item.$itemId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BusinessRoute = BusinessRouteImport.update({
+  id: '/business',
+  path: '/business',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CampaignsRoute = CampaignsRouteImport.update({
@@ -37,6 +56,16 @@ const CustomersRoute = CustomersRouteImport.update({
   path: '/customers',
   getParentRoute: () => rootRouteImport,
 } as any)
+const InboxRoute = InboxRouteImport.update({
+  id: '/inbox',
+  path: '/inbox',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LearningRoute = LearningRouteImport.update({
+  id: '/learning',
+  path: '/learning',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -45,6 +74,11 @@ const LoginRoute = LoginRouteImport.update({
 const MindmapRoute = MindmapRouteImport.update({
   id: '/mindmap',
   path: '/mindmap',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PipelineRoute = PipelineRouteImport.update({
+  id: '/pipeline',
+  path: '/pipeline',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ReportsRoute = ReportsRouteImport.update({
@@ -62,6 +96,21 @@ const WalletRoute = WalletRouteImport.update({
   path: '/wallet',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthCallbackRoute = AuthCallbackRouteImport.update({
+  id: '/auth/callback',
+  path: '/auth/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ChatsIndexRoute = ChatsIndexRouteImport.update({
+  id: '/chats/',
+  path: '/chats/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ChatsIdRoute = ChatsIdRouteImport.update({
+  id: '/chats/$id',
+  path: '/chats/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EventsIndexRoute = EventsIndexRouteImport.update({
   id: '/events/',
   path: '/events/',
@@ -70,6 +119,26 @@ const EventsIndexRoute = EventsIndexRouteImport.update({
 const EventsIdRoute = EventsIdRouteImport.update({
   id: '/events/$id',
   path: '/events/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InviteTokenRoute = InviteTokenRouteImport.update({
+  id: '/invite/$token',
+  path: '/invite/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LibraryIndexRoute = LibraryIndexRouteImport.update({
+  id: '/library/',
+  path: '/library/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LibraryChannelIdRoute = LibraryChannelIdRouteImport.update({
+  id: '/library/$channelId',
+  path: '/library/$channelId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LibraryTalksRoute = LibraryTalksRouteImport.update({
+  id: '/library/talks',
+  path: '/library/talks',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PeopleIndexRoute = PeopleIndexRouteImport.update({
@@ -82,108 +151,221 @@ const PeopleIdRoute = PeopleIdRouteImport.update({
   path: '/people/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsIndexRoute = SettingsIndexRouteImport.update({
+  id: '/settings/',
+  path: '/settings/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsTeamRoute = SettingsTeamRouteImport.update({
+  id: '/settings/team',
+  path: '/settings/team',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LibraryItemItemIdRoute = LibraryItemItemIdRouteImport.update({
+  id: '/library/item/$itemId',
+  path: '/library/item/$itemId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/business': typeof BusinessRoute
   '/campaigns': typeof CampaignsRoute
   '/customers': typeof CustomersRoute
+  '/inbox': typeof InboxRoute
+  '/learning': typeof LearningRoute
   '/login': typeof LoginRoute
   '/mindmap': typeof MindmapRoute
+  '/pipeline': typeof PipelineRoute
   '/reports': typeof ReportsRoute
   '/styleguide': typeof StyleguideRoute
   '/wallet': typeof WalletRoute
+  '/auth/callback': typeof AuthCallbackRoute
+  '/chats/$id': typeof ChatsIdRoute
   '/events/$id': typeof EventsIdRoute
+  '/invite/$token': typeof InviteTokenRoute
+  '/library/$channelId': typeof LibraryChannelIdRoute
+  '/library/talks': typeof LibraryTalksRoute
   '/people/$id': typeof PeopleIdRoute
+  '/settings/team': typeof SettingsTeamRoute
+  '/chats/': typeof ChatsIndexRoute
   '/events/': typeof EventsIndexRoute
+  '/library/': typeof LibraryIndexRoute
   '/people/': typeof PeopleIndexRoute
+  '/settings/': typeof SettingsIndexRoute
+  '/library/item/$itemId': typeof LibraryItemItemIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/business': typeof BusinessRoute
   '/campaigns': typeof CampaignsRoute
   '/customers': typeof CustomersRoute
+  '/inbox': typeof InboxRoute
+  '/learning': typeof LearningRoute
   '/login': typeof LoginRoute
   '/mindmap': typeof MindmapRoute
+  '/pipeline': typeof PipelineRoute
   '/reports': typeof ReportsRoute
   '/styleguide': typeof StyleguideRoute
   '/wallet': typeof WalletRoute
+  '/auth/callback': typeof AuthCallbackRoute
+  '/chats/$id': typeof ChatsIdRoute
   '/events/$id': typeof EventsIdRoute
+  '/invite/$token': typeof InviteTokenRoute
+  '/library/$channelId': typeof LibraryChannelIdRoute
+  '/library/talks': typeof LibraryTalksRoute
   '/people/$id': typeof PeopleIdRoute
+  '/settings/team': typeof SettingsTeamRoute
+  '/chats': typeof ChatsIndexRoute
   '/events': typeof EventsIndexRoute
+  '/library': typeof LibraryIndexRoute
   '/people': typeof PeopleIndexRoute
+  '/settings': typeof SettingsIndexRoute
+  '/library/item/$itemId': typeof LibraryItemItemIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/business': typeof BusinessRoute
   '/campaigns': typeof CampaignsRoute
   '/customers': typeof CustomersRoute
+  '/inbox': typeof InboxRoute
+  '/learning': typeof LearningRoute
   '/login': typeof LoginRoute
   '/mindmap': typeof MindmapRoute
+  '/pipeline': typeof PipelineRoute
   '/reports': typeof ReportsRoute
   '/styleguide': typeof StyleguideRoute
   '/wallet': typeof WalletRoute
+  '/auth/callback': typeof AuthCallbackRoute
+  '/chats/$id': typeof ChatsIdRoute
   '/events/$id': typeof EventsIdRoute
+  '/invite/$token': typeof InviteTokenRoute
+  '/library/$channelId': typeof LibraryChannelIdRoute
+  '/library/talks': typeof LibraryTalksRoute
   '/people/$id': typeof PeopleIdRoute
+  '/settings/team': typeof SettingsTeamRoute
+  '/chats/': typeof ChatsIndexRoute
   '/events/': typeof EventsIndexRoute
+  '/library/': typeof LibraryIndexRoute
   '/people/': typeof PeopleIndexRoute
+  '/settings/': typeof SettingsIndexRoute
+  '/library/item/$itemId': typeof LibraryItemItemIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/business'
     | '/campaigns'
     | '/customers'
+    | '/inbox'
+    | '/learning'
     | '/login'
     | '/mindmap'
+    | '/pipeline'
     | '/reports'
     | '/styleguide'
     | '/wallet'
+    | '/auth/callback'
+    | '/chats/$id'
     | '/events/$id'
+    | '/invite/$token'
+    | '/library/$channelId'
+    | '/library/talks'
     | '/people/$id'
+    | '/settings/team'
+    | '/chats/'
     | '/events/'
+    | '/library/'
     | '/people/'
+    | '/settings/'
+    | '/library/item/$itemId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/business'
     | '/campaigns'
     | '/customers'
+    | '/inbox'
+    | '/learning'
     | '/login'
     | '/mindmap'
+    | '/pipeline'
     | '/reports'
     | '/styleguide'
     | '/wallet'
+    | '/auth/callback'
+    | '/chats/$id'
     | '/events/$id'
+    | '/invite/$token'
+    | '/library/$channelId'
+    | '/library/talks'
     | '/people/$id'
+    | '/settings/team'
+    | '/chats'
     | '/events'
+    | '/library'
     | '/people'
+    | '/settings'
+    | '/library/item/$itemId'
   id:
     | '__root__'
     | '/'
+    | '/business'
     | '/campaigns'
     | '/customers'
+    | '/inbox'
+    | '/learning'
     | '/login'
     | '/mindmap'
+    | '/pipeline'
     | '/reports'
     | '/styleguide'
     | '/wallet'
+    | '/auth/callback'
+    | '/chats/$id'
     | '/events/$id'
+    | '/invite/$token'
+    | '/library/$channelId'
+    | '/library/talks'
     | '/people/$id'
+    | '/settings/team'
+    | '/chats/'
     | '/events/'
+    | '/library/'
     | '/people/'
+    | '/settings/'
+    | '/library/item/$itemId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  BusinessRoute: typeof BusinessRoute
   CampaignsRoute: typeof CampaignsRoute
   CustomersRoute: typeof CustomersRoute
+  InboxRoute: typeof InboxRoute
+  LearningRoute: typeof LearningRoute
   LoginRoute: typeof LoginRoute
   MindmapRoute: typeof MindmapRoute
+  PipelineRoute: typeof PipelineRoute
   ReportsRoute: typeof ReportsRoute
   StyleguideRoute: typeof StyleguideRoute
   WalletRoute: typeof WalletRoute
+  AuthCallbackRoute: typeof AuthCallbackRoute
+  ChatsIdRoute: typeof ChatsIdRoute
   EventsIdRoute: typeof EventsIdRoute
+  InviteTokenRoute: typeof InviteTokenRoute
+  LibraryChannelIdRoute: typeof LibraryChannelIdRoute
+  LibraryTalksRoute: typeof LibraryTalksRoute
   PeopleIdRoute: typeof PeopleIdRoute
+  SettingsTeamRoute: typeof SettingsTeamRoute
+  ChatsIndexRoute: typeof ChatsIndexRoute
   EventsIndexRoute: typeof EventsIndexRoute
+  LibraryIndexRoute: typeof LibraryIndexRoute
   PeopleIndexRoute: typeof PeopleIndexRoute
+  SettingsIndexRoute: typeof SettingsIndexRoute
+  LibraryItemItemIdRoute: typeof LibraryItemItemIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -193,6 +375,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/business': {
+      id: '/business'
+      path: '/business'
+      fullPath: '/business'
+      preLoaderRoute: typeof BusinessRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/campaigns': {
@@ -209,6 +398,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CustomersRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/inbox': {
+      id: '/inbox'
+      path: '/inbox'
+      fullPath: '/inbox'
+      preLoaderRoute: typeof InboxRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/learning': {
+      id: '/learning'
+      path: '/learning'
+      fullPath: '/learning'
+      preLoaderRoute: typeof LearningRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -221,6 +424,13 @@ declare module '@tanstack/react-router' {
       path: '/mindmap'
       fullPath: '/mindmap'
       preLoaderRoute: typeof MindmapRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pipeline': {
+      id: '/pipeline'
+      path: '/pipeline'
+      fullPath: '/pipeline'
+      preLoaderRoute: typeof PipelineRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reports': {
@@ -244,6 +454,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WalletRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/auth/callback': {
+      id: '/auth/callback'
+      path: '/auth/callback'
+      fullPath: '/auth/callback'
+      preLoaderRoute: typeof AuthCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/chats/': {
+      id: '/chats/'
+      path: '/chats'
+      fullPath: '/chats/'
+      preLoaderRoute: typeof ChatsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/chats/$id': {
+      id: '/chats/$id'
+      path: '/chats/$id'
+      fullPath: '/chats/$id'
+      preLoaderRoute: typeof ChatsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/events/': {
       id: '/events/'
       path: '/events'
@@ -256,6 +487,34 @@ declare module '@tanstack/react-router' {
       path: '/events/$id'
       fullPath: '/events/$id'
       preLoaderRoute: typeof EventsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/invite/$token': {
+      id: '/invite/$token'
+      path: '/invite/$token'
+      fullPath: '/invite/$token'
+      preLoaderRoute: typeof InviteTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/library/': {
+      id: '/library/'
+      path: '/library'
+      fullPath: '/library/'
+      preLoaderRoute: typeof LibraryIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/library/$channelId': {
+      id: '/library/$channelId'
+      path: '/library/$channelId'
+      fullPath: '/library/$channelId'
+      preLoaderRoute: typeof LibraryChannelIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/library/talks': {
+      id: '/library/talks'
+      path: '/library/talks'
+      fullPath: '/library/talks'
+      preLoaderRoute: typeof LibraryTalksRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/people/': {
@@ -272,22 +531,57 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PeopleIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings/': {
+      id: '/settings/'
+      path: '/settings'
+      fullPath: '/settings/'
+      preLoaderRoute: typeof SettingsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings/team': {
+      id: '/settings/team'
+      path: '/settings/team'
+      fullPath: '/settings/team'
+      preLoaderRoute: typeof SettingsTeamRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/library/item/$itemId': {
+      id: '/library/item/$itemId'
+      path: '/library/item/$itemId'
+      fullPath: '/library/item/$itemId'
+      preLoaderRoute: typeof LibraryItemItemIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  BusinessRoute: BusinessRoute,
   CampaignsRoute: CampaignsRoute,
   CustomersRoute: CustomersRoute,
+  InboxRoute: InboxRoute,
+  LearningRoute: LearningRoute,
   LoginRoute: LoginRoute,
   MindmapRoute: MindmapRoute,
+  PipelineRoute: PipelineRoute,
   ReportsRoute: ReportsRoute,
   StyleguideRoute: StyleguideRoute,
   WalletRoute: WalletRoute,
+  AuthCallbackRoute: AuthCallbackRoute,
+  ChatsIdRoute: ChatsIdRoute,
   EventsIdRoute: EventsIdRoute,
+  InviteTokenRoute: InviteTokenRoute,
+  LibraryChannelIdRoute: LibraryChannelIdRoute,
+  LibraryTalksRoute: LibraryTalksRoute,
   PeopleIdRoute: PeopleIdRoute,
+  SettingsTeamRoute: SettingsTeamRoute,
+  ChatsIndexRoute: ChatsIndexRoute,
   EventsIndexRoute: EventsIndexRoute,
+  LibraryIndexRoute: LibraryIndexRoute,
   PeopleIndexRoute: PeopleIndexRoute,
+  SettingsIndexRoute: SettingsIndexRoute,
+  LibraryItemItemIdRoute: LibraryItemItemIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

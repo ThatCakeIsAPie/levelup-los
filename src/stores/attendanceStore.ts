@@ -1,9 +1,14 @@
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
+import { persist } from "zustand/middleware";
+import { dataStorage, seedOr } from "./storage";
 import { logAttendance } from "./activityStore";
-import { seedAttendances, SEED_VERSION } from "@/data/seed";
+import { seedAttendances, seedMissedNotes, SEED_VERSION } from "@/data/seed";
 
-export type TicketType = "in_person" | "stream";
+/**
+ * How someone attends (or attended): in person or online. For events with
+ * tickets it is also the ticket's type (an online ticket is "virtual").
+ */
+export type AttendMode = "in_person" | "virtual";
 export type DesireLevel = "yes" | "no" | "maybe";
 
 export interface Attendance {
@@ -13,8 +18,8 @@ export interface Attendance {
   desireToAttend?: DesireLevel;
   followUpDate?: string;
   hasTicket: boolean;
-  /** Per-event only — no Person default. */
-  ticketType?: TicketType;
+  /** In person or virtual: the ticket's type, or how they came (per event, no person default). */
+  mode?: AttendMode;
   plannedPurchaseDate?: string;
   helperId?: string | null;
   leadershipQualified: boolean;
@@ -25,8 +30,27 @@ export interface Attendance {
   updatedAt?: string;
 }
 
+/**
+ * "Already handled" note on a missed-event follow-up (e.g. "talked at the
+ * gym, she was sick"): written by an upline of the person, read by everyone
+ * who can see the person. Clears the follow-up for all their uplines.
+ */
+export interface MissedEventNote {
+  id: string;
+  personId: string;
+  /** The missed event the note is about. */
+  eventId: string;
+  note: string;
+  /** Who wrote it (an upline); null once they have been removed. */
+  byId: string | null;
+  createdAt: string; // ISO
+}
+
 interface AttendanceState {
   attendances: Attendance[];
+  missedNotes: MissedEventNote[];
+  addMissedNote: (n: Omit<MissedEventNote, "id" | "createdAt">) => MissedEventNote;
+  removeMissedNote: (id: string) => void;
   forEvent: (eventId: string) => Attendance[];
   forPerson: (personId: string) => Attendance[];
   forEventAndPerson: (eventId: string, personId: string) => Attendance | undefined;
@@ -36,6 +60,8 @@ interface AttendanceState {
   bulkUpdate: (ids: string[], patch: Partial<Attendance>) => void;
   /** Drop rows silently (cascade for a deleted person or event). */
   removeWhere: (pred: (a: Attendance) => boolean) => void;
+  /** Drop missed-event notes silently (same cascades). */
+  removeNotesWhere: (pred: (n: MissedEventNote) => boolean) => void;
 }
 
 /** Activity entries for a change: ticket bought, attended, no-show. */
@@ -44,7 +70,19 @@ function logChange(prev: Attendance, patch: Partial<Attendance>) {
     logAttendance("ticket_purchased", prev.id, prev.personId, prev.eventId, "Ticket purchased");
   }
   if (patch.attended === true && !prev.attended) {
-    logAttendance("marked_attended", prev.id, prev.personId, prev.eventId, "Attended");
+    const mode = patch.mode ?? prev.mode;
+    logAttendance(
+      "marked_attended",
+      prev.id,
+      prev.personId,
+      prev.eventId,
+      mode === "virtual"
+        ? "Attended virtually"
+        : mode === "in_person"
+          ? "Attended in person"
+          : "Attended",
+      mode ? { mode } : undefined,
+    );
   }
   const hadTicket = patch.hasTicket ?? prev.hasTicket;
   if (patch.attended === false && prev.attended !== false && hadTicket) {
@@ -55,7 +93,18 @@ function logChange(prev: Attendance, patch: Partial<Attendance>) {
 export const useAttendanceStore = create<AttendanceState>()(
   persist(
     (set, get) => ({
-      attendances: seedAttendances(),
+      attendances: seedOr(seedAttendances, []),
+      missedNotes: seedOr(seedMissedNotes, []),
+      addMissedNote: (n) => {
+        const note: MissedEventNote = {
+          ...n,
+          id: crypto.randomUUID(),
+          createdAt: new Date().toISOString(),
+        };
+        set({ missedNotes: [note, ...get().missedNotes] });
+        return note;
+      },
+      removeMissedNote: (id) => set({ missedNotes: get().missedNotes.filter((n) => n.id !== id) }),
       forEvent: (eventId) => get().attendances.filter((a) => a.eventId === eventId),
       forPerson: (personId) => get().attendances.filter((a) => a.personId === personId),
       forEventAndPerson: (eventId, personId) =>
@@ -102,13 +151,18 @@ export const useAttendanceStore = create<AttendanceState>()(
         changed.forEach((prev) => logChange(prev, patch));
       },
       removeWhere: (pred) => set({ attendances: get().attendances.filter((a) => !pred(a)) }),
+      removeNotesWhere: (pred) => set({ missedNotes: get().missedNotes.filter((n) => !pred(n)) }),
     }),
     {
       name: "levelup.attendance",
-      storage: createJSONStorage(() => localStorage),
-      partialize: (s) => ({ attendances: s.attendances }),
+      storage: dataStorage(),
+      partialize: (s) => ({ attendances: s.attendances, missedNotes: s.missedNotes }),
       version: SEED_VERSION,
-      migrate: () => ({ attendances: seedAttendances() }) as unknown as AttendanceState,
+      migrate: () =>
+        ({
+          attendances: seedAttendances(),
+          missedNotes: seedMissedNotes(),
+        }) as unknown as AttendanceState,
     },
   ),
 );

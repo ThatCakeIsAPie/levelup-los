@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { RouterProvider } from "@tanstack/react-router";
 import { QueryClientProvider } from "@tanstack/react-query";
 import "@fontsource-variable/plus-jakarta-sans";
+import "@fontsource/special-elite";
 import "./styles.css";
 import { router, queryClient } from "./router";
 import { initTheme } from "./lib/theme";

@@ -26,9 +26,13 @@ import {
 import {
   removeEvent,
   useAttendancesForEvent,
+  useCanManageEvents,
+  useUnlocks,
   useCurrentUser,
   useEvent,
   useSharedCosts,
+  usesTickets,
+  usesTravel,
   type Attendance,
   type CrmEvent,
 } from "@/data";
@@ -42,13 +46,11 @@ import { EventFunnel } from "@/modules/events/EventFunnel";
 import { EventLogistics } from "@/modules/events/EventLogistics";
 import { EventDetailsPanel, RosterMix } from "@/modules/events/EventMetricsPanel";
 import { MyPlanCard } from "@/modules/events/MyPlanCard";
-import {
-  EVENT_TYPE_LABEL,
-  canManageEvents,
-  eventTiming,
-  formatEventRange,
-  timingLabel,
-} from "@/modules/events/lib";
+import { MyAttendanceCard } from "@/modules/events/MyAttendanceCard";
+import { EventMissedPanel } from "@/modules/events/MissedFollowUps";
+import { SimpleRoster } from "@/modules/events/SimpleRoster";
+import { EventFormatChip, EventTypeChip } from "@/modules/events/typeMeta";
+import { eventTiming, formatEventRange, timingLabel } from "@/modules/events/lib";
 
 type TabKey = "overview" | "attendees" | "travel" | "compare";
 const TABS: readonly TabKey[] = ["overview", "attendees", "travel", "compare"];
@@ -76,6 +78,8 @@ function EventDetail() {
   const event = useEvent(id);
   const rows = useAttendancesForEvent(id);
   const user = useCurrentUser();
+  const manage = useCanManageEvents();
+  const teamUnlocked = useUnlocks().can.team;
   const search = Route.useSearch();
   const navigate = useNavigate({ from: Route.fullPath });
   // The tab lives in the URL so links (and Back) can open a specific tab.
@@ -112,12 +116,25 @@ function EventDetail() {
 
   const timing = eventTiming(event);
   const finished = timing.kind === "past";
+  const started = timing.kind !== "upcoming";
   const candidate = user.role === "candidate";
-  // Candidates only get Overview and Tickets and travel.
-  const tab: TabKey =
-    candidate && (search.tab === "attendees" || search.tab === "compare")
-      ? "overview"
-      : (search.tab ?? "overview");
+  // Without the event planning unlock (3/10 and up, leaders and their
+  // deputies; src/data/unlocks.ts) people attend: their own plan, no ticket
+  // management or comparisons. Before First sponsor there's no team roster.
+  const attending = candidate || !manage;
+  const personal = candidate || !teamUnlocked;
+  // Conferences keep the full ticket / travel toolkit; the monthly meeting
+  // keeps tickets; the smaller events get the light roster on the Overview.
+  const tickets = usesTickets(event.type);
+  const travel = usesTravel(event.type);
+  const shown: TabKey[] = [
+    "overview",
+    ...(tickets && !attending ? (["attendees"] as const) : []),
+    ...(travel ? (["travel"] as const) : []),
+    ...(!attending ? (["compare"] as const) : []),
+  ];
+  // Candidates only get Overview (and Tickets and travel for a conference).
+  const tab: TabKey = search.tab && shown.includes(search.tab) ? search.tab : "overview";
   const editing = rows.find((a) => a.id === edit.id);
   const openEdit = (attendanceId: string) => setEdit({ id: attendanceId, open: true });
 
@@ -125,29 +142,48 @@ function EventDetail() {
     <div className="grid gap-5 px-4 py-5 lg:px-[26px] lg:py-[22px]">
       <div className="grid gap-2">
         <BackLink />
-        <Hero event={event} manage={canManageEvents(user.role)} />
+        <Hero event={event} manage={manage} />
       </div>
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as TabKey)} className="grid gap-4">
-        <div className="-mx-4 overflow-x-auto px-4 [scrollbar-width:none] lg:mx-0 lg:px-0">
-          <TabsList className="h-auto w-max gap-0.5 bg-surface-2 p-1">
-            <TabsTrigger value="overview" className="px-3 py-1.5 text-[13px] sm:px-3.5">
+        <div
+          className={cn(
+            "-mx-4 overflow-x-auto px-4 [scrollbar-width:none] lg:mx-0 lg:px-0",
+            shown.length < 2 && "hidden",
+          )}
+        >
+          <TabsList className="h-auto w-full gap-0.5 bg-surface-2 p-1 sm:w-max">
+            <TabsTrigger
+              value="overview"
+              className="flex-1 px-2 py-1.5 text-[13px] sm:flex-none sm:px-3.5"
+            >
               Overview
             </TabsTrigger>
-            {!candidate && (
-              <TabsTrigger value="attendees" className="px-3 py-1.5 text-[13px] sm:px-3.5">
+            {shown.includes("attendees") && (
+              <TabsTrigger
+                value="attendees"
+                className="flex-1 px-2 py-1.5 text-[13px] sm:flex-none sm:px-3.5"
+              >
                 Attendees
                 <span className="ml-1.5 rounded-full bg-track px-1.5 text-[11px] tabular-nums">
                   {rows.length}
                 </span>
               </TabsTrigger>
             )}
-            <TabsTrigger value="travel" className="px-3 py-1.5 text-[13px] sm:px-3.5">
-              <span className="sm:hidden">Travel</span>
-              <span className="hidden sm:inline">Tickets and travel</span>
-            </TabsTrigger>
-            {!candidate && (
-              <TabsTrigger value="compare" className="px-3 py-1.5 text-[13px] sm:px-3.5">
+            {travel && (
+              <TabsTrigger
+                value="travel"
+                className="flex-1 px-2 py-1.5 text-[13px] sm:flex-none sm:px-3.5"
+              >
+                <span className="sm:hidden">Travel</span>
+                <span className="hidden sm:inline">Tickets and travel</span>
+              </TabsTrigger>
+            )}
+            {shown.includes("compare") && (
+              <TabsTrigger
+                value="compare"
+                className="flex-1 px-2 py-1.5 text-[13px] sm:flex-none sm:px-3.5"
+              >
                 Compare
               </TabsTrigger>
             )}
@@ -155,13 +191,21 @@ function EventDetail() {
         </div>
 
         <TabsContent value="overview" className="mt-0">
-          {candidate ? (
+          {!tickets ? (
+            <LightOverview
+              event={event}
+              rows={rows}
+              started={started}
+              finished={finished}
+              candidate={personal}
+            />
+          ) : attending ? (
             <CandidateOverview event={event} rows={rows} finished={finished} />
           ) : (
             <Overview event={event} rows={rows} finished={finished} onEdit={openEdit} />
           )}
         </TabsContent>
-        {!candidate && (
+        {shown.includes("attendees") && (
           <TabsContent value="attendees" className="mt-0">
             <AttendeesTab
               event={event}
@@ -173,17 +217,19 @@ function EventDetail() {
             />
           </TabsContent>
         )}
-        <TabsContent value="travel" className="mt-0">
-          <EventLogistics event={event} rows={rows} />
-        </TabsContent>
-        {!candidate && (
+        {travel && (
+          <TabsContent value="travel" className="mt-0">
+            <EventLogistics event={event} rows={rows} />
+          </TabsContent>
+        )}
+        {shown.includes("compare") && (
           <TabsContent value="compare" className="mt-0">
             <AuditComparison event={event} />
           </TabsContent>
         )}
       </Tabs>
 
-      {!candidate && (
+      {!attending && tickets && (
         <AttendeeEditSheet
           attendance={editing}
           open={edit.open}
@@ -235,9 +281,8 @@ function Hero({ event, manage }: { event: CrmEvent; manage: boolean }) {
             )}
           </p>
           <div className="mt-2 flex flex-wrap gap-1.5">
-            <ToneChip tone="neutral" className={navy ? "bg-white/10 text-event-fg" : undefined}>
-              {EVENT_TYPE_LABEL[event.type]}
-            </ToneChip>
+            <EventTypeChip type={event.type} onNavy={navy} />
+            <EventFormatChip event={event} onNavy={navy} />
             <ToneChip
               tone={
                 t.kind === "past" ? "neutral" : t.kind === "now" || t.days <= 7 ? "warn" : "info"
@@ -262,7 +307,7 @@ function Hero({ event, manage }: { event: CrmEvent; manage: boolean }) {
           <LogButton
             className={cn(
               "hidden lg:inline-flex",
-              navy && "bg-sky text-navy hover:bg-sky/90 focus-visible:ring-offset-event",
+              navy && "bg-sky text-on-sky hover:bg-sky/90 focus-visible:ring-offset-event",
             )}
           />
           {manage && (
@@ -364,6 +409,7 @@ function Overview({
       />
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
         <div className="grid gap-4">
+          {finished && <EventMissedPanel event={event} />}
           <AttentionPanel event={event} rows={rows} onEdit={onEdit} />
           <EventFunnel rows={rows} finished={finished} />
         </div>
@@ -371,6 +417,69 @@ function Overview({
           <MyPlanCard eventId={event.id} rows={rows} finished={finished} />
           <RosterMix rows={rows} />
           <EventDetailsPanel rows={rows} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Events without tickets (Night Owls, work sessions, info sessions,
+ * trainings): who's coming, then who came and how, all on one page.
+ */
+function LightOverview({
+  event,
+  rows,
+  started,
+  finished,
+  candidate,
+}: {
+  event: CrmEvent;
+  rows: Attendance[];
+  started: boolean;
+  finished: boolean;
+  candidate: boolean;
+}) {
+  const count = (f: (a: Attendance) => boolean) => rows.filter(f).length;
+  const came = (a: Attendance) => a.attended === true;
+  if (candidate)
+    return (
+      <div className="grid max-w-2xl gap-4">
+        <MyAttendanceCard event={event} rows={rows} started={started} />
+      </div>
+    );
+  return (
+    <div className="grid gap-4">
+      <StatStrip
+        items={
+          started
+            ? [
+                { value: count(came), label: "Came" },
+                { value: count((a) => came(a) && a.mode !== "virtual"), label: "In person" },
+                { value: count((a) => came(a) && a.mode === "virtual"), label: "Virtual" },
+                { value: rows.length, label: "On the list" },
+              ]
+            : [
+                { value: count((a) => a.desireToAttend === "yes"), label: "Coming" },
+                { value: count((a) => a.desireToAttend === "maybe"), label: "Maybe" },
+                { value: count((a) => a.desireToAttend === "no"), label: "Can't make it" },
+                { value: rows.length, label: "On the list" },
+              ]
+        }
+      />
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
+        <div className="grid gap-4">
+          {finished && <EventMissedPanel event={event} />}
+          <section aria-labelledby="roster-h" className="grid gap-2.5">
+            <h2 id="roster-h" className="text-sm font-bold">
+              {started ? "Who came" : "Who's coming"}
+            </h2>
+            <SimpleRoster event={event} rows={rows} started={started} />
+          </section>
+        </div>
+        <div className="grid gap-4">
+          <MyAttendanceCard event={event} rows={rows} started={started} />
+          <RosterMix rows={rows} />
         </div>
       </div>
     </div>

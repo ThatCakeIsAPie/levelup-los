@@ -1,13 +1,16 @@
 import { useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { CalendarPlus, Pencil } from "lucide-react";
+import { CalendarCheck, CalendarPlus, Pencil } from "lucide-react";
 import {
   assignToEvent,
   getPersonShowRate,
   isUpcoming,
   localDate,
+  openLog,
+  setEventAttendance,
   updateAttendance,
+  usesTickets,
   useAttendancesForPerson,
   useEvents,
   useVisibleAttendances,
@@ -35,6 +38,9 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { AttendanceDialog } from "./AttendanceDialog";
+import { Segmented } from "@/modules/events/Segmented";
+import { attendanceToast, cameOptions, cameValue } from "@/modules/events/attendance";
+import { PersonMissedCard } from "@/modules/events/MissedFollowUps";
 import { attendanceChips, fmtDate, firstName, purchaseOverdue, TICKET_TYPE_LABEL } from "./format";
 
 type Row = { a: Attendance; ev: CrmEvent };
@@ -67,6 +73,8 @@ type NextStep =
   { label: string; patch: Partial<Attendance>; done: string } | { label: string; dialog: true };
 
 function nextStep({ a, ev }: Row, today = localDate()): NextStep | null {
+  // Events without tickets get the one-tap attendance control instead.
+  if (!usesTickets(ev.type)) return null;
   if (isUpcoming(ev, today)) {
     if (!a.hasTicket && a.desireToAttend !== "no")
       return { label: "Mark bought", patch: { hasTicket: true }, done: "Ticket marked as bought" };
@@ -103,8 +111,7 @@ function RowMeta({
       ),
     );
   }
-  if (a.hasTicket && a.ticketType)
-    bits.push(<span key="type">{TICKET_TYPE_LABEL[a.ticketType]}</span>);
+  if (a.hasTicket && a.mode) bits.push(<span key="type">{TICKET_TYPE_LABEL[a.mode]}</span>);
   if (upcoming && a.followUpDate)
     bits.push(<span key="fu">Follow up {fmtDate(a.followUpDate)}</span>);
   if (a.helperId)
@@ -161,6 +168,48 @@ function EventRow({
         <span className="hidden sm:block" />
       )}
     </div>
+  );
+}
+
+/**
+ * Events without tickets: "Coming?" before the day, then "Were they there?"
+ * (in person / virtual / not there) from the day of the event.
+ */
+function QuickAttend({ row: { a, ev }, name }: { row: Row; name: string }) {
+  const started = ev.date <= localDate();
+  if (!started)
+    return (
+      <Segmented
+        label={`Is ${name} coming to ${ev.name}?`}
+        size="sm"
+        allowEmpty
+        className="w-full sm:w-auto"
+        value={a.desireToAttend}
+        onChange={(v) => updateAttendance(a.id, { desireToAttend: v })}
+        options={[
+          { value: "yes", label: "Coming" },
+          { value: "maybe", label: "Maybe" },
+          { value: "no", label: "Can't" },
+        ]}
+      />
+    );
+  return (
+    <Segmented
+      label={`Was ${name} at ${ev.name}?`}
+      size="sm"
+      allowEmpty
+      className="w-full sm:w-auto"
+      value={cameValue(a)}
+      onChange={(v) => {
+        const undo = setEventAttendance(
+          ev.id,
+          a.personId,
+          v === undefined ? null : v === "no" ? false : v,
+        );
+        attendanceToast(firstName(name), ev.name, v, undo);
+      }}
+      options={cameOptions(ev)}
+    />
   );
 }
 
@@ -225,77 +274,85 @@ export function EventsCard({
   const hidden = upcoming.length + past.length - rows.length;
 
   return (
-    <SectionCard
-      title="Events"
-      action={
-        canEdit ? (
+    <>
+      <PersonMissedCard person={person} />
+      <SectionCard
+        title="Events"
+        action={
+          canEdit ? (
+            <button
+              type="button"
+              onClick={() => setAssignOpen(true)}
+              className="rounded-sm text-primary hover:underline focus-visible:outline-2 focus-visible:outline-ring"
+            >
+              Assign to event
+            </button>
+          ) : undefined
+        }
+      >
+        {rows.length === 0 ? (
+          <EmptyState
+            icon={<CalendarPlus />}
+            title="Not on any events yet"
+            body={`Add ${firstName(person.name)} to an event to track tickets and attendance.`}
+          />
+        ) : (
+          <div>
+            {rows.map((row) => {
+              const step = canEdit ? nextStep(row) : null;
+              return (
+                <div
+                  key={row.a.id}
+                  className="border-t border-line py-3 first:border-t-0 first:pt-0"
+                >
+                  <EventRow
+                    row={row}
+                    names={names}
+                    action={
+                      canEdit && !usesTickets(row.ev.type) ? (
+                        <QuickAttend row={row} name={person.name} />
+                      ) : step ? (
+                        <StepButton
+                          row={row}
+                          step={step}
+                          primary={isUpcoming(row.ev)}
+                          onDialog={() => setEditing(row)}
+                        />
+                      ) : undefined
+                    }
+                  />
+                </div>
+              );
+            })}
+          </div>
+        )}
+        {hidden > 0 && (
           <button
             type="button"
-            onClick={() => setAssignOpen(true)}
-            className="rounded-sm text-primary hover:underline focus-visible:outline-2 focus-visible:outline-ring"
+            onClick={onShowAll}
+            className="w-fit rounded-sm text-[12.5px] font-semibold text-primary hover:underline focus-visible:outline-2 focus-visible:outline-ring"
           >
-            Assign to event
+            Show {hidden} older {hidden === 1 ? "event" : "events"}
           </button>
-        ) : undefined
-      }
-    >
-      {rows.length === 0 ? (
-        <EmptyState
-          icon={<CalendarPlus />}
-          title="Not on any events yet"
-          body={`Add ${firstName(person.name)} to an event to track tickets and attendance.`}
+        )}
+        {editing && (
+          <AttendanceDialog
+            open
+            onOpenChange={(o) => !o && setEditing(null)}
+            attendance={editing.a}
+            event={editing.ev}
+            personName={person.name}
+            helperOptions={helperOptions}
+          />
+        )}
+        <AssignEventDialog
+          open={assignOpen}
+          onOpenChange={setAssignOpen}
+          person={person}
+          events={unassigned}
         />
-      ) : (
-        <div>
-          {rows.map((row) => {
-            const step = canEdit ? nextStep(row) : null;
-            return (
-              <div key={row.a.id} className="border-t border-line py-3 first:border-t-0 first:pt-0">
-                <EventRow
-                  row={row}
-                  names={names}
-                  action={
-                    step ? (
-                      <StepButton
-                        row={row}
-                        step={step}
-                        primary={isUpcoming(row.ev)}
-                        onDialog={() => setEditing(row)}
-                      />
-                    ) : undefined
-                  }
-                />
-              </div>
-            );
-          })}
-        </div>
-      )}
-      {hidden > 0 && (
-        <button
-          type="button"
-          onClick={onShowAll}
-          className="w-fit rounded-sm text-[12.5px] font-semibold text-primary hover:underline focus-visible:outline-2 focus-visible:outline-ring"
-        >
-          Show {hidden} older {hidden === 1 ? "event" : "events"}
-        </button>
-      )}
-      {editing && (
-        <AttendanceDialog
-          open
-          onOpenChange={(o) => !o && setEditing(null)}
-          attendance={editing.a}
-          event={editing.ev}
-          personName={person.name}
-          helperOptions={helperOptions}
-        />
-      )}
-      <AssignEventDialog
-        open={assignOpen}
-        onOpenChange={setAssignOpen}
-        person={person}
-        events={unassigned}
-      />
-    </SectionCard>
+      </SectionCard>
+    </>
   );
 }
 
@@ -304,23 +361,34 @@ export function NextEventCard({ person, canEdit }: { person: CrmPerson; canEdit:
   const { upcoming } = usePersonEventRows(person.id);
   const names = useNameMap();
   const row = upcoming[0];
-  if (!row) return null;
+  if (!row) return <PersonMissedCard person={person} />;
   const step = canEdit ? nextStep(row) : null;
   return (
-    <SectionCard title="Next event">
-      <EventRow row={row} names={names} />
-      {step && !("dialog" in step) && (
-        <Button
-          className="w-full"
-          onClick={() => {
-            updateAttendance(row.a.id, step.patch);
-            toast.success(step.done, { description: row.ev.name });
-          }}
-        >
-          {step.label === "Mark bought" ? "Mark ticket bought" : step.label}
-        </Button>
-      )}
-    </SectionCard>
+    <>
+      <PersonMissedCard person={person} />
+      <SectionCard title="Next event">
+        <EventRow
+          row={row}
+          names={names}
+          action={
+            canEdit && !usesTickets(row.ev.type) ? (
+              <QuickAttend row={row} name={person.name} />
+            ) : undefined
+          }
+        />
+        {step && !("dialog" in step) && (
+          <Button
+            className="w-full"
+            onClick={() => {
+              updateAttendance(row.a.id, step.patch);
+              toast.success(step.done, { description: row.ev.name });
+            }}
+          >
+            {step.label === "Mark bought" ? "Mark ticket bought" : step.label}
+          </Button>
+        )}
+      </SectionCard>
+    </>
   );
 }
 
@@ -350,6 +418,7 @@ export function EventsTab({ person, canEdit }: { person: CrmPerson; canEdit: boo
           action={
             canEdit ? (
               <>
+                {!usesTickets(row.ev.type) && <QuickAttend row={row} name={person.name} />}
                 {step && (
                   <StepButton
                     row={row}
@@ -390,12 +459,25 @@ export function EventsTab({ person, canEdit }: { person: CrmPerson; canEdit: boo
                 .filter(Boolean)
                 .join(" · ")}
         </p>
-        {canEdit && unassigned.length > 0 && (
-          <Button size="sm" onClick={() => setAssignOpen(true)}>
-            <CalendarPlus /> Assign to event
-          </Button>
-        )}
+        <div className="flex flex-wrap gap-2">
+          {canEdit && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => openLog({ tab: "attendance", personId: person.id })}
+            >
+              <CalendarCheck /> Log attendance
+            </Button>
+          )}
+          {canEdit && unassigned.length > 0 && (
+            <Button size="sm" onClick={() => setAssignOpen(true)}>
+              <CalendarPlus /> Assign to event
+            </Button>
+          )}
+        </div>
       </div>
+
+      <PersonMissedCard person={person} />
 
       {!canEdit && (
         <p className="rounded-lg bg-surface-2 px-3 py-2.5 text-[12.5px] text-muted-foreground">

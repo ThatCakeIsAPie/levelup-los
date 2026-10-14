@@ -1,5 +1,12 @@
 import { format } from "date-fns";
-import { isUpcoming, localDate, parseDate, type Attendance, type CrmEvent } from "@/data";
+import {
+  isUpcoming,
+  localDate,
+  parseDate,
+  usesTickets,
+  type Attendance,
+  type CrmEvent,
+} from "@/data";
 import type { Tone } from "@/components/brand";
 
 /** "Oct 3" this year, "Oct 3, 2025" otherwise (or always with `year: true`). */
@@ -43,7 +50,8 @@ export const FIELD_LABEL: Record<string, string> = {
   businessStartDate: "business start date",
 };
 
-export const TICKET_TYPE_LABEL = { in_person: "In person", stream: "Stream" } as const;
+export const TICKET_TYPE_LABEL = { in_person: "In person", virtual: "Virtual" } as const;
+export const COMING_LABEL = { yes: "Coming", maybe: "Maybe", no: "Can't make it" } as const;
 export const DESIRE_LABEL = { yes: "Wants to go", maybe: "Maybe", no: "Not going" } as const;
 
 export type ChipSpec = { tone: Tone; label: string };
@@ -51,6 +59,20 @@ export type ChipSpec = { tone: Tone; label: string };
 /** Status chips for one attendance row (desire / ticket / attended). */
 export function attendanceChips(a: Attendance, ev: CrmEvent, today = localDate()): ChipSpec[] {
   const chips: ChipSpec[] = [];
+  // Events without tickets: coming / came (and how), nothing about tickets.
+  if (!usesTickets(ev.type)) {
+    if (a.attended === true)
+      chips.push({ tone: "good", label: a.mode === "virtual" ? "Came · virtual" : "Came" });
+    else if (a.attended === false) chips.push({ tone: "bad", label: "Wasn't there" });
+    else if (a.desireToAttend)
+      chips.push({
+        tone:
+          a.desireToAttend === "yes" ? "good" : a.desireToAttend === "maybe" ? "info" : "neutral",
+        label: COMING_LABEL[a.desireToAttend],
+      });
+    else if (!isUpcoming(ev, today)) chips.push({ tone: "neutral", label: "Not recorded" });
+    return chips;
+  }
   if (isUpcoming(ev, today)) {
     if (a.desireToAttend) {
       const tone: Tone =
@@ -61,7 +83,8 @@ export function attendanceChips(a: Attendance, ev: CrmEvent, today = localDate()
     else if (a.desireToAttend !== "no") chips.push({ tone: "warn", label: "No ticket yet" });
     return chips;
   }
-  if (a.attended === true) chips.push({ tone: "good", label: "Attended" });
+  if (a.attended === true)
+    chips.push({ tone: "good", label: a.mode === "virtual" ? "Attended · virtual" : "Attended" });
   else if (a.hasTicket && a.attended === false) chips.push({ tone: "bad", label: "No-show" });
   else if (a.hasTicket) chips.push({ tone: "warn", label: "Attendance not marked" });
   else if (a.desireToAttend === "yes") chips.push({ tone: "bad", label: "Missed" });
