@@ -44,7 +44,7 @@ export const GROWTH_MILESTONES: readonly GrowthMilestoneDef[] = [
   {
     code: "3_10",
     label: "3/10",
-    rule: "3 personal sponsors and 10 people in the group in total (not counting the IBO themselves)",
+    rule: "3 registered personal sponsors and 10 registered people in the group in total (not counting the IBO themselves; prospects don't count)",
     check: { kind: "count", sponsors: 3, people: 10 },
   },
   {
@@ -56,13 +56,13 @@ export const GROWTH_MILESTONES: readonly GrowthMilestoneDef[] = [
   {
     code: "6_25",
     label: "6/25",
-    rule: "6 personal sponsors and 25 people in the group in total",
+    rule: "6 registered personal sponsors and 25 registered people in the group in total",
     check: { kind: "count", sponsors: 6, people: 25 },
   },
   {
     code: "6_50",
     label: "6/50",
-    rule: "6 personal sponsors and 50 people in the group in total",
+    rule: "6 registered personal sponsors and 50 registered people in the group in total",
     check: { kind: "count", sponsors: 6, people: 50 },
   },
   {
@@ -80,7 +80,7 @@ export const GROWTH_MILESTONES: readonly GrowthMilestoneDef[] = [
   {
     code: "12_100",
     label: "12/100",
-    rule: "12 personal sponsors and 100 people in the group in total",
+    rule: "12 registered personal sponsors and 100 registered people in the group in total",
     check: { kind: "count", sponsors: 12, people: 100 },
   },
 ];

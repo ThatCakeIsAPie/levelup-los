@@ -51,3 +51,14 @@ describe("growth path demo seed", () => {
     expect(g.next?.code).toBe("12_100");
   });
 });
+
+describe("Priya on the demo seed", () => {
+  it("only counts registered people toward 3/10 (prospects on the map don't)", () => {
+    const g = path("8");
+    const tenThree = g.milestones.find((m) => m.code === "3_10")!;
+    expect(tenThree.reachedOn).toBeNull();
+    expect(tenThree.progress?.summary).toBe("2/3 personal sponsors, 2/10 people");
+    expect(g.next?.code).toBe("core_150");
+    expect(g.thisMonth.pv).toBe(25);
+  });
+});

@@ -31,7 +31,7 @@ export function useSpreadsheetUpload() {
       loadRows(rows, map, { source: "upload", key: getViewer()?.personId ?? "" });
       toast.success(`Loaded ${rows.length} ${rows.length === 1 ? "person" : "people"}`, {
         description:
-          "PPV is set to 300 for everyone, so the file's PPV values are replaced. GPV, member counts and IDs are recalculated from the tree.",
+          "PPV comes from the file (blank counts as 0). GPV, member counts and IDs are recalculated from the tree.",
         duration: 8000,
       });
     } catch (err) {

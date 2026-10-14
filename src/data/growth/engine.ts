@@ -479,8 +479,9 @@ function progressFor(ix: Index, id: string, def: GrowthMilestoneDef): MilestoneP
     }
     case "count": {
       const { sponsors, people } = teamDates(ix, id);
-      const parts = [part("sponsors", "Personal sponsors", sponsors.length, c.sponsors)];
-      if (c.people > 0) parts.push(part("people", "People in total", people.length, c.people));
+      const parts = [part("sponsors", "Registered personal sponsors", sponsors.length, c.sponsors)];
+      if (c.people > 0)
+        parts.push(part("people", "Registered people in total", people.length, c.people));
       const s = Math.min(sponsors.length, c.sponsors);
       const n = Math.min(people.length, c.people);
       const summary =
