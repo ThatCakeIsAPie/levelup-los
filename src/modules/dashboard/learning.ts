@@ -6,8 +6,10 @@
 import { addDays, format } from "date-fns";
 import {
   learningStreak,
+  learningUnit,
   localDate,
   parseDate,
+  unitAmount,
   type CrmPerson,
   type Learning,
   type LearningGoal,
@@ -15,8 +17,24 @@ import {
 
 export interface WeekTotals {
   pages: number;
+  chapters: number;
+  readingMinutes: number;
+  /** Podcast episodes. */
   podcasts: number;
+  listeningMinutes: number;
   workshops: number;
+}
+
+/** The totals that count toward the goal's reading and podcast targets. */
+export function goalKeys(goal: LearningGoal): {
+  reading: "pages" | "chapters" | "readingMinutes";
+  podcasts: "podcasts" | "listeningMinutes";
+} {
+  const r = goal.readingUnit ?? "pages";
+  return {
+    reading: r === "minutes" ? "readingMinutes" : r,
+    podcasts: goal.podcastUnit === "minutes" ? "listeningMinutes" : "podcasts",
+  };
 }
 
 export interface WeekDay {
@@ -51,35 +69,69 @@ export function weekDays(entries: Learning[], today: string): WeekDay[] {
   });
 }
 
-/** Pages, podcasts and workshops (conferences count as workshops) in the last 7 days. */
+const TOTAL_KEY = {
+  pages: { pages: "pages", chapters: "chapters", minutes: "readingMinutes" },
+  podcast: { episodes: "podcasts", minutes: "listeningMinutes" },
+} as const;
+
+/**
+ * Reading (by unit), podcasts (by unit) and workshops (conferences count as
+ * workshops) in the last 7 days.
+ */
 export function weekTotals(entries: Learning[], today: string): WeekTotals {
   const from = weekStart(today);
-  const out: WeekTotals = { pages: 0, podcasts: 0, workshops: 0 };
+  const out: WeekTotals = {
+    pages: 0,
+    chapters: 0,
+    readingMinutes: 0,
+    podcasts: 0,
+    listeningMinutes: 0,
+    workshops: 0,
+  };
   for (const e of entries) {
     if (e.date < from || e.date > today) continue;
-    if (e.kind === "pages") out.pages += e.amount;
-    else if (e.kind === "podcast") out.podcasts += e.amount;
-    else out.workshops += e.amount;
+    const unit = learningUnit(e);
+    const key =
+      e.kind === "pages"
+        ? TOTAL_KEY.pages[unit as keyof typeof TOTAL_KEY.pages]
+        : e.kind === "podcast"
+          ? TOTAL_KEY.podcast[unit as keyof typeof TOTAL_KEY.podcast]
+          : "workshops";
+    // Skip units this version doesn't know (data written by a newer client).
+    if (key) out[key] += e.amount;
   }
   return out;
 }
 
-/** Combined goal progress 0..1: the average of each kind's progress, each capped at 100%. */
+/**
+ * Combined goal progress 0..1: the average of each target's progress, each
+ * capped at 100%. Reading and podcasts count only entries in the goal's unit.
+ */
 export function goalProgress(totals: WeekTotals, goal: LearningGoal): number {
-  const parts = (["pages", "podcasts", "workshops"] as const)
-    .filter((k) => goal[k] > 0)
-    .map((k) => Math.min(1, totals[k] / goal[k]));
+  const keys = goalKeys(goal);
+  const parts = (
+    [
+      [totals[keys.reading], goal.pages],
+      [totals[keys.podcasts], goal.podcasts],
+      [totals.workshops, goal.workshops],
+    ] as const
+  )
+    .filter(([, target]) => target > 0)
+    .map(([done, target]) => Math.min(1, done / target));
   if (parts.length === 0) return 0;
   return parts.reduce((s, x) => s + x, 0) / parts.length;
 }
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
-/** "15 pages · 1 podcast" (empty string when nothing was logged). */
+/** "15 pages · 30 min reading · 1 podcast" (empty string when nothing was logged). */
 export function totalsSummary(t: WeekTotals): string {
   const parts: string[] = [];
-  if (t.pages) parts.push(plural(t.pages, "page"));
+  if (t.pages) parts.push(unitAmount(t.pages, "pages"));
+  if (t.chapters) parts.push(unitAmount(t.chapters, "chapters"));
+  if (t.readingMinutes) parts.push(`${t.readingMinutes} min reading`);
   if (t.podcasts) parts.push(plural(t.podcasts, "podcast"));
+  if (t.listeningMinutes) parts.push(`${t.listeningMinutes} min listening`);
   if (t.workshops) parts.push(plural(t.workshops, "workshop"));
   return parts.join(" · ");
 }
@@ -136,6 +188,8 @@ export function summarizeTeamLearning(
       b.activeDays - a.activeDays ||
       b.streak - a.streak ||
       b.totals.pages - a.totals.pages ||
+      b.totals.chapters - a.totals.chapters ||
+      b.totals.readingMinutes - a.totals.readingMinutes ||
       a.person.name.localeCompare(b.person.name),
   );
   idle.sort(

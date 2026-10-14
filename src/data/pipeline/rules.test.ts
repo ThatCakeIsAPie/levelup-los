@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { CrmPerson } from "@/stores/peopleStore";
 import {
   bandBreakdown,
+  bandOf,
   biggestGap,
   canEditStep,
   canHideStep,
@@ -18,7 +19,9 @@ import {
   isStale,
   monthActivity,
   rateTone,
+  prospectDoNotContactIds,
   reachesOf,
+  recruitingBand,
   registrationPatch,
   reorderOwnSteps,
   resolveColumn,
@@ -104,6 +107,7 @@ describe("columns: milestones, bands and inherited steps", () => {
 
   it("the four milestones are always there, in order, with steps in the band after their milestone", () => {
     expect(ids("1")).toEqual([
+      "not_contacted",
       "contact",
       "story",
       "door",
@@ -113,11 +117,14 @@ describe("columns: milestones, bands and inherited steps", () => {
       "f1",
       "info3",
       "registered",
+      "not_interested",
+      "do_not_contact",
     ]);
   });
 
   it("downlines inherit the whole chain's steps, uplines' first", () => {
     expect(ids("4")).toEqual([
+      "not_contacted",
       "contact",
       "story",
       "door",
@@ -128,7 +135,26 @@ describe("columns: milestones, bands and inherited steps", () => {
       "f1",
       "info3",
       "registered",
+      "not_interested",
+      "do_not_contact",
     ]);
+  });
+
+  it('"Not contacted yet" comes first and the outcomes last, as on the customer board', () => {
+    const cols = columnsFor(chainOf(people, "1"), steps, hides);
+    expect(cols[0]).toMatchObject({ id: "not_contacted", band: "start", kind: "fixed" });
+    expect(cols.slice(-2).map((c) => [c.id, c.band, c.kind])).toEqual([
+      ["not_interested", "out", "fixed"],
+      ["do_not_contact", "out", "fixed"],
+    ]);
+    expect(bandOf("not_contacted", steps)).toBe("start");
+    expect(bandOf("do_not_contact", steps)).toBe("out");
+    expect(recruitingBand("gone", steps)).toBe("contact");
+  });
+
+  it("won't let a step take a fixed column's name", () => {
+    expect(stepLabelError("Not interested", [])).toMatch(/milestone/);
+    expect(stepLabelError("do not contact", [])).toMatch(/milestone/);
   });
 
   it("a leader's own step is not seen by their upline or a crossline", () => {
@@ -399,6 +425,56 @@ describe("conversions", () => {
     expect(b.next).toEqual({ milestone: "registered", count: 1 });
     expect(b.worst).toMatchObject({ stalled: 2, of: 3 });
     expect(b.worst?.column.id).toBe("f1");
+  });
+
+  it("inside the steps: moving to Not interested or Do not contact isn't progress", () => {
+    const cols = columnsFor(chainOf(people, "1"), steps, hides);
+    const moves = [
+      mv("p1", "1", "first_plan", "first_plan", "2026-10-02"),
+      mv("p2", "1", "first_plan", "first_plan", "2026-10-02"),
+      mv("p2", "1", "f1", "first_plan", "2026-10-03"),
+      mv("p1", "1", "not_interested", "out", "2026-10-04"),
+      mv("p2", "1", "do_not_contact", "out", "2026-10-05"),
+    ];
+    const b = bandBreakdown(
+      moves,
+      reachesOf(moves),
+      cols,
+      null,
+      "first_plan",
+      "2026-10-01",
+      "2026-10-31",
+    );
+    expect(b.items.map((i) => [i.column.id, i.count])).toEqual([
+      ["first_plan", 2],
+      ["f1", 1],
+      ["info3", 0],
+    ]);
+    expect(b.next.count).toBe(0);
+  });
+});
+
+describe("not contacted yet and the outcomes", () => {
+  it("reach no milestone", () => {
+    const moves = [
+      mv("a", "4", "not_contacted", "start", "2026-10-01"),
+      mv("a", "4", "contact", "contact", "2026-10-02", "not_contacted"),
+      mv("a", "4", "not_interested", "out", "2026-10-03", "contact"),
+      mv("b", "4", "do_not_contact", "out", "2026-10-03"),
+    ];
+    expect(reachesOf(moves).map((r) => [r.personId, r.milestone])).toEqual([["a", "contact"]]);
+  });
+
+  it("Do not contact hides the prospect from reminders (cards still on the board)", () => {
+    const c = (personId: string, column: string, droppedAt: string | null = null) =>
+      ({ personId, column, droppedAt }) as PipelineCard;
+    expect([
+      ...prospectDoNotContactIds([
+        c("a", "do_not_contact"),
+        c("b", "not_interested"),
+        c("c", "do_not_contact", "2026-10-01T00:00:00.000Z"),
+      ]),
+    ]).toEqual(["a"]);
   });
 });
 

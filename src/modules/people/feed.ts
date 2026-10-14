@@ -1,6 +1,8 @@
 import { useMemo } from "react";
 import {
+  learningUnit,
   parseDate,
+  unitAmount,
   useActivity,
   useAttendancesForPerson,
   useChatPeople,
@@ -120,9 +122,15 @@ export function usePersonFeed(personId: string): FeedItem[] {
     for (const l of learning) {
       const text =
         l.kind === "pages"
-          ? `Read ${l.amount} ${l.amount === 1 ? "page" : "pages"} of ${l.title}`
+          ? learningUnit(l) === "minutes"
+            ? `Read ${l.title} for ${unitAmount(l.amount, "minutes")}`
+            : `Read ${unitAmount(l.amount, learningUnit(l)!)} of ${l.title}`
           : l.kind === "podcast"
-            ? `Listened to a podcast: ${l.title}`
+            ? learningUnit(l) === "minutes"
+              ? `Listened to ${l.title} for ${unitAmount(l.amount, "minutes")}`
+              : l.amount === 1
+                ? `Listened to a podcast: ${l.title}`
+                : `Listened to ${unitAmount(l.amount, "episodes")}: ${l.title}`
             : l.kind === "workshop"
               ? `Went to a workshop: ${l.title}`
               : `Went to a conference: ${l.title}`;

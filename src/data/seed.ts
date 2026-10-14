@@ -861,6 +861,23 @@ export function seedLearning(): Learning[] {
     { personId: "8", kind: "pages", title: "Go-Givers Sell More", amount: 18, date: ago(2) },
     { personId: "14", kind: "workshop", title: "Product Night", amount: 1, date: ago(3) },
     { personId: "20", kind: "podcast", title: "Why This Business", amount: 1, date: ago(2) },
+    // Reading by chapters and listening by time.
+    {
+      personId: "7",
+      kind: "pages",
+      title: "The 5 AM Club",
+      amount: 2,
+      unit: "chapters",
+      date: ago(0),
+    },
+    {
+      personId: "6",
+      kind: "podcast",
+      title: "Leadership Hour #45",
+      amount: 40,
+      unit: "minutes",
+      date: ago(0),
+    },
   ];
   return rows.map((l, i) => ({ ...l, id: `l${i}` }));
 }

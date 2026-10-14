@@ -11,7 +11,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toastWithUndo } from "@/components/log/quickLog";
-import { MILESTONE_LABEL, movePipelineCard, type MoveFailure, type PipelineColumn } from "@/data";
+import {
+  RECRUITING_BAND_LABEL,
+  movePipelineCard,
+  type MoveFailure,
+  type PipelineColumn,
+} from "@/data";
 
 const FAILURE: Record<MoveFailure, string> = {
   "no-access": "Candidates don't have a pipeline yet.",
@@ -35,7 +40,8 @@ export function useMoveCard(columns: PipelineColumn[]) {
       if (r.reason !== "same-column") toast.error(FAILURE[r.reason]);
       return;
     }
-    const label = columns.find((c) => c.id === to)?.label ?? MILESTONE_LABEL[r.move.milestone];
+    const label =
+      columns.find((c) => c.id === to)?.label ?? RECRUITING_BAND_LABEL[r.move.milestone];
     toastWithUndo(
       r.registered ? `${name} registered — now an apprentice` : `${name} moved to ${label}`,
       r.undo,

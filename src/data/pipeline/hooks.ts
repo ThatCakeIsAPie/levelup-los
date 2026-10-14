@@ -37,12 +37,14 @@ import {
   effectiveSettings,
   gapTip,
   goalPace,
+  isMilestoneBand,
   isStale,
   monthActivity,
   monthBounds,
   monthOf,
   monthlySeries,
   reachesOf,
+  recruitingBand,
   shiftMonth,
   resolveColumn,
   transitionStats,
@@ -54,7 +56,7 @@ import {
   type TransitionStat,
 } from "./rules";
 import {
-  MILESTONES,
+  RECRUITING_BOARD,
   STEP_BANDS,
   type ConversionTargets,
   type MilestoneCode,
@@ -62,6 +64,7 @@ import {
   type PipelineColumn,
   type PipelineMove,
   type PipelineScope,
+  type RecruitingBand,
   type StatRequest,
   type StatShare,
   type StepBand,
@@ -218,18 +221,18 @@ export interface BoardCard {
   warm?: boolean;
   /** Customer board: still on the list (not contacted yet), so no age. */
   listed?: boolean;
-  /** Customer board: an outcome (Not interested, Do not contact), shown dimmed. */
+  /** An outcome (Not interested, Do not contact), shown dimmed. */
   dim?: boolean;
 }
 
-export interface BoardColumn<B extends string = MilestoneCode> {
+export interface BoardColumn<B extends string = RecruitingBand> {
   column: PipelineColumn<B>;
   cards: BoardCard[];
   /** Milestones: reached in the chosen month. */
   reached: number | null;
 }
 
-export interface BoardBand<B extends string = MilestoneCode> {
+export interface BoardBand<B extends string = RecruitingBand> {
   milestone: B;
   columns: BoardColumn<B>[];
   /** Cards in the band now (Registered: registered in the month). */
@@ -245,7 +248,7 @@ export interface RegisteredCard {
   day: string;
 }
 
-export interface PipelineBoard<B extends string = MilestoneCode> {
+export interface PipelineBoard<B extends string = RecruitingBand> {
   columns: PipelineColumn<B>[];
   bands: BoardBand<B>[];
   /** Recruiting: the month's registrations (the customer board has none). */
@@ -274,11 +277,7 @@ export function usePipelineBoard(scope: PipelineScope, month: string): PipelineB
     const byColumn = new Map<string, BoardCard[]>(columns.map((c) => [c.id, []]));
     for (const { person, card } of boardCards(prospects, data.cards)) {
       const step = stepById.get(card.column);
-      const band: MilestoneCode = step
-        ? step.band
-        : MILESTONES.includes(card.column as MilestoneCode)
-          ? (card.column as MilestoneCode)
-          : "contact";
+      const band = recruitingBand(card.column, data.steps);
       const col = resolveColumn(card.column, band, colIds);
       const o = owner(person);
       byColumn.get(col)?.push({
@@ -293,8 +292,9 @@ export function usePipelineBoard(scope: PipelineScope, month: string): PipelineB
             ? { label: step.label, ownerName: firstName(byId.get(step.ownerId)?.name ?? "") }
             : null,
         days: daysInColumn(card.enteredAt, today),
-        stale: isStale(card.enteredAt, lastContact.get(person.id), today),
+        stale: isMilestoneBand(band) && isStale(card.enteredAt, lastContact.get(person.id), today),
         hot: card.hot,
+        dim: band === "out",
         nextStep: card.nextStep,
         nextStepDate: card.nextStepDate,
         source: card.source,
@@ -332,17 +332,17 @@ export function usePipelineBoard(scope: PipelineScope, month: string): PipelineB
     regCards.sort((a, b) => b.day.localeCompare(a.day));
 
     let inProgress = 0;
-    const bands: BoardBand[] = MILESTONES.map((m) => {
+    const bands: BoardBand[] = RECRUITING_BOARD.bands.map(({ id: m }) => {
       const cols = columns
         .filter((c) => c.band === m)
         .map((column) => ({
           column,
           cards: m === "registered" ? [] : (byColumn.get(column.id) ?? []),
-          reached: column.kind === "milestone" ? reached[m] : null,
+          reached: column.kind === "milestone" && isMilestoneBand(m) ? reached[m] : null,
         }));
       const count =
         m === "registered" ? regReaches.length : cols.reduce((s, c) => s + c.cards.length, 0);
-      if (m !== "registered") inProgress += count;
+      if (m !== "registered" && m !== "out") inProgress += count;
       return { milestone: m, columns: cols, count };
     });
     return {
@@ -419,7 +419,7 @@ export function usePipelineMonths(): string[] {
 export function usePipelineSummary(): {
   mg1: number;
   goal: number;
-  bands: Record<MilestoneCode, number>;
+  bands: Record<RecruitingBand, number>;
 } | null {
   const month = monthOf(localDate());
   const board = usePipelineBoard("team", month);
@@ -427,7 +427,7 @@ export function usePipelineSummary(): {
   return useMemo(() => {
     if (!board || !act) return null;
     const bands = Object.fromEntries(board.bands.map((b) => [b.milestone, b.count])) as Record<
-      MilestoneCode,
+      RecruitingBand,
       number
     >;
     return { mg1: act.counts.first_meeting, goal: act.goal ?? 0, bands };
@@ -659,7 +659,7 @@ export interface ProspectPipeline {
     id: string;
     to: string;
     toLabel: string;
-    milestone: MilestoneCode;
+    milestone: RecruitingBand;
     at: string;
     by: string;
   }[];
@@ -691,7 +691,7 @@ export function useProspectPipeline(personId: string | undefined): ProspectPipel
       : stored;
     const colIds = new Set(columns.map((c) => c.id));
     const stepById = new Map(data.steps.map((s) => [s.id, s]));
-    const labelOf = (id: string, band: MilestoneCode) =>
+    const labelOf = (id: string, band: RecruitingBand) =>
       columns.find((c) => c.id === id)?.label ??
       stepById.get(id)?.label ??
       columns.find((c) => c.id === band)?.label ??
@@ -699,8 +699,7 @@ export function useProspectPipeline(personId: string | undefined): ProspectPipel
     let column: PipelineColumn | null = null;
     let ownStep: string | null = null;
     if (card) {
-      const band = stepById.get(card.column)?.band ?? (card.column as MilestoneCode);
-      const id = resolveColumn(card.column, band, colIds);
+      const id = resolveColumn(card.column, recruitingBand(card.column, data.steps), colIds);
       column = columns.find((c) => c.id === id) ?? null;
       if (id !== card.column) ownStep = stepById.get(card.column)?.label ?? null;
     }
@@ -711,7 +710,10 @@ export function useProspectPipeline(personId: string | undefined): ProspectPipel
       column,
       ownStep,
       days: card ? daysInColumn(card.enteredAt, today) : 0,
-      stale: card ? isStale(card.enteredAt, lastContact.get(personId), today) : false,
+      stale:
+        card && isMilestoneBand(recruitingBand(card.column, data.steps))
+          ? isStale(card.enteredAt, lastContact.get(personId), today)
+          : false,
       history: moves.map((m) => ({
         id: m.id,
         to: m.to,

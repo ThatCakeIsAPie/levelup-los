@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/select";
 import { toastWithUndo } from "@/components/log/quickLog";
 import {
-  MILESTONES,
+  RECRUITING_BOARD,
   MILESTONE_LABEL,
   addPipelineProspect,
   useCurrentUser,
@@ -46,8 +46,8 @@ export function AddProspectDialog({
         <DialogHeader>
           <DialogTitle>Add prospect</DialogTitle>
           <DialogDescription>
-            They join your People list as a prospect and start on the board. Logging it counts as a
-            contact made today.
+            They join your People list as a prospect and start on the board. Unless they start in
+            Not contacted yet, it counts as a contact made today.
           </DialogDescription>
         </DialogHeader>
         {open && <AddForm columns={columns} onDone={() => onOpenChange(false)} />}
@@ -77,7 +77,7 @@ function AddForm({ columns, onDone }: { columns: PipelineColumn[]; onDone: () =>
   const [sponsorId, setSponsorId] = useState(me.personId);
   const [next, setNext] = useState("");
   const [date, setDate] = useState("");
-  const choices = columns.filter((c) => c.id !== "registered");
+  const choices = columns.filter((c) => c.id !== "registered" && c.band !== "out");
 
   const save = () => {
     const r = addPipelineProspect({
@@ -144,20 +144,22 @@ function AddForm({ columns, onDone }: { columns: PipelineColumn[]; onDone: () =>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {MILESTONES.filter((m) => m !== "registered").map((m) => (
-                <SelectGroup key={m}>
-                  <SelectLabel className="text-[10px] uppercase tracking-[.08em] text-faint">
-                    {MILESTONE_LABEL[m]}
-                  </SelectLabel>
-                  {choices
-                    .filter((c) => c.band === m)
-                    .map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.label}
-                      </SelectItem>
-                    ))}
-                </SelectGroup>
-              ))}
+              {RECRUITING_BOARD.bands
+                .filter((b) => choices.some((c) => c.band === b.id))
+                .map(({ id: m, label }) => (
+                  <SelectGroup key={m}>
+                    <SelectLabel className="text-[10px] uppercase tracking-[.08em] text-faint">
+                      {label}
+                    </SelectLabel>
+                    {choices
+                      .filter((c) => c.band === m)
+                      .map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.label}
+                        </SelectItem>
+                      ))}
+                  </SelectGroup>
+                ))}
             </SelectContent>
           </Select>
         </div>

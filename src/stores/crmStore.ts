@@ -47,13 +47,25 @@ export interface Contact {
 /** Contacts with `source` filled in ("manual" when missing). */
 const withSource = (contacts: Contact[]): Contact[] =>
   contacts.map((c) => (c.source ? c : { ...c, source: "manual" }));
+/** "pages" is reading (the name predates the other reading units). */
 export type LearningKind = "podcast" | "pages" | "workshop" | "conference";
+/** How reading is measured. */
+export type ReadingUnit = "minutes" | "pages" | "chapters";
+/** How podcast listening is measured. */
+export type PodcastUnit = "minutes" | "episodes";
+export type LearningUnit = ReadingUnit | PodcastUnit;
 export interface Learning {
   id: string;
   personId: string;
   kind: LearningKind;
   title: string;
+  /** In `unit` for reading and podcasts; 1 for workshops and conferences. */
   amount: number;
+  /**
+   * Reading and podcasts only. Missing (entries logged before units existed,
+   * and library completions) means pages for reading and episodes for podcasts.
+   */
+  unit?: LearningUnit;
   date: string;
 }
 export interface Settings {
@@ -62,9 +74,15 @@ export interface Settings {
 }
 /** Weekly learning targets for one person. */
 export interface LearningGoal {
+  /** Reading target, in `readingUnit`. */
   pages: number;
+  /** Podcast target, in `podcastUnit`. */
   podcasts: number;
   workshops: number;
+  /** Missing = pages. */
+  readingUnit?: ReadingUnit;
+  /** Missing = episodes. */
+  podcastUnit?: PodcastUnit;
 }
 
 export const DEFAULT_LEARNING_GOAL: LearningGoal = { pages: 60, podcasts: 3, workshops: 1 };
@@ -209,6 +227,26 @@ export function learningGoalFor(
   personId: string,
 ): LearningGoal {
   return goals[personId] ?? DEFAULT_LEARNING_GOAL;
+}
+
+/** The unit an entry is measured in (undefined for workshops and conferences). */
+export function learningUnit(l: Pick<Learning, "kind" | "unit">): LearningUnit | undefined {
+  if (l.kind === "pages") return l.unit ?? "pages";
+  if (l.kind === "podcast") return l.unit ?? "episodes";
+  return undefined;
+}
+
+const UNIT_WORDS: Record<LearningUnit, [string, string]> = {
+  minutes: ["minute", "minutes"],
+  pages: ["page", "pages"],
+  chapters: ["chapter", "chapters"],
+  episodes: ["episode", "episodes"],
+};
+
+/** "1 page", "3 chapters", "45 minutes", "2 episodes". */
+export function unitAmount(amount: number, unit: LearningUnit): string {
+  const [one, many] = UNIT_WORDS[unit];
+  return `${amount} ${amount === 1 ? one : many}`;
 }
 
 /** Consecutive days (ending today or yesterday) with any learning logged. */

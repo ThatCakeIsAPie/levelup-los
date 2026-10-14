@@ -24,6 +24,7 @@ import {
   monthActivity,
   monthBounds,
   monthlySeries,
+  prospectDoNotContactIds,
   resolveColumn,
   type ChainStep,
   type MilestoneCounts,
@@ -31,6 +32,7 @@ import {
   type Reach,
 } from "../pipeline/rules";
 import { MIN_SAMPLE, type PipelineColumn, type PipelineScope } from "../pipeline/types";
+import { usePipelineStore } from "../pipeline/store";
 import { useCustomerPipelineStore } from "./store";
 import {
   canEditListOf,
@@ -465,13 +467,16 @@ const NO_IDS: ReadonlySet<string> = new Set();
 
 /**
  * People hidden from every reminder (the Today list, event follow-ups): the
- * customers and prospects behind names in "Do not contact".
+ * customers and prospects behind names in "Do not contact" on the customer
+ * board, and the prospects in "Do not contact" on the recruiting board.
  */
 export function useDoNotContactIds(): ReadonlySet<string> {
   const entries = useCustomerPipelineStore((s) => s.entries);
   const cards = useCustomerPipelineStore((s) => s.cards);
+  const prospectCards = usePipelineStore((s) => s.cards);
   return useMemo(() => {
     const ids = doNotContactIds(entries, cards);
+    for (const id of prospectDoNotContactIds(prospectCards)) ids.add(id);
     return ids.size ? ids : NO_IDS;
-  }, [entries, cards]);
+  }, [entries, cards, prospectCards]);
 }

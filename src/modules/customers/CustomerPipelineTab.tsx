@@ -1,14 +1,7 @@
 import { useState, type ReactNode } from "react";
-import { ArrowRight, Columns3, Plus, Users } from "lucide-react";
+import { ArrowRight, Columns3, Plus } from "lucide-react";
 import { PageHeader, SectionCard } from "@/components/brand";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   CUSTOMER_BOARD,
   CUSTOMER_MILESTONE_LABEL,
@@ -29,6 +22,7 @@ import { BoardView } from "@/modules/pipeline/Board";
 import { Kpis, type KpiItem } from "@/modules/pipeline/BoardTab";
 import { CustomizeStepsDialog } from "@/modules/pipeline/CustomizeStepsDialog";
 import { pct, plural } from "@/modules/pipeline/format";
+import { ScopeToggle } from "@/modules/pipeline/ScopeToggle";
 import { CustomerCardSheet } from "./CustomerCardSheet";
 import { ListEntryDialog, type EntryDialogMode } from "./ListEntryDialog";
 import { useCustomerMove } from "./useCustomerMove";
@@ -47,8 +41,6 @@ const KPI: KpiItem[] = [
   },
   { m: "on_ditto", label: "On Ditto", short: "Ditto", milestone: "On Ditto" },
 ];
-
-const SCOPE_LABEL: Partial<Record<string, string>> = { mine: "Just my list" };
 
 /**
  * The customer pipeline: this month's milestones, conversions, then the board
@@ -72,24 +64,12 @@ export function CustomerPipelineTab({ tabs }: { tabs: ReactNode }) {
         subtitle={`${plural(summary.inProgress, "person", "people")} in progress · ${plural(summary.customers, "customer")} · ${summary.onDitto} on Ditto`}
         actions={
           <>
-            {scopes.length > 2 && (
-              <Select value={scope} onValueChange={(v) => setScope(v as PipelineScope)}>
-                <SelectTrigger
-                  className="h-9 w-auto min-w-0 max-w-[13rem] gap-1.5 text-[13px] font-semibold"
-                  aria-label="Whose customer pipeline"
-                >
-                  <Users className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="max-h-80">
-                  {scopes.map((s) => (
-                    <SelectItem key={s.value} value={s.value}>
-                      {SCOPE_LABEL[s.value] ?? s.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
+            <ScopeToggle
+              scopes={scopes}
+              scope={scope}
+              onScope={setScope}
+              label="Whose customer pipeline"
+            />
             <Button variant="outline" size="sm" className="h-9" onClick={() => setStepsOpen(true)}>
               <Columns3 /> <span className="hidden sm:inline">Customize steps</span>
               <span className="sm:hidden">Steps</span>

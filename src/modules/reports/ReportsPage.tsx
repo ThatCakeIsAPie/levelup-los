@@ -5,6 +5,7 @@ import { PageHeader, SectionCard, ToneChip, TONE_CLASS, type IconTone } from "@/
 import { Button } from "@/components/ui/button";
 import {
   lastSale,
+  learningUnit,
   localDate,
   setReportSchedule,
   useCurrentUser,
@@ -83,9 +84,10 @@ function useReports(): Report[] {
 
     const activity: Rows = learning.map((l) => ({
       person: name(l.personId),
-      type: l.kind,
+      type: l.kind === "pages" ? "reading" : l.kind,
       title: l.title,
       amount: l.amount,
+      unit: learningUnit(l) ?? "",
       date: l.date,
     }));
 
@@ -128,7 +130,8 @@ function useReports(): Report[] {
       {
         key: "activity",
         title: "Activity",
-        description: "Learning logged: podcasts, pages read, workshops and conferences.",
+        description:
+          "Learning logged: reading, podcasts, workshops and conferences, with the unit each was measured in.",
         icon: BookOpen,
         tone: "info",
         rows: activity,

@@ -5,7 +5,7 @@ import { CalendarClock, ClockAlert, Flame, MoveRight, Undo2 } from "lucide-react
 import { SectionCard, ToneChip } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import {
-  MILESTONE_LABEL,
+  RECRUITING_BAND_LABEL,
   parseDate,
   restorePipelineCard,
   useProspectPipeline,
@@ -43,7 +43,7 @@ export function PipelineCard({ person }: { person: CrmPerson }) {
       {p.onBoard && p.column && (
         <div className="grid gap-2 rounded-[10px] bg-surface-2 px-3.5 py-3">
           <span className="text-[10px] font-extrabold uppercase tracking-[.08em] text-faint">
-            {MILESTONE_LABEL[p.column.band]}
+            {RECRUITING_BAND_LABEL[p.column.band]}
           </span>
           <div className="flex flex-wrap items-center gap-2 text-[14px]">
             <b>{p.ownStep ?? p.column.label}</b>

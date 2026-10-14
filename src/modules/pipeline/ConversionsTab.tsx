@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import {
   MILESTONES,
   MILESTONE_LABEL,
+  RECRUITING_BAND_LABEL,
   MIN_SAMPLE,
   TRANSITIONS,
   type BandBreakdown,
@@ -245,7 +246,7 @@ function StepSplit({ b }: { b: BandBreakdown }) {
               <Fragment key={it.column.id}>
                 <span className="rounded-[7px] bg-surface-2 px-2 py-0.5 font-semibold">
                   {it.column.kind === "milestone"
-                    ? MILESTONE_LABEL[it.column.band]
+                    ? RECRUITING_BAND_LABEL[it.column.band]
                     : it.column.label}{" "}
                   <em className="ml-0.5 font-extrabold not-italic text-muted-foreground">
                     {it.count}
@@ -265,7 +266,7 @@ function StepSplit({ b }: { b: BandBreakdown }) {
             <small className="text-[11.5px] text-muted-foreground">
               {b.worst.stalled} of {b.worst.of} stalled at{" "}
               {b.worst.column.kind === "milestone"
-                ? MILESTONE_LABEL[b.worst.column.band]
+                ? RECRUITING_BAND_LABEL[b.worst.column.band]
                 : b.worst.column.label}
               , the biggest drop inside this band.
             </small>

@@ -14,9 +14,16 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { openLog, setLearningGoal, type LearningGoal } from "@/data";
+import { PODCAST_UNITS, READING_UNITS, UnitToggle } from "@/components/log/parts";
+import {
+  openLog,
+  setLearningGoal,
+  type LearningGoal,
+  type PodcastUnit,
+  type ReadingUnit,
+} from "@/data";
 import type { MyLearning } from "./hooks";
-import type { WeekTotals } from "./learning";
+import { goalKeys, type WeekTotals } from "./learning";
 
 function streakHint(l: MyLearning): string {
   if (l.loggedToday) return "Logged today";
@@ -114,11 +121,28 @@ export function StreakTile({ learning }: { learning: MyLearning }) {
   );
 }
 
-const GOAL_ROWS: { key: keyof WeekTotals & keyof LearningGoal; label: string }[] = [
-  { key: "pages", label: "Pages" },
-  { key: "podcasts", label: "Podcasts" },
-  { key: "workshops", label: "Workshops" },
-];
+/** One line per target: what this week's total is measured against. */
+function goalRows(goal: LearningGoal, totals: WeekTotals) {
+  const keys = goalKeys(goal);
+  const reading = goal.readingUnit ?? "pages";
+  const podcast = goal.podcastUnit ?? "episodes";
+  return [
+    {
+      key: "reading",
+      label:
+        reading === "minutes" ? "Reading (min)" : reading === "chapters" ? "Chapters" : "Pages",
+      done: totals[keys.reading],
+      target: goal.pages,
+    },
+    {
+      key: "podcasts",
+      label: podcast === "minutes" ? "Podcasts (min)" : "Podcasts",
+      done: totals[keys.podcasts],
+      target: goal.podcasts,
+    },
+    { key: "workshops", label: "Workshops", done: totals.workshops, target: goal.workshops },
+  ];
+}
 
 /** Desktop weekly goal card with an Edit dialog. */
 export function GoalCard({ learning, personId }: { learning: MyLearning; personId: string }) {
@@ -153,16 +177,25 @@ export function GoalCard({ learning, personId }: { learning: MyLearning; personI
 function GoalRows({ learning, className }: { learning: MyLearning; className?: string }) {
   return (
     <dl className={cn("grid gap-1.5 text-[12.5px]", className)}>
-      {GOAL_ROWS.map((r) => (
+      {goalRows(learning.goal, learning.totals).map((r) => (
         <div key={r.key} className="flex justify-between gap-2">
           <dt className="text-muted-foreground">{r.label}</dt>
           <dd className="font-bold tabular-nums">
-            {learning.totals[r.key]} / {learning.goal[r.key]}
+            {r.done} / {r.target}
           </dd>
         </div>
       ))}
     </dl>
   );
+}
+
+/** "35 of 60 pages", "40 of 120 min reading". */
+function readingLine(l: MyLearning): string {
+  const unit = l.goal.readingUnit ?? "pages";
+  const done = l.totals[goalKeys(l.goal).reading];
+  return unit === "minutes"
+    ? `${done} of ${l.goal.pages} min reading`
+    : `${done} of ${l.goal.pages} ${unit}`;
 }
 
 /** Phone weekly goal tile; tapping it opens the goal dialog (progress + edit). */
@@ -180,9 +213,7 @@ export function GoalTile({ learning, personId }: { learning: MyLearning; personI
         <span className="text-[12.5px] font-bold">Week goal</span>
         <span className="text-[22px] font-extrabold leading-none tabular-nums">{pct}%</span>
         <SegmentedBar total={1} segments={[{ value: learning.progress, className: "bg-sky" }]} />
-        <span className="text-[11px] leading-snug text-faint">
-          {learning.totals.pages} of {learning.goal.pages} pages
-        </span>
+        <span className="text-[11px] leading-snug text-faint">{readingLine(learning)}</span>
       </button>
       <GoalDialog
         open={editing}
@@ -213,7 +244,10 @@ function GoalDialog({
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <DialogTitle>Weekly learning goal</DialogTitle>
-          <DialogDescription>Targets for the last 7 days, counted from today.</DialogDescription>
+          <DialogDescription>
+            Targets for the last 7 days, counted from today. Only learning logged in the units you
+            pick here counts toward them.
+          </DialogDescription>
         </DialogHeader>
         {summary}
         {open && (
@@ -232,6 +266,12 @@ function GoalDialog({
   );
 }
 
+const GOAL_FIELDS: { key: "pages" | "podcasts" | "workshops"; label: string }[] = [
+  { key: "pages", label: "Reading" },
+  { key: "podcasts", label: "Podcasts" },
+  { key: "workshops", label: "Workshops" },
+];
+
 function GoalForm({
   goal,
   onSave,
@@ -241,23 +281,33 @@ function GoalForm({
   onSave: (g: LearningGoal) => void;
   onCancel: () => void;
 }) {
-  const [draft, setDraft] = useState<Record<keyof LearningGoal, string>>({
+  const [draft, setDraft] = useState<Record<(typeof GOAL_FIELDS)[number]["key"], string>>({
     pages: String(goal.pages),
     podcasts: String(goal.podcasts),
     workshops: String(goal.workshops),
   });
+  const [readingUnit, setReadingUnit] = useState<ReadingUnit>(goal.readingUnit ?? "pages");
+  const [podcastUnit, setPodcastUnit] = useState<PodcastUnit>(goal.podcastUnit ?? "episodes");
   const parsed: LearningGoal = {
     pages: Number(draft.pages),
     podcasts: Number(draft.podcasts),
     workshops: Number(draft.workshops),
+    readingUnit,
+    podcastUnit,
   };
-  const valid = GOAL_ROWS.every(
+  const valid = GOAL_FIELDS.every(
     (r) =>
       draft[r.key].trim() !== "" &&
       Number.isInteger(parsed[r.key]) &&
       parsed[r.key] >= 0 &&
       parsed[r.key] <= 1000,
   );
+  const fieldLabel = (key: (typeof GOAL_FIELDS)[number]["key"]) =>
+    key === "pages"
+      ? `Reading (${readingUnit})`
+      : key === "podcasts"
+        ? `Podcasts (${podcastUnit})`
+        : "Workshops";
   return (
     <form
       className="grid gap-4"
@@ -266,10 +316,28 @@ function GoalForm({
         if (valid) onSave(parsed);
       }}
     >
+      <div className="grid gap-1.5">
+        <Label className="text-xs font-semibold">Count reading in</Label>
+        <UnitToggle
+          label="Count reading in"
+          options={READING_UNITS}
+          value={readingUnit}
+          onChange={setReadingUnit}
+        />
+      </div>
+      <div className="grid gap-1.5">
+        <Label className="text-xs font-semibold">Count podcasts in</Label>
+        <UnitToggle
+          label="Count podcasts in"
+          options={PODCAST_UNITS}
+          value={podcastUnit}
+          onChange={setPodcastUnit}
+        />
+      </div>
       <div className="grid grid-cols-3 gap-3">
-        {GOAL_ROWS.map((r) => (
-          <div key={r.key} className="grid gap-1.5">
-            <Label htmlFor={`goal-${r.key}`}>{r.label}</Label>
+        {GOAL_FIELDS.map((r) => (
+          <div key={r.key} className="grid content-end gap-1.5">
+            <Label htmlFor={`goal-${r.key}`}>{fieldLabel(r.key)}</Label>
             <Input
               id={`goal-${r.key}`}
               type="number"

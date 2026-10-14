@@ -37,6 +37,29 @@ export const MILESTONE_LABEL: Record<MilestoneCode, string> = {
   registered: "Registered",
 };
 
+/** The fixed start and outcome columns (the customer board's, with the same ids). */
+export const NOT_CONTACTED = "not_contacted";
+export const NOT_INTERESTED = "not_interested";
+export const DO_NOT_CONTACT = "do_not_contact";
+
+/** Board bands: the start column, the four milestones, the outcomes. */
+export type RecruitingBand = "start" | MilestoneCode | "out";
+
+export const FIXED_RECRUITING_COLUMNS = [
+  { id: NOT_CONTACTED, band: "start", label: "Not contacted yet", hint: "Haven't reached out" },
+  { id: NOT_INTERESTED, band: "out", label: "Not interested", hint: "Revisit in 6 months" },
+  { id: DO_NOT_CONTACT, band: "out", label: "Do not contact", hint: "Hidden from reminders" },
+] as const satisfies readonly { id: string; band: RecruitingBand; label: string; hint: string }[];
+
+export const RECRUITING_BAND_LABEL: Record<RecruitingBand, string> = {
+  start: "Start",
+  contact: "Contact made",
+  first_meeting: "First meeting",
+  first_plan: "First plan",
+  registered: "Registered",
+  out: "Not now",
+};
+
 /** Column header label (with the team's own name for it). */
 export const MILESTONE_COLUMN_LABEL: Record<MilestoneCode, string> = {
   contact: "Contact made",
@@ -98,8 +121,11 @@ export interface PipelineMove {
   /** Column before the move; null when the card was created. */
   from: string | null;
   to: string;
-  /** The milestone band of `to` (also the fallback when `to` is deleted). */
-  milestone: MilestoneCode;
+  /**
+   * The band of `to` (also the fallback when `to` is deleted): a milestone,
+   * or "start" / "out" for the fixed columns, which reach nothing.
+   */
+  milestone: RecruitingBand;
   movedAt: string;
   movedBy: string;
 }
@@ -162,10 +188,10 @@ export const STALE_DAYS = 14;
 export const MIN_SAMPLE = 10;
 
 /** One column of the board as a given person sees it. */
-export interface PipelineColumn<B extends string = MilestoneCode> {
+export interface PipelineColumn<B extends string = RecruitingBand> {
   id: string;
   band: B;
-  /** "fixed": a start or outcome column of the customer board (not a milestone, not a step). */
+  /** "fixed": a start or outcome column ("Not contacted yet", "Do not contact"). */
   kind: "milestone" | "step" | "fixed";
   label: string;
   /** Fixed columns: a short line under the name ("From your list"). */
@@ -202,7 +228,7 @@ export interface BoardBandDef<B extends string = string> {
   /**
    * "milestone": a fixed milestone column plus the leader steps after it.
    * "start" / "outcome": fixed columns before the first milestone or after
-   * the last (the customer board's "Not contacted yet", "Do not contact").
+   * the last ("Not contacted yet", "Do not contact").
    */
   kind: "start" | "milestone" | "outcome";
   label: string;
@@ -232,13 +258,21 @@ export interface BoardDef<B extends string = MilestoneCode> {
   reserved: readonly string[];
 }
 
-/** The recruiting board: four milestones, steps after the first three. */
-export const RECRUITING_BOARD: BoardDef<MilestoneCode> = {
+/**
+ * The recruiting board: "Not contacted yet", four milestones with steps after
+ * the first three, then "Not interested" and "Do not contact" (as on the
+ * customer board).
+ */
+export const RECRUITING_BOARD: BoardDef<RecruitingBand> = {
   kind: "recruiting",
-  bands: MILESTONES.map((m) => ({ id: m, kind: "milestone" as const, label: MILESTONE_LABEL[m] })),
+  bands: [
+    { id: "start", kind: "start", label: RECRUITING_BAND_LABEL.start },
+    ...MILESTONES.map((m) => ({ id: m, kind: "milestone" as const, label: MILESTONE_LABEL[m] })),
+    { id: "out", kind: "outcome", label: RECRUITING_BAND_LABEL.out },
+  ],
   milestones: MILESTONES,
   stepBands: STEP_BANDS,
   milestoneColumnLabel: MILESTONE_COLUMN_LABEL,
-  fixed: [],
-  reserved: Object.values(MILESTONE_LABEL),
+  fixed: FIXED_RECRUITING_COLUMNS,
+  reserved: [...Object.values(MILESTONE_LABEL), ...FIXED_RECRUITING_COLUMNS.map((c) => c.label)],
 };
