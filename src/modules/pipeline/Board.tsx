@@ -10,6 +10,7 @@ import {
   monthName,
   monthOf,
   localDate,
+  useCurrentUser,
   type BoardBand,
   type BoardCard,
   type BoardColumn,
@@ -22,7 +23,7 @@ import { CardSheet } from "./CardSheet";
 import { MoveMenu } from "./moveCard";
 import { useMoveCard } from "./useMoveCard";
 import { useBoardDrag, type DragInfo } from "./useBoardDrag";
-import { ageLong, ageShort, nextStepText, overdue, shortDate, stepBy } from "./format";
+import { ageLong, ageShort, nextStepText, overdue, ownCards, shortDate, stepBy } from "./format";
 
 const SHOW = 5;
 
@@ -84,6 +85,7 @@ export function BoardView({
   children?: ReactNode;
 }) {
   const desktop = useIsDesktop();
+  const me = useCurrentUser().personId;
   const scroller = useRef<HTMLDivElement>(null);
   const [openId, setOpenId] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -107,7 +109,9 @@ export function BoardView({
     setOpenId(personId);
     setSheetOpen(true);
   };
-  const ctx: CardCtx = { columns: board.columns, def, drag, start, open, move };
+  const markMine = useMemo(() => ownCards(board, me).mixed, [board, me]);
+  const isMine = (ownerId: string) => markMine && ownerId === me;
+  const ctx: CardCtx = { columns: board.columns, def, drag, start, open, move, markMine, isMine };
   const isThisMonth = monthOf(localDate()) === month;
   const label = def.kind === "customer" ? "Customer pipeline board" : "Pipeline board";
 
@@ -172,6 +176,10 @@ interface CardCtx {
   start: ReturnType<typeof useBoardDrag>["start"];
   open: (personId: string) => void;
   move: (personId: string, name: string, to: string) => void;
+  /** The board mixes your cards with other people's, so yours are marked. */
+  markMine: boolean;
+  /** A card of yours on a mixed board (always false otherwise). */
+  isMine: (ownerId: string) => boolean;
 }
 
 const bandDef = (def: BoardDef<string>, id: string) => def.bands.find((b) => b.id === id);
@@ -232,6 +240,9 @@ function DesktopBand({
   const m = band.milestone;
   const kind = bandDef(ctx.def, m)?.kind;
   const regList = band.columns.some((c) => isRegisteredList(ctx.def, c.column));
+  const yours = regList
+    ? registered.cards.filter((r) => ctx.isMine(r.ownerId)).length
+    : band.columns.reduce((n, c) => n + c.cards.filter((x) => ctx.isMine(x.ownerId)).length, 0);
   return (
     <section className="grid gap-2" aria-label={`${bandLabel(ctx.def, m)} band`}>
       <header className="flex items-center gap-2 px-0.5 text-[12.5px]">
@@ -243,6 +254,7 @@ function DesktopBand({
             : kind === "milestone"
               ? `${band.count} in this band`
               : band.count}
+          {ctx.markMine && <YoursCount n={yours} />}
         </span>
       </header>
       <div
@@ -355,7 +367,7 @@ function DesktopColumn({
         def={ctx.def}
       />
       {isReg ? (
-        <RegisteredList registered={registered} />
+        <RegisteredList registered={registered} isMine={ctx.isMine} />
       ) : (
         <>
           {shown.map((card) => (
@@ -381,7 +393,27 @@ function DesktopColumn({
   );
 }
 
-function OwnerTag({ card }: { card: { ownerName: string; ownerStage?: BoardCard["ownerStage"] } }) {
+/** Your own cards on a mixed board: a green bar down the left edge. */
+const MINE_ACCENT = "shadow-[inset_3px_0_0_var(--color-primary)]";
+
+/** "· 12 yours" after a count, on a mixed board. */
+function YoursCount({ n }: { n: number }) {
+  return <span className="font-bold text-primary-ink"> · {n} yours</span>;
+}
+
+function OwnerTag({
+  card,
+  mine = false,
+}: {
+  card: { ownerName: string; ownerStage?: BoardCard["ownerStage"] };
+  mine?: boolean;
+}) {
+  if (mine)
+    return (
+      <span className="rounded-full bg-primary-soft px-1.5 text-[10px] font-extrabold text-primary-ink">
+        You
+      </span>
+    );
   if (!card.ownerName) return null;
   return (
     <span className="inline-flex min-w-0 items-center gap-1 font-semibold text-foreground">
@@ -415,6 +447,7 @@ function Heat({ card }: { card: BoardCard }) {
 
 function DesktopCard({ card, ctx }: { card: BoardCard; ctx: CardCtx }) {
   const dragging = ctx.drag?.personId === card.personId;
+  const mine = ctx.isMine(card.ownerId);
   const next = nextStepText(card.nextStep, card.nextStepDate);
   return (
     <div
@@ -423,6 +456,7 @@ function DesktopCard({ card, ctx }: { card: BoardCard; ctx: CardCtx }) {
       className={cn(
         "group relative grid min-w-0 cursor-grab touch-manipulation select-none gap-1.5 rounded-[10px] border bg-surface px-2.5 py-2 text-xs transition-colors hover:border-primary/40 [-webkit-touch-callout:none]",
         card.stale ? "border-amber" : "border-line",
+        mine && MINE_ACCENT,
         card.dim && "opacity-70",
         dragging && "opacity-40",
       )}
@@ -447,7 +481,7 @@ function DesktopCard({ card, ctx }: { card: BoardCard; ctx: CardCtx }) {
         </span>
       </div>
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
-        <OwnerTag card={card} />
+        <OwnerTag card={card} mine={mine} />
         <Heat card={card} />
         {card.source && <span className="truncate">{card.source}</span>}
       </div>
@@ -495,7 +529,13 @@ function DesktopCard({ card, ctx }: { card: BoardCard; ctx: CardCtx }) {
   );
 }
 
-function RegisteredList({ registered }: { registered: PipelineBoard<string>["registered"] }) {
+function RegisteredList({
+  registered,
+  isMine,
+}: {
+  registered: PipelineBoard<string>["registered"];
+  isMine: CardCtx["isMine"];
+}) {
   const navigate = useNavigate();
   const [all, setAll] = useState(false);
   const shown = all ? registered.cards : registered.cards.slice(0, SHOW);
@@ -506,6 +546,7 @@ function RegisteredList({ registered }: { registered: PipelineBoard<string>["reg
         <RegisteredCardView
           key={r.personId}
           r={r}
+          mine={isMine(r.ownerId)}
           onOpen={() => navigate({ to: "/people/$id", params: { id: r.personId } })}
         />
       ))}
@@ -532,19 +573,30 @@ function RegisteredList({ registered }: { registered: PipelineBoard<string>["reg
   );
 }
 
-function RegisteredCardView({ r, onOpen }: { r: RegisteredCard; onOpen: () => void }) {
+function RegisteredCardView({
+  r,
+  mine,
+  onOpen,
+}: {
+  r: RegisteredCard;
+  mine: boolean;
+  onOpen: () => void;
+}) {
   return (
     <button
       type="button"
       onClick={onOpen}
-      className="grid gap-1.5 rounded-[10px] border border-line bg-surface px-2.5 py-2 text-left text-xs hover:border-primary/40 focus-visible:outline-2 focus-visible:outline-ring"
+      className={cn(
+        "grid gap-1.5 rounded-[10px] border border-line bg-surface px-2.5 py-2 text-left text-xs hover:border-primary/40 focus-visible:outline-2 focus-visible:outline-ring",
+        mine && MINE_ACCENT,
+      )}
     >
       <span className="flex items-baseline justify-between gap-1.5">
         <b className="truncate text-[12.5px]">{r.name}</b>
         <span className="whitespace-nowrap text-[10.5px] text-faint">{shortDate(r.day)}</span>
       </span>
       <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
-        <OwnerTag card={r} />
+        <OwnerTag card={r} mine={mine} />
         <span className="rounded-full bg-stage-apprentice-soft px-1.5 text-[10px] font-bold text-stage-apprentice-ink">
           Apprentice
         </span>
@@ -577,6 +629,7 @@ function PhoneColumn({
   const isReg = isRegisteredList(ctx.def, c);
   const over = ctx.drag?.over === c.id && ctx.drag.from !== c.id;
   const count = isReg ? registered.total : col.cards.length;
+  const yours = (isReg ? registered.cards : col.cards).filter((x) => ctx.isMine(x.ownerId)).length;
   return (
     <section
       data-drop-column={c.id}
@@ -611,6 +664,7 @@ function PhoneColumn({
             : col.reached !== null
               ? reachedText(c.band, col.reached, month, isThisMonth)
               : ""}
+        {ctx.markMine && <YoursCount n={yours} />}
       </div>
       {isReg ? (
         registered.cards.map((r) => (
@@ -624,7 +678,9 @@ function PhoneColumn({
             <span className="min-w-0">
               <b className="block truncate">{r.name}</b>
               <span className="text-[11px] text-muted-foreground">
-                {r.ownerName ? `${r.ownerName}'s · ` : ""}registered {shortDate(r.day)}
+                <Whose ownerName={r.ownerName} mine={ctx.isMine(r.ownerId)}>
+                  registered {shortDate(r.day)}
+                </Whose>
               </span>
             </span>
           </button>
@@ -653,10 +709,8 @@ function PhoneColumn({
 function PhoneRow({ card, ctx }: { card: BoardCard; ctx: CardCtx }) {
   const dragging = ctx.drag?.personId === card.personId;
   const next = nextStepText(card.nextStep, card.nextStepDate);
-  const sub = [
-    card.ownerName ? `${card.ownerName}'s` : "",
-    card.listed ? (card.source ?? "") : ageLong(card.days),
-  ];
+  const mine = ctx.isMine(card.ownerId);
+  const sub = [card.listed ? (card.source ?? "") : ageLong(card.days)];
   if (!card.listed && card.source && ctx.def.kind === "customer") sub.push(card.source);
   if (!card.stale && next) sub.push(next.charAt(0).toLowerCase() + next.slice(1));
   return (
@@ -691,9 +745,9 @@ function PhoneRow({ card, ctx }: { card: BoardCard; ctx: CardCtx }) {
             card.stale ? "font-semibold text-warn-ink" : "text-muted-foreground",
           )}
         >
-          {card.stale
-            ? `${card.ownerName}'s · no movement in ${ageLong(card.days)}`
-            : sub.filter(Boolean).join(" · ")}
+          <Whose ownerName={card.ownerName} mine={mine}>
+            {card.stale ? `no movement in ${ageLong(card.days)}` : sub.filter(Boolean).join(" · ")}
+          </Whose>
         </div>
       </div>
       <span data-no-drag onClick={stop} onPointerDown={stop}>
@@ -714,6 +768,31 @@ function PhoneRow({ card, ctx }: { card: BoardCard; ctx: CardCtx }) {
         </MoveMenu>
       </span>
     </div>
+  );
+}
+
+/** Phone sub-lines: "Yours · …" on a mixed board, otherwise "Maria's · …". */
+function Whose({
+  ownerName,
+  mine,
+  children,
+}: {
+  ownerName: string;
+  mine: boolean;
+  children: ReactNode;
+}) {
+  const who = mine ? (
+    <b className="font-bold text-primary-ink">Yours</b>
+  ) : ownerName ? (
+    <>{ownerName}&rsquo;s</>
+  ) : null;
+  if (!who) return <>{children}</>;
+  return (
+    <>
+      {who}
+      {children ? " · " : null}
+      {children}
+    </>
   );
 }
 
