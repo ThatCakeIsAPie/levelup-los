@@ -7,9 +7,10 @@
  * it through `controller`, which LibraryPlayer registers on mount.
  */
 import { create } from "zustand";
+import { storageKey } from "@/lib/config";
 
 export const SPEEDS = [1, 1.25, 1.5, 2] as const;
-const RATE_KEY = "levelup.libraryRate";
+const RATE_KEY = storageKey("libraryRate");
 
 function savedRate(): number {
   try {

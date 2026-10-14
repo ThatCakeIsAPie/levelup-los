@@ -6,6 +6,8 @@ interface ImportMetaEnv {
   readonly VITE_DATA_SOURCE?: string;
   readonly VITE_SUPABASE_URL?: string;
   readonly VITE_SUPABASE_ANON_KEY?: string;
+  /** Browser-storage namespace; defaults to "levelup" (see storageKey). */
+  readonly VITE_STORAGE_NAMESPACE?: string;
 }
 
 interface ImportMeta {

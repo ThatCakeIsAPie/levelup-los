@@ -10,13 +10,13 @@
  */
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { IS_SUPABASE } from "@/lib/config";
+import { IS_SUPABASE, storageKey } from "@/lib/config";
 import { SEED_VERSION, seedPeople } from "@/data/seed";
 import { dataStorage } from "@/stores/storage";
 import { seedCustomerPipeline } from "./seed";
 import type { CustomerPipelineData } from "./types";
 
-export const CUSTOMER_PIPELINE_STORAGE_KEY = "levelup.customerPipeline";
+export const CUSTOMER_PIPELINE_STORAGE_KEY = storageKey("customerPipeline");
 /** Bump when the stored shape changes (resets everyone's demo list and board). */
 const SCHEMA_VERSION = 1;
 

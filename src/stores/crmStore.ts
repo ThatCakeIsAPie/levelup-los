@@ -12,6 +12,7 @@ import {
   SEED_VERSION,
 } from "@/data/seed";
 import type { GrowthMilestoneCode, MilestoneMark, PvOverride } from "@/data/growth/types";
+import { storageKey } from "@/lib/config";
 
 export interface Sale {
   id: string;
@@ -167,7 +168,7 @@ export const useCrmStore = create<CrmState>()(
       },
     }),
     {
-      name: "levelup.crm",
+      name: storageKey("crm"),
       storage: dataStorage(),
       partialize: (s) => ({
         sales: s.sales,

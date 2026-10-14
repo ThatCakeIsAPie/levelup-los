@@ -9,14 +9,14 @@
  */
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { IS_SUPABASE } from "@/lib/config";
+import { IS_SUPABASE, storageKey } from "@/lib/config";
 import { SEED_VERSION } from "@/data/seed";
 import { dataStorage, seedOr } from "@/stores/storage";
 import { clearLibraryFiles } from "./files";
 import { seedLibrary } from "./seed";
 import type { LibraryData } from "./types";
 
-export const LIBRARY_STORAGE_KEY = "levelup.library";
+export const LIBRARY_STORAGE_KEY = storageKey("library");
 /** Bump when the stored shape changes (resets everyone's library demo data). */
 const LIBRARY_SCHEMA_VERSION = 1;
 

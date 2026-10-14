@@ -3,6 +3,7 @@ import { persist } from "zustand/middleware";
 import { dataStorage, seedOr } from "./storage";
 import { logAttendance } from "./activityStore";
 import { seedAttendances, seedMissedNotes, SEED_VERSION } from "@/data/seed";
+import { storageKey } from "@/lib/config";
 
 /**
  * How someone attends (or attended): in person or online. For events with
@@ -154,7 +155,7 @@ export const useAttendanceStore = create<AttendanceState>()(
       removeNotesWhere: (pred) => set({ missedNotes: get().missedNotes.filter((n) => !pred(n)) }),
     }),
     {
-      name: "levelup.attendance",
+      name: storageKey("attendance"),
       storage: dataStorage(),
       partialize: (s) => ({ attendances: s.attendances, missedNotes: s.missedNotes }),
       version: SEED_VERSION,

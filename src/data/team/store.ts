@@ -9,13 +9,13 @@
  */
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { IS_SUPABASE } from "@/lib/config";
+import { IS_SUPABASE, storageKey } from "@/lib/config";
 import { SEED_VERSION } from "@/data/seed";
 import { dataStorage } from "@/stores/storage";
 import { seedDeputies, seedFeatureSwitches } from "./seed";
 import type { TeamData } from "./types";
 
-export const TEAM_STORAGE_KEY = "levelup.team";
+export const TEAM_STORAGE_KEY = storageKey("team");
 /** Bump when the stored shape changes. */
 const SCHEMA_VERSION = 1;
 

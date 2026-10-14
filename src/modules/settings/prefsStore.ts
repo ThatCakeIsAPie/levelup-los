@@ -5,6 +5,7 @@
  */
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { storageKey } from "@/lib/config";
 
 export type NotifyKey = "mentions" | "replies" | "announcements" | "wins" | "checkins";
 
@@ -65,7 +66,7 @@ export const usePrefsStore = create<PrefsState>()(
       setNotify: (key, on) => set((s) => ({ notify: { ...s.notify, [key]: on } })),
     }),
     {
-      name: "levelup.prefs",
+      name: storageKey("prefs"),
       version: 1,
       storage: createJSONStorage(() => localStorage),
       // Keep new keys' defaults when an older saved object lacks them.

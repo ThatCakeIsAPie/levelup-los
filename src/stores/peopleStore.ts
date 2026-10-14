@@ -6,6 +6,7 @@ import { parseDate } from "@/lib/dates";
 import { seedPeople, SEED_VERSION } from "@/data/seed";
 import { rosterWithout } from "@/data/cascade";
 import { syncLosEntries, type LosSyncEntry } from "@/data/losSync";
+import { storageKey } from "@/lib/config";
 
 export type { LosSyncEntry };
 
@@ -221,7 +222,7 @@ export const usePeopleStore = create<PeopleState>()(
       },
     }),
     {
-      name: "levelup.people",
+      name: storageKey("people"),
       storage: dataStorage(),
       partialize: (s) => ({ people: s.people }),
       version: SEED_VERSION,

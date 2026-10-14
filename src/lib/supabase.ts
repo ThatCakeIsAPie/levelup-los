@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { IS_SUPABASE, SUPABASE_ANON_KEY, SUPABASE_URL } from "./config";
+import { IS_SUPABASE, storageKey, SUPABASE_ANON_KEY, SUPABASE_URL } from "./config";
 
 // TODO: type the client with the generated schema once the database agent
 // writes src/data/remote/database.types.ts:
@@ -22,7 +22,7 @@ export const supabase: SupabaseClient | null = IS_SUPABASE
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: false,
-        storageKey: "levelup.auth",
+        storageKey: storageKey("auth"),
       },
     })
   : null;

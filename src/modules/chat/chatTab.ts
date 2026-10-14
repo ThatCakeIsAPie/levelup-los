@@ -7,13 +7,14 @@ import {
   type ChatTab,
   type ConversationSummary,
 } from "@/data";
+import { storageKey } from "@/lib/config";
 
 export const TAB_LABEL: Record<ChatTab, string> = {
   groups: "Groups",
   direct: "Direct messages",
 };
 
-const tabKey = (personId: string) => `levelup.chatTab.${personId}`;
+const tabKey = (personId: string) => storageKey(`chatTab.${personId}`);
 
 function readTab(personId: string): ChatTab {
   try {

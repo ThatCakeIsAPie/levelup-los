@@ -6,7 +6,8 @@
  *
  * Two implementations behind the same calls:
  *  - Browser-storage demo: blobs live in IndexedDB (database
- *    "levelup-chat-media", store "blobs"; paths look like "idb:<uuid>").
+ *    "levelup-chat-media" in the default storage namespace, store "blobs";
+ *    paths look like "idb:<uuid>").
  *  - Real accounts ("supabase" mode): saveAttachment keeps the blob in memory
  *    under a "pending:<uuid>" path (shown at once from a local object URL);
  *    sendMessage uploads it to the private `chat-media` bucket as
@@ -21,7 +22,7 @@
  * waveform peaks decoded from the audio itself.
  */
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { IS_SUPABASE } from "@/lib/config";
+import { IS_SUPABASE, STORAGE_NAMESPACE } from "@/lib/config";
 import { supabase } from "@/lib/supabase";
 import {
   SIGNED_URL_TTL,
@@ -31,7 +32,7 @@ import {
   uploadMedia,
 } from "@/data/remote/storage";
 
-const DB_NAME = "levelup-chat-media";
+const DB_NAME = `${STORAGE_NAMESPACE}-chat-media`;
 const STORE = "blobs";
 
 // ---------------------------------------------------------------------------

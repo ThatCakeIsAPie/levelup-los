@@ -62,6 +62,24 @@ export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL?.trim() ?? "";
 export const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim() ?? "";
 
 /**
+ * Pure: the browser-storage namespace from env. Every localStorage key is
+ * `<namespace>.<name>` and every IndexedDB database `<namespace>-<name>`.
+ * Defaults to "levelup"; a second copy of the app on the same origin (the
+ * develop preview under /levelup-los/develop/ on GitHub Pages) sets
+ * `VITE_STORAGE_NAMESPACE` so its demo data stays apart from the main site's.
+ */
+export function resolveStorageNamespace(env: { VITE_STORAGE_NAMESPACE?: string }): string {
+  return env.VITE_STORAGE_NAMESPACE?.trim() || "levelup";
+}
+
+export const STORAGE_NAMESPACE = resolveStorageNamespace(import.meta.env);
+
+/** localStorage key for `name` in this build's namespace, e.g. "levelup.crm". */
+export function storageKey(name: string): string {
+  return `${STORAGE_NAMESPACE}.${name}`;
+}
+
+/**
  * Pure: absolute URL of an in-app path, respecting the deploy base
  * (e.g. "/levelup-los/" on GitHub Pages). `path` is relative to the app root;
  * a leading "/" is ignored.

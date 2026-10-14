@@ -7,7 +7,8 @@
  *
  * Two implementations behind the same calls:
  *  - Browser-storage demo: blobs live in IndexedDB (database
- *    "levelup-library-media", store "files"; paths look like "idb:<uuid>"),
+ *    "levelup-library-media" in the default storage namespace, store "files";
+ *    paths look like "idb:<uuid>"),
  *    separate from chat media.
  *  - Real accounts ("supabase" mode): files are uploaded to the private
  *    `library` bucket as "<workspace_id>/<item_id>/<uuid>.<ext>" (before the
@@ -20,7 +21,7 @@
  *   seed:pdf:<pages>:<p|l>:<encoded title>   a small PDF (portrait doc / landscape slides)
  */
 import { useCallback, useEffect, useSyncExternalStore } from "react";
-import { IS_SUPABASE } from "@/lib/config";
+import { IS_SUPABASE, STORAGE_NAMESPACE } from "@/lib/config";
 import { supabase } from "@/lib/supabase";
 import { useSessionStore } from "@/stores/sessionStore";
 import { WORKSPACE_ID } from "@/data/chat/types";
@@ -40,7 +41,7 @@ const isStoragePath = (path: string) => IS_SUPABASE && !!path && !/^(seed|idb):/
 /** Files uploaded in this tab (shown from memory, no download). */
 const localBlobs = new Map<string, Blob>();
 
-const DB_NAME = "levelup-library-media";
+const DB_NAME = `${STORAGE_NAMESPACE}-library-media`;
 const STORE = "files";
 
 // ---------------------------------------------------------------------------

@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { dataStorage, seedOr } from "./storage";
 import { seedActivity, SEED_VERSION } from "@/data/seed";
+import { storageKey } from "@/lib/config";
 
 export type ActivityEntity = "person" | "event" | "attendance";
 export type ActivityKind =
@@ -64,7 +65,7 @@ export const useActivityStore = create<ActivityState>()(
         ),
     }),
     {
-      name: "levelup.activity",
+      name: storageKey("activity"),
       storage: dataStorage(),
       partialize: (s) => ({ events: s.events }),
       version: SEED_VERSION,

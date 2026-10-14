@@ -1,7 +1,9 @@
 /**
  * Light / dark / auto theme.
  *
- * - The preference is stored in localStorage under "levelup.theme".
+ * - The preference is stored in localStorage under "levelup.theme", outside the
+ *   storage namespace: the main site and the develop preview share it, and the
+ *   pre-paint script in index.html reads the same fixed key.
  * - The `dark` class on <html> switches every token in src/styles.css.
  * - "auto" follows `prefers-color-scheme` live.
  * - index.html runs an inline copy of `resolve()` before first paint so the

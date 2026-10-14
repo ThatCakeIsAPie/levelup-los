@@ -14,8 +14,9 @@ import { ChatList } from "./ChatList";
 import { useChatListTab } from "./chatTab";
 import { ConversationView } from "./Conversation";
 import { DetailsPanel } from "./DetailsPanel";
+import { storageKey } from "@/lib/config";
 
-const DETAILS_KEY = "levelup.chatDetailsOpen";
+const DETAILS_KEY = storageKey("chatDetailsOpen");
 
 function readDetailsPref(): boolean {
   try {

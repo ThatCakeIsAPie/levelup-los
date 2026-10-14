@@ -9,7 +9,7 @@
  * sign-out the stores are emptied.
  */
 import type { Session } from "@supabase/supabase-js";
-import { appUrl, IS_SUPABASE } from "@/lib/config";
+import { appUrl, IS_SUPABASE, storageKey } from "@/lib/config";
 import { getSupabase, supabase } from "@/lib/supabase";
 import { closeRemoteSession, openRemoteSession, remotePersonId } from "@/data/remote";
 import {
@@ -165,7 +165,7 @@ export function useWorkspaceRole(): WorkspaceRole {
 // Pending invite (survives the round trip through the email link)
 // ---------------------------------------------------------------------------
 
-const PENDING_INVITE_KEY = "levelup.pendingInvite";
+const PENDING_INVITE_KEY = storageKey("pendingInvite");
 
 export function rememberPendingInvite(token: string): void {
   try {

@@ -5,7 +5,7 @@ import { IS_SUPABASE } from "@/lib/config";
  * Where the data stores persist.
  *
  *  - "local" mode (browser-storage demo): localStorage, under the `levelup.*`
- *    keys, exactly as before.
+ *    keys (the build's storage namespace; see storageKey in @/lib/config).
  *  - "supabase" mode: nowhere. The stores start empty, are filled from the
  *    database after sign-in (src/data/remote) and live in memory only, so
  *    real data never mixes with the demo's saved data (or the other way round).

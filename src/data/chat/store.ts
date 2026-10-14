@@ -10,7 +10,7 @@
  */
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { IS_SUPABASE } from "@/lib/config";
+import { IS_SUPABASE, storageKey } from "@/lib/config";
 import { SEED_VERSION } from "@/data/seed";
 import { dataStorage } from "@/stores/storage";
 import { clearAttachments } from "./attachments";
@@ -18,7 +18,7 @@ import { purgeExpired } from "./rules";
 import { seedChat } from "./seed";
 import type { ChatData } from "./types";
 
-export const CHAT_STORAGE_KEY = "levelup.chat";
+export const CHAT_STORAGE_KEY = storageKey("chat");
 /** Bump when the stored shape changes (resets everyone's chat demo data). */
 const CHAT_SCHEMA_VERSION = 4;
 

@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useSessionStore, type DemoUser } from "@/stores/sessionStore";
 import { usePeopleStore, type CrmPerson } from "@/stores/peopleStore";
-import { IS_SUPABASE } from "@/lib/config";
+import { IS_SUPABASE, storageKey } from "@/lib/config";
 import { signOut } from "@/modules/login/auth";
 import type { Viewer } from "./access";
 import { useTeamStore } from "./team/store";
@@ -75,8 +75,10 @@ export function logout(): void {
 }
 
 /**
- * Wipe every `levelup.*` localStorage key (all stores, session and theme) and
- * reload at /login, which re-seeds everything relative to today.
+ * Wipe every localStorage key in this build's namespace (`levelup.*` by
+ * default: all stores, session and theme) and reload at /login, which
+ * re-seeds everything relative to today. Under another namespace (the develop
+ * preview) the main site's data and the shared "levelup.theme" are left alone.
  *
  * Demo only: with real accounts ("supabase" mode) this does nothing; check
  * `IS_LOCAL_DEMO` from `@/lib/config` to hide the control.
@@ -86,11 +88,12 @@ export function resetDemo(): void {
     console.warn("resetDemo() is only available in the browser-storage demo.");
     return;
   }
+  const prefix = storageKey("");
   try {
     const keys: string[] = [];
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
-      if (k?.startsWith("levelup.")) keys.push(k);
+      if (k?.startsWith(prefix)) keys.push(k);
     }
     keys.forEach((k) => localStorage.removeItem(k));
   } catch {

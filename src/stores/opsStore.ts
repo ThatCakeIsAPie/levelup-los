@@ -3,6 +3,7 @@ import { persist } from "zustand/middleware";
 import { dataStorage, seedOr } from "./storage";
 import { seedOps, SEED_VERSION } from "@/data/seed";
 import { opsWithoutEvent, opsWithoutPerson } from "@/data/cascade";
+import { storageKey } from "@/lib/config";
 
 export interface Logistics {
   ticket: "bought" | "planned";
@@ -179,7 +180,7 @@ export const useOpsStore = create<OpsState>()(
         })),
     }),
     {
-      name: "levelup.ops",
+      name: storageKey("ops"),
       storage: dataStorage(),
       // Payments gained `amount` + `costName` in seed version 3; older saved
       // data is replaced by the fresh seed (like every other store).

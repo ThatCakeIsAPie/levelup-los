@@ -34,6 +34,7 @@ import { cn } from "@/lib/utils";
 import { firstName } from "@/modules/people/format";
 import { OverrideNote, ProgressBar, ProgressParts } from "./GrowthPath";
 import { isMonthly, pv, reachedShort } from "./format";
+import { storageKey } from "@/lib/config";
 
 /** What to say under the next milestone's numbers. */
 function nudge(path: GrowthPath): string {
@@ -178,7 +179,7 @@ export function NextMilestoneCard() {
   );
 }
 
-const SEEN_KEY = (personId: string) => `levelup.growth.firstSponsorSeen.${personId}`;
+const SEEN_KEY = (personId: string) => storageKey(`growth.firstSponsorSeen.${personId}`);
 const readSeen = (key: string): boolean => {
   try {
     return localStorage.getItem(key) === "1";

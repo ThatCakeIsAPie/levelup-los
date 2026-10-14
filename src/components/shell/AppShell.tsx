@@ -1,4 +1,4 @@
-import { IS_LOCAL_DEMO } from "@/lib/config";
+import { IS_LOCAL_DEMO, storageKey } from "@/lib/config";
 import { useState, type ReactNode } from "react";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
@@ -597,7 +597,7 @@ export function ThemeSwitcher({ className }: { className?: string }) {
 // Apprentice notice
 // ---------------------------------------------------------------------------
 
-const NOTICE_KEY = "levelup.apprenticeNoticeDismissed";
+const NOTICE_KEY = storageKey("apprenticeNoticeDismissed");
 
 function readDismissed(): boolean {
   try {

@@ -3,6 +3,7 @@ import { persist } from "zustand/middleware";
 import { dataStorage, seedOr } from "./storage";
 import { logEvent } from "./activityStore";
 import { seedEvents, SEED_VERSION } from "@/data/seed";
+import { storageKey } from "@/lib/config";
 
 /**
  * The six event types (docs/plans/mvp-plan-2026-10-13.md "Events"). Labels,
@@ -57,7 +58,7 @@ export const useEventsStore = create<EventsState>()(
       getById: (id) => get().events.find((e) => e.id === id),
     }),
     {
-      name: "levelup.events",
+      name: storageKey("events"),
       storage: dataStorage(),
       partialize: (s) => ({ events: s.events }),
       version: SEED_VERSION,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { absoluteAppUrl, resolveDataSource } from "./config";
+import { absoluteAppUrl, resolveDataSource, resolveStorageNamespace } from "./config";
 
 const URL_ = "http://127.0.0.1:54321";
 const KEY = "anon-key";
@@ -59,6 +59,19 @@ describe("absoluteAppUrl", () => {
     );
     expect(absoluteAppUrl("https://x.dev", "/app", "auth/callback?invite=t")).toBe(
       "https://x.dev/app/auth/callback?invite=t",
+    );
+  });
+});
+
+describe("resolveStorageNamespace", () => {
+  it("defaults to levelup", () => {
+    expect(resolveStorageNamespace({})).toBe("levelup");
+    expect(resolveStorageNamespace({ VITE_STORAGE_NAMESPACE: "  " })).toBe("levelup");
+  });
+
+  it("uses the configured namespace", () => {
+    expect(resolveStorageNamespace({ VITE_STORAGE_NAMESPACE: " levelup-develop " })).toBe(
+      "levelup-develop",
     );
   });
 });

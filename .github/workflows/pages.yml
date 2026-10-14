@@ -1,10 +1,14 @@
-# Builds the app and publishes it to GitHub Pages on every push to main.
-# Live at https://thatcakeisapie.github.io/levelup-los/
+# Builds the app and publishes it to GitHub Pages on every push to main or
+# develop:
+#   main    -> https://thatcakeisapie.github.io/levelup-los/
+#   develop -> https://thatcakeisapie.github.io/levelup-los/develop/
+# A Pages deployment replaces the whole site, so every run builds both
+# branches, whichever one was pushed.
 name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   workflow_dispatch:
 
 permissions:
@@ -21,24 +25,47 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
+          path: main
+      - uses: actions/checkout@v4
+        with:
+          ref: develop
+          path: develop
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
-      - run: npm test
-      - run: npm run build
+          cache-dependency-path: |
+            main/package-lock.json
+            develop/package-lock.json
+      # The public demos run on browser storage with the demo-user picker and
+      # never contact a database (see src/lib/config.ts).
+      - name: Build main
+        working-directory: main
+        run: npm ci && npm test && npm run build
         env:
           BASE_PATH: /levelup-los/
-          # The public demo runs on browser storage with the demo-user picker
-          # and never contacts a database (see src/lib/config.ts).
           VITE_DATA_SOURCE: local
-      # Pages has no SPA rewrites: serve the app for unknown paths so deep
-      # links like /people/4 load on refresh.
-      - run: cp dist/index.html dist/404.html
+      - name: Build develop
+        working-directory: develop
+        run: npm ci && npm test && npm run build
+        env:
+          BASE_PATH: /levelup-los/develop/
+          VITE_DATA_SOURCE: local
+          # Same origin as the main site: keep this copy's demo data apart.
+          VITE_STORAGE_NAMESPACE: levelup-develop
+      # Pages has no SPA rewrites; one 404.html serves deep links like
+      # /people/4 for both copies.
+      - name: Assemble site
+        run: |
+          mkdir site
+          cp -r main/dist/. site/
+          cp -r develop/dist site/develop
+          cp develop/.github/pages/404.html site/404.html
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
+          path: site
 
   deploy:
     needs: build

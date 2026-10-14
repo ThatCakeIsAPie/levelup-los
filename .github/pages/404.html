@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>LevelUp LOS</title>
+    <script>
+      // GitHub Pages has no SPA rewrites and serves this page for every
+      // unknown path. The site holds two copies of the app (main at
+      // /levelup-los/, develop at /levelup-los/develop/; see
+      // .github/workflows/pages.yml), so load the index.html of whichever copy
+      // owns this path into this page. The URL stays as it is, so that copy's
+      // router opens the deep link (e.g. /levelup-los/develop/people/4).
+      (function () {
+        var site = "/levelup-los/";
+        var path = window.location.pathname;
+        var app = path.indexOf(site + "develop/") === 0 ? site + "develop/" : site;
+        fetch(app + "index.html")
+          .then(function (r) {
+            if (!r.ok) throw new Error(String(r.status));
+            return r.text();
+          })
+          .then(function (html) {
+            document.open();
+            document.write(html);
+            document.close();
+          })
+          .catch(function () {
+            window.location.replace(app);
+          });
+      })();
+    </script>
+  </head>
+  <body></body>
+</html>
