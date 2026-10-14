@@ -68,7 +68,6 @@ type Spec = [
 ];
 
 const nc = "not_contacted";
-const nw = "new_contact";
 const ni = "not_interested";
 const dnc = "do_not_contact";
 const { sampled, meeting2, sampleBox } = CUSTOMER_STEP_IDS;
@@ -89,9 +88,9 @@ const LISTS: Record<string, Spec[]> = {
     ["Frank Ibarra", "Neighbor", null, nc, 6],
     ["Ivy Chen", "Yoga class", null, nc, 6],
     ["Paul Okafor", "Barber", null, nc, 3],
-    ["Rosa Delmar", "Coffee shop", null, nw, 2, undefined, "Text", 3],
-    ["Trent Walsh", "Farmers market", null, nw, 4],
-    ["Nadia Bloom", "Kids' soccer", "warm", nw, 6],
+    ["Rosa Delmar", "Coffee shop", null, "contact", 2, undefined, "Text", 3],
+    ["Trent Walsh", "Farmers market", null, "contact", 4],
+    ["Nadia Bloom", "Kids' soccer", "warm", "contact", 6],
     ["Ben Fordham", "Gym", null, "contact", 4],
     ["Tia Adams", "Neighbor", null, "contact", 5],
     ["Noah Grant", "Old coworker", null, "contact", 8],
@@ -115,7 +114,7 @@ const LISTS: Record<string, Spec[]> = {
     ["Raj Mehta", "College", null, nc, 11],
     ["Tess Arnold", "Neighbor", null, nc, 8],
     ["Elena Ruiz", "Work friend", "hot", nc, 5],
-    ["Quinn Avery", "Dog park", null, nw, 3],
+    ["Quinn Avery", "Dog park", null, "contact", 3],
     ["Gina Lowe", "Church", null, "contact", 6],
     ["Martin Cole", "Old coworker", null, sampled, 4, undefined, "Ask how it went", 1],
     ["Lori Banks", "Book club", "warm", "first_meeting", 3],
@@ -135,7 +134,7 @@ const LISTS: Record<string, Spec[]> = {
     ["Derrick Lane", "Barbershop", "warm", nc, 9],
     ["Keisha Monroe", "College", "hot", nc, 7],
     ["Tony Banks", "Cousin", null, nc, 4],
-    ["Lila Hart", "Coffee shop", null, nw, 2, undefined, "Text Fri", 2],
+    ["Lila Hart", "Coffee shop", null, "contact", 2, undefined, "Text Fri", 2],
     ["Andre Mills", "Gym", null, "contact", 6],
     ["Fay Gordon", "Work friend", null, sampled, 5, undefined, "Follow up", 0],
     ["Kofi Mensah", "Cousin", null, "on_ditto", 19, "c8"],
@@ -160,9 +159,9 @@ const LISTS: Record<string, Spec[]> = {
     ["Nora Quinn", "Kids' school", null, nc, 6],
     ["Pete Lindgren", "Barber", null, nc, 5],
     ["Zoe Hart", "Yoga class", "warm", nc, 5],
-    ["Rosa Delgadillo", "Coffee shop", null, nw, 2, undefined, "Text Fri", 3],
-    ["Benny Cruz", "Farmers market", null, nw, 3],
-    ["Lucia Gomez", "Dog park", null, nw, 4],
+    ["Rosa Delgadillo", "Coffee shop", null, "contact", 2, undefined, "Text Fri", 3],
+    ["Benny Cruz", "Farmers market", null, "contact", 3],
+    ["Lucia Gomez", "Dog park", null, "contact", 4],
     ["Ben Forde", "Gym", null, "contact", 4],
     ["Tia Andrews", "Neighbor", null, "contact", 5],
     ["Lena Orr", "Tried XS Energy", "hot", sampled, 3, undefined, "Follow up", 0],
@@ -216,7 +215,7 @@ export function seedCustomerPipeline(people: CrmPerson[], now = new Date()): Cus
   }));
   const stepBand = new Map(steps.map((s) => [s.id, s.band as CustomerBand]));
   const bandOf = (c: string): CustomerBand => {
-    if (c === "not_contacted" || c === "new_contact") return "start";
+    if (c === "not_contacted") return "start";
     if (c === "not_interested" || c === "do_not_contact") return "out";
     return stepBand.get(c) ?? (c as CustomerBand);
   };

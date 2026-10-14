@@ -18,7 +18,7 @@ import type { CustomerPipelineData } from "./types";
 
 export const CUSTOMER_PIPELINE_STORAGE_KEY = "levelup.customerPipeline";
 /** Bump when the stored shape changes (resets everyone's demo list and board). */
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2; // 2: "New contacts" merged into Contact
 
 /** Every table, empty (real accounts start here). */
 export function emptyCustomerPipeline(): CustomerPipelineData {

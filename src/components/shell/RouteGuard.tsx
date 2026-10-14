@@ -10,12 +10,7 @@ import {
   useVisibleCustomers,
   type LockReason,
 } from "@/data";
-
-/** The app path without the deployment's base path (GitHub Pages serves under /levelup-los/). */
-function appPath(pathname: string): string {
-  const base = import.meta.env.BASE_URL.replace(/\/+$/, "");
-  return base && pathname.startsWith(`${base}/`) ? pathname.slice(base.length) : pathname;
-}
+import { appPath } from "./nav";
 
 /**
  * Pages that aren't unlocked for this person can't be reached by URL either:

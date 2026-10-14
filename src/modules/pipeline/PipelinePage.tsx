@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { CalendarDays, Columns3, Kanban, Plus, Target, Users } from "lucide-react";
 import { EmptyState, PageHeader } from "@/components/brand";
@@ -29,6 +29,7 @@ import {
   type PipelineScope,
 } from "@/data";
 import { BoardTab } from "./BoardTab";
+import { ownCards } from "./format";
 import { ConversionsTab } from "./ConversionsTab";
 import { CustomizeStepsDialog } from "./CustomizeStepsDialog";
 import { AddProspectDialog } from "./AddProspectDialog";
@@ -81,12 +82,16 @@ function Pipeline({ tab, onTab }: { tab: PipelineTab; onTab: (tab: PipelineTab) 
   const settings = useTeamSettings(scope);
   const myColumns = usePipelineColumns(access.personId ?? undefined);
   const isThisMonth = month === current;
+  const own = useMemo(
+    () => (board && access.personId ? ownCards(board, access.personId) : null),
+    [board, access.personId],
+  );
 
   const who =
     scope === "team" ? "Your whole team" : scope === "mine" ? "Your prospects" : (opt?.label ?? "");
   const subtitle =
     tab === "board"
-      ? `${who} · ${monthName(month)} · ${board?.inProgress ?? 0} prospects in progress`
+      ? `${who} · ${monthName(month)} · ${board?.inProgress ?? 0} prospects in progress${own?.mixed ? ` · ${own.mine} yours` : ""}`
       : `${who} · ${PERIOD_LABEL[period].toLowerCase()} · ${conv?.counts.contact ?? 0} contacts made`;
 
   return (
