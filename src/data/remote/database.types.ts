@@ -1378,6 +1378,7 @@ export type Database = {
           kind: string;
           person_id: string;
           title: string;
+          unit: string | null;
           workspace_id: string;
         };
         ComputedFields: never;
@@ -1389,6 +1390,7 @@ export type Database = {
           kind: string;
           person_id?: string;
           title: string;
+          unit?: string | null;
           workspace_id?: string;
         };
         Update: {
@@ -1399,6 +1401,7 @@ export type Database = {
           kind?: string;
           person_id?: string;
           title?: string;
+          unit?: string | null;
           workspace_id?: string;
         };
         Relationships: [
@@ -1436,7 +1439,9 @@ export type Database = {
         Row: {
           pages: number;
           person_id: string;
+          podcast_unit: string | null;
           podcasts: number;
+          reading_unit: string | null;
           workshops: number;
           workspace_id: string;
         };
@@ -1444,14 +1449,18 @@ export type Database = {
         Insert: {
           pages?: number;
           person_id: string;
+          podcast_unit?: string | null;
           podcasts?: number;
+          reading_unit?: string | null;
           workshops?: number;
           workspace_id?: string;
         };
         Update: {
           pages?: number;
           person_id?: string;
+          podcast_unit?: string | null;
           podcasts?: number;
+          reading_unit?: string | null;
           workshops?: number;
           workspace_id?: string;
         };

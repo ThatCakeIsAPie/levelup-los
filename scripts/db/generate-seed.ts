@@ -566,9 +566,19 @@ emit(
       ["kind", "text"],
       ["title", "text"],
       ["amount", "num"],
+      ["unit", "text"],
       ["date", "date"],
     ],
-    learning.map((l) => [l.id, WORKSPACE_ID, l.personId, l.kind, l.title, l.amount, l.date]),
+    learning.map((l) => [
+      l.id,
+      WORKSPACE_ID,
+      l.personId,
+      l.kind,
+      l.title,
+      l.amount,
+      l.unit ?? null,
+      l.date,
+    ]),
   ),
 );
 emit(
@@ -580,8 +590,18 @@ emit(
       ["pages", "num"],
       ["podcasts", "num"],
       ["workshops", "num"],
+      ["reading_unit", "text"],
+      ["podcast_unit", "text"],
     ],
-    Object.entries(goals).map(([p, g]) => [p, WORKSPACE_ID, g.pages, g.podcasts, g.workshops]),
+    Object.entries(goals).map(([p, g]) => [
+      p,
+      WORKSPACE_ID,
+      g.pages,
+      g.podcasts,
+      g.workshops,
+      g.readingUnit ?? null,
+      g.podcastUnit ?? null,
+    ]),
   ),
 );
 

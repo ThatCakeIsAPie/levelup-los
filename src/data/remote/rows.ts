@@ -460,6 +460,7 @@ export function learningFromRow(r: R<"learning">): Learning {
     kind: r.kind as Learning["kind"],
     title: r.title ?? "",
     amount: Number(r.amount ?? 1),
+    ...(r.unit ? { unit: r.unit as Learning["unit"] } : {}),
     date: r.date ?? "",
   };
 }
@@ -471,6 +472,7 @@ export function learningToRow(l: Learning): Row {
     kind: l.kind,
     title: l.title,
     amount: l.amount,
+    unit: nul(l.unit),
     date: l.date,
   };
 }
@@ -482,12 +484,21 @@ export function goalFromRow(r: R<"learning_goals">): [string, LearningGoal] {
       pages: Number(r.pages ?? 60),
       podcasts: Number(r.podcasts ?? 3),
       workshops: Number(r.workshops ?? 1),
+      ...(r.reading_unit ? { readingUnit: r.reading_unit as LearningGoal["readingUnit"] } : {}),
+      ...(r.podcast_unit ? { podcastUnit: r.podcast_unit as LearningGoal["podcastUnit"] } : {}),
     },
   ];
 }
 
 export function goalToRow(personId: string, g: LearningGoal): Row {
-  return { person_id: personId, pages: g.pages, podcasts: g.podcasts, workshops: g.workshops };
+  return {
+    person_id: personId,
+    pages: g.pages,
+    podcasts: g.podcasts,
+    workshops: g.workshops,
+    reading_unit: nul(g.readingUnit),
+    podcast_unit: nul(g.podcastUnit),
+  };
 }
 
 export function settingsFromRow(r: R<"contact_settings">): Settings {

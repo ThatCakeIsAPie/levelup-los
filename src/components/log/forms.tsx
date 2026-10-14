@@ -49,15 +49,26 @@ import {
   unpost,
   useCurrentUser,
   useLastContactMap,
+  useLearningGoal,
   useProspectPipeline,
   useVisibleCustomers,
   useVisibleTeam,
   type LearningKind,
+  type LearningUnit,
   type Message,
+  type PodcastUnit,
+  type ReadingUnit,
   type WinKind,
 } from "@/data";
 import { toastWithUndo } from "./quickLog";
-import { byStaleness, Field, PersonSelect } from "./parts";
+import {
+  byStaleness,
+  Field,
+  PersonSelect,
+  PODCAST_UNITS,
+  READING_UNITS,
+  UnitToggle,
+} from "./parts";
 import { ShareAsWin, type WinDraft } from "./ShareAsWin";
 import { useCanShareWins } from "./canShareWins";
 import { BoardMoveField, BoardNote } from "./PipelineMoveField";
@@ -151,24 +162,46 @@ function DateField({
 // ---------------------------------------------------------------------------
 
 const KIND_OPTIONS: { value: LearningKind; label: string }[] = [
-  { value: "pages", label: "Pages read" },
+  { value: "pages", label: "Reading" },
   { value: "podcast", label: "Podcast" },
   { value: "workshop", label: "Workshop" },
   { value: "conference", label: "Conference" },
 ];
 
+/** The amount the field starts at for each unit. */
+const UNIT_DEFAULT: Record<LearningUnit, string> = {
+  minutes: "30",
+  pages: "20",
+  chapters: "1",
+  episodes: "1",
+};
+
+const UNIT_FIELD: Record<LearningUnit, string> = {
+  minutes: "Minutes",
+  pages: "Pages",
+  chapters: "Chapters",
+  episodes: "Episodes",
+};
+
 export function LearningForm() {
+  const user = useCurrentUser();
+  // Start in the units the weekly goal counts, so a log moves the goal.
+  const goal = useLearningGoal(user.personId);
   const [kind, setKind] = useState<LearningKind>("pages");
   const [title, setTitle] = useState("");
-  const [pages, setPages] = useState("20");
+  const [readingUnit, setReadingUnit] = useState<ReadingUnit>(goal.readingUnit ?? "pages");
+  const [podcastUnit, setPodcastUnit] = useState<PodcastUnit>(goal.podcastUnit ?? "episodes");
+  const [amounts, setAmounts] = useState<Record<LearningUnit, string>>(UNIT_DEFAULT);
   const [date, setDate] = useState(localDate());
   const [win, setWin] = useWin(false, "");
-  const pageCount = Number(pages);
-  const valid = !!title.trim() && (kind !== "pages" || pageCount > 0);
+  const unit: LearningUnit | undefined =
+    kind === "pages" ? readingUnit : kind === "podcast" ? podcastUnit : undefined;
+  const amount = unit ? Number(amounts[unit]) : 1;
+  const valid = !!title.trim() && (!unit || (Number.isInteger(amount) && amount > 0));
 
   const save = () => {
     if (!valid) return;
-    logLearning({ kind, title: title.trim(), amount: kind === "pages" ? pageCount : 1, date });
+    logLearning({ kind, title: title.trim(), amount, ...(unit ? { unit } : {}), date });
     const id = latestLearningId();
     finish({
       message: "Learning logged",
@@ -214,16 +247,37 @@ export function LearningForm() {
           placeholder={kind === "pages" ? "e.g. Go-Givers Sell More" : "e.g. Leadership Hour #45"}
         />
       </Field>
+      {kind === "pages" && (
+        <Field label="Measure by">
+          <UnitToggle
+            label="Measure reading by"
+            options={READING_UNITS}
+            value={readingUnit}
+            onChange={setReadingUnit}
+          />
+        </Field>
+      )}
+      {kind === "podcast" && (
+        <Field label="Measure by">
+          <UnitToggle
+            label="Measure listening by"
+            options={PODCAST_UNITS}
+            value={podcastUnit}
+            onChange={setPodcastUnit}
+          />
+        </Field>
+      )}
       <div className="grid grid-cols-2 gap-3">
-        {kind === "pages" && (
-          <Field label="Pages" htmlFor="log-pages">
+        {unit && (
+          <Field label={UNIT_FIELD[unit]} htmlFor="log-amount">
             <Input
-              id="log-pages"
+              id="log-amount"
               type="number"
               inputMode="numeric"
               min={1}
-              value={pages}
-              onChange={(e) => setPages(e.target.value)}
+              step={1}
+              value={amounts[unit]}
+              onChange={(e) => setAmounts((a) => ({ ...a, [unit]: e.target.value }))}
             />
           </Field>
         )}
