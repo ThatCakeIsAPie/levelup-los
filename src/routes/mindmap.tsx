@@ -29,7 +29,14 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { autoMap } from "@/lib/parseSpreadsheet";
 import { rosterToRows } from "@/lib/demoData";
-import { effectiveBizClass, useCurrentUser, useMe, useVisibleTeam, type CrmPerson } from "@/data";
+import {
+  effectiveBizClass,
+  useCurrentUser,
+  useMe,
+  useMonthPvById,
+  useVisibleTeam,
+  type CrmPerson,
+} from "@/data";
 
 export const Route = createFileRoute("/mindmap")({
   head: () => ({
@@ -57,6 +64,7 @@ function MindmapPage() {
   const user = useCurrentUser();
   const me = useMe();
   const team = useVisibleTeam();
+  const pvById = useMonthPvById();
   const roots = useTreeStore((s) => s.roots);
   const source = useTreeStore((s) => s.source);
   const sourceKey = useTreeStore((s) => s.sourceKey);
@@ -66,12 +74,14 @@ function MindmapPage() {
   // The map is built from the people this user may see (their own downline).
   // Rebuild when that roster changes, unless this user uploaded a spreadsheet.
   const rosterKey = useMemo(
-    () => `${user.personId}#` + team.map((p) => `${p.id}>${p.sponsorId ?? ""}:${p.name}`).join("|"),
-    [team, user.personId],
+    () =>
+      `${user.personId}#` +
+      team.map((p) => `${p.id}>${p.sponsorId ?? ""}:${p.name}:${pvById.get(p.id) ?? 0}`).join("|"),
+    [team, user.personId, pvById],
   );
   const loadRoster = useCallback(
     (keepExpanded: boolean) => {
-      const rows = rosterToRows(team);
+      const rows = rosterToRows(team, (id) => pvById.get(id) ?? 0);
       if (!rows.length) return;
       loadRows(rows, autoMap(Object.keys(rows[0])), {
         source: "roster",
@@ -79,7 +89,7 @@ function MindmapPage() {
         keepExpanded,
       });
     },
-    [team, rosterKey, loadRows],
+    [team, pvById, rosterKey, loadRows],
   );
   useEffect(() => {
     if (source === "upload" && sourceKey === user.personId) return;
