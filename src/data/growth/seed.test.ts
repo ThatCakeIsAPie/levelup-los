@@ -58,7 +58,7 @@ describe("Priya on the demo seed", () => {
     const tenThree = g.milestones.find((m) => m.code === "3_10")!;
     expect(tenThree.reachedOn).toBeNull();
     expect(tenThree.progress?.summary).toBe("2/3 personal sponsors, 2/10 people");
-    expect(g.next?.code).toBe("core_150");
-    expect(g.thisMonth.pv).toBe(25);
+    expect(g.next?.code).toBe("core_300");
+    expect(g.thisMonth.pv).toBe(255);
   });
 });
