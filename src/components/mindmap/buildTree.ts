@@ -70,7 +70,7 @@ function subtreeDescendantCount(node: TreeNode): number {
 /**
  * Normalize the parsed forest:
  *  - Sort children (and roots) by total downline count DESC, tie-break by GPV DESC.
- *  - Assign every person PPV = 300.
+ *  - Keep each person's PPV as given (0 when missing).
  *  - Recompute GPV as the sum of PPV in the subtree (incl. self).
  *  - Stamp memberCount = total nodes in the subtree (incl. self).
  *  - Re-assign sequential IDs in DFS order (post-sort) starting at 1.
@@ -89,9 +89,9 @@ export function normalizeForest(roots: TreeNode[]): TreeNode[] {
   }
   const sortedRoots = sortRec(roots);
 
-  // 2. PPV = 300 for everyone.
+  // 2. Missing PPV counts as 0.
   function setPpv(n: TreeNode) {
-    n.person.ppv = 300;
+    n.person.ppv ??= 0;
     n.children.forEach(setPpv);
   }
   sortedRoots.forEach(setPpv);

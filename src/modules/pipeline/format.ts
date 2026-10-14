@@ -75,3 +75,29 @@ export function ownCards(
   }
   return { mine, mixed: mine + regMine > 0 && others > 0 };
 }
+
+/**
+ * People in the pipeline now: the cards in `bands` (each band's milestone
+ * column and the steps after it), how many are `me`'s, and whether the board
+ * mixes yours with other people's (as in `ownCards`).
+ */
+export function inPipeline(
+  board: PipelineBoard<string>,
+  bands: readonly string[],
+  me: string | null,
+): { total: number; byBand: { band: string; count: number }[]; mine: number; mixed: boolean } {
+  let mine = 0;
+  let others = 0;
+  const byBand = bands.map((band) => {
+    const b = board.bands.find((x) => x.milestone === band);
+    let count = 0;
+    for (const c of b?.columns ?? [])
+      for (const card of c.cards) {
+        count++;
+        if (card.ownerId === me) mine++;
+        else others++;
+      }
+    return { band, count };
+  });
+  return { total: mine + others, byBand, mine, mixed: mine > 0 && others > 0 };
+}

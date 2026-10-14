@@ -6,7 +6,7 @@ import { localDate } from "@/lib/dates";
 import { visibleIdSet, type Viewer } from "../access";
 import { getViewer, useViewer } from "../session";
 import { useVisibleIds } from "../people";
-import { growthPath, hasReachedMilestone, monthPv, type GrowthInput } from "./engine";
+import { growthPath, hasReachedMilestone, monthOfDate, monthPv, type GrowthInput } from "./engine";
 import type { GrowthMilestoneCode, GrowthPath, PvOverride } from "./types";
 
 /** Everything the engine reads, from the stores (non-reactive). */
@@ -85,6 +85,19 @@ export function useMonthPv(
       personId ? monthPv(input, personId, month, today) : { logged: 0, override: null, pv: 0 },
     [input, personId, month, today],
   );
+}
+
+/**
+ * Everyone's PV for the current month (logged sales, or the upline's figure),
+ * by person id. Same numbers as each growth path's "PV this month".
+ */
+export function useMonthPvById(): Map<string, number> {
+  const input = useGrowthInput();
+  const today = localDate();
+  return useMemo(() => {
+    const month = monthOfDate(today);
+    return new Map(input.people.map((p) => [p.id, monthPv(input, p.id, month, today).pv]));
+  }, [input, today]);
 }
 
 /**

@@ -31,6 +31,7 @@ export {
   hasReached,
   useHasReached,
   useMonthPv,
+  useMonthPvById,
   useCanCoach,
   canCoach,
 } from "./hooks";
