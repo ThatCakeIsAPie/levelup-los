@@ -25,7 +25,6 @@ import {
   MAX_ENTRY_NAME,
   MAX_ENTRY_NOTES,
   MAX_HOW_KNOWN,
-  NEW_CONTACT,
   NOT_CONTACTED,
   addCustomerContact,
   addListEntry,
@@ -37,9 +36,8 @@ import {
 
 /** Where "Add someone" can put a new name on the board. */
 const START_IN = [
-  { id: NEW_CONTACT, label: "New contacts (met them just now)" },
+  { id: "contact", label: "Contact (met them or reached out)" },
   { id: NOT_CONTACTED, label: "Not contacted yet (on your list)" },
-  { id: "contact", label: "Contact (already reached out)" },
   { id: "first_meeting", label: "First meeting (already met)" },
 ];
 
@@ -48,7 +46,7 @@ export type EntryDialogMode =
 
 /**
  * Add names to a list (yours or a downline's), add someone straight onto the
- * board ("Add someone": New contacts by default), or edit a name.
+ * board ("Add someone": Contact by default), or edit a name.
  */
 export function ListEntryDialog({
   mode,
@@ -61,7 +59,7 @@ export function ListEntryDialog({
     mode?.kind === "edit" ? "Edit name" : mode?.kind === "board" ? "Add someone" : "Add names";
   const description =
     mode?.kind === "board"
-      ? "They go on your list and onto the board, in New contacts unless you pick another column."
+      ? "They go on your list and onto the board, in Contact unless you pick another column."
       : mode?.kind === "list"
         ? "Everyone you know is a name: friends, family, coworkers, neighbors. Only the name is needed."
         : "Changes show for everyone who can see this list.";
@@ -93,7 +91,7 @@ function EntryForm({ mode, onDone }: { mode: EntryDialogMode; onDone: () => void
   const [email, setEmail] = useState(existing?.email ?? "");
   const [notes, setNotes] = useState(existing?.notes ?? "");
   const [rating, setRating] = useState<ListRating | null>(existing?.rating ?? null);
-  const [column, setColumn] = useState<string>(NEW_CONTACT);
+  const [column, setColumn] = useState<string>("contact");
   const [ownerId, setOwnerId] = useState(
     mode.kind === "list" ? mode.ownerId : (owners.find((o) => o.isMe)?.id ?? ""),
   );

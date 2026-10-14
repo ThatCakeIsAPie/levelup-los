@@ -33,7 +33,6 @@ import {
 } from "./rules";
 import {
   CUSTOMER_BOARD,
-  NEW_CONTACT,
   NOT_CONTACTED,
   type CustomerBand,
   type CustomerCard,
@@ -316,14 +315,15 @@ export function startListEntry(entryId: string): CustomerMoveResult {
 
 /**
  * Board "Add someone": a new name on the list (yours by default) that goes
- * straight to a column, "New contacts" unless another is given.
+ * straight to a column, Contact unless another is given (someone met in the
+ * marketplace is a contact made).
  */
 export function addCustomerContact(
   input: ListEntryInput & { column?: string; nextStep?: string; nextStepDate?: string },
 ): EntryResult {
   const r = addListEntry(input);
   if (!r.ok) return r;
-  const column = input.column ?? NEW_CONTACT;
+  const column = input.column ?? "contact";
   if (column === NOT_CONTACTED) return r;
   const moved = moveCustomerCard(r.entry.id, column, {
     nextStep: clean(input.nextStep),
