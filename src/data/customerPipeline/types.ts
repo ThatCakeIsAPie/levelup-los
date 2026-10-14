@@ -25,7 +25,14 @@
  *    subscription customer (`CrmPerson.dittoSince`). "Do not contact" hides
  *    the linked people from every reminder.
  */
-import type { BoardDef, PipelineStep, StepHide } from "../pipeline/types";
+import {
+  DO_NOT_CONTACT,
+  NOT_CONTACTED,
+  NOT_INTERESTED,
+  type BoardDef,
+  type PipelineStep,
+  type StepHide,
+} from "../pipeline/types";
 
 export type CustomerMilestone = "contact" | "first_meeting" | "first_sale" | "on_ditto";
 /** Board bands: the start columns, the four milestones, the outcomes. */
@@ -52,10 +59,8 @@ export const CUSTOMER_MILESTONE_LABEL: Record<CustomerMilestone, string> = {
   on_ditto: "On Ditto",
 };
 
-/** The fixed start and outcome columns. */
-export const NOT_CONTACTED = "not_contacted";
-export const NOT_INTERESTED = "not_interested";
-export const DO_NOT_CONTACT = "do_not_contact";
+/** The fixed start and outcome columns (the same ids as on the recruiting board). */
+export { DO_NOT_CONTACT, NOT_CONTACTED, NOT_INTERESTED };
 export type FixedCustomerColumn =
   typeof NOT_CONTACTED | typeof NOT_INTERESTED | typeof DO_NOT_CONTACT;
 

@@ -9,21 +9,19 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MILESTONES, MILESTONE_LABEL, type PipelineColumn } from "@/data";
-
-const RECRUITING_BANDS = MILESTONES.map((m) => ({ id: m as string, label: MILESTONE_LABEL[m] }));
+import { RECRUITING_BOARD, type PipelineColumn } from "@/data";
 
 /** "Move to…" menu: every column of the board, grouped by band. */
 export function MoveMenu({
   columns,
-  bands = RECRUITING_BANDS,
+  bands = RECRUITING_BOARD.bands,
   current,
   onMove,
   children,
   align = "end",
 }: {
   columns: PipelineColumn<string>[];
-  /** The board's bands in order (default: the recruiting milestones). */
+  /** The board's bands in order (default: the recruiting board's). */
   bands?: readonly { id: string; label: string }[];
   current: string;
   onMove: (to: string) => void;

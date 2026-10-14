@@ -44,6 +44,7 @@ import {
   validateMove,
 } from "./rules";
 import {
+  NOT_CONTACTED,
   RECRUITING_BOARD,
   type BoardDef,
   type BoardKind,
@@ -53,6 +54,7 @@ import {
   type PipelineColumn,
   type PipelineMove,
   type PipelineStep,
+  type RecruitingBand,
   type StepBand,
   type StepHide,
 } from "./types";
@@ -274,7 +276,8 @@ export function startPipelineCard(
 
 /**
  * Add a prospect from the board: a new person sponsored by `sponsorId`
- * (default you), a "New contact" contact, and a card in `column`.
+ * (default you), a "New contact" contact (not in "Not contacted yet"), and a
+ * card in `column`.
  */
 export function addPipelineProspect(input: {
   name: string;
@@ -297,8 +300,13 @@ export function addPipelineProspect(input: {
     ...(input.phone?.trim() ? { phone: input.phone.trim() } : {}),
     ...(input.source?.trim() ? { notes: `Met: ${input.source.trim()}` } : {}),
   });
-  const contact = logContact({ personId: person.id, date: today, note: "New contact" });
-  const r = createCard(person, me, input.column ?? "contact", {
+  const column = input.column ?? "contact";
+  // Someone not contacted yet has no contact to log.
+  const contact =
+    column === NOT_CONTACTED
+      ? null
+      : logContact({ personId: person.id, date: today, note: "New contact" });
+  const r = createCard(person, me, column, {
     source: input.source?.trim() || null,
     nextStep: input.nextStep?.trim() || null,
     nextStepDate: input.nextStepDate || null,
@@ -308,14 +316,14 @@ export function addPipelineProspect(input: {
     undo: () => {
       if (r) removeMoves([r.move.id]);
       restoreCard(person.id, null);
-      removeContact(contact.id);
+      if (contact) removeContact(contact.id);
       removePerson(person.id);
     },
   };
 }
 
 /** The card's current band for a prospect (Contact made when there's no card). */
-function currentBand(person: CrmPerson): MilestoneCode {
+function currentBand(person: CrmPerson): RecruitingBand {
   const { card } = cardOf(person);
   return bandOf(card.column, pipeline().steps) ?? "contact";
 }

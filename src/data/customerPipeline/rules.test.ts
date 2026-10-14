@@ -125,9 +125,17 @@ describe("the customer board layout", () => {
     expect(ids("4")).not.toContain("sampled");
   });
 
-  it("leaves the recruiting board exactly as it was", () => {
+  it("gives the recruiting board the same fixed columns around its own milestones", () => {
     const cols = columnsFor(chainOf(people, "4"), [], [], RECRUITING_BOARD);
-    expect(cols.map((c) => c.id)).toEqual(["contact", "first_meeting", "first_plan", "registered"]);
+    expect(cols.map((c) => c.id)).toEqual([
+      "not_contacted",
+      "contact",
+      "first_meeting",
+      "first_plan",
+      "registered",
+      "not_interested",
+      "do_not_contact",
+    ]);
     expect(columnsFor(chainOf(people, "4"), [], [])).toEqual(cols);
   });
 
