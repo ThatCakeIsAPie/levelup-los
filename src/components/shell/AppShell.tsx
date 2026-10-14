@@ -4,7 +4,6 @@ import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   Bell,
   BookOpen,
-  Briefcase,
   CalendarDays,
   ChevronsUpDown,
   Contact,
@@ -14,7 +13,7 @@ import {
   Library,
   LockOpen,
   LogOut,
-  Menu,
+  Megaphone,
   MessageCircle,
   Monitor,
   Moon,
@@ -63,14 +62,19 @@ import {
 } from "@/data";
 import { badgeText, useNavAccess } from "./access";
 import {
-  BUSINESS_PATHS,
-  MORE_PATHS,
+  CATEGORY_TAB,
   NAV_SECTIONS,
+  SECTION_LINKS,
   STARTER_NAV,
+  activeCategory,
+  appPath,
   inAny,
+  itemActive,
   underPath,
   type NavBadge,
   type NavItem,
+  type NavLocation,
+  type NavSection,
 } from "./nav";
 import { ResetDemoDialog } from "./ResetDemoDialog";
 import { RouteGuard } from "./RouteGuard";
@@ -81,7 +85,10 @@ const THEME_ICON: Record<ThemePreference, typeof Sun> = { light: Sun, dark: Moon
 /**
  * Logged-in app frame.
  * - lg+ : fixed 212px navy sidebar (logo, grouped nav, user menu) + scrolling main.
- * - <lg : main + bottom tab bar (Home, Chats or Inbox, Log FAB, My business, More).
+ * - <lg : a top bar (logo for Home, Chats, the Inbox, your avatar for More),
+ *   main (with the section links of the category you're in) and the bottom
+ *   tabs: Growth · Customers · Log FAB · Team · Events. The new apprentice
+ *   keeps the short Home · Customers · + · Events · Me tabs and no top bar.
  * Renders the global LogSheet and the reset-demo confirmation once.
  *
  * Pages render inside <main>, which is the scroll container (full height
@@ -93,16 +100,22 @@ const THEME_ICON: Record<ThemePreference, typeof Sun> = { light: Sun, dark: Moon
 export function AppShell({ children }: { children: ReactNode }) {
   const [resetOpen, setResetOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  const { starter } = useNavAccess();
 
   return (
     <div className="flex h-dvh flex-col bg-app lg:pl-[212px]">
       <Sidebar onReset={() => setResetOpen(true)} />
+      {!starter && <TopBar onMore={() => setMoreOpen(true)} />}
       <main
-        className="relative flex min-h-0 flex-1 flex-col overflow-y-auto pt-safe lg:pt-0"
+        className={cn(
+          "relative flex min-h-0 flex-1 flex-col overflow-y-auto lg:pt-0",
+          starter && "pt-safe",
+        )}
         data-scroll-restoration-id="app-main"
         id="main"
       >
         <ApprenticeNotice />
+        {!starter && <SectionLinks />}
         <RouteGuard>{children}</RouteGuard>
       </main>
       {/* Library player: one media element for the app, keeps playing across pages. */}
@@ -142,6 +155,64 @@ const BADGE_LABEL: Record<NavBadge, (n: number) => string> = {
   events: (n) => `${n} ${n === 1 ? "person needs" : "people need"} attention for upcoming events`,
 };
 
+/** Where the app is, for the nav's active states (see itemActive in ./nav). */
+function useNavLocation(): NavLocation {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const tab = useRouterState({
+    select: (s) => {
+      const t = (s.location.search as { tab?: unknown }).tab;
+      return typeof t === "string" ? t : undefined;
+    },
+  });
+  const me = useCurrentUser().personId;
+  return { pathname: appPath(pathname), tab, me };
+}
+
+/**
+ * A nav item's link. The active state comes from itemActive (your profile is
+ * My path, not People; the Customers items are tabs of one page), so the
+ * router's own matching is narrowed to the exact page.
+ */
+function NavItemLink({
+  item,
+  me,
+  active,
+  className,
+  onClick,
+  children,
+}: {
+  item: NavItem;
+  me: string;
+  active: boolean;
+  className?: string;
+  onClick?: () => void;
+  children: ReactNode;
+}) {
+  const common = {
+    className,
+    onClick,
+    activeOptions: { exact: true },
+    "aria-current": active ? ("page" as const) : undefined,
+  };
+  if (item.profile)
+    return (
+      <Link to="/people/$id" params={{ id: me }} {...common}>
+        {children}
+      </Link>
+    );
+  if (item.customersTab !== undefined)
+    return (
+      <Link to="/customers" search={{ tab: item.customersTab ?? undefined }} {...common}>
+        {children}
+      </Link>
+    );
+  return (
+    <Link to={item.to} {...common}>
+      {children}
+    </Link>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Desktop sidebar
 // ---------------------------------------------------------------------------
@@ -160,10 +231,9 @@ function useRoleLine(): string {
 function Sidebar({ onReset }: { onReset: () => void }) {
   const counts = useBadgeCounts();
   const { unlocks, starter } = useNavAccess();
+  const loc = useNavLocation();
   const shown = (i: NavItem) => unlocks.can[i.area];
-  const sections = starter
-    ? [{ label: undefined, labelTo: undefined, items: STARTER_NAV }]
-    : NAV_SECTIONS;
+  const sections: NavSection[] = starter ? [{ items: STARTER_NAV }] : NAV_SECTIONS;
   const base =
     "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium text-sidebar-fg transition-colors hover:bg-sidebar-active hover:text-white focus-visible:outline-2 focus-visible:outline-ring";
   const label =
@@ -179,32 +249,20 @@ function Sidebar({ onReset }: { onReset: () => void }) {
       <div className="-mx-1 flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-1">
         {sections.map((section, si) => {
           const items = section.items.filter(shown);
+          if (!items.length) return null;
           return (
             <div key={si} className="grid gap-1" role="group" aria-label={section.label}>
-              {section.label &&
-                (section.labelTo ? (
-                  <Link
-                    to={section.labelTo}
-                    className={cn(label, "rounded-lg hover:text-white")}
-                    activeProps={{ className: "!text-white", "aria-current": "page" }}
-                  >
-                    {section.label}
-                  </Link>
-                ) : (
-                  <span className={label}>{section.label}</span>
-                ))}
+              {section.label && <span className={label}>{section.label}</span>}
               {items.map((item) => {
                 const n = item.badge ? counts[item.badge] : 0;
+                const active = itemActive(item, loc);
                 return (
-                  <Link
-                    key={item.to}
-                    to={item.to}
-                    activeOptions={{ exact: !!item.exact }}
-                    className={base}
-                    activeProps={{
-                      className: "bg-sidebar-active !text-white font-semibold",
-                      "aria-current": "page",
-                    }}
+                  <NavItemLink
+                    key={item.label}
+                    item={item}
+                    me={loc.me}
+                    active={active}
+                    className={cn(base, active && "bg-sidebar-active font-semibold !text-white")}
                   >
                     <item.icon className="size-4 shrink-0" aria-hidden="true" />
                     {item.label}
@@ -216,7 +274,7 @@ function Sidebar({ onReset }: { onReset: () => void }) {
                         {badgeText(n)}
                       </span>
                     )}
-                  </Link>
+                  </NavItemLink>
                 );
               })}
             </div>
@@ -327,91 +385,194 @@ function TabIcon({ icon: Icon, count = 0 }: { icon: LucideIcon; count?: number }
 /** Paths that light up the new apprentice's "Me" tab. */
 const ME_PATHS = ["/wallet", "/settings", "/learning", "/library", "/inbox", "/chats"];
 
+const TAB =
+  "grid justify-items-center gap-[3px] whitespace-nowrap rounded-lg py-1 text-[10.5px] font-semibold text-faint focus-visible:outline-2 focus-visible:outline-ring";
+const TAB_ON = { className: "!text-primary", "aria-current": "page" as const };
+
+/** The round Log button in the middle of the tab bar. */
+function LogFab() {
+  return (
+    <div className="grid justify-items-center">
+      <button
+        type="button"
+        onClick={() => openLog()}
+        aria-label="Log learning, a check-in, a contact or a sale"
+        className="-mt-7 grid size-[50px] place-items-center rounded-full bg-primary text-primary-foreground shadow-[0_6px_16px_rgba(6,119,129,.35)] transition-transform active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+      >
+        <Plus className="size-6" aria-hidden="true" />
+      </button>
+    </div>
+  );
+}
+
+const TAB_BAR =
+  "relative z-30 grid shrink-0 items-center border-t border-line bg-surface px-1.5 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] lg:hidden";
+
 function TabBar({ onMore }: { onMore: () => void }) {
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const { starter } = useNavAccess();
+  return starter ? <StarterTabBar onMore={onMore} /> : <CategoryTabBar />;
+}
+
+/**
+ * Phone tabs: the four sides of the business with the Log button in the
+ * middle. A tab opens the first page of its category you have unlocked and
+ * lights up anywhere in that category. The Log button stays centered: a
+ * missing tab (a candidate has no customers) leaves an empty slot.
+ */
+function CategoryTabBar() {
+  const counts = useBadgeCounts();
+  const { unlocks } = useNavAccess();
+  const loc = useNavLocation();
+  const current = activeCategory(loc);
+  const tabs = NAV_SECTIONS.flatMap((s) => {
+    const first = s.category ? s.items.find((i) => unlocks.can[i.area]) : undefined;
+    return s.category && first ? [{ category: s.category, first }] : [];
+  });
+  const cells: ReactNode[] = tabs.map(({ category, first }) => {
+    const { label, icon } = CATEGORY_TAB[category];
+    const on = current === category;
+    const count = category === "events" ? counts.events : 0;
+    return (
+      <NavItemLink
+        key={category}
+        item={first}
+        me={loc.me}
+        active={on}
+        className={cn(TAB, on && "!text-primary")}
+      >
+        <TabIcon icon={icon} count={count} />
+        {label}
+        {count > 0 && <span className="sr-only">, {BADGE_LABEL.events(count)}</span>}
+      </NavItemLink>
+    );
+  });
+  const left = cells.slice(0, 2);
+  const right = cells.slice(2, 4);
+  const gap = (key: string) => <span key={key} aria-hidden="true" />;
+  while (left.length < 2) left.unshift(gap(`gap-l${left.length}`));
+  while (right.length < 2) right.push(gap(`gap-r${right.length}`));
+  return (
+    <nav aria-label="Main" className={cn(TAB_BAR, "grid-cols-5")}>
+      {left}
+      <LogFab />
+      {right}
+    </nav>
+  );
+}
+
+/** The new apprentice's tabs: Home · Customers · + · Events · Me. */
+function StarterTabBar({ onMore }: { onMore: () => void }) {
+  const pathname = appPath(useRouterState({ select: (s) => s.location.pathname }));
   const counts = useBadgeCounts();
   const user = useCurrentUser();
-  const { unlocks, canChat, starter } = useNavAccess();
   const meActive = inAny(pathname, ME_PATHS) || underPath(pathname, `/people/${user.personId}`);
-  const businessActive = inAny(pathname, BUSINESS_PATHS);
-  const moreActive = inAny(pathname, MORE_PATHS);
-  const tab =
-    "grid justify-items-center gap-[3px] whitespace-nowrap rounded-lg py-1 text-[10.5px] font-semibold text-faint focus-visible:outline-2 focus-visible:outline-ring";
-  const on = { className: "!text-primary", "aria-current": "page" as const };
   return (
-    <nav
-      aria-label="Main"
-      className="relative z-30 grid shrink-0 grid-cols-5 items-center border-t border-line bg-surface px-1.5 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] lg:hidden"
-    >
-      <Link to="/" activeOptions={{ exact: true }} className={tab} activeProps={on}>
+    <nav aria-label="Main" className={cn(TAB_BAR, "grid-cols-5")}>
+      <Link to="/" activeOptions={{ exact: true }} className={TAB} activeProps={TAB_ON}>
         <TabIcon icon={House} />
         Home
       </Link>
-      {starter ? (
-        <Link to="/customers" className={tab} activeProps={on}>
-          <TabIcon icon={Contact} />
-          Customers
-        </Link>
-      ) : canChat ? (
-        <Link to="/chats" className={tab} activeProps={on}>
+      <Link to="/customers" className={TAB} activeProps={TAB_ON}>
+        <TabIcon icon={Contact} />
+        Customers
+      </Link>
+      <LogFab />
+      <Link to="/events" className={TAB} activeProps={TAB_ON}>
+        <TabIcon icon={CalendarDays} count={counts.events} />
+        Events
+        {counts.events > 0 && (
+          <span className="sr-only">, {BADGE_LABEL.events(counts.events)}</span>
+        )}
+      </Link>
+      <button
+        type="button"
+        onClick={onMore}
+        className={cn(TAB, meActive && "text-primary")}
+        aria-haspopup="dialog"
+      >
+        <TabIcon icon={User} />
+        Me
+      </button>
+    </nav>
+  );
+}
+
+/** Phone top bar: the logo (Home), Chats, the Inbox and your avatar (the More sheet). */
+function TopBar({ onMore }: { onMore: () => void }) {
+  const user = useCurrentUser();
+  const me = useMe();
+  const counts = useBadgeCounts();
+  const { unlocks, canChat } = useNavAccess();
+  const icon =
+    "grid size-10 place-items-center rounded-full text-muted-foreground hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-ring";
+  const iconOn = { className: "!text-primary bg-primary-soft", "aria-current": "page" as const };
+  return (
+    <header className="relative z-20 flex shrink-0 items-center gap-1 border-b border-line bg-surface px-3 pt-safe lg:hidden">
+      <Link to="/" aria-label="Home" className="mr-auto rounded-lg py-2 pr-2 text-foreground">
+        <Logo wordmark />
+      </Link>
+      {canChat && (
+        <Link to="/chats" className={icon} activeProps={iconOn} aria-label="Chats">
           <TabIcon icon={MessageCircle} count={counts.chats} />
-          Chats
           {counts.chats > 0 && <span className="sr-only">, {BADGE_LABEL.chats(counts.chats)}</span>}
         </Link>
-      ) : unlocks.can.inbox ? (
-        <Link to="/inbox" className={tab} activeProps={on}>
-          <TabIcon icon={Bell} count={counts.inbox} />
-          Inbox
-          {counts.inbox > 0 && <span className="sr-only">, {BADGE_LABEL.inbox(counts.inbox)}</span>}
-        </Link>
-      ) : unlocks.can.customers ? (
-        <Link to="/customers" className={tab} activeProps={on}>
-          <TabIcon icon={Contact} />
-          Customers
-        </Link>
-      ) : (
-        <Link to="/events" className={tab} activeProps={on}>
-          <TabIcon icon={CalendarDays} count={counts.events} />
-          Events
-        </Link>
       )}
-      <div className="grid justify-items-center">
-        <button
-          type="button"
-          onClick={() => openLog()}
-          aria-label="Log learning, a check-in, a contact or a sale"
-          className="-mt-7 grid size-[50px] place-items-center rounded-full bg-primary text-primary-foreground shadow-[0_6px_16px_rgba(6,119,129,.35)] transition-transform active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-        >
-          <Plus className="size-6" aria-hidden="true" />
-        </button>
-      </div>
-      {starter ? (
-        <Link to="/events" className={tab} activeProps={on}>
-          <TabIcon icon={CalendarDays} count={counts.events} />
-          Events
-          {counts.events > 0 && (
-            <span className="sr-only">, {BADGE_LABEL.events(counts.events)}</span>
-          )}
-        </Link>
-      ) : (
-        <Link
-          to="/business"
-          className={cn(tab, businessActive && "text-primary")}
-          aria-current={businessActive ? "page" : undefined}
-        >
-          <TabIcon icon={Briefcase} />
-          My business
+      {unlocks.can.inbox && (
+        <Link to="/inbox" className={icon} activeProps={iconOn} aria-label="Inbox">
+          <TabIcon icon={Bell} count={counts.inbox} />
+          {counts.inbox > 0 && <span className="sr-only">, {BADGE_LABEL.inbox(counts.inbox)}</span>}
         </Link>
       )}
       <button
         type="button"
         onClick={onMore}
-        className={cn(tab, (starter ? meActive : moreActive) && "text-primary")}
         aria-haspopup="dialog"
+        aria-label="More: your profile, reports and settings"
+        className="ml-1 rounded-full focus-visible:outline-2 focus-visible:outline-ring"
       >
-        <TabIcon icon={starter ? User : Menu} />
-        {starter ? "Me" : "More"}
+        <PersonAvatar name={user.name} stage={me?.bizClass ?? "ibo"} />
       </button>
+    </header>
+  );
+}
+
+/**
+ * Phone links between the pages of the category you're in (Learning ·
+ * Library · My path; Pipeline · Team map · People; Events · Wallet), above
+ * the page. Customers has its own tabs; a category with one page shows none.
+ */
+function SectionLinks() {
+  const { unlocks } = useNavAccess();
+  const loc = useNavLocation();
+  const category = activeCategory(loc);
+  const section = NAV_SECTIONS.find((s) => s.category === category);
+  if (!category || !section || !SECTION_LINKS.includes(category)) return null;
+  const items = section.items.filter((i) => unlocks.can[i.area]);
+  if (items.length < 2) return null;
+  return (
+    <nav
+      aria-label={section.label}
+      className="flex shrink-0 gap-1.5 overflow-x-auto px-4 pt-3 [scrollbar-width:none] lg:hidden [&::-webkit-scrollbar]:hidden"
+    >
+      {items.map((item) => {
+        const active = itemActive(item, loc);
+        return (
+          <NavItemLink
+            key={item.label}
+            item={item}
+            me={loc.me}
+            active={active}
+            className={cn(
+              "whitespace-nowrap rounded-full border px-3 py-1.5 text-[12.5px] font-semibold focus-visible:outline-2 focus-visible:outline-ring",
+              active
+                ? "border-primary bg-primary-soft text-primary-ink"
+                : "border-line bg-surface text-muted-foreground",
+            )}
+          >
+            {item.short ?? item.label}
+          </NavItemLink>
+        );
+      })}
     </nav>
   );
 }
@@ -430,8 +591,9 @@ function MoreSheet({
   const roleLine = useRoleLine();
   const { unlocks, canManageTeam, canChat, starter } = useNavAccess();
   const counts = useBadgeCounts();
-  // The inbox has its own tab unless Chats (or the starter tabs) take that place.
-  const inboxHere = unlocks.can.inbox && (canChat || starter);
+  // Everyone else has Chats and the Inbox in the top bar, and Learning and the
+  // Library under the Growth tab; the new apprentice finds them here.
+  const inboxHere = unlocks.can.inbox && starter;
   const close = () => onOpenChange(false);
   const row =
     "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-semibold hover:bg-surface-2";
@@ -479,11 +641,13 @@ function MoreSheet({
               )}
             </Link>
           )}
-          <Link to="/learning" onClick={close} className={row} activeProps={rowOn}>
-            <BookOpen className={icon} aria-hidden="true" />
-            Learning
-          </Link>
-          {unlocks.can.library && (
+          {starter && (
+            <Link to="/learning" onClick={close} className={row} activeProps={rowOn}>
+              <BookOpen className={icon} aria-hidden="true" />
+              Learning
+            </Link>
+          )}
+          {starter && unlocks.can.library && (
             <Link to="/library" onClick={close} className={row} activeProps={rowOn}>
               <Library className={icon} aria-hidden="true" />
               Library
@@ -499,6 +663,12 @@ function MoreSheet({
             <Link to="/reports" onClick={close} className={row} activeProps={rowOn}>
               <FileBarChart className={icon} aria-hidden="true" />
               Reports
+            </Link>
+          )}
+          {!starter && unlocks.can.campaigns && (
+            <Link to="/campaigns" onClick={close} className={row} activeProps={rowOn}>
+              <Megaphone className={icon} aria-hidden="true" />
+              Campaigns
             </Link>
           )}
           <Link
