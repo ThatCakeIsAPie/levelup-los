@@ -33,7 +33,12 @@ import {
   normalizeItem,
   parseGoalItems,
 } from "@/data/weeklyGoal";
-import type { GrowthMilestoneCode, MilestoneMark, PvOverride } from "@/data/growth/types";
+import type {
+  GrowthMilestoneCode,
+  MilestoneHistory,
+  MilestoneMark,
+  PvOverride,
+} from "@/data/growth/types";
 import type { Campaign, Logistics, Payment, ReportSchedule, SharedCost } from "@/stores/opsStore";
 import type { ActivityEvent } from "@/stores/activityStore";
 import type {
@@ -468,6 +473,31 @@ export function milestoneMarkToRow(k: MilestoneMark): Row {
     marked_by: nul(k.markedBy),
     marked_at: k.markedAt,
     note: nul(k.note),
+  };
+}
+
+// Milestone history the app records (the database keeps the earlier first
+// day and the later last day, and stamps who recorded it and when).
+
+export function milestoneHistoryFromRow(r: R<"milestone_history">): MilestoneHistory {
+  return {
+    personId: r.person_id!,
+    code: r.code as GrowthMilestoneCode,
+    firstReachedOn: r.first_reached_on ?? "",
+    lastMetOn: r.last_met_on ?? "",
+    recordedBy: opt(r.recorded_by),
+    recordedAt: isoOr(r.recorded_at),
+  };
+}
+
+export function milestoneHistoryToRow(h: MilestoneHistory): Row {
+  return {
+    person_id: h.personId,
+    code: h.code,
+    first_reached_on: h.firstReachedOn,
+    last_met_on: h.lastMetOn,
+    recorded_by: nul(h.recordedBy),
+    recorded_at: h.recordedAt,
   };
 }
 

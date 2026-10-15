@@ -179,6 +179,7 @@ export function closeRemoteSession(cancelLoading = true): void {
       goals: {},
       pvOverrides: [],
       milestoneMarks: [],
+      milestoneHistory: [],
     });
     useOpsStore.setState({ logistics: {}, costs: [], payments: {}, campaigns: [], schedules: [] });
     useActivityStore.setState({ events: [] });

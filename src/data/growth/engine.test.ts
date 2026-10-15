@@ -2,18 +2,29 @@ import { describe, expect, it } from "vitest";
 import type { CrmPerson } from "@/stores/peopleStore";
 import type { Sale } from "@/stores/crmStore";
 import {
+  addMonths,
   growthPath,
-  hasReachedMilestone,
+  hasEverReachedMilestone,
+  historyUpdates,
+  isMilestoneHeld,
   isPersonalOrder,
+  lastDayOf,
   monthPv,
   registeredOn,
   saleSellerId,
   type GrowthInput,
 } from "./engine";
-import { GROWTH_MILESTONES, growthIndex, growthLabel, isGrowthCode } from "./milestones";
+import {
+  GROWTH_MILESTONES,
+  growthHold,
+  growthIndex,
+  growthLabel,
+  isGrowthCode,
+} from "./milestones";
 import {
   GROWTH_CODES,
   type GrowthMilestoneCode,
+  type MilestoneHistory,
   type MilestoneMark,
   type PvOverride,
 } from "./types";
@@ -72,14 +83,18 @@ function input(
   sales: Sale[] = [],
   overrides: PvOverride[] = [],
   marks: MilestoneMark[] = [],
+  history: MilestoneHistory[] = [],
 ): GrowthInput {
-  return { people, sales, overrides, marks };
+  return { people, sales, overrides, marks, history };
 }
 
 const statusOf = (inp: GrowthInput, id: string, code: GrowthMilestoneCode, today = TODAY) =>
   growthPath(inp, id, today).milestones.find((m) => m.code === code)!;
+/** The first day it was ever reached (history; not whether it's held now). */
 const reachedOn = (inp: GrowthInput, id: string, code: GrowthMilestoneCode, today = TODAY) =>
-  statusOf(inp, id, code, today).reachedOn;
+  statusOf(inp, id, code, today).firstReachedOn;
+const stateOf = (inp: GrowthInput, id: string, code: GrowthMilestoneCode, today = TODAY) =>
+  statusOf(inp, id, code, today).state;
 
 /** `n` registered people under `sponsorId`, ids `${prefix}1..n`, registered on `start`. */
 function frontline(prefix: string, sponsorId: string, n: number, start: string): CrmPerson[] {
@@ -108,6 +123,33 @@ describe("milestone list", () => {
     expect(growthLabel("platinum")).toBe("7,500 Platinum");
     expect(isGrowthCode("ruby")).toBe(true);
     expect(isGrowthCode("diamond")).toBe(false);
+  });
+
+  it("each milestone has its hold class: permanent, live (headcount) or monthly (volume)", () => {
+    const by = (hold: string) =>
+      GROWTH_MILESTONES.filter((m) => m.hold === hold).map((m) => m.code);
+    expect(by("permanent")).toEqual(["new_apprentice", "first_sale", "first_sponsor"]);
+    expect(by("live")).toEqual(["3_10", "6_25", "6_50", "12_100"]);
+    expect(by("monthly")).toEqual([
+      "core_150",
+      "core_300",
+      "bronze_foundation",
+      "bronze_builder",
+      "platinum",
+      "ruby",
+    ]);
+    expect(growthHold("ruby")).toBe("monthly");
+    expect(growthHold("6_50")).toBe("live");
+  });
+
+  it("month arithmetic crosses year ends", () => {
+    expect(addMonths("2026-01", -1)).toBe("2025-12");
+    expect(addMonths("2025-12", 1)).toBe("2026-01");
+    expect(addMonths("2026-10", -13)).toBe("2025-09");
+    expect(addMonths("2026-10", 0)).toBe("2026-10");
+    expect(lastDayOf("2024-02")).toBe("2024-02-29");
+    expect(lastDayOf("2026-02")).toBe("2026-02-28");
+    expect(lastDayOf("2025-12")).toBe("2025-12-31");
   });
 });
 
@@ -199,11 +241,18 @@ describe("Core 150 and Core 300 (personal PV in one calendar month)", () => {
     expect(reachedOn(inp, "a", "core_150")).toBeNull();
   });
 
-  it("stays reached after a quiet month, with this month's progress for Core 300", () => {
+  it("after quiet months the first date stays as history, but it isn't held; Core 300 shows this month", () => {
     const inp = input(people, [sale("c", "2026-05-12", 160), sale("c", "2026-10-02", 95)]);
     expect(reachedOn(inp, "a", "core_150")).toBe("2026-05-12");
+    expect(statusOf(inp, "a", "core_150")).toMatchObject({
+      state: "lost",
+      held: false,
+      lastMetOn: "2026-05-12",
+      heldVia: null,
+    });
+    expect(statusOf(inp, "a", "core_150").progress?.summary).toBe("95 / 150 PV this month");
     const core300 = statusOf(inp, "a", "core_300");
-    expect(core300.reachedOn).toBeNull();
+    expect(core300.firstReachedOn).toBeNull();
     expect(core300.progress?.summary).toBe("95 / 300 PV this month");
     expect(core300.progress?.parts[0]).toMatchObject({ current: 95, target: 300 });
     expect(core300.progress?.best).toEqual({ month: "2026-05", value: 160 });
@@ -452,9 +501,11 @@ describe("hand marks and the path", () => {
       [mark("a", "core_150", "2024-03-01"), mark("a", "core_300", "2024-05-01")],
     );
     expect(statusOf(inp, "a", "core_150")).toMatchObject({
-      reachedOn: "2024-03-01",
+      firstReachedOn: "2024-03-01",
       source: "manual",
       autoOn: "2026-02-10",
+      // A mark on a volume milestone is history: February is neither this month nor last.
+      state: "lost",
     });
     const later = input(
       people,
@@ -463,7 +514,7 @@ describe("hand marks and the path", () => {
       [mark("a", "core_150", "2024-03-01")],
     );
     expect(statusOf(later, "a", "core_150")).toMatchObject({
-      reachedOn: "2024-02-10",
+      firstReachedOn: "2024-02-10",
       source: "auto",
     });
     expect(statusOf(later, "a", "core_150").mark?.markedBy).toBe("boss");
@@ -474,7 +525,8 @@ describe("hand marks and the path", () => {
     const g = growthPath(inp, "a", TODAY);
     expect(g.next?.code).toBe("first_sale");
     expect(g.nextIndex).toBe(1);
-    expect(statusOf(inp, "a", "first_sponsor").reachedOn).toBe("2026-02-01");
+    expect(statusOf(inp, "a", "first_sponsor").firstReachedOn).toBe("2026-02-01");
+    expect(statusOf(inp, "a", "first_sponsor").held).toBe(true);
     expect(g.latest?.code).toBe("first_sponsor");
     expect(g.workingDays).toBe(285); // since New apprentice (2026-01-01)
   });
@@ -490,25 +542,55 @@ describe("hand marks and the path", () => {
     expect(by("first_sale").daysTaken).toBe(10);
     expect(by("core_150").daysTaken).toBe(53);
     expect(by("first_sponsor").daysTaken).toBeNull(); // before Core 150
-    expect(by("core_150").progress).toBeNull();
-    expect(g.next?.code).toBe("core_300");
+    // Core 150 was met in March: history now, and the path's next goal again.
+    expect(by("core_150").state).toBe("lost");
+    expect(g.next?.code).toBe("core_150");
+    expect(g.workingDays).toBeNull(); // being earned again, not new
   });
 
-  it("hasReachedMilestone answers for one milestone", () => {
-    const inp = input([ibo("a", null, "2026-01-01"), ibo("b", "a", "2026-02-01")]);
-    expect(hasReachedMilestone(inp, "a", "first_sponsor", TODAY)).toBe(true);
-    expect(hasReachedMilestone(inp, "a", "3_10", TODAY)).toBe(false);
-    expect(hasReachedMilestone(inp, "b", "first_sponsor", TODAY)).toBe(false);
-    expect(hasReachedMilestone(inp, "nobody", "new_apprentice", TODAY)).toBe(false);
+  it("hasEverReachedMilestone and isMilestoneHeld answer for one milestone", () => {
+    const inp = input(
+      [ibo("a", null, "2026-01-01"), ibo("b", "a", "2026-02-01"), customer("c", "a")],
+      [sale("c", "2026-05-05", 200)],
+    );
+    expect(hasEverReachedMilestone(inp, "a", "first_sponsor", TODAY)).toBe(true);
+    expect(isMilestoneHeld(inp, "a", "first_sponsor", TODAY)).toBe(true);
+    expect(hasEverReachedMilestone(inp, "a", "core_150", TODAY)).toBe(true);
+    expect(isMilestoneHeld(inp, "a", "core_150", TODAY)).toBe(false);
+    expect(hasEverReachedMilestone(inp, "a", "3_10", TODAY)).toBe(false);
+    expect(hasEverReachedMilestone(inp, "b", "first_sponsor", TODAY)).toBe(false);
+    expect(hasEverReachedMilestone(inp, "nobody", "new_apprentice", TODAY)).toBe(false);
+    expect(isMilestoneHeld(inp, "nobody", "new_apprentice", TODAY)).toBe(false);
   });
 
-  it("with everything reached there is no next milestone", () => {
+  it("marks alone hold only the permanent milestones", () => {
     const marks = GROWTH_CODES.map((code) => mark("a", code, "2025-01-01"));
     const g = growthPath(input([ibo("a", null, "2024-01-01")], [], [], marks), "a", TODAY);
+    expect(g.milestones.filter((m) => m.held).map((m) => m.code)).toEqual([
+      "new_apprentice",
+      "first_sale",
+      "first_sponsor",
+    ]);
+    expect(g.milestones.every((m) => m.firstReachedOn !== null)).toBe(true);
+    expect(g.next?.code).toBe("core_150");
+    expect(g.next?.state).toBe("lost");
+    expect(g.latest?.code).toBe("first_sponsor");
+  });
+
+  it("with everything held there is no next milestone", () => {
+    // 12 frontline, 100 people, 15,900 group PV this month, 300 of it a's own.
+    const people = [ibo("a", null, "2020-01-01"), customer("c", "a")];
+    people.push(...frontline("f", "a", 12, "2021-01-01"));
+    for (let i = 0; i < 88; i++) people.push(ibo(`g${i}`, `f${(i % 12) + 1}`, "2022-01-01"));
+    const sales = [sale("c", "2026-10-02", 300)];
+    for (let i = 1; i <= 12; i++) sales.push(sale(`f${i}`, "2026-10-05", 1300));
+    const g = growthPath(input(people, sales), "a", TODAY);
+    expect(g.milestones.every((m) => m.held)).toBe(true);
     expect(g.nextIndex).toBe(-1);
     expect(g.next).toBeNull();
     expect(g.latest?.code).toBe("12_100");
     expect(g.workingDays).toBeNull();
+    expect(g.keepUp).toEqual([]);
   });
 
   it("recomputes when the data changes (no stale cache)", () => {
@@ -520,5 +602,392 @@ describe("hand marks and the path", () => {
     expect(reachedOn(b, "a", "core_150")).toBe("2026-10-05");
     // A different day is a different answer too.
     expect(growthPath(b, "a", "2026-10-31").thisMonth.daysLeft).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Held now vs. history: the three hold classes
+// ---------------------------------------------------------------------------
+
+/** a (registered 2025-01-01) at 3/10: three frontline, the 10th person (d7) registered 2025-05-10. */
+const tenPeople = (): CrmPerson[] => [
+  ibo("a", null, "2025-01-01"),
+  customer("c", "a"),
+  ...frontline("f", "a", 3, "2025-02-01"),
+  ...Array.from({ length: 6 }, (_, i) => ibo(`d${i + 1}`, "f1", "2025-04-01")),
+  ibo("d7", "f2", "2025-05-10"),
+];
+/** This month: a's own 300 and three legs at 300 (Core 150/300 and Bronze foundation held, not Bronze builder). */
+const october = (): Sale[] => [
+  sale("c", "2026-10-02", 300),
+  sale("f1", "2026-10-03", 300),
+  sale("f2", "2026-10-03", 300),
+  sale("f3", "2026-10-03", 300),
+];
+const recorded = (rows: ReturnType<typeof historyUpdates>, at = "2026-06-15T10:00:00.000Z") =>
+  rows.map((r) => ({ ...r, recordedAt: at, recordedBy: "a" }));
+
+describe("headcount milestones are live", () => {
+  const dropped = () => tenPeople().filter((p) => p.id !== "d7");
+
+  it("held while the numbers meet them", () => {
+    expect(statusOf(input(tenPeople()), "a", "3_10")).toMatchObject({
+      hold: "live",
+      state: "held",
+      held: true,
+      firstReachedOn: "2025-05-10",
+      source: "auto",
+      lastMetOn: TODAY,
+      heldVia: null,
+      heldUntil: null,
+      progress: null,
+    });
+  });
+
+  it("dropping below un-holds them; with nothing recorded the data can't tell they were met", () => {
+    const s = statusOf(input(dropped()), "a", "3_10");
+    expect(s.state).toBe("never");
+    expect(s.progress?.summary).toBe("3/3 personal sponsors, 9/10 people");
+  });
+
+  it("with the history the app recorded, a drop keeps the first date: earned before, earn it again", () => {
+    const rows = historyUpdates(input(tenPeople()), ["a"], "2026-06-15");
+    expect(rows).toEqual([
+      {
+        personId: "a",
+        code: "first_sponsor",
+        firstReachedOn: "2025-02-01",
+        lastMetOn: "2026-06-15",
+      },
+      { personId: "a", code: "3_10", firstReachedOn: "2025-05-10", lastMetOn: "2026-06-15" },
+    ]);
+    const after = input(dropped(), october(), [], [], recorded(rows));
+    expect(statusOf(after, "a", "3_10")).toMatchObject({
+      state: "lost",
+      held: false,
+      firstReachedOn: "2025-05-10",
+      source: "auto",
+      lastMetOn: "2026-06-15",
+    });
+    const g = growthPath(after, "a", TODAY);
+    // Everything before it is held, so 3/10 is the goal again, with its numbers.
+    expect(g.next?.code).toBe("3_10");
+    expect(g.next?.progress?.summary).toBe("3/3 personal sponsors, 9/10 people");
+    expect(g.workingDays).toBeNull();
+    expect(g.latest?.code).toBe("bronze_foundation");
+  });
+
+  it("re-earned when the numbers are back; the first date stays the first", () => {
+    const rows = recorded(historyUpdates(input(tenPeople()), ["a"], "2026-06-15"));
+    const back = input([...dropped(), ibo("d8", "f3", "2026-10-10")], october(), [], [], rows);
+    expect(statusOf(back, "a", "3_10")).toMatchObject({
+      state: "held",
+      firstReachedOn: "2025-05-10",
+      lastMetOn: TODAY,
+    });
+    // Without the record the first date would be the re-earn day.
+    expect(reachedOn(input([...dropped(), ibo("d8", "f3", "2026-10-10")]), "a", "3_10")).toBe(
+      "2026-10-10",
+    );
+  });
+
+  it("First sponsor is permanent: recorded once, it stays when the sponsor leaves", () => {
+    const rows = recorded(historyUpdates(input(tenPeople()), ["a"], "2026-06-15"));
+    const alone = input([ibo("a", null, "2025-01-01")], [], [], [], rows);
+    expect(statusOf(alone, "a", "first_sponsor")).toMatchObject({
+      state: "held",
+      firstReachedOn: "2025-02-01",
+    });
+  });
+});
+
+describe("recording history (historyUpdates)", () => {
+  const rec = (code: GrowthMilestoneCode, first: string, last: string): MilestoneHistory => ({
+    personId: "a",
+    code,
+    firstReachedOn: first,
+    lastMetOn: last,
+    recordedAt: "2026-10-01T10:00:00.000Z",
+  });
+
+  it("writes nothing new once recorded this month", () => {
+    const history = [
+      rec("first_sponsor", "2025-02-01", "2026-10-01"),
+      rec("3_10", "2025-05-10", "2026-10-02"),
+    ];
+    expect(historyUpdates(input(tenPeople(), [], [], [], history), ["a"], TODAY)).toEqual([]);
+  });
+
+  it("refreshes the last-met day once a month and keeps the earlier first day", () => {
+    const history = [
+      rec("first_sponsor", "2025-02-01", "2026-10-01"),
+      rec("3_10", "2024-12-01", "2026-09-30"),
+    ];
+    expect(historyUpdates(input(tenPeople(), [], [], [], history), ["a"], TODAY)).toEqual([
+      { personId: "a", code: "3_10", firstReachedOn: "2024-12-01", lastMetOn: TODAY },
+    ]);
+  });
+
+  it("moves the first day earlier when the data shows an earlier one", () => {
+    const history = [
+      rec("first_sponsor", "2025-02-01", "2026-10-01"),
+      rec("3_10", "2025-08-01", "2026-10-01"),
+    ];
+    expect(historyUpdates(input(tenPeople(), [], [], [], history), ["a"], TODAY)).toEqual([
+      { personId: "a", code: "3_10", firstReachedOn: "2025-05-10", lastMetOn: TODAY },
+    ]);
+  });
+
+  it("only registered people, only count milestones met now", () => {
+    const people = [...tenPeople(), prospect("p", "a")];
+    const sales = [sale("c", "2026-10-02", 900)];
+    expect(historyUpdates(input(people, sales), ["p", "nobody", "f1"], TODAY)).toEqual([
+      { personId: "f1", code: "first_sponsor", firstReachedOn: "2025-04-01", lastMetOn: TODAY },
+    ]);
+  });
+});
+
+describe("volume milestones are held for the month after", () => {
+  const people = [ibo("a", null, "2025-01-01"), customer("c", "a")];
+  const september = input(people, [sale("c", "2026-09-20", 200)]);
+
+  it("met last month: held through the end of this month, with a heads-up and this month's numbers", () => {
+    const s = statusOf(september, "a", "core_150", "2026-10-13");
+    expect(s).toMatchObject({
+      hold: "monthly",
+      state: "held",
+      held: true,
+      heldVia: "last_month",
+      heldUntil: "2026-10-31",
+      firstReachedOn: "2026-09-20",
+      lastMetOn: "2026-09-20",
+    });
+    expect(s.progress?.summary).toBe("0 / 150 PV this month");
+    expect(growthPath(september, "a", "2026-10-13").keepUp.map((k) => k.code)).toEqual([
+      "core_150",
+    ]);
+    expect(isMilestoneHeld(september, "a", "core_150", "2026-10-31")).toBe(true);
+  });
+
+  it("falls back on the 1st of the month after unless met again", () => {
+    expect(statusOf(september, "a", "core_150", "2026-11-01")).toMatchObject({
+      state: "lost",
+      held: false,
+      heldVia: null,
+      heldUntil: null,
+      firstReachedOn: "2026-09-20",
+      lastMetOn: "2026-09-20",
+    });
+    const g = growthPath(september, "a", "2026-11-01");
+    expect(g.keepUp).toEqual([]);
+    expect(g.next?.code).toBe("core_150");
+    expect(hasEverReachedMilestone(september, "a", "core_150", "2026-11-01")).toBe(true);
+  });
+
+  it("met again: held from that day through the end of the next month", () => {
+    const again = input(people, [sale("c", "2026-09-20", 200), sale("c", "2026-11-03", 150)]);
+    expect(stateOf(again, "a", "core_150", "2026-11-02")).toBe("lost");
+    expect(statusOf(again, "a", "core_150", "2026-11-05")).toMatchObject({
+      state: "held",
+      heldVia: "this_month",
+      heldUntil: "2026-12-31",
+      firstReachedOn: "2026-09-20",
+      lastMetOn: "2026-11-03",
+      progress: null,
+    });
+  });
+
+  it("met this month and last: held through next month (this month counts)", () => {
+    const both = input(people, [sale("c", "2026-09-20", 200), sale("c", "2026-10-05", 200)]);
+    expect(statusOf(both, "a", "core_150")).toMatchObject({
+      heldVia: "this_month",
+      heldUntil: "2026-11-30",
+      lastMetOn: "2026-10-05",
+    });
+    expect(growthPath(both, "a", TODAY).keepUp).toEqual([]);
+  });
+
+  it("across the year end: December holds January; January holds February", () => {
+    const dec = input(people, [sale("c", "2025-12-30", 160)]);
+    expect(statusOf(dec, "a", "core_150", "2026-01-15")).toMatchObject({
+      heldVia: "last_month",
+      heldUntil: "2026-01-31",
+    });
+    expect(isMilestoneHeld(dec, "a", "core_150", "2026-01-31")).toBe(true);
+    expect(stateOf(dec, "a", "core_150", "2026-02-01")).toBe("lost");
+
+    const nov = input(people, [sale("c", "2025-11-15", 160)]);
+    expect(statusOf(nov, "a", "core_150", "2025-12-31")).toMatchObject({
+      heldVia: "last_month",
+      heldUntil: "2025-12-31",
+    });
+    expect(stateOf(nov, "a", "core_150", "2026-01-01")).toBe("lost");
+
+    const jan = input(people, [sale("c", "2026-01-10", 160)]);
+    expect(statusOf(jan, "a", "core_150", "2026-01-20")).toMatchObject({
+      heldVia: "this_month",
+      heldUntil: "2026-02-28",
+    });
+    expect(statusOf(jan, "a", "core_150", "2026-02-28").heldVia).toBe("last_month");
+    expect(stateOf(jan, "a", "core_150", "2026-03-01")).toBe("lost");
+    // Before the sale it isn't held yet (nothing counts ahead of today).
+    expect(stateOf(jan, "a", "core_150", "2026-01-09")).toBe("never");
+  });
+
+  it("an upline's figure for this month counts from the day it was set, not before", () => {
+    const inp = input(people, [], [override("a", "2026-10", 200, "2026-10-20T09:00:00.000Z")]);
+    expect(stateOf(inp, "a", "core_150", "2026-10-13")).toBe("never");
+    expect(statusOf(inp, "a", "core_150", "2026-10-21")).toMatchObject({
+      heldVia: "this_month",
+      firstReachedOn: "2026-10-20",
+    });
+  });
+
+  it("group PV and leg rules work the same way", () => {
+    const team = [
+      ibo("a", null, "2025-01-01"),
+      ibo("b", "a", "2025-02-01"),
+      ibo("c", "a", "2025-02-01"),
+      ibo("d", "a", "2025-02-01"),
+    ];
+    const inp = input(team, [
+      sale("b", "2026-09-04", 3000),
+      sale("c", "2026-09-04", 3000),
+      sale("d", "2026-09-04", 2000),
+    ]);
+    const g = growthPath(inp, "a", TODAY);
+    expect(g.keepUp.map((s) => s.code)).toEqual([
+      "bronze_foundation",
+      "bronze_builder",
+      "platinum",
+    ]);
+    expect(statusOf(inp, "a", "ruby").state).toBe("never");
+    expect(statusOf(inp, "a", "platinum").progress?.summary).toBe("0 / 7,500 group PV this month");
+    expect(stateOf(inp, "a", "bronze_builder", "2026-11-01")).toBe("lost");
+  });
+});
+
+describe("hand marks by class", () => {
+  it("permanent: a mark counts as reached", () => {
+    const inp = input(
+      [ibo("a", null, "2024-01-01")],
+      [],
+      [],
+      [mark("a", "first_sale", "2024-02-01"), mark("a", "first_sponsor", "2024-03-01")],
+    );
+    expect(statusOf(inp, "a", "first_sale")).toMatchObject({ state: "held", source: "manual" });
+    expect(statusOf(inp, "a", "first_sponsor")).toMatchObject({
+      state: "held",
+      firstReachedOn: "2024-03-01",
+      source: "manual",
+    });
+  });
+
+  it("live: a mark is history only; it's held only while the numbers meet it", () => {
+    const marked = input([ibo("a", null, "2024-01-01")], [], [], [mark("a", "3_10", "2024-06-01")]);
+    expect(statusOf(marked, "a", "3_10")).toMatchObject({
+      state: "lost",
+      held: false,
+      firstReachedOn: "2024-06-01",
+      source: "manual",
+      lastMetOn: null,
+    });
+    expect(hasEverReachedMilestone(marked, "a", "3_10", TODAY)).toBe(true);
+    const met = input(tenPeople(), [], [], [mark("a", "3_10", "2025-03-01")]);
+    expect(statusOf(met, "a", "3_10")).toMatchObject({
+      state: "held",
+      firstReachedOn: "2025-03-01",
+      source: "manual",
+      autoOn: "2025-05-10",
+    });
+  });
+
+  it("monthly: a mark is history only; PV this month or last holds it", () => {
+    const team = [ibo("a", null, "2024-01-01"), ibo("b", "a", "2024-02-01")];
+    const marks = [mark("a", "platinum", "2025-06-01")];
+    expect(statusOf(input(team, [], [], marks), "a", "platinum")).toMatchObject({
+      state: "lost",
+      firstReachedOn: "2025-06-01",
+      source: "manual",
+    });
+    const now = input(team, [sale("b", "2026-10-04", 8000)], [], marks);
+    expect(statusOf(now, "a", "platinum")).toMatchObject({
+      state: "held",
+      heldVia: "this_month",
+      firstReachedOn: "2025-06-01",
+      source: "manual",
+      autoOn: "2026-10-04",
+    });
+  });
+});
+
+describe("the next milestone", () => {
+  /**
+   * Like Maria: 6 sponsors and 43 people (6/25 held, 6/50 lost, marked as
+   * first hit in June 2025), Bronze builder this month, 15,600 group PV last
+   * month (7,500 Platinum and Ruby held through this month).
+   */
+  function leader(): GrowthInput {
+    const people = [ibo("a", null, "2020-01-01"), customer("c", "a")];
+    people.push(...frontline("f", "a", 6, "2021-01-01"));
+    for (let i = 0; i < 37; i++) people.push(ibo(`g${i}`, `f${(i % 6) + 1}`, "2022-01-01"));
+    const sales = [sale("c", "2026-10-02", 300)];
+    for (let i = 1; i <= 6; i++) {
+      sales.push(sale(`f${i}`, "2026-10-05", 500));
+      sales.push(sale(`f${i}`, "2026-09-10", 2600));
+    }
+    return input(people, sales, [], [mark("a", "6_50", "2025-06-01")]);
+  }
+
+  it("is the first milestone not held now; later ones held out of order still show as held", () => {
+    const g = growthPath(leader(), "a", TODAY);
+    expect(g.next?.code).toBe("6_50");
+    expect(g.nextIndex).toBe(9);
+    expect(g.next).toMatchObject({ state: "lost", firstReachedOn: "2025-06-01" });
+    expect(g.next?.progress?.summary).toBe("6/6 personal sponsors, 43/50 people");
+    expect(g.workingDays).toBeNull();
+    const by = (code: GrowthMilestoneCode) => g.milestones.find((m) => m.code === code)!;
+    expect(by("platinum")).toMatchObject({ held: true, heldVia: "last_month" });
+    expect(by("ruby")).toMatchObject({
+      held: true,
+      heldVia: "last_month",
+      heldUntil: "2026-10-31",
+    });
+    expect(by("ruby").progress?.summary).toBe("3,300 / 15,000 group PV this month");
+    expect(by("6_25").held).toBe(true);
+    expect(by("12_100").state).toBe("never");
+    expect(g.keepUp.map((s) => s.code)).toEqual(["platinum", "ruby"]);
+    expect(g.latest?.code).toBe("ruby");
+  });
+
+  it("a never-reached next milestone counts working days from the one before", () => {
+    const g = growthPath(input(tenPeople(), october()), "a", TODAY);
+    expect(g.next?.code).toBe("bronze_builder");
+    expect(g.next?.state).toBe("never");
+    expect(g.workingDays).toBe(521); // since 3/10 (2025-05-10)
+  });
+});
+
+describe("unlocks go by ever reached", () => {
+  it("dropping below 3/10 keeps it as reached once (history or a mark), not held", () => {
+    const rows = recorded(historyUpdates(input(tenPeople()), ["a"], "2026-06-15"));
+    const dropped = input(
+      tenPeople().filter((p) => p.id !== "d7"),
+      [],
+      [],
+      [],
+      rows,
+    );
+    expect(hasEverReachedMilestone(dropped, "a", "3_10", TODAY)).toBe(true);
+    expect(isMilestoneHeld(dropped, "a", "3_10", TODAY)).toBe(false);
+    expect(hasEverReachedMilestone(dropped, "a", "first_sponsor", TODAY)).toBe(true);
+    const marked = input(
+      tenPeople().filter((p) => p.id !== "d7"),
+      [],
+      [],
+      [mark("a", "3_10", "2025-05-10")],
+    );
+    expect(hasEverReachedMilestone(marked, "a", "3_10", TODAY)).toBe(true);
+    expect(isMilestoneHeld(marked, "a", "3_10", TODAY)).toBe(false);
   });
 });

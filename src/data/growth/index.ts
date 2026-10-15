@@ -1,7 +1,9 @@
 /**
  * Growth path public API (re-exported from "@/data"): the milestone engine
- * (pure, ./engine), hooks, and the upline's writes (monthly PV, hand marks).
- * Overrides and marks live in the CRM store (`pvOverrides`, `milestoneMarks`).
+ * (pure, ./engine), hooks, the upline's writes (monthly PV, hand marks) and the
+ * milestone history the app records.
+ * Overrides, marks and history live in the CRM store (`pvOverrides`,
+ * `milestoneMarks`, `milestoneHistory`).
  */
 export * from "./types";
 export {
@@ -10,29 +12,38 @@ export {
   growthMilestone,
   growthLabel,
   growthIndex,
+  growthHold,
   isGrowthCode,
 } from "./milestones";
 export {
   growthPath,
-  hasReachedMilestone,
+  hasEverReachedMilestone,
+  isMilestoneHeld,
+  historyUpdates,
   monthPv,
   monthOfDate,
+  addMonths,
+  lastDayOf,
   daysInMonth,
   registeredOn,
   saleSellerId,
   isPersonalOrder,
   isRegistered,
   type GrowthInput,
+  type HistoryUpdate,
 } from "./engine";
 export {
   useGrowthPath,
   useMyGrowthPath,
   getGrowthPath,
-  hasReached,
-  useHasReached,
+  hasEverReached,
+  useHasEverReached,
+  isHeld,
+  useIsHeld,
+  useRecordMilestoneHistory,
   useMonthPv,
   useMonthPvById,
   useCanCoach,
   canCoach,
 } from "./hooks";
-export { setMonthPv, markMilestoneReached } from "./mutations";
+export { setMonthPv, markMilestoneReached, recordMilestoneHistory } from "./mutations";

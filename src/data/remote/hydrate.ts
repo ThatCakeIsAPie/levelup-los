@@ -18,7 +18,7 @@ import {
   type Sale,
   type Settings,
 } from "@/stores/crmStore";
-import type { MilestoneMark, PvOverride } from "@/data/growth/types";
+import type { MilestoneHistory, MilestoneMark, PvOverride } from "@/data/growth/types";
 import type { Campaign, Logistics, Payment, ReportSchedule, SharedCost } from "@/stores/opsStore";
 import type { ActivityEvent } from "@/stores/activityStore";
 import type { ChatData } from "@/data/chat/types";
@@ -86,6 +86,7 @@ export interface CrmSnapshot {
   sales: Sale[];
   pvOverrides: PvOverride[];
   milestoneMarks: MilestoneMark[];
+  milestoneHistory: MilestoneHistory[];
   learning: Learning[];
   goals: Record<string, LearningGoal>;
   settings: Settings;
@@ -143,6 +144,7 @@ export async function fetchCrm(client: SupabaseClient, me: string): Promise<CrmS
     activity,
     pvOverrides,
     milestoneMarks,
+    milestoneHistory,
     missedNotes,
   ] = await Promise.all([
     all("people", [["id", true]]),
@@ -210,6 +212,10 @@ export async function fetchCrm(client: SupabaseClient, me: string): Promise<CrmS
       ["person_id", true],
       ["code", true],
     ]),
+    all("milestone_history", [
+      ["person_id", true],
+      ["code", true],
+    ]),
     all("missed_event_notes", [
       ["created_at", false],
       ["id", true],
@@ -234,6 +240,7 @@ export async function fetchCrm(client: SupabaseClient, me: string): Promise<CrmS
     sales: sales.map((r) => m.saleFromRow(r)),
     pvOverrides: pvOverrides.map((r) => m.pvOverrideFromRow(r)),
     milestoneMarks: milestoneMarks.map((r) => m.milestoneMarkFromRow(r)),
+    milestoneHistory: milestoneHistory.map((r) => m.milestoneHistoryFromRow(r)),
     learning: learning.map((r) => m.learningFromRow(r)),
     goals: Object.fromEntries(goals.map((r) => m.goalFromRow(r))),
     settings: mine ? m.settingsFromRow(mine) : { ...DEFAULT_SETTINGS },
@@ -571,6 +578,7 @@ export function applyCrm(s: CrmSnapshot): void {
     sales: s.sales,
     pvOverrides: s.pvOverrides,
     milestoneMarks: s.milestoneMarks,
+    milestoneHistory: s.milestoneHistory,
     learning: s.learning,
     goals: s.goals,
     settings: s.settings,

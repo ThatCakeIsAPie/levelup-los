@@ -85,6 +85,7 @@ export const TABLE_ORDER = [
   "sales",
   "pv_overrides",
   "milestone_marks",
+  "milestone_history",
   "learning",
   "learning_goals",
   "contact_settings",

@@ -29,7 +29,7 @@ describe("row mappers", () => {
     }
   });
 
-  it("round-trip sales with PV, monthly PV and milestone marks", () => {
+  it("round-trip sales with PV, monthly PV, milestone marks and history", () => {
     for (const s of seedSales()) expect(m.saleFromRow(m.saleToRow(s))).toEqual(s);
     for (const o of seedPvOverrides()) {
       expect(m.pvOverrideFromRow(m.pvOverrideToRow(o))).toEqual(o);
@@ -37,6 +37,15 @@ describe("row mappers", () => {
     for (const k of seedMilestoneMarks()) {
       expect(m.milestoneMarkFromRow(m.milestoneMarkToRow(k))).toEqual(k);
     }
+    const h = {
+      personId: "1",
+      code: "6_50" as const,
+      firstReachedOn: "2025-06-01",
+      lastMetOn: "2026-09-30",
+      recordedBy: "1",
+      recordedAt: "2026-09-30T10:00:00.000Z",
+    };
+    expect(m.milestoneHistoryFromRow(m.milestoneHistoryToRow(h))).toEqual(h);
     // A sale logged without a seller leaves person_id to the database.
     const row = m.saleToRow({ id: "x", customerId: "c1", product: "P", date: "2026-10-01" });
     expect(row.person_id).toBeUndefined();

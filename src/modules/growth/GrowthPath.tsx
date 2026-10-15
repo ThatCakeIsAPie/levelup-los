@@ -7,9 +7,12 @@ import {
   useState,
   type KeyboardEvent,
 } from "react";
-import { Check, Flag, PencilLine, ShoppingBag } from "lucide-react";
+import { format } from "date-fns";
+import { Check, Flag, History, PencilLine, ShoppingBag } from "lucide-react";
 import {
+  addMonths,
   growthMilestone,
+  parseDate,
   openLog,
   useCanCoach,
   useChatPeople,
@@ -26,10 +29,13 @@ import { ApprenticeNotice, BusinessPathCard } from "@/modules/people/BusinessPat
 import { firstName } from "@/modules/people/format";
 import { CoachSheet, type CoachTarget } from "./CoachSheet";
 import {
+  countTarget,
   duration,
   isMonthly,
   isPersonalPv,
   monthName,
+  monthYear,
+  monthlyTarget,
   pv,
   reachedLong,
   reachedShort,
@@ -40,8 +46,10 @@ const ITEM = 92;
 
 /**
  * The person profile's path card: the growth path for apprentices and IBOs
- * (your own: what you've reached and your next milestone; a downline's: their
+ * (your own: what you hold and your next milestone; a downline's: their
  * whole path, with the upline's actions), the stage stepper for prospects.
+ * Each milestone is held now (checked), earned before but not held now
+ * (hollow with a history badge: "First hit Mar 2026"), or never reached.
  */
 export function ProfilePathCard({
   person,
@@ -83,6 +91,11 @@ function GrowthPathCard({
   const name = firstName(person.name);
   const status = path.milestones[selected];
   const panelId = useId();
+  // The next goal after this one: the first later milestone not held now.
+  const later = path.nextIndex === -1 ? [] : path.milestones.slice(path.nextIndex + 1);
+  const afterAt = later.findIndex((m) => !m.held);
+  const after = afterAt === -1 ? null : later[afterAt];
+  const heldBetween = afterAt === -1 ? [] : later.slice(0, afterAt);
 
   return (
     <SectionCard
@@ -115,9 +128,13 @@ function GrowthPathCard({
         name={name}
         onCoach={openSheet}
       />
-      {own && path.next && status.code === path.next.code && path.nextIndex < last && (
+      {status.heldVia !== "last_month" && <KeepUpNote path={path} own={own} name={name} />}
+      {own && path.next && status.code === path.next.code && after && (
         <p className="text-[12px] text-muted-foreground">
-          After {path.next.label} comes {path.milestones[path.nextIndex + 1].label}.
+          After {path.next.label} comes {after.label}
+          {heldBetween.length > 0 &&
+            ` (you hold ${heldBetween.map((m) => m.label).join(" and ")} already)`}
+          .
         </p>
       )}
       <ApprenticeNotice person={person} canEdit={canEdit} compact={compact} />
@@ -226,10 +243,20 @@ export function PathRow({
           style={{ left: ITEM / 2, width: fill * ITEM }}
         />
         {path.milestones.map((m, i) => {
-          const reached = !!m.reachedOn;
+          const held = m.held;
+          const before = m.state === "lost";
           const isNext = i === path.nextIndex;
-          const quiet = quietAfterNext && !reached && path.nextIndex !== -1 && i > path.nextIndex;
+          const quiet = quietAfterNext && !held && path.nextIndex !== -1 && i > path.nextIndex;
           const on = i === selected;
+          const status = held
+            ? m.hold === "permanent"
+              ? `reached ${reachedShort(m.firstReachedOn!)}`
+              : "held now"
+            : before
+              ? `${isNext ? "next milestone, " : ""}first hit ${reachedShort(m.firstReachedOn!)}, not held now`
+              : isNext
+                ? "next milestone"
+                : "not reached yet";
           return (
             <button
               key={m.code}
@@ -241,7 +268,7 @@ export function PathRow({
               id={`${panelId}-tab-${i}`}
               aria-selected={on}
               aria-controls={panelId}
-              aria-label={`${m.label}, ${reached ? `reached ${reachedShort(m.reachedOn!)}` : isNext ? "next milestone" : "not reached yet"}`}
+              aria-label={`${m.label}, ${status}`}
               tabIndex={on ? 0 : -1}
               onClick={() => onSelect(i)}
               className="group relative grid flex-none content-start justify-items-center gap-1 rounded-lg px-1 pb-2.5 text-center focus-visible:outline-2 focus-visible:outline-ring"
@@ -251,17 +278,22 @@ export function PathRow({
                 aria-hidden="true"
                 className={cn(
                   "relative z-[1] grid size-[27px] place-items-center rounded-full border-[3px] transition-transform group-hover:scale-110",
-                  reached && "border-primary bg-primary text-primary-foreground",
+                  held && "border-primary bg-primary text-primary-foreground",
                   isNext && "border-primary bg-card shadow-[0_0_0_4px_var(--color-primary-soft)]",
-                  !reached && !isNext && "border-track bg-card",
+                  !held && !isNext && "border-track bg-card",
                   quiet && "border-dashed",
                 )}
               >
-                {reached ? (
+                {held ? (
                   <Check className="size-3.5" strokeWidth={3} />
                 ) : isNext ? (
                   <span className="size-2 rounded-full bg-primary" />
                 ) : null}
+                {before && (
+                  <span className="absolute -top-1.5 -right-1.5 grid size-[15px] place-items-center rounded-full border-2 border-card bg-muted-foreground text-card">
+                    <History className="size-2" strokeWidth={3} />
+                  </span>
+                )}
               </span>
               <span
                 className={cn(
@@ -273,7 +305,15 @@ export function PathRow({
                 {m.label}
               </span>
               <span className="text-[10.5px] leading-tight text-muted-foreground">
-                {reached ? reachedShort(m.reachedOn!) : isNext ? "Next" : " "}
+                {held
+                  ? reachedShort(m.firstReachedOn!)
+                  : before
+                    ? isNext
+                      ? "Earn again"
+                      : `Hit ${monthYear(m.firstReachedOn!)}`
+                    : isNext
+                      ? "Next"
+                      : " "}
               </span>
               <span
                 aria-hidden="true"
@@ -349,6 +389,72 @@ export function ProgressParts({ status }: { status: MilestoneStatus }) {
   );
 }
 
+/** "October 31". */
+const dayLong = (date: string): string => format(parseDate(date), "MMMM d");
+
+/** This month's numbers toward a monthly milestone: "6,883 so far", "1/3 legs, 2,100 so far". */
+function soFar(status: MilestoneStatus): string {
+  const parts = status.progress?.parts ?? [];
+  const legs = parts.find((p) => p.key === "legs");
+  const total = parts.find((p) => p.key !== "legs");
+  const bits = [
+    legs && `${Math.min(legs.current, legs.target)}/${legs.target} legs`,
+    total && `${pv(total.current)} so far`,
+  ].filter(Boolean);
+  return bits.join(", ");
+}
+
+/**
+ * Monthly milestones held only through last month: a gentle heads-up to meet
+ * them again this month ("Ruby: hit 15,000 group PV again this month to keep
+ * it"), highest first. Your own path, a downline's path and the Home card.
+ */
+export function KeepUpNote({
+  path,
+  own,
+  name,
+  className,
+}: {
+  path: GrowthPath;
+  own: boolean;
+  name: string;
+  className?: string;
+}) {
+  const items = [...path.keepUp].reverse();
+  if (!items.length) return null;
+  const last = monthName(addMonths(path.thisMonth.month, -1));
+  const until = items[0].heldUntil;
+  return (
+    <div
+      role="note"
+      className={cn(
+        "grid gap-1 rounded-xl bg-warn-soft px-3.5 py-2.5 text-[12.5px] text-warn-ink",
+        className,
+      )}
+    >
+      <ul className="grid gap-0.5">
+        {items.map((s) => (
+          <li key={s.code}>
+            <b>{s.label}</b>: {own ? "hit" : `${name} needs`} {monthlyTarget(s.code)} again this
+            month to keep it <span className="opacity-85">({soFar(s)})</span>.
+          </li>
+        ))}
+      </ul>
+      <p className="text-[11.5px] opacity-85">
+        {own ? "You met" : `${name} met`} {items.length > 1 ? "them" : "it"} in {last}, so{" "}
+        {items.length > 1 ? "they count" : "it counts"}
+        {until ? ` through ${dayLong(until)}` : " this month"}.
+      </p>
+    </div>
+  );
+}
+
+/** "Marked by hand by Maria Reyes (from before the app)." */
+function markLine(status: MilestoneStatus, marker: string | undefined): string {
+  const note = status.mark?.note ? ` (${status.mark.note.toLowerCase()})` : "";
+  return marker ? `Marked by hand by ${marker}${note}.` : `Marked by hand${note}.`;
+}
+
 function MilestoneDetail({
   id,
   path,
@@ -369,13 +475,20 @@ function MilestoneDetail({
   const people = useChatPeople();
   const me = useCurrentUser();
   const isNext = path.next?.code === status.code;
-  const reached = !!status.reachedOn;
+  const { held, hold } = status;
+  const before = status.state === "lost";
+  const keepUp = status.heldVia === "last_month";
   const def = growthMilestone(status.code);
   const progress = status.progress;
   const markedBy = status.mark?.markedBy;
   const marker =
     markedBy === me.personId ? "you" : markedBy ? people.get(markedBy)?.name : undefined;
   const legRule = def.check.kind === "legs_pv" ? def.check : null;
+  const first = status.firstReachedOn;
+  const daysChip =
+    path.thisMonth.daysLeft === 0
+      ? "Last day of the month"
+      : `${path.thisMonth.daysLeft} ${path.thisMonth.daysLeft === 1 ? "day" : "days"} left this month`;
 
   return (
     <div
@@ -387,34 +500,42 @@ function MilestoneDetail({
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
           <span className="text-[10.5px] font-bold tracking-[0.08em] text-muted-foreground uppercase">
-            {reached
-              ? "Reached"
+            {held
+              ? hold === "permanent"
+                ? "Reached"
+                : "Held now"
               : isNext
                 ? own
                   ? "Your next milestone"
                   : "Next milestone"
-                : "Later"}
+                : before
+                  ? "Earned before"
+                  : "Later"}
           </span>
           <h3 className="text-lg leading-tight font-extrabold">{status.label}</h3>
         </div>
-        {reached ? (
-          <ToneChip tone="good" icon={Check}>
-            {reachedShort(status.reachedOn!)}
+        {held ? (
+          <ToneChip tone={keepUp ? "warn" : "good"} icon={Check}>
+            {hold === "permanent"
+              ? reachedShort(first!)
+              : hold === "monthly" && status.heldUntil
+                ? `Held through ${format(parseDate(status.heldUntil), "MMM d")}`
+                : "Held now"}
           </ToneChip>
         ) : isNext && progress?.month ? (
-          <ToneChip tone="info">
-            {path.thisMonth.daysLeft === 0
-              ? "Last day of the month"
-              : `${path.thisMonth.daysLeft} ${path.thisMonth.daysLeft === 1 ? "day" : "days"} left this month`}
+          <ToneChip tone="info">{daysChip}</ToneChip>
+        ) : before ? (
+          <ToneChip tone="neutral" icon={History}>
+            First hit {monthYear(first!)}
           </ToneChip>
         ) : null}
       </div>
       <p className="text-[12.5px] text-muted-foreground">{def.rule}.</p>
 
-      {reached ? (
+      {held && (
         <div className="grid gap-1 text-[12.5px]">
           <p>
-            Reached on <b>{reachedLong(status.reachedOn!)}</b>
+            {hold === "permanent" ? "Reached" : "First reached"} on <b>{reachedLong(first!)}</b>
             {status.daysTaken !== null && status.index > 0 && (
               <>
                 {" · "}
@@ -425,20 +546,57 @@ function MilestoneDetail({
             )}
           </p>
           <p className="text-muted-foreground">
-            {status.source === "manual"
-              ? marker
-                ? `Marked by hand by ${marker}${status.mark?.note ? ` (${status.mark.note.toLowerCase()})` : ""}.`
-                : `Marked by hand${status.mark?.note ? ` (${status.mark.note.toLowerCase()})` : ""}.`
-              : "Found from the team's data."}
+            {status.source === "manual" ? markLine(status, marker) : "Found from the team's data."}
           </p>
+          {hold === "live" && (
+            <p className="text-muted-foreground">
+              It counts while {own ? "you keep" : `${name} keeps`} {countTarget(status.code)}.
+            </p>
+          )}
+          {hold === "monthly" && status.heldUntil && !keepUp && (
+            <p className="text-muted-foreground">
+              Met in {monthName(path.thisMonth.month)}, so it counts through{" "}
+              {reachedLong(status.heldUntil)}.
+            </p>
+          )}
         </div>
-      ) : (
+      )}
+
+      {before && (
+        <div className="grid gap-1 text-[12.5px]">
+          <p>
+            {own ? "You" : name} first hit it on <b>{reachedLong(first!)}</b>
+            {status.lastMetOn && status.lastMetOn !== first && (
+              <>
+                {" · "}
+                {hold === "monthly"
+                  ? `last met in ${monthName(status.lastMetOn.slice(0, 7))}`
+                  : `last held ${monthYear(status.lastMetOn)}`}
+              </>
+            )}
+            . {hold === "live" ? "The numbers are below it now" : "Not met this month or last"}, so
+            it's one to earn again.
+          </p>
+          {status.source === "manual" && (
+            <p className="text-muted-foreground">{markLine(status, marker)}</p>
+          )}
+        </div>
+      )}
+
+      {(!held || keepUp) && (
         <div className="grid gap-2.5">
           {isNext && path.workingDays !== null && path.nextIndex > 0 && (
             <p className="text-[12.5px]">
               Working on it for{" "}
               <b>{duration(path.workingDays).replace("same day", "less than a day")}</b> (since{" "}
               {path.milestones[path.nextIndex - 1].label}).
+            </p>
+          )}
+          {keepUp && (
+            <p className="text-[12.5px]">
+              Met in {monthName(addMonths(path.thisMonth.month, -1))}, so it counts through{" "}
+              <b>{reachedLong(status.heldUntil!)}</b>. To keep it, {own ? "hit" : `${name} needs`}{" "}
+              {monthlyTarget(status.code)} again this month.
             </p>
           )}
           <ProgressParts status={status} />
@@ -474,7 +632,7 @@ function MilestoneDetail({
               </ul>
             </div>
           )}
-          {own && isNext && isPersonalPv(status.code) && progress && (
+          {own && (isNext || keepUp) && isPersonalPv(status.code) && progress && (
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-[12.5px] text-muted-foreground">
                 {pv(Math.max(0, progress.parts[0].target - progress.parts[0].current))} PV to go.
@@ -485,7 +643,7 @@ function MilestoneDetail({
               </Button>
             </div>
           )}
-          {!own && !isNext && !coach && (
+          {!own && !isNext && !coach && !held && !before && (
             <p className="text-[12px] text-muted-foreground">Not reached yet.</p>
           )}
         </div>
@@ -503,15 +661,24 @@ function MilestoneDetail({
             variant="outline"
             onClick={() => onCoach({ tab: "mark", code: status.code })}
           >
-            <Flag />{" "}
-            {status.mark
-              ? "Change the hand mark"
-              : reached
-                ? "Mark an earlier date"
-                : "Mark as reached"}
+            <Flag /> {markButtonLabel(status)}
           </Button>
         </div>
       )}
     </div>
   );
+}
+
+/**
+ * The upline's mark button. A mark on a permanent milestone makes it reached;
+ * on a live or monthly one it only records when they first hit it.
+ */
+function markButtonLabel(status: MilestoneStatus): string {
+  if (status.hold !== "permanent")
+    return status.mark ? "Change when they first hit it" : "Record when they first hit it";
+  return status.mark
+    ? "Change the hand mark"
+    : status.firstReachedOn
+      ? "Mark an earlier date"
+      : "Mark as reached";
 }

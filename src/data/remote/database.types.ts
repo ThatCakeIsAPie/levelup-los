@@ -2364,6 +2364,87 @@ export type Database = {
           },
         ];
       };
+      milestone_history: {
+        Row: {
+          code: string;
+          first_reached_on: string;
+          last_met_on: string;
+          person_id: string;
+          recorded_at: string;
+          recorded_by: string | null;
+          workspace_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          code: string;
+          first_reached_on: string;
+          last_met_on: string;
+          person_id: string;
+          recorded_at?: string;
+          recorded_by?: string | null;
+          workspace_id?: string;
+        };
+        Update: {
+          code?: string;
+          first_reached_on?: string;
+          last_met_on?: string;
+          person_id?: string;
+          recorded_at?: string;
+          recorded_by?: string | null;
+          workspace_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "milestone_history_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: false;
+            referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "milestone_history_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "milestone_history_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "milestone_history_recorded_by_fkey";
+            columns: ["recorded_by"];
+            isOneToOne: false;
+            referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "milestone_history_recorded_by_fkey";
+            columns: ["recorded_by"];
+            isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "milestone_history_recorded_by_fkey";
+            columns: ["recorded_by"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "milestone_history_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       milestone_marks: {
         Row: {
           code: string;

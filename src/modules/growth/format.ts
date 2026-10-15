@@ -43,3 +43,35 @@ export function isMonthly(code: GrowthMilestoneCode): boolean {
 export function isPersonalPv(code: GrowthMilestoneCode): boolean {
   return growthMilestone(code).check.kind === "personal_pv";
 }
+
+/** "Jun 2025": a month with its year (history notes: "You first hit this in Jun 2025"). */
+export const monthYear = (date: string): string => format(parseDate(date), "MMM yyyy");
+
+/**
+ * What a monthly milestone takes in one month, in a few words: "300 PV",
+ * "15,000 group PV", "3 legs at 300+ PV and 2,500 group PV".
+ */
+export function monthlyTarget(code: GrowthMilestoneCode): string {
+  const c = growthMilestone(code).check;
+  switch (c.kind) {
+    case "personal_pv":
+      return `${pv(c.pv)} PV`;
+    case "group_pv":
+      return `${pv(c.pv)} group PV`;
+    case "legs_pv":
+      return `${c.legs} legs at ${pv(c.legPv)}+ PV and ${pv(c.groupPv)} group PV`;
+    default:
+      return "";
+  }
+}
+
+/**
+ * A headcount milestone's numbers in a few words: "6 personal sponsors and
+ * 50 people".
+ */
+export function countTarget(code: GrowthMilestoneCode): string {
+  const c = growthMilestone(code).check;
+  if (c.kind !== "count") return "";
+  const s = `${c.sponsors} personal ${c.sponsors === 1 ? "sponsor" : "sponsors"}`;
+  return c.people > 0 ? `${s} and ${c.people} people in the group` : s;
+}

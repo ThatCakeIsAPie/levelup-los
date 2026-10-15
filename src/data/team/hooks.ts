@@ -8,7 +8,7 @@ import { usePeopleStore, effectiveBizClass, type CrmPerson } from "@/stores/peop
 import { useCrmStore } from "@/stores/crmStore";
 import { useSessionStore, type DemoUser } from "@/stores/sessionStore";
 import { localDate } from "@/lib/dates";
-import { growthPath, type GrowthInput } from "../growth/engine";
+import { hasEverReachedMilestone, type GrowthInput } from "../growth/engine";
 import { computeUnlocks, type Unlocks } from "../unlocks";
 import { useTeamStore } from "./store";
 import {
@@ -43,12 +43,16 @@ function reachedFor(input: GrowthInput, personId: string) {
     c.input.people === input.people &&
     c.input.sales === input.sales &&
     c.input.overrides === input.overrides &&
-    c.input.marks === input.marks
+    c.input.marks === input.marks &&
+    c.input.history === input.history
   )
     return c.value;
-  const path = growthPath(input, personId, today);
-  const reached = (code: string) => !!path.milestones.find((m) => m.code === code)?.reachedOn;
-  const value = { firstSponsor: reached("first_sponsor"), threeTen: reached("3_10") };
+  // Unlocks go by "ever reached", not "held now": dropping below 3/10 keeps
+  // event planning (src/data/unlocks.ts).
+  const value = {
+    firstSponsor: hasEverReachedMilestone(input, personId, "first_sponsor", today),
+    threeTen: hasEverReachedMilestone(input, personId, "3_10", today),
+  };
   cache = { input, personId, today, value };
   return value;
 }
@@ -95,11 +99,13 @@ export function useUnlocks(): Unlocks {
   const sales = useCrmStore((s) => s.sales);
   const overrides = useCrmStore((s) => s.pvOverrides);
   const marks = useCrmStore((s) => s.milestoneMarks);
+  const history = useCrmStore((s) => s.milestoneHistory);
   const deputies = useTeamStore((s) => s.deputies);
   const switches = useTeamStore((s) => s.switches);
   return useMemo(
-    () => unlocksFor(user, { people, sales, overrides, marks }, deputies, switchMap(switches)),
-    [user, people, sales, overrides, marks, deputies, switches],
+    () =>
+      unlocksFor(user, { people, sales, overrides, marks, history }, deputies, switchMap(switches)),
+    [user, people, sales, overrides, marks, history, deputies, switches],
   );
 }
 
@@ -114,6 +120,7 @@ export function getUnlocks(): Unlocks {
       sales: crm.sales,
       overrides: crm.pvOverrides,
       marks: crm.milestoneMarks,
+      history: crm.milestoneHistory,
     },
     team.deputies,
     switchMap(team.switches),

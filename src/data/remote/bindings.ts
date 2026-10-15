@@ -17,7 +17,7 @@ import {
   type LearningGoal,
   type Sale,
 } from "@/stores/crmStore";
-import type { MilestoneMark, PvOverride } from "@/data/growth/types";
+import type { MilestoneHistory, MilestoneMark, PvOverride } from "@/data/growth/types";
 import {
   useOpsStore,
   type Campaign,
@@ -271,6 +271,17 @@ export const crmBinding: Binding<CrmS> = {
       toRow: m.milestoneMarkToRow,
       fromRow: m.milestoneMarkFromRow,
       insert: "upsert",
+    }),
+    // History the app records; never deleted from the app.
+    listSpec<CrmS, MilestoneHistory>({
+      table: "milestone_history",
+      pk: ["person_id", "code"],
+      get: (s) => s.milestoneHistory,
+      set: (milestoneHistory) => ({ milestoneHistory }),
+      toRow: m.milestoneHistoryToRow,
+      fromRow: m.milestoneHistoryFromRow,
+      insert: "upsert",
+      delete: false,
     }),
     listSpec<CrmS, Learning>({
       table: "learning",

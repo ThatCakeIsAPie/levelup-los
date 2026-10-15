@@ -11,7 +11,12 @@ import {
   seedSales,
   SEED_VERSION,
 } from "@/data/seed";
-import type { GrowthMilestoneCode, MilestoneMark, PvOverride } from "@/data/growth/types";
+import type {
+  GrowthMilestoneCode,
+  MilestoneHistory,
+  MilestoneMark,
+  PvOverride,
+} from "@/data/growth/types";
 import type { GoalItem } from "@/data/weeklyGoal";
 
 export interface Sale {
@@ -103,6 +108,8 @@ interface CrmState {
   pvOverrides: PvOverride[];
   /** Milestones marked as reached by hand (one per person and milestone). */
   milestoneMarks: MilestoneMark[];
+  /** Milestone history the app recorded (one per person and milestone; src/data/growth). */
+  milestoneHistory: MilestoneHistory[];
   logSale: (s: Omit<Sale, "id">) => Sale;
   logContact: (c: Omit<Contact, "id">) => Contact;
   removeSale: (id: string) => void;
@@ -123,6 +130,11 @@ interface CrmState {
     code: GrowthMilestoneCode,
     value: Omit<MilestoneMark, "personId" | "code"> | null,
   ) => void;
+  /**
+   * Merge recorded milestone history: per person and milestone the earlier
+   * first-reached day and the later last-met day win (as in the database).
+   */
+  recordMilestoneHistory: (rows: MilestoneHistory[]) => void;
 }
 
 /** The demo seed ("local" mode) or nothing until the database loads ("supabase" mode). */
@@ -136,6 +148,7 @@ function freshState() {
       goals: seedLearningGoals(),
       pvOverrides: seedPvOverrides(),
       milestoneMarks: seedMilestoneMarks(),
+      milestoneHistory: [] as MilestoneHistory[],
     }),
     {
       sales: [],
@@ -145,6 +158,7 @@ function freshState() {
       goals: {},
       pvOverrides: [],
       milestoneMarks: [],
+      milestoneHistory: [] as MilestoneHistory[],
     },
   );
 }
@@ -182,6 +196,26 @@ export const useCrmStore = create<CrmState>()(
         );
         set({ milestoneMarks: value ? [...rest, { personId, code, ...value }] : rest });
       },
+      recordMilestoneHistory: (rows) => {
+        if (!rows.length) return;
+        const key = (h: { personId: string; code: string }) => `${h.personId}|${h.code}`;
+        const byKey = new Map(get().milestoneHistory.map((h) => [key(h), h]));
+        for (const r of rows) {
+          const old = byKey.get(key(r));
+          byKey.set(
+            key(r),
+            old
+              ? {
+                  ...r,
+                  firstReachedOn:
+                    old.firstReachedOn < r.firstReachedOn ? old.firstReachedOn : r.firstReachedOn,
+                  lastMetOn: old.lastMetOn > r.lastMetOn ? old.lastMetOn : r.lastMetOn,
+                }
+              : r,
+          );
+        }
+        set({ milestoneHistory: [...byKey.values()] });
+      },
     }),
     {
       name: "levelup.crm",
@@ -194,6 +228,7 @@ export const useCrmStore = create<CrmState>()(
         goals: s.goals,
         pvOverrides: s.pvOverrides,
         milestoneMarks: s.milestoneMarks,
+        milestoneHistory: s.milestoneHistory,
       }),
       version: SEED_VERSION,
       migrate: () => freshState() as unknown as CrmState,

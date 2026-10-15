@@ -1,8 +1,10 @@
 /**
  * Growth path against the local database: what uplines load to work out
- * their team's PV, sales logged with PV, an upline setting a month's PV and
- * marking a milestone (recorded as them), and a refused write rolled back.
- * Needs the local stack running and seeded (`npm run db:reset`).
+ * their team's PV (and the same path states as the browser demo: held now,
+ * earned before, never), sales logged with PV, an upline setting a month's
+ * PV and marking a milestone (recorded as them; a mark on a live milestone is
+ * history only), the app recording milestone history, and a refused write
+ * rolled back. Needs the local stack running and seeded (`npm run db:reset`).
  */
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -15,11 +17,14 @@ import { useCrmStore } from "@/stores/crmStore";
 import {
   getGrowthPath,
   growthPath,
-  hasReached,
+  hasEverReached,
+  isHeld,
   logSale,
   markMilestoneReached,
+  recordMilestoneHistory,
   removeSale,
   setMonthPv,
+  type GrowthInput,
 } from "@/data";
 import { whenIdle } from "@/data/remote";
 import { fetchSnapshot } from "@/data/remote/hydrate";
@@ -63,6 +68,15 @@ beforeAll(() => {
   expect(IS_SUPABASE).toBe(true);
 });
 
+/** The engine's input from a loaded snapshot. */
+const inputOf = (crm: Awaited<ReturnType<typeof fetchSnapshot>>["crm"]): GrowthInput => ({
+  people: crm.people,
+  sales: crm.sales,
+  overrides: crm.pvOverrides,
+  marks: crm.milestoneMarks,
+  history: crm.milestoneHistory,
+});
+
 afterAll(async () => {
   for (const step of cleanup.reverse()) {
     try {
@@ -83,19 +97,33 @@ describe("growth path data", () => {
     expect(snap.crm.pvOverrides.map((o) => o.personId).sort()).toEqual(
       ["17", "2", "201", "203", "301", "4", "701"].sort(),
     );
-    const input = {
-      people: snap.crm.people,
-      sales: snap.crm.sales,
-      overrides: snap.crm.pvOverrides,
-      marks: snap.crm.milestoneMarks,
-    };
+    const input = inputOf(snap.crm);
     // The same answers as the browser demo.
     expect(growthPath(input, "700", localDate()).next?.progress?.summary).toBe(
       "95 / 150 PV this month",
     );
     const anita = growthPath(input, "2", localDate());
     expect(anita.next?.code).toBe("6_25");
-    expect(anita.milestones.find((m) => m.code === "bronze_builder")?.source).toBe("manual");
+    expect(anita.next?.state).toBe("never");
+    expect(anita.milestones.find((m) => m.code === "bronze_builder")).toMatchObject({
+      source: "manual",
+      held: true,
+      heldVia: "last_month",
+    });
+    expect(anita.keepUp.map((m) => m.code)).toEqual(["core_300", "bronze_builder"]);
+    const jamal = growthPath(input, "4", localDate());
+    expect(jamal.next?.code).toBe("bronze_foundation");
+    expect(jamal.milestones.find((m) => m.code === "core_300")?.heldVia).toBe("this_month");
+  });
+
+  it("Maria loads the same path as the demo: 6/50 earned before, Platinum and Ruby from last month", async () => {
+    const snap = await fetchSnapshot(await login("maria"), "1");
+    const maria = growthPath(inputOf(snap.crm), "1", localDate());
+    expect(maria.next?.code).toBe("6_50");
+    expect(maria.next?.state).toBe("lost");
+    expect(maria.next?.progress?.summary).toBe("6/6 personal sponsors, 43/50 people");
+    expect(maria.keepUp.map((m) => m.code)).toEqual(["platinum", "ruby"]);
+    expect(maria.thisMonth.groupPv).toBeLessThan(7500);
   });
 
   it("Tasha loads her own path, nothing above her", async () => {
@@ -104,6 +132,7 @@ describe("growth path data", () => {
     expect(snap.crm.sales.map((s) => s.id).sort()).toEqual(["sg1", "sg2"]);
     expect(snap.crm.pvOverrides).toHaveLength(0);
     expect(snap.crm.milestoneMarks).toHaveLength(0);
+    expect(snap.crm.milestoneHistory.filter((h) => h.personId !== "700")).toHaveLength(0);
   });
 
   it("a sale logged with PV is saved with the seller; the app's path updates", async () => {
@@ -129,10 +158,12 @@ describe("growth path data", () => {
       () => must(admin.from("pv_overrides").delete().eq("person_id", "700"), "pv override"),
       () => must(admin.from("milestone_marks").delete().eq("person_id", "700"), "marks"),
     );
-    expect(hasReached("700", "core_150")).toBe(false);
+    expect(isHeld("700", "core_150")).toBe(false);
     expect(setMonthPv("700", THIS_MONTH, 160)).toBe(true);
-    expect(hasReached("700", "core_150")).toBe(true); // optimistic
+    expect(isHeld("700", "core_150")).toBe(true); // optimistic
+    // A mark on a permanent milestone counts as reached.
     expect(markMilestoneReached("700", "first_sponsor", localDate())).toBe(true);
+    expect(isHeld("700", "first_sponsor")).toBe(true);
     await whenIdle();
 
     const tasha = await login("tasha");
@@ -155,6 +186,64 @@ describe("growth path data", () => {
     expect(
       (await tasha.from("milestone_marks").select("code").eq("person_id", "700")).data,
     ).toEqual([]);
+  });
+
+  it("a mark on a live milestone is history only: ever reached (unlocks), not held", async () => {
+    await signInApp("jamal");
+    const admin = adminClient();
+    cleanup.push(() =>
+      must(admin.from("milestone_marks").delete().eq("person_id", "700"), "live mark"),
+    );
+    expect(markMilestoneReached("700", "3_10", localDate())).toBe(true);
+    expect(hasEverReached("700", "3_10")).toBe(true);
+    expect(isHeld("700", "3_10")).toBe(false);
+    expect(getGrowthPath("700")!.milestones.find((m) => m.code === "3_10")?.state).toBe("lost");
+    await whenIdle();
+    expect(markMilestoneReached("700", "3_10", null)).toBe(true);
+    await whenIdle();
+  });
+
+  it("the app records milestone history for you and your team, once a month, as you", async () => {
+    const admin = adminClient();
+    // Start from no history for Jamal's team (the app only records what's new;
+    // using the app before this test may have recorded it already).
+    const team = ["4", "700", "201", "203", "206", "210"];
+    await must(admin.from("milestone_history").delete().in("person_id", team), "history before");
+    await signInApp("jamal");
+    const rows = recordMilestoneHistory();
+    cleanup.push(() =>
+      must(
+        admin
+          .from("milestone_history")
+          .delete()
+          .in(
+            "person_id",
+            rows.map((r) => r.personId),
+          ),
+        "milestone history",
+      ),
+    );
+    // Jamal's First sponsor (Tasha and others registered under him) is met now.
+    expect(rows.some((r) => r.personId === "4" && r.code === "first_sponsor")).toBe(true);
+    expect(rows.every((r) => r.lastMetOn === localDate())).toBe(true);
+    // Recorded once: nothing new until the data changes or the month turns.
+    expect(recordMilestoneHistory()).toEqual([]);
+    await whenIdle();
+    const jamal = await login("jamal");
+    const saved = await jamal
+      .from("milestone_history")
+      .select("code, first_reached_on, recorded_by")
+      .eq("person_id", "4")
+      .eq("code", "first_sponsor")
+      .single();
+    expect(saved.data).toMatchObject({
+      first_reached_on: rows.find((r) => r.personId === "4" && r.code === "first_sponsor")
+        ?.firstReachedOn,
+      recorded_by: "4",
+    });
+    // His upline reads it too.
+    const snap = await fetchSnapshot(await login("anita"), "2");
+    expect(snap.crm.milestoneHistory.some((h) => h.personId === "4")).toBe(true);
   });
 
   it("nobody sets their own PV: the app refuses, and a forced write is rolled back", async () => {
