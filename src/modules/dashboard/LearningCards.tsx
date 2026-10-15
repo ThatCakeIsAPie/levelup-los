@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Flame, Plus, X } from "lucide-react";
+import { Flame, GripVertical, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import { ProgressRing, SectionCard, SegmentedBar, ToneChip } from "@/components/brand";
 import { Button } from "@/components/ui/button";
@@ -19,13 +19,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import {
   MAX_GOAL_TARGET,
@@ -304,6 +298,7 @@ interface DraftItem {
 }
 
 const targetId = (kind: GoalKind) => `goal-${kind}-target`;
+const amountId = (kind: GoalKind) => `goal-${kind}-amount`;
 
 function GoalForm({
   goal,
@@ -366,90 +361,13 @@ function GoalForm({
           Nothing in your goal yet. Add what you want to aim for this week.
         </p>
       ) : (
-        <ul className="grid gap-2" aria-label="Goal items">
-          {draft.map((d) => {
-            const category = goalCategory(d.kind);
-            const Icon = category.icon;
-            const bad = invalid.has(d.kind);
-            const errorId = `goal-${d.kind}-error`;
-            return (
-              <li
-                key={d.kind}
-                className="grid gap-2 rounded-lg border border-line bg-surface-2 p-2.5"
-              >
-                <div className="flex items-center gap-2.5">
-                  <span
-                    className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary-soft text-primary-ink"
-                    aria-hidden="true"
-                  >
-                    <Icon className="size-4" />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-semibold">{category.label}</span>
-                    <span className="block text-[11.5px] leading-snug text-muted-foreground">
-                      {category.hint}
-                    </span>
-                  </span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="size-8 shrink-0 text-muted-foreground"
-                    aria-label={`Remove ${category.label}`}
-                    onClick={() => remove(d.kind)}
-                  >
-                    <X />
-                  </Button>
-                </div>
-                <div className="flex flex-wrap items-center gap-2 pl-[42px]">
-                  <Label htmlFor={targetId(d.kind)} className="sr-only">
-                    {category.label} target
-                  </Label>
-                  <Input
-                    id={targetId(d.kind)}
-                    type="number"
-                    inputMode="numeric"
-                    min={1}
-                    max={MAX_GOAL_TARGET}
-                    step={1}
-                    className="h-9 w-20"
-                    value={d.target}
-                    aria-invalid={bad || undefined}
-                    aria-describedby={bad ? errorId : undefined}
-                    onChange={(e) => patch(d.kind, { target: e.target.value })}
-                  />
-                  {category.units ? (
-                    <Select
-                      value={d.unit ?? category.units[0].value}
-                      onValueChange={(v) => patch(d.kind, { unit: v as LearningUnit })}
-                    >
-                      <SelectTrigger
-                        className="h-9 w-[7.5rem]"
-                        aria-label={`Count ${category.label.toLowerCase()} in`}
-                      >
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {category.units.map((u) => (
-                          <SelectItem key={u.value} value={u.value}>
-                            {u.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <span className="text-[12.5px] text-muted-foreground">{category.words()}</span>
-                  )}
-                </div>
-                {bad && (
-                  <p id={errorId} className="pl-[42px] text-[12px] text-bad">
-                    Use a whole number from 1 to {MAX_GOAL_TARGET.toLocaleString()}.
-                  </p>
-                )}
-              </li>
-            );
-          })}
-        </ul>
+        <GoalItemList
+          draft={draft}
+          invalid={invalid}
+          onPatch={patch}
+          onRemove={remove}
+          onReorder={setDraft}
+        />
       )}
       {addable.length > 0 && (
         <DropdownMenu>
@@ -466,7 +384,7 @@ function GoalForm({
               added.current = null;
               e.preventDefault();
               // After the menu has let go of the dialog (it hides the rest while open).
-              setTimeout(() => document.getElementById(targetId(kind))?.focus(), 0);
+              setTimeout(() => document.getElementById(amountId(kind))?.focus(), 0);
             }}
           >
             {addable.map((kind) => {
@@ -490,5 +408,214 @@ function GoalForm({
         </Button>
       </DialogFooter>
     </form>
+  );
+}
+
+/** "120 min", "60 pages" for items with units; just the number otherwise. */
+function amountText(d: DraftItem): string {
+  const category = goalCategory(d.kind);
+  const t = d.target.trim() || "?";
+  if (!category.units) return t;
+  const unit = d.unit ?? category.units[0].value;
+  return unit === "minutes" ? `${t} min` : `${t} ${unit}`;
+}
+
+/**
+ * The editor's compact list, one line per item: grip (drag, or arrow keys) ·
+ * name · amount (opens a popover with the target and unit) · remove.
+ */
+function GoalItemList({
+  draft,
+  invalid,
+  onPatch,
+  onRemove,
+  onReorder,
+}: {
+  draft: DraftItem[];
+  invalid: Set<GoalKind>;
+  onPatch: (kind: GoalKind, p: Partial<DraftItem>) => void;
+  onRemove: (kind: GoalKind) => void;
+  onReorder: (next: DraftItem[]) => void;
+}) {
+  const rows = useRef(new Map<GoalKind, HTMLLIElement>());
+  const [dragging, setDragging] = useState<GoalKind | null>(null);
+  const [announce, setAnnounce] = useState("");
+
+  const move = (kind: GoalKind, to: number) => {
+    const from = draft.findIndex((d) => d.kind === kind);
+    if (from < 0 || to < 0 || to >= draft.length || to === from) return;
+    const next = [...draft];
+    const [item] = next.splice(from, 1);
+    next.splice(to, 0, item);
+    onReorder(next);
+    setAnnounce(`${goalCategory(kind).label} moved to position ${to + 1} of ${draft.length}.`);
+  };
+
+  /** The slot under the pointer: how many other rows have their middle above it. */
+  const slotAt = (kind: GoalKind, y: number) =>
+    draft.filter((d) => {
+      if (d.kind === kind) return false;
+      const r = rows.current.get(d.kind)?.getBoundingClientRect();
+      return !!r && y > r.top + r.height / 2;
+    }).length;
+
+  return (
+    <>
+      <ul className="grid gap-1.5" aria-label="Goal items">
+        {draft.map((d, i) => {
+          const category = goalCategory(d.kind);
+          const Icon = category.icon;
+          const bad = invalid.has(d.kind);
+          const units = category.units;
+          return (
+            <li
+              key={d.kind}
+              ref={(el) => {
+                if (el) rows.current.set(d.kind, el);
+                else rows.current.delete(d.kind);
+              }}
+              className={cn(
+                "flex items-center gap-1.5 rounded-lg border border-line bg-surface p-1",
+                dragging === d.kind && "relative z-10 shadow-md ring-2 ring-ring",
+              )}
+            >
+              <button
+                type="button"
+                className="grid size-8 shrink-0 cursor-grab touch-none place-items-center rounded-md text-faint hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring active:cursor-grabbing"
+                aria-label={`Move ${category.label}, ${i + 1} of ${draft.length}. Use the up and down arrow keys.`}
+                onKeyDown={(e) => {
+                  if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+                    e.preventDefault();
+                    move(d.kind, i + (e.key === "ArrowUp" ? -1 : 1));
+                  }
+                }}
+                onPointerDown={(e) => {
+                  if (e.button !== 0) return;
+                  // Keep getting moves while the pointer leaves the handle.
+                  e.currentTarget.setPointerCapture?.(e.pointerId);
+                  setDragging(d.kind);
+                }}
+                onPointerMove={(e) => {
+                  if (dragging === d.kind) move(d.kind, slotAt(d.kind, e.clientY));
+                }}
+                onPointerUp={() => setDragging(null)}
+                onPointerCancel={() => setDragging(null)}
+              >
+                <GripVertical className="size-4" aria-hidden="true" />
+              </button>
+              <Icon className="size-4 shrink-0 text-primary" aria-hidden="true" />
+              <span className="min-w-0 flex-1 truncate pl-0.5 text-sm font-semibold">
+                {category.label}
+              </span>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    id={amountId(d.kind)}
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className={cn(
+                      "h-8 min-w-[4.5rem] shrink-0 tabular-nums",
+                      bad && "border-bad text-bad",
+                    )}
+                    aria-label={`${category.label} target: ${amountText(d)}. Change`}
+                    aria-invalid={bad || undefined}
+                  >
+                    {amountText(d)}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="grid w-64 gap-3 p-3">
+                  <div>
+                    <p className="text-sm font-semibold">{category.label}</p>
+                    <p className="text-[12px] leading-snug text-muted-foreground">
+                      {category.hint}
+                    </p>
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label htmlFor={targetId(d.kind)}>Target this week</Label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        id={targetId(d.kind)}
+                        type="number"
+                        inputMode="numeric"
+                        min={1}
+                        max={MAX_GOAL_TARGET}
+                        step={1}
+                        className="h-9 w-24"
+                        value={d.target}
+                        aria-invalid={bad || undefined}
+                        onChange={(e) => onPatch(d.kind, { target: e.target.value })}
+                      />
+                      {!units && (
+                        <span className="text-[12.5px] text-muted-foreground">
+                          {category.words()}
+                        </span>
+                      )}
+                    </div>
+                    {bad && (
+                      <p className="text-[12px] text-bad">
+                        Use a whole number from 1 to {MAX_GOAL_TARGET.toLocaleString()}.
+                      </p>
+                    )}
+                  </div>
+                  {units && (
+                    <div className="grid gap-1.5">
+                      <span className="text-sm font-medium" id={`goal-${d.kind}-unit`}>
+                        Count in
+                      </span>
+                      <div
+                        role="radiogroup"
+                        aria-labelledby={`goal-${d.kind}-unit`}
+                        className="flex flex-wrap gap-1.5"
+                      >
+                        {units.map((u) => {
+                          const on = (d.unit ?? units[0].value) === u.value;
+                          return (
+                            <button
+                              key={u.value}
+                              type="button"
+                              role="radio"
+                              aria-checked={on}
+                              className={cn(
+                                "rounded-full border px-3 py-1 text-[12.5px] font-semibold focus-visible:outline-2 focus-visible:outline-ring",
+                                on
+                                  ? "border-primary bg-primary-soft text-primary-ink"
+                                  : "border-line text-muted-foreground hover:bg-surface-2",
+                              )}
+                              onClick={() => onPatch(d.kind, { unit: u.value })}
+                            >
+                              {u.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </PopoverContent>
+              </Popover>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-8 shrink-0 text-muted-foreground"
+                aria-label={`Remove ${category.label}`}
+                onClick={() => onRemove(d.kind)}
+              >
+                <X />
+              </Button>
+            </li>
+          );
+        })}
+      </ul>
+      <p className="sr-only" aria-live="polite">
+        {announce}
+      </p>
+      {invalid.size > 0 && (
+        <p className="-mt-2 text-[12px] text-bad">
+          Check the {[...invalid].map((k) => goalCategory(k).label.toLowerCase()).join(" and ")}{" "}
+          target: use a whole number from 1 to {MAX_GOAL_TARGET.toLocaleString()}.
+        </p>
+      )}
+    </>
   );
 }
