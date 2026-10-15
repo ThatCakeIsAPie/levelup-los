@@ -3,6 +3,7 @@ import {
   seedAttendances,
   seedContacts,
   seedEvents,
+  seedLearningGoals,
   seedMilestoneMarks,
   seedPeople,
   seedPvOverrides,
@@ -116,5 +117,107 @@ describe("customer pipeline row mappers", () => {
     }
     const p = seedPeople().find((x) => x.id === "c2")!;
     expect(m.personToRow(p).ditto_since).toBe(p.dittoSince);
+  });
+});
+
+describe("weekly goal row mappers", () => {
+  const legacyRow = {
+    person_id: "2",
+    workspace_id: "w1",
+    pages: 70,
+    podcasts: 0,
+    workshops: 1,
+    reading_unit: "chapters",
+    podcast_unit: null,
+    items: null,
+  };
+
+  it("read a row from before lists as reading, podcasts and workshops (0 = not in the goal)", () => {
+    expect(m.goalFromRow(legacyRow)).toEqual([
+      "2",
+      {
+        items: [
+          { kind: "reading", target: 70, unit: "chapters" },
+          { kind: "workshops", target: 1 },
+        ],
+      },
+    ]);
+    // No units saved: pages and episodes.
+    expect(
+      m.goalFromRow({ ...legacyRow, podcasts: 3, reading_unit: null, podcast_unit: null })[1],
+    ).toEqual({
+      items: [
+        { kind: "reading", target: 70, unit: "pages" },
+        { kind: "podcasts", target: 3, unit: "episodes" },
+        { kind: "workshops", target: 1 },
+      ],
+    });
+  });
+
+  it("write the list and keep the old columns in step", () => {
+    const row = m.goalToRow("1", {
+      items: [
+        { kind: "contacts", target: 15 },
+        { kind: "reading", target: 120, unit: "minutes" },
+        { kind: "first_meetings", target: 5 },
+      ],
+    });
+    expect(row).toEqual({
+      person_id: "1",
+      items: [
+        { kind: "contacts", target: 15 },
+        { kind: "reading", target: 120, unit: "minutes" },
+        { kind: "first_meetings", target: 5 },
+      ],
+      pages: 120,
+      podcasts: 0,
+      workshops: 0,
+      reading_unit: "minutes",
+      podcast_unit: null,
+    });
+    // An empty goal stays empty (not the legacy default).
+    const empty = m.goalToRow("1", { items: [] });
+    expect(empty).toMatchObject({ items: [], pages: 0, podcasts: 0, workshops: 0 });
+    expect(m.goalFromRow({ ...legacyRow, ...empty, workspace_id: "w1" })[1]).toEqual({
+      items: [],
+    });
+  });
+
+  it("round-trip every seed goal, with jsonb's own key order", () => {
+    for (const [personId, goal] of Object.entries(seedLearningGoals())) {
+      const row = m.goalToRow(personId, goal);
+      // Postgres hands jsonb objects back with their keys reordered.
+      const fromDb = {
+        ...row,
+        workspace_id: "w1",
+        items: (row.items as Record<string, unknown>[]).map(({ kind, target, unit }) =>
+          unit ? { unit, kind, target } : { kind, target },
+        ),
+      };
+      const [id, back] = m.goalFromRow(fromDb as Parameters<typeof m.goalFromRow>[0]);
+      expect(id).toBe(personId);
+      expect(back).toEqual(goal);
+      expect(JSON.stringify(m.goalToRow(id, back))).toBe(JSON.stringify(row));
+    }
+  });
+
+  it("drop what the app doesn't know and fit units to the category", () => {
+    const [, goal] = m.goalFromRow({
+      ...legacyRow,
+      items: [
+        { kind: "reading", target: 30, unit: "episodes" },
+        { kind: "podcasts", target: 2 },
+        { kind: "contacts", target: 5, unit: "minutes" },
+        { kind: "contacts", target: 9 },
+        { kind: "someday", target: 4 },
+        { kind: "pv", target: 0 },
+        "junk",
+      ],
+    });
+    expect(goal.items).toEqual([
+      { kind: "reading", target: 30, unit: "pages" },
+      { kind: "podcasts", target: 2, unit: "episodes" },
+      { kind: "contacts", target: 5 },
+    ]);
   });
 });

@@ -18,7 +18,21 @@ import type { Tables } from "./database.types";
 import type { CrmPerson, StageChange } from "@/stores/peopleStore";
 import type { CrmEvent } from "@/stores/eventsStore";
 import type { Attendance, MissedEventNote } from "@/stores/attendanceStore";
-import type { Contact, Learning, LearningGoal, Sale, Settings } from "@/stores/crmStore";
+import type {
+  Contact,
+  Learning,
+  LearningGoal,
+  PodcastUnit,
+  ReadingUnit,
+  Sale,
+  Settings,
+} from "@/stores/crmStore";
+import {
+  itemsFromLegacy,
+  legacyGoalColumns,
+  normalizeItem,
+  parseGoalItems,
+} from "@/data/weeklyGoal";
 import type { GrowthMilestoneCode, MilestoneMark, PvOverride } from "@/data/growth/types";
 import type { Campaign, Logistics, Payment, ReportSchedule, SharedCost } from "@/stores/opsStore";
 import type { ActivityEvent } from "@/stores/activityStore";
@@ -477,27 +491,38 @@ export function learningToRow(l: Learning): Row {
   };
 }
 
+/**
+ * A weekly goal row. `items` null (rows from before lists) = the reading,
+ * podcast and workshop targets in the old columns (src/data/weeklyGoal.ts).
+ */
 export function goalFromRow(r: R<"learning_goals">): [string, LearningGoal] {
-  return [
-    r.person_id!,
-    {
-      pages: Number(r.pages ?? 60),
-      podcasts: Number(r.podcasts ?? 3),
-      workshops: Number(r.workshops ?? 1),
-      ...(r.reading_unit ? { readingUnit: r.reading_unit as LearningGoal["readingUnit"] } : {}),
-      ...(r.podcast_unit ? { podcastUnit: r.podcast_unit as LearningGoal["podcastUnit"] } : {}),
-    },
-  ];
+  const items =
+    r.items == null
+      ? itemsFromLegacy({
+          pages: Number(r.pages ?? 60),
+          podcasts: Number(r.podcasts ?? 3),
+          workshops: Number(r.workshops ?? 1),
+          readingUnit: r.reading_unit as ReadingUnit | null,
+          podcastUnit: r.podcast_unit as PodcastUnit | null,
+        })
+      : parseGoalItems(r.items);
+  return [r.person_id!, { items }];
 }
 
+/** The list, plus the old columns kept in step for older clients. */
 export function goalToRow(personId: string, g: LearningGoal): Row {
+  // normalizeItem builds fresh {kind, target, unit?} objects, so the sync
+  // engine's JSON comparison sees the same key order on both sides.
+  const items = g.items.map(normalizeItem);
+  const legacy = legacyGoalColumns(items);
   return {
     person_id: personId,
-    pages: g.pages,
-    podcasts: g.podcasts,
-    workshops: g.workshops,
-    reading_unit: nul(g.readingUnit),
-    podcast_unit: nul(g.podcastUnit),
+    items,
+    pages: legacy.pages,
+    podcasts: legacy.podcasts,
+    workshops: legacy.workshops,
+    reading_unit: legacy.readingUnit,
+    podcast_unit: legacy.podcastUnit,
   };
 }
 

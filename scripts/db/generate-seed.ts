@@ -44,6 +44,7 @@ import { visibleEntries } from "@/data/customerPipeline/rules";
 import { WORKSPACE_ID } from "@/data/chat/types";
 import { filterAttendances, visibleCustomers, visibleIdSet, type Viewer } from "@/data/access";
 import type { CrmPerson } from "@/stores/peopleStore";
+import { goalToRow } from "@/data/remote/rows";
 
 /**
  * The demo users (DEMO_USERS in src/stores/sessionStore.ts, not imported
@@ -592,16 +593,22 @@ emit(
       ["workshops", "num"],
       ["reading_unit", "text"],
       ["podcast_unit", "text"],
+      ["items", "json"],
     ],
-    Object.entries(goals).map(([p, g]) => [
-      p,
-      WORKSPACE_ID,
-      g.pages,
-      g.podcasts,
-      g.workshops,
-      g.readingUnit ?? null,
-      g.podcastUnit ?? null,
-    ]),
+    Object.entries(goals).map(([p, g]) => {
+      // The app's own mapping: the list plus the old columns kept in step.
+      const row = goalToRow(p, g);
+      return [
+        p,
+        WORKSPACE_ID,
+        row.pages,
+        row.podcasts,
+        row.workshops,
+        row.reading_unit,
+        row.podcast_unit,
+        row.items,
+      ];
+    }),
   ),
 );
 

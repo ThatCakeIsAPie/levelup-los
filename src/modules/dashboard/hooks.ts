@@ -4,7 +4,7 @@ import {
   learningStreak,
   localDate,
   useLearning,
-  useLearningGoal,
+  useWeeklyGoal,
   useContactSettings,
   useCurrentUser,
   useDoNotContactIds,
@@ -16,7 +16,7 @@ import {
   useVisiblePeople,
 } from "@/data";
 import { buildTodayItems, type TodayItem } from "./today";
-import { goalProgress, weekDays, weekTotals } from "./learning";
+import { weekDays } from "./learning";
 
 /** The ranked Today list for the current user. */
 export function useTodayItems(): TodayItem[] {
@@ -47,24 +47,24 @@ export function useTodayItems(): TodayItem[] {
   );
 }
 
-/** Streak + goal numbers for one person (the viewer). */
+/** Streak + weekly goal numbers for one person (the viewer). */
 export function useMyLearning(personId: string) {
   const entries = useLearning(personId);
-  const goal = useLearningGoal(personId);
+  const weekly = useWeeklyGoal(personId);
   return useMemo(() => {
     const today = localDate();
-    const totals = weekTotals(entries, today);
     return {
       entries,
-      goal,
-      totals,
+      goal: weekly.goal,
+      /** Each goal item with this week's total. */
+      goalItems: weekly.items,
       streak: learningStreak(entries),
       best: bestLearningStreak(entries),
       loggedToday: entries.some((e) => e.date === today),
       days: weekDays(entries, today),
-      progress: goalProgress(totals, goal),
+      progress: weekly.progress,
     };
-  }, [entries, goal]);
+  }, [entries, weekly]);
 }
 
 export type MyLearning = ReturnType<typeof useMyLearning>;

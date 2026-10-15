@@ -12,6 +12,7 @@ import {
   SEED_VERSION,
 } from "@/data/seed";
 import type { GrowthMilestoneCode, MilestoneMark, PvOverride } from "@/data/growth/types";
+import type { GoalItem } from "@/data/weeklyGoal";
 
 export interface Sale {
   id: string;
@@ -72,20 +73,23 @@ export interface Settings {
   customerDays: number;
   teamDays: number;
 }
-/** Weekly learning targets for one person. */
+/**
+ * A person's weekly goal: an ordered list of targets ("Reading 60 pages",
+ * "Contacts 10", "PV 150"), each kind at most once. Categories, units and how
+ * each is counted: src/data/weeklyGoal.ts. Empty = no goal.
+ */
 export interface LearningGoal {
-  /** Reading target, in `readingUnit`. */
-  pages: number;
-  /** Podcast target, in `podcastUnit`. */
-  podcasts: number;
-  workshops: number;
-  /** Missing = pages. */
-  readingUnit?: ReadingUnit;
-  /** Missing = episodes. */
-  podcastUnit?: PodcastUnit;
+  items: GoalItem[];
 }
 
-export const DEFAULT_LEARNING_GOAL: LearningGoal = { pages: 60, podcasts: 3, workshops: 1 };
+/** The goal for people who haven't set one: Reading 60 pages · Podcasts 3 · Workshops 1. */
+export const DEFAULT_LEARNING_GOAL: LearningGoal = {
+  items: [
+    { kind: "reading", target: 60, unit: "pages" },
+    { kind: "podcasts", target: 3, unit: "episodes" },
+    { kind: "workshops", target: 1 },
+  ],
+};
 export const DEFAULT_SETTINGS: Settings = { customerDays: 30, teamDays: 14 };
 
 interface CrmState {
@@ -106,7 +110,7 @@ interface CrmState {
   logLearning: (l: Omit<Learning, "id">) => void;
   removeLearning: (id: string) => void;
   setSettings: (s: Partial<Settings>) => void;
-  setLearningGoal: (personId: string, goal: Partial<LearningGoal>) => void;
+  setLearningGoal: (personId: string, goal: LearningGoal) => void;
   /** Set (or with `null`, clear) a person's PV for a month. */
   setPvOverride: (
     personId: string,
@@ -165,12 +169,7 @@ export const useCrmStore = create<CrmState>()(
       removeLearning: (id) => set({ learning: get().learning.filter((l) => l.id !== id) }),
       setSettings: (s) => set({ settings: { ...get().settings, ...s } }),
       setLearningGoal: (personId, goal) =>
-        set({
-          goals: {
-            ...get().goals,
-            [personId]: { ...learningGoalFor(get().goals, personId), ...goal },
-          },
-        }),
+        set({ goals: { ...get().goals, [personId]: { items: [...goal.items] } } }),
       setPvOverride: (personId, month, value) => {
         const rest = get().pvOverrides.filter(
           (o) => !(o.personId === personId && o.month === month),
@@ -221,12 +220,14 @@ export function lastSale(sales: Sale[], customerId: string): Sale | undefined {
 }
 export { daysSince } from "@/lib/dates";
 
-/** A person's weekly goal (falls back to DEFAULT_LEARNING_GOAL). */
+/** A person's weekly goal (falls back to DEFAULT_LEARNING_GOAL when they have none). */
 export function learningGoalFor(
   goals: Record<string, LearningGoal>,
   personId: string,
 ): LearningGoal {
-  return goals[personId] ?? DEFAULT_LEARNING_GOAL;
+  const goal = goals[personId];
+  // Anything saved without a list (an older demo store) reads as the default.
+  return goal && Array.isArray(goal.items) ? goal : DEFAULT_LEARNING_GOAL;
 }
 
 /** The unit an entry is measured in (undefined for workshops and conferences). */

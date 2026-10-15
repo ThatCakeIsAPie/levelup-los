@@ -1437,6 +1437,7 @@ export type Database = {
       };
       learning_goals: {
         Row: {
+          items: Json | null;
           pages: number;
           person_id: string;
           podcast_unit: string | null;
@@ -1447,6 +1448,7 @@ export type Database = {
         };
         ComputedFields: never;
         Insert: {
+          items?: Json | null;
           pages?: number;
           person_id: string;
           podcast_unit?: string | null;
@@ -1456,6 +1458,7 @@ export type Database = {
           workspace_id?: string;
         };
         Update: {
+          items?: Json | null;
           pages?: number;
           person_id?: string;
           podcast_unit?: string | null;
@@ -3900,6 +3903,7 @@ export type Database = {
       is_moderator_or_leader: { Args: Record<PropertyKey, never>; Returns: boolean };
       is_team_chat: { Args: { p_conversation_id: string }; Returns: boolean };
       is_upline_of: { Args: { p_person_id: string }; Returns: boolean };
+      learning_goal_items_valid: { Args: { p_items: Json }; Returns: boolean };
       library_can_edit: {
         Args: { p_created_by: string; p_workspace_id: string };
         Returns: boolean;

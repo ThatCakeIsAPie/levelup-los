@@ -146,9 +146,31 @@ export {
   removeLearning,
   logSale,
   removeSale,
-  setLearningGoal,
   setContactSettings,
 } from "./crm";
+
+// The weekly goal: categories, counting, back-compat (src/data/weeklyGoal.ts)
+export { useWeeklyGoal, setLearningGoal } from "./weeklyGoalHooks";
+export {
+  GOAL_CATEGORIES,
+  GOAL_KINDS,
+  MAX_GOAL_TARGET,
+  goalCategory,
+  goalProgress,
+  goalUnit,
+  goalWeek,
+  addableCategories,
+  newGoalItem,
+  validTarget,
+  itemLine,
+  type GoalCategory,
+  type GoalItem,
+  type GoalItemProgress,
+  type GoalKind,
+  type GoalRequirement,
+  type GoalUnitOption,
+  type WeeklyGoalView,
+} from "./weeklyGoal";
 
 // Activity timeline
 export { useActivity, useEventActivity } from "./activity";

@@ -26,7 +26,7 @@ import type { Logistics, SharedCost } from "@/stores/opsStore";
 import { pipelineSeedPeople } from "./pipeline/seedPeople";
 
 /** Bump to reset every persisted store to a fresh seed on next load. */
-export const SEED_VERSION = 10;
+export const SEED_VERSION = 11;
 
 const ago = (n: number) => daysFromToday(-n);
 const ahead = (n: number) => daysFromToday(n);
@@ -928,11 +928,41 @@ export function seedLearning(): Learning[] {
   return rows.map((l, i) => ({ ...l, id: `l${i}` }));
 }
 
-/** Per-person weekly goals that differ from the default (60 pages / 3 podcasts / 1 workshop). */
+/**
+ * Per-person weekly goals that differ from the default (Reading 60 pages ·
+ * Podcasts 3 · Workshops 1). Maria counts her check-ins and first meetings,
+ * Tasha (a new apprentice) her first customers and PV.
+ */
 export function seedLearningGoals(): Record<string, LearningGoal> {
   return {
-    "2": { pages: 70, podcasts: 5, workshops: 1 },
-    "4": { pages: 40, podcasts: 3, workshops: 1 },
+    "1": {
+      items: [
+        { kind: "reading", target: 120, unit: "minutes" },
+        { kind: "contacts", target: 15 },
+        { kind: "first_meetings", target: 5 },
+      ],
+    },
+    "2": {
+      items: [
+        { kind: "reading", target: 70, unit: "pages" },
+        { kind: "podcasts", target: 5, unit: "episodes" },
+        { kind: "workshops", target: 1 },
+      ],
+    },
+    "4": {
+      items: [
+        { kind: "reading", target: 40, unit: "pages" },
+        { kind: "podcasts", target: 3, unit: "episodes" },
+        { kind: "workshops", target: 1 },
+      ],
+    },
+    "700": {
+      items: [
+        { kind: "reading", target: 20, unit: "pages" },
+        { kind: "new_customers", target: 2 },
+        { kind: "pv", target: 150 },
+      ],
+    },
   };
 }
 
