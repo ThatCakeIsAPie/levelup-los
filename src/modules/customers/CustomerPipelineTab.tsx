@@ -95,16 +95,17 @@ export function CustomerPipelineTab({ tabs }: { tabs: ReactNode }) {
           <div className="grid content-start gap-1.5">
             <h2 className="text-[12.5px] font-bold text-muted-foreground">This month</h2>
             <Kpis activity={activity} month={month} items={KPI} />
+            {board && (
+              <InPipelineCard
+                className="mt-1.5"
+                board={board as unknown as PipelineBoard<string>}
+                bands={IN_PIPELINE}
+                until="they're on Ditto"
+              />
+            )}
           </div>
           <Conversions funnel={funnel} />
         </div>
-      )}
-      {board && (
-        <InPipelineCard
-          board={board as unknown as PipelineBoard<string>}
-          bands={IN_PIPELINE}
-          until="they're on Ditto"
-        />
       )}
       {board && (
         <CustomerBoard

@@ -22,13 +22,18 @@ import {
 } from "@/components/ui/select";
 import { toastWithUndo } from "@/components/log/quickLog";
 import {
+  NO_BOOKING,
   RECRUITING_BOARD,
-  MILESTONE_LABEL,
   addPipelineProspect,
+  bookableColumns,
+  bookingError,
   useCurrentUser,
+  usePipelineColumns,
   useVisibleTeam,
+  type Booking,
   type PipelineColumn,
 } from "@/data";
+import { BookingFields, NoteField } from "./BookingFields";
 
 /** Add a prospect straight onto the board (a new person, a "New contact" and a card). */
 export function AddProspectDialog({
@@ -75,19 +80,29 @@ function AddForm({ columns, onDone }: { columns: PipelineColumn[]; onDone: () =>
   const [source, setSource] = useState("");
   const [column, setColumn] = useState("contact");
   const [sponsorId, setSponsorId] = useState(me.personId);
-  const [next, setNext] = useState("");
-  const [date, setDate] = useState("");
+  const [booking, setBooking] = useState<Booking>(NO_BOOKING);
+  const [note, setNote] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const choices = columns.filter((c) => c.id !== "registered" && c.band !== "out");
+  // The booking lives on the owner's board, after the column they start in.
+  const ownerColumns = usePipelineColumns(sponsorId);
+  const bookable = bookableColumns(ownerColumns, column, RECRUITING_BOARD);
+  const booked = bookable.some((c) => c.id === booking.nextColumn) ? booking : NO_BOOKING;
 
   const save = () => {
+    const err = bookingError(booked, bookable);
+    if (err) {
+      setError(err);
+      return;
+    }
     const r = addPipelineProspect({
       name,
       phone,
       source,
       column,
       sponsorId,
-      nextStep: next,
-      nextStepDate: date,
+      booking: booked,
+      note,
     });
     if (!r) return;
     toastWithUndo(`${r.person.name} added to the board`, r.undo, {
@@ -181,28 +196,22 @@ function AddForm({ columns, onDone }: { columns: PipelineColumn[]; onDone: () =>
           </div>
         )}
       </div>
-      <div className="grid grid-cols-[minmax(0,1fr)_9.5rem] gap-3">
-        <div className="grid gap-1.5">
-          <Label htmlFor="ap-next">Next step (optional)</Label>
-          <Input
-            id="ap-next"
-            value={next}
-            maxLength={40}
-            onChange={(e) => setNext(e.target.value)}
-            placeholder="e.g. Share story"
-          />
-        </div>
-        <div className="grid gap-1.5">
-          <Label htmlFor="ap-date">When</Label>
-          <Input
-            id="ap-date"
-            type="date"
-            className="min-w-0"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-          />
-        </div>
-      </div>
+      <BookingFields
+        id="ap-booking"
+        columns={bookable}
+        bands={RECRUITING_BOARD.bands}
+        value={booked}
+        onChange={(b) => {
+          setBooking(b);
+          setError(null);
+        }}
+      />
+      {error && (
+        <p className="text-[12.5px] font-semibold text-bad" role="alert">
+          {error}
+        </p>
+      )}
+      <NoteField id="ap-note" value={note} onChange={setNote} />
       <DialogFooter>
         <Button type="submit" disabled={!name.trim()}>
           <Plus /> Add prospect

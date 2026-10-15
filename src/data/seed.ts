@@ -21,12 +21,13 @@ import type { CrmEvent } from "@/stores/eventsStore";
 import type { Attendance, MissedEventNote } from "@/stores/attendanceStore";
 import type { Contact, Learning, LearningGoal, Sale } from "@/stores/crmStore";
 import type { GrowthMilestoneCode, MilestoneMark, PvOverride } from "./growth/types";
+import { registeredOn } from "./growth/engine";
 import type { ActivityEvent } from "@/stores/activityStore";
 import type { Logistics, SharedCost } from "@/stores/opsStore";
 import { pipelineSeedPeople } from "./pipeline/seedPeople";
 
 /** Bump to reset every persisted store to a fresh seed on next load. */
-export const SEED_VERSION = 10;
+export const SEED_VERSION = 14;
 
 const ago = (n: number) => daysFromToday(-n);
 const ahead = (n: number) => daysFromToday(n);
@@ -332,6 +333,7 @@ export function seedEvents(): CrmEvent[] {
       location: "Dallas, TX",
       notes: "Two-day leadership conference. Team van leaves Friday 7am.",
       format: "both",
+      ticketUrl: "https://tickets.example.com/fall-leadership-weekend",
     },
     {
       id: "e5",
@@ -341,6 +343,7 @@ export function seedEvents(): CrmEvent[] {
       location: "Dallas, TX and Zoom",
       notes: "Recognition, new apprentices, Fall Weekend ticket push.",
       format: "both",
+      ticketUrl: "https://venmo.com/u/levelup-team",
     },
     {
       id: "e2",
@@ -652,7 +655,7 @@ export function seedSales(): Sale[] {
     pv,
     personId: owner(customerId),
   }));
-  return [...base, ...growthSales(), ...teamMonthSales()];
+  return [...base, ...growthSales(), ...teamMonthSales(), ...teamLastMonthSales()];
 }
 
 /** Everyone under a person (business path), not counting them. */
@@ -673,8 +676,9 @@ function downlineIds(people: CrmPerson[], id: string): Set<string> {
 
 /**
  * A personal order this month for the other apprentices and IBOs, so the team
- * map and growth paths show varied PV, 50 to 570 (with their customers'
- * orders nobody passes 600). Prospects have no PV. Deterministic.
+ * map and growth paths show varied PV, 50 to TEAM_MONTH_TOP + 50 (half a
+ * month in, Maria's group stays under 7,500, so her 7,500 Platinum and Ruby
+ * count only from last month). Prospects have no PV. Deterministic.
  */
 function teamMonthSales(): Sale[] {
   const people = seedPeople();
@@ -687,7 +691,7 @@ function teamMonthSales(): Sale[] {
   return people
     .filter((p) => (p.bizClass === "apprentice" || p.bizClass === "ibo") && !skip.has(p.id))
     .map((p) => {
-      const top = anita.has(p.id) ? 200 : 520;
+      const top = anita.has(p.id) ? 200 : TEAM_MONTH_TOP;
       const pv = 50 + Math.round((rng() * top) / 5) * 5;
       return {
         id: `sm${p.id}`,
@@ -698,6 +702,41 @@ function teamMonthSales(): Sale[] {
         amount: Math.round(pv * 3),
         pv,
       };
+    });
+}
+
+const TEAM_MONTH_TOP = 220;
+
+/**
+ * Last month's personal orders for Maria's team outside Anita's line (whose
+ * last month the uplines set, seedPvOverrides): 350 to 750 PV each, so with
+ * Maria's own orders her group had over 15,000 PV last month (Ruby, and
+ * 7,500 Platinum, held through the end of this month). Only people who had
+ * registered by then. Deterministic.
+ */
+function teamLastMonthSales(): Sale[] {
+  const people = seedPeople();
+  const rng = makeRng(4343);
+  const skip = new Set(["1", "2", ...downlineIds(people, "2")]);
+  const team = downlineIds(people, "1");
+  return people
+    .filter((p) => team.has(p.id) && !skip.has(p.id))
+    .flatMap((p) => {
+      const date = inMonth(1, 2 + Math.floor(rng() * 24));
+      const pv = 350 + Math.round((rng() * 400) / 5) * 5;
+      const reg = registeredOn(p);
+      if (!reg || reg > date) return [];
+      return [
+        {
+          id: `sl${p.id}`,
+          customerId: p.id,
+          personId: p.id,
+          product: "Personal order",
+          date,
+          amount: Math.round(pv * 3),
+          pv,
+        },
+      ];
     });
 }
 
@@ -723,13 +762,18 @@ const thisMonthAgo = (n: number) => {
 };
 
 /**
- * Sales with PV for the growth path demo:
+ * Sales with PV for the growth path demo (volume milestones count in the
+ * month they're met and the month after):
  *  - Tasha (700): Lena's order (her first sale) and a personal order, 95 PV
  *    this month toward Core 150.
- *  - Jamal (4): 160 PV three months ago (Core 150), 320 two months ago
- *    (Core 300), 110 this month; his frontline 201 has 180 this month, so
- *    Jamal's Bronze foundation shows real legs.
+ *  - Jamal (4): 160 PV three months ago (Core 150 first hit), 320 two months
+ *    ago (Core 300 first hit) and 300 this month, so he holds both now; his
+ *    frontline 201 has 180 this month, so Jamal's Bronze foundation shows
+ *    real legs (his group stays under 600).
  *  - Anita (2): a personal order this month.
+ *  - Maria (1): 1,000 PV last month (her group passed 15,000 with
+ *    teamLastMonthSales: Ruby and 7,500 Platinum held through this month
+ *    only) and a personal order this month (Core 300 held now).
  * A personal order has the buyer as both customerId and personId.
  */
 function growthSales(): Sale[] {
@@ -749,9 +793,13 @@ function growthSales(): Sale[] {
     sale("sg4", "4", "4", "Personal order: Nutrilite", inMonth(3, 19), 290, 100),
     sale("sg5", "c8", "4", "eSpring Filter", inMonth(2, 4), 360, 120),
     sale("sg6", "4", "4", "Personal order: home care", inMonth(2, 21), 600, 200),
-    sale("sg7", "4", "4", "Personal order: Nutrilite", thisMonthAgo(6), 330, 110),
+    sale("sg7", "4", "4", "Personal order: Nutrilite", thisMonthAgo(6), 900, 300),
     sale("sg8", "201", "201", "Personal order: XS Energy", thisMonthAgo(4), 540, 180),
     sale("sg9", "2", "2", "Personal order: Artistry", thisMonthAgo(2), 360, 120),
+    sale("sg10", "1", "1", "Personal order: Nutrilite", inMonth(1, 5), 1350, 450),
+    sale("sg11", "c3", "1", "Artistry Skin Set", inMonth(1, 12), 900, 300),
+    sale("sg12", "c4", "1", "eSpring Filter", inMonth(1, 19), 750, 250),
+    sale("sg13", "1", "1", "Personal order: home care", thisMonthAgo(4), 450, 150),
   ];
 }
 
@@ -778,7 +826,10 @@ export function seedPvOverrides(): PvOverride[] {
 /**
  * Milestones marked by hand from before the app: Maria's path up to Ruby
  * (nobody is above her, so no "marked by"), and Anita's early milestones up to
- * Bronze builder, marked by Maria (Anita is working on 6/25).
+ * Bronze builder, marked by Maria (Anita is working on 6/25). Marks on the
+ * headcount and volume milestones are history (when they were first hit):
+ * Maria's 6/50 mark is why her path shows "first hit" on 6/50 now that she's
+ * down to 43 people.
  */
 export function seedMilestoneMarks(): MilestoneMark[] {
   const markedAt = tsAgo(30);
@@ -928,11 +979,41 @@ export function seedLearning(): Learning[] {
   return rows.map((l, i) => ({ ...l, id: `l${i}` }));
 }
 
-/** Per-person weekly goals that differ from the default (60 pages / 3 podcasts / 1 workshop). */
+/**
+ * Per-person weekly goals that differ from the default (Reading 60 pages ·
+ * Podcasts 3 · Workshops 1). Maria counts her check-ins and first meetings,
+ * Tasha (a new apprentice) her first customers and PV.
+ */
 export function seedLearningGoals(): Record<string, LearningGoal> {
   return {
-    "2": { pages: 70, podcasts: 5, workshops: 1 },
-    "4": { pages: 40, podcasts: 3, workshops: 1 },
+    "1": {
+      items: [
+        { kind: "reading", target: 120, unit: "minutes" },
+        { kind: "contacts", target: 15 },
+        { kind: "first_meetings", target: 5 },
+      ],
+    },
+    "2": {
+      items: [
+        { kind: "reading", target: 70, unit: "pages" },
+        { kind: "podcasts", target: 5, unit: "episodes" },
+        { kind: "workshops", target: 1 },
+      ],
+    },
+    "4": {
+      items: [
+        { kind: "reading", target: 40, unit: "pages" },
+        { kind: "podcasts", target: 3, unit: "episodes" },
+        { kind: "workshops", target: 1 },
+      ],
+    },
+    "700": {
+      items: [
+        { kind: "reading", target: 20, unit: "pages" },
+        { kind: "new_customers", target: 2 },
+        { kind: "pv", target: 150 },
+      ],
+    },
   };
 }
 

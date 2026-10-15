@@ -44,6 +44,7 @@ import { visibleEntries } from "@/data/customerPipeline/rules";
 import { WORKSPACE_ID } from "@/data/chat/types";
 import { filterAttendances, visibleCustomers, visibleIdSet, type Viewer } from "@/data/access";
 import type { CrmPerson } from "@/stores/peopleStore";
+import { goalToRow } from "@/data/remote/rows";
 
 /**
  * The demo users (DEMO_USERS in src/stores/sessionStore.ts, not imported
@@ -137,6 +138,8 @@ class Sql {
   constructor(public readonly sql: string) {}
 }
 const raw = (sql: string) => new Sql(sql);
+/** A "HH:MM" time (or null) for a `time` column. */
+const timeLit = (t: string | null) => (t ? raw(`${str(t)}::time`) : null);
 
 function insert(table: string, cols: [string, ColType][], rows: unknown[][]): string {
   if (!rows.length) return `-- ${table}: no rows\n`;
@@ -319,6 +322,7 @@ emit(
       ["location", "text"],
       ["notes", "text"],
       ["format", "text"],
+      ["ticket_url", "text"],
       ["created_by", "text"],
     ],
     events.map((e) => [
@@ -331,6 +335,7 @@ emit(
       e.location,
       e.notes,
       e.format ?? "in_person",
+      e.ticketUrl,
       "1",
     ]),
   ),
@@ -592,16 +597,22 @@ emit(
       ["workshops", "num"],
       ["reading_unit", "text"],
       ["podcast_unit", "text"],
+      ["items", "json"],
     ],
-    Object.entries(goals).map(([p, g]) => [
-      p,
-      WORKSPACE_ID,
-      g.pages,
-      g.podcasts,
-      g.workshops,
-      g.readingUnit ?? null,
-      g.podcastUnit ?? null,
-    ]),
+    Object.entries(goals).map(([p, g]) => {
+      // The app's own mapping: the list plus the old columns kept in step.
+      const row = goalToRow(p, g);
+      return [
+        p,
+        WORKSPACE_ID,
+        row.pages,
+        row.podcasts,
+        row.workshops,
+        row.reading_unit,
+        row.podcast_unit,
+        row.items,
+      ];
+    }),
   ),
 );
 
@@ -857,8 +868,10 @@ emit(
       ["workspace_id", "text"],
       ["column_id", "text"],
       ["entered_at", "ts"],
-      ["next_step", "text"],
+      ["next_column", "text"],
       ["next_step_date", "date"],
+      ["next_step_time", "text"],
+      ["note", "text"],
       ["hot", "bool"],
       ["source", "text"],
       ["dropped_at", "ts"],
@@ -869,8 +882,10 @@ emit(
       WORKSPACE_ID,
       c.column,
       c.enteredAt,
-      c.nextStep,
+      c.nextColumn,
       c.nextStepDate,
+      timeLit(c.nextStepTime),
+      c.note,
       c.hot,
       c.source,
       c.droppedAt,
@@ -1053,8 +1068,10 @@ emit(
       ["workspace_id", "text"],
       ["column_id", "text"],
       ["entered_at", "ts"],
-      ["next_step", "text"],
+      ["next_column", "text"],
       ["next_step_date", "date"],
+      ["next_step_time", "text"],
+      ["note", "text"],
       ["updated_at", "ts"],
     ],
     customerPipeline.cards.map((c) => [
@@ -1062,8 +1079,10 @@ emit(
       WORKSPACE_ID,
       c.column,
       c.enteredAt,
-      c.nextStep,
+      c.nextColumn,
       c.nextStepDate,
+      timeLit(c.nextStepTime),
+      c.note,
       c.updatedAt,
     ]),
   ),

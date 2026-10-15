@@ -231,12 +231,19 @@ export function seedPipeline(people: CrmPerson[], now: Date = new Date()): Pipel
     const contactAgo = Math.max(pl.contactDaysAgo ?? joined, pl.enteredDaysAgo);
     record(person.id, person.sponsorId, pathTo(cols, idx, contactAgo, pl.enteredDaysAgo));
     const enteredAt = moves[moves.length - 1].movedAt;
+    // The booked column, or the next one when the owner's board doesn't show it.
+    const after = cols.slice(idx + 1);
+    const nextCol = pl.next
+      ? (after.find((c) => c.id === pl.next!.column) ?? after[0] ?? null)
+      : null;
     cards.push({
       personId: person.id,
       column: cols[idx].id,
       enteredAt,
-      nextStep: pl.next?.text ?? null,
-      nextStepDate: pl.next ? localDate(addDays(now, pl.next.inDays)) : null,
+      nextColumn: nextCol?.id ?? null,
+      nextStepDate: nextCol && pl.next ? localDate(addDays(now, pl.next.inDays)) : null,
+      nextStepTime: (nextCol && pl.next?.time) || null,
+      note: pl.note ?? null,
       hot: !!pl.hot,
       source: pl.source ?? null,
       droppedAt: null,
@@ -386,6 +393,7 @@ export function seedPipeline(people: CrmPerson[], now: Date = new Date()): Pipel
     settings: seedSettings(),
     shares: seedShares(),
     requests: seedRequests(),
+    cancellations: [],
   };
 }
 

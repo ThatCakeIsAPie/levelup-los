@@ -16,7 +16,9 @@ import { Button } from "@/components/ui/button";
 import {
   daysFromToday,
   effectiveBizClass,
+  isRegistered,
   localDate,
+  registeredOn,
   useContacts,
   useCustomerCounts,
   useTeamLearning,
@@ -25,22 +27,29 @@ import {
 import { plural } from "./format";
 import { summarizeTeamLearning, totalsSummary, weekStart } from "./learning";
 
-const STAGES = ["ibo", "apprentice", "prospect"] as const;
+const STAGES = ["ibo", "apprentice"] as const;
 
-/** Team size, new people, customers and stage mix. `team` excludes the viewer. */
+/**
+ * Team size, new registrations, customers and stage mix. `team` excludes the
+ * viewer. Only registered people (apprentices and IBOs) count: prospects live
+ * on the pipeline, not the team.
+ */
 export function TeamCard({ team, compact }: { team: CrmPerson[]; compact?: boolean }) {
   const customerCounts = useCustomerCounts();
   const stats = useMemo(() => {
     const since = daysFromToday(-30);
-    const mix = { ibo: 0, apprentice: 0, prospect: 0 };
+    const mix = { ibo: 0, apprentice: 0 };
+    let size = 0;
     let fresh = 0;
     for (const p of team) {
-      const s = effectiveBizClass(p);
-      if (s !== "customer") mix[s]++;
-      if (p.joinedDate && p.joinedDate >= since) fresh++;
+      if (!isRegistered(p)) continue;
+      size++;
+      mix[effectiveBizClass(p) === "ibo" ? "ibo" : "apprentice"]++;
+      const on = registeredOn(p);
+      if (on && on >= since) fresh++;
     }
     const customers = Object.values(customerCounts).reduce((s, n) => s + n, 0);
-    return { mix, fresh, customers };
+    return { size, mix, fresh, customers };
   }, [team, customerCounts]);
 
   return (
@@ -53,12 +62,12 @@ export function TeamCard({ team, compact }: { team: CrmPerson[]; compact?: boole
         </Link>
       }
     >
-      {team.length === 0 ? (
+      {stats.size === 0 ? (
         <EmptyState
           className="py-6"
           icon={<Users />}
           title="No one on your team yet"
-          body="People you sponsor show up here with their stage."
+          body="People you sponsor show up here once they register."
           action={
             <Button asChild size="sm" variant="outline">
               <Link to="/people">Go to people</Link>
@@ -68,10 +77,10 @@ export function TeamCard({ team, compact }: { team: CrmPerson[]; compact?: boole
       ) : (
         <>
           <div className="grid grid-cols-3 gap-2.5">
-            <StatTile value={team.length} label="People" />
+            <StatTile value={stats.size} label="Registered" />
             <StatTile
               value={stats.fresh > 0 ? `+${stats.fresh}` : "0"}
-              label={compact ? "New" : "New in 30 days"}
+              label={compact ? "New" : "Registered in 30 days"}
             />
             <StatTile value={stats.customers} label="Customers" />
           </div>

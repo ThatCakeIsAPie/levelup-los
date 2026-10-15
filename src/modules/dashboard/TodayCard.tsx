@@ -1,6 +1,8 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import {
+  CalendarClock,
+  CalendarDays,
   Check,
   CircleCheck,
   MessageCircle,
@@ -11,6 +13,7 @@ import {
   TrendingUp,
   Undo2,
   UserX,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ActionRow, EmptyState, STAGE_LABEL, StageChip, type IconTone } from "@/components/brand";
@@ -19,16 +22,26 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { quickCheckIn } from "@/components/log/quickLog";
+import { quickCheckIn, toastWithUndo } from "@/components/log/quickLog";
 import {
   EVENT_TYPE_LABEL,
+  bookingLabel,
   effectiveBizClass,
   removeContact,
   openLog,
+  rescheduleBookedStep,
+  rescheduleChoices,
   setContactSettings,
   useContactSettings,
+  useCurrentUser,
+  useCustomerColumns,
+  usePipelineColumns,
 } from "@/data";
 import { MissedNoteDialog } from "@/modules/events/MissedNoteDialog";
+import { useMoveCard } from "@/modules/pipeline/useMoveCard";
+import { useCustomerMove } from "@/modules/customers/useCustomerMove";
+import { CancelStepDialog } from "@/modules/pipeline/CancelStepDialog";
+import { timeText, whenText } from "@/modules/pipeline/format";
 import { plural, relativeDay, shortDate } from "./format";
 import { countByFilter, type TodayFilter, type TodayItem } from "./today";
 
@@ -39,6 +52,7 @@ const FILTERS: { value: Filter; label: string }[] = [
   { value: "team", label: "Team" },
   { value: "customers", label: "Customers" },
   { value: "events", label: "Events" },
+  { value: "pipeline", label: "Pipeline" },
 ];
 
 const ICON: Record<TodayItem["kind"], { icon: typeof Ticket; tone: IconTone }> = {
@@ -48,7 +62,10 @@ const ICON: Record<TodayItem["kind"], { icon: typeof Ticket; tone: IconTone }> =
   anniversary: { icon: TrendingUp, tone: "info" },
   team: { icon: MessageCircle, tone: "primary" },
   missed: { icon: UserX, tone: "warn" },
+  step: { icon: CalendarClock, tone: "primary" },
 };
+
+type StepItem = Extract<TodayItem, { kind: "step" }>;
 
 /**
  * The prioritised "Today" list. Desktop shows 5 rows and "Show N more";
@@ -97,6 +114,18 @@ export function TodayCard({
     removeContact(d.contactId);
     toast.dismiss(d.toastId);
     forget(d.item.key);
+  };
+  // "Done" on a booked step moves the card into the booked column through the
+  // boards' own movers (Registered and First sale ask first, the sale form
+  // opens, the move is recorded and the toast can undo it).
+  const user = useCurrentUser();
+  const me = candidate ? undefined : user.personId;
+  const recruiting = useMoveCard(usePipelineColumns(me));
+  const customer = useCustomerMove(useCustomerColumns(me));
+  const accept = (item: StepItem) => {
+    const b = item.booking;
+    if (b.board === "customer") customer.move(b.cardId, b.name, b.column.id);
+    else recruiting.move(b.cardId, b.name, b.column.id);
   };
 
   const counts = countByFilter(items.filter((i) => !done.has(i.key)));
@@ -147,7 +176,7 @@ export function TodayCard({
           body={
             candidate
               ? "Event follow-ups and ticket reminders show up here when they're due."
-              : "Check-ins, customer contacts, event follow-ups and IBO anniversaries show up here when they're due."
+              : "Check-ins, customer contacts, booked pipeline steps, event follow-ups and IBO anniversaries show up here when they're due."
           }
         />
       ) : shown.length === 0 ? (
@@ -161,7 +190,13 @@ export function TodayCard({
             return d ? (
               <DoneRow key={item.key} entry={d} compact={compact} onUndo={() => undo(d)} />
             ) : (
-              <TodayRow key={item.key} item={item} compact={compact} onCheckIn={checkIn} />
+              <TodayRow
+                key={item.key}
+                item={item}
+                compact={compact}
+                onCheckIn={checkIn}
+                onAccept={accept}
+              />
             );
           })}
         </div>
@@ -185,6 +220,8 @@ export function TodayCard({
           Show fewer
         </button>
       )}
+      {recruiting.dialog}
+      {customer.dialog}
     </section>
   );
 }
@@ -353,13 +390,17 @@ function TodayRow({
   item,
   compact,
   onCheckIn: checkIn,
+  onAccept,
 }: {
   item: TodayItem;
   compact: boolean;
   onCheckIn: (item: TodayItem) => void;
+  onAccept: (item: StepItem) => void;
 }) {
-  const { icon, tone } = ICON[item.kind];
+  const { icon } = ICON[item.kind];
+  let tone = ICON[item.kind].tone;
   const [noteOpen, setNoteOpen] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
   const p = item.person;
   const first = p.name.split(" ")[0];
   const stage = item.kind === "customer" ? "customer" : effectiveBizClass(p);
@@ -390,6 +431,63 @@ function TodayRow({
     );
 
   switch (item.kind) {
+    case "step": {
+      const b = item.booking;
+      const label = bookingLabel(b.column);
+      const when =
+        b.due === "today"
+          ? `today${b.time ? ` ${timeText(b.time)}` : ""}`
+          : `${plural(b.daysLate, "day")} overdue`;
+      if (b.due === "overdue") tone = "warn";
+      title = compact ? `${p.name} — ${label}` : `${p.name} — ${label} (${when})`;
+      detail = compact
+        ? when
+        : `${b.board === "customer" ? "Customer pipeline" : "Recruiting pipeline"} · moves to ${b.column.label}`;
+      action = (
+        <span className="flex items-center gap-1.5">
+          {compact ? (
+            <Button
+              size="icon"
+              variant="soft"
+              className="size-8"
+              aria-label={`Done: move ${p.name} to ${b.column.label}`}
+              onClick={() => onAccept(item)}
+            >
+              <Check />
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              variant="soft"
+              aria-label={`Done: move ${p.name} to ${b.column.label}`}
+              onClick={() => onAccept(item)}
+            >
+              <Check /> Done
+            </Button>
+          )}
+          <Reschedule item={item} label={label} />
+          <Button
+            size="icon"
+            variant="outline"
+            className="size-8"
+            aria-label={`Cancel ${label} with ${p.name}`}
+            title="Cancel"
+            onClick={() => setCancelOpen(true)}
+          >
+            <X />
+          </Button>
+          <CancelStepDialog
+            open={cancelOpen}
+            onOpenChange={setCancelOpen}
+            board={b.board}
+            cardId={b.cardId}
+            name={p.name}
+            stepLabel={label}
+          />
+        </span>
+      );
+      break;
+    }
     case "ticket":
       title = item.self
         ? `Buy your ticket for ${item.event.name}`
@@ -519,6 +617,7 @@ function TodayRow({
     );
   }
 
+  const boardRow = item.kind === "step" && item.booking.board === "customer";
   return (
     <ActionRow
       icon={icon}
@@ -527,10 +626,14 @@ function TodayRow({
       link={
         (item.kind === "ticket" || item.kind === "followup") && item.self
           ? { to: "/events/$id", params: { id: item.event.id } }
-          : { to: "/people/$id", params: { id: p.id } }
+          : boardRow
+            ? { to: "/customers" }
+            : { to: "/people/$id", params: { id: p.id } }
       }
       meta={
-        compact ? (
+        boardRow ? (
+          <span>{compact ? `On your list · ${detail}` : detail}</span>
+        ) : compact ? (
           <span>
             {STAGE_LABEL[stage]} · {detail}
           </span>
@@ -544,5 +647,71 @@ function TodayRow({
       action={action}
       className={cn(compact && "gap-2.5 py-[9px]")}
     />
+  );
+}
+
+/** "Reschedule" a booked step: tomorrow, next week, or a day of your choice. */
+function Reschedule({ item, label }: { item: StepItem; label: string }) {
+  const b = item.booking;
+  const [open, setOpen] = useState(false);
+  const [day, setDay] = useState("");
+  const move = (date: string) => {
+    const r = rescheduleBookedStep(b.board, b.cardId, date);
+    if (!r.ok) {
+      toast.error(r.error);
+      return;
+    }
+    setOpen(false);
+    toastWithUndo(`${label} with ${b.name} moved to ${whenText(date, b.time)}`, r.undo, {
+      undoneMessage: "Back on the old day",
+    });
+  };
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          size="icon"
+          variant="outline"
+          className="size-8"
+          aria-label={`Reschedule ${label} with ${b.name}`}
+          title="Reschedule"
+        >
+          <CalendarDays />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="grid w-64 gap-2.5">
+        <p className="text-sm font-bold">Move {label} to…</p>
+        <div className="grid grid-cols-2 gap-2">
+          {rescheduleChoices().map((c) => (
+            <Button key={c.label} size="sm" variant="soft" onClick={() => move(c.date)}>
+              {c.label}
+            </Button>
+          ))}
+        </div>
+        <form
+          className="flex items-end gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (day) move(day);
+          }}
+        >
+          <div className="grid min-w-0 flex-1 gap-1">
+            <Label htmlFor={`resched-${b.board}-${b.cardId}`} className="text-[12px]">
+              Another day
+            </Label>
+            <Input
+              id={`resched-${b.board}-${b.cardId}`}
+              type="date"
+              className="h-8 min-w-0"
+              value={day}
+              onChange={(e) => setDay(e.target.value)}
+            />
+          </div>
+          <Button type="submit" size="sm" disabled={!day}>
+            Move
+          </Button>
+        </form>
+      </PopoverContent>
+    </Popover>
   );
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_LEARNING_GOAL, type Learning } from "@/data";
-import { goalProgress, totalsSummary, weekTotals } from "./learning";
+import type { Learning } from "@/data";
+import { totalsSummary, weekStart, weekTotals } from "./learning";
 
 const today = "2026-10-14";
 let n = 0;
@@ -37,23 +37,10 @@ describe("weekTotals", () => {
   });
 });
 
-describe("goalProgress", () => {
-  const totals = weekTotals(week, today);
-
-  it("counts pages and episodes by default", () => {
-    // 20/60 pages, 3/3 podcasts, 1/1 workshop.
-    expect(goalProgress(totals, DEFAULT_LEARNING_GOAL)).toBeCloseTo((20 / 60 + 1 + 1) / 3);
-  });
-
-  it("counts the units the goal picks", () => {
-    const goal = {
-      ...DEFAULT_LEARNING_GOAL,
-      pages: 100,
-      readingUnit: "minutes" as const,
-      podcasts: 90,
-      podcastUnit: "minutes" as const,
-    };
-    expect(goalProgress(totals, goal)).toBeCloseTo((25 / 100 + 45 / 90 + 1) / 3);
+// The weekly goal's own counting and progress: src/data/weeklyGoal.test.ts.
+describe("weekStart", () => {
+  it("is six days before today (the same week the weekly goal counts)", () => {
+    expect(weekStart(today)).toBe("2026-10-08");
   });
 });
 

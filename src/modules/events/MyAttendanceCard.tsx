@@ -13,6 +13,7 @@ import {
   type CrmEvent,
   type DesireLevel,
 } from "@/data";
+import { BuyTicketButton } from "./BuyTicketButton";
 import { Segmented } from "./Segmented";
 import { attendanceToast, cameOptions, cameValue } from "./attendance";
 import { MODE_ICON } from "./typeIcons";
@@ -93,6 +94,9 @@ export function MyAttendanceCard({
             options={modes.map((m) => ({ value: m, label: MODE_LABEL[m], icon: MODE_ICON[m] }))}
           />
         </div>
+      )}
+      {mine?.desireToAttend !== "no" && (
+        <BuyTicketButton event={event} variant="outline" className="justify-self-start" />
       )}
     </SectionCard>
   );

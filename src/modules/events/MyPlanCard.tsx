@@ -9,9 +9,11 @@ import {
   localDate,
   updateAttendance,
   useCurrentUser,
+  useEvent,
   type Attendance,
   type DesireLevel,
 } from "@/data";
+import { BuyTicketButton } from "./BuyTicketButton";
 import { attendanceStatus, shortDate } from "./lib";
 import { Segmented } from "./Segmented";
 
@@ -26,7 +28,9 @@ export function MyPlanCard({
   finished: boolean;
 }) {
   const user = useCurrentUser();
+  const event = useEvent(eventId);
   const mine = rows.find((a) => a.personId === user.personId);
+  const hasLink = !!event?.ticketUrl;
 
   if (!mine) {
     if (finished) return null;
@@ -55,6 +59,7 @@ export function MyPlanCard({
           >
             Maybe
           </Button>
+          {event && <BuyTicketButton event={event} variant="outline" />}
         </div>
       </SectionCard>
     );
@@ -122,18 +127,22 @@ export function MyPlanCard({
                     onChange={(e) => up({ plannedPurchaseDate: e.target.value || undefined })}
                   />
                 </div>
-                <Button
-                  onClick={() => {
-                    up({
-                      hasTicket: true,
-                      mode: mine.mode ?? "in_person",
-                      desireToAttend: "yes",
-                    });
-                    toast.success("Ticket marked as bought");
-                  }}
-                >
-                  <Ticket /> I bought my ticket
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  {event && <BuyTicketButton event={event} />}
+                  <Button
+                    variant={hasLink ? "outline" : "default"}
+                    onClick={() => {
+                      up({
+                        hasTicket: true,
+                        mode: mine.mode ?? "in_person",
+                        desireToAttend: "yes",
+                      });
+                      toast.success("Ticket marked as bought");
+                    }}
+                  >
+                    <Ticket /> I bought my ticket
+                  </Button>
+                </div>
               </div>
             ))}
         </>

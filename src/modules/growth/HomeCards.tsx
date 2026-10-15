@@ -3,6 +3,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import {
   Check,
   FileBarChart,
+  History,
   Kanban,
   Network,
   PartyPopper,
@@ -32,8 +33,8 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { firstName } from "@/modules/people/format";
-import { OverrideNote, ProgressBar, ProgressParts } from "./GrowthPath";
-import { isMonthly, pv, reachedShort } from "./format";
+import { KeepUpNote, OverrideNote, ProgressBar, ProgressParts } from "./GrowthPath";
+import { isMonthly, monthYear, pv, reachedShort } from "./format";
 
 /** What to say under the next milestone's numbers. */
 function nudge(path: GrowthPath): string {
@@ -68,8 +69,10 @@ function nudge(path: GrowthPath): string {
 }
 
 /**
- * Home: the signed-in person's next milestone (one clear goal) with its real
- * numbers, and the steps just behind and ahead of it.
+ * Home: the signed-in person's next milestone (the first one not held now:
+ * one clear goal) with its real numbers, and the steps just behind and ahead
+ * of it. A milestone they had before and lost says when they first hit it;
+ * monthly milestones held only through last month get a heads-up.
  */
 export function NextMilestoneCard() {
   const me = useCurrentUser();
@@ -90,8 +93,9 @@ export function NextMilestoneCard() {
     return (
       <SectionCard title="Your growth path" action={link}>
         <p className="text-[13px]">
-          You've reached every milestone on the path, all the way to <b>12/100</b>.
+          You hold every milestone on the path, all the way to <b>12/100</b>.
         </p>
+        <KeepUpNote path={path} own name="" />
       </SectionCard>
     );
   }
@@ -120,7 +124,17 @@ export function NextMilestoneCard() {
       }
     >
       <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
-        <span className="text-[26px] leading-none font-extrabold tracking-tight">{next.label}</span>
+        <span className="grid gap-1">
+          <span className="text-[26px] leading-none font-extrabold tracking-tight">
+            {next.label}
+          </span>
+          {next.state === "lost" && next.firstReachedOn && (
+            <span className="inline-flex items-center gap-1 text-[12px] text-muted-foreground">
+              <History className="size-3.5" aria-hidden="true" />
+              You first hit this in {monthYear(next.firstReachedOn)}
+            </span>
+          )}
+        </span>
         {single && (
           <span className="flex items-baseline gap-1.5">
             <b className="text-[26px] leading-none font-extrabold tabular-nums">
@@ -148,9 +162,11 @@ export function NextMilestoneCard() {
           </Button>
         )}
       </div>
+      <KeepUpNote path={path} own name="" />
       <ol className="flex flex-wrap gap-1.5" aria-label="Steps around your next milestone">
         {strip.map((m) => {
-          const reached = !!m.reachedOn;
+          const reached = m.held;
+          const before = m.state === "lost";
           const now = m.code === next.code;
           return (
             <li
@@ -164,11 +180,14 @@ export function NextMilestoneCard() {
               )}
             >
               {reached && <Check className="size-3" strokeWidth={3} aria-hidden="true" />}
+              {before && !now && <History className="size-3" aria-hidden="true" />}
               {m.label}
               {reached && (
-                <span className="font-medium opacity-80">{reachedShort(m.reachedOn!)}</span>
+                <span className="font-medium opacity-80">{reachedShort(m.firstReachedOn!)}</span>
               )}
-              <span className="sr-only">{reached ? " (reached)" : now ? " (next)" : ""}</span>
+              <span className="sr-only">
+                {reached ? " (held)" : now ? " (next)" : before ? " (earned before)" : ""}
+              </span>
             </li>
           );
         })}
@@ -203,7 +222,8 @@ export function FirstSponsorCelebration() {
   const me = useCurrentUser();
   const navigate = useNavigate();
   const path = useMyGrowthPath();
-  const reachedOn = path?.milestones.find((m) => m.code === "first_sponsor")?.reachedOn ?? null;
+  const reachedOn =
+    path?.milestones.find((m) => m.code === "first_sponsor")?.firstReachedOn ?? null;
   const key = SEEN_KEY(me.personId);
   // "Show me" opens the team view, which First sponsor unlocks (src/data/unlocks.ts).
   const teamUnlocked = useUnlocks().can.team;

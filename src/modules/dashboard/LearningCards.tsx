@@ -1,5 +1,5 @@
-import { useState, type ReactNode } from "react";
-import { Flame } from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Flame, GripVertical, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import { ProgressRing, SectionCard, SegmentedBar, ToneChip } from "@/components/brand";
 import { Button } from "@/components/ui/button";
@@ -11,19 +11,32 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { PODCAST_UNITS, READING_UNITS, UnitToggle } from "@/components/log/parts";
 import {
+  MAX_GOAL_TARGET,
+  addableCategories,
+  goalCategory,
+  itemLine,
+  newGoalItem,
   openLog,
   setLearningGoal,
+  useUnlocks,
+  validTarget,
+  type GoalItem,
+  type GoalKind,
   type LearningGoal,
-  type PodcastUnit,
-  type ReadingUnit,
+  type LearningUnit,
 } from "@/data";
 import type { MyLearning } from "./hooks";
-import { goalKeys, type WeekTotals } from "./learning";
 
 function streakHint(l: MyLearning): string {
   if (l.loggedToday) return "Logged today";
@@ -121,49 +134,33 @@ export function StreakTile({ learning }: { learning: MyLearning }) {
   );
 }
 
-/** One line per target: what this week's total is measured against. */
-function goalRows(goal: LearningGoal, totals: WeekTotals) {
-  const keys = goalKeys(goal);
-  const reading = goal.readingUnit ?? "pages";
-  const podcast = goal.podcastUnit ?? "episodes";
-  return [
-    {
-      key: "reading",
-      label:
-        reading === "minutes" ? "Reading (min)" : reading === "chapters" ? "Chapters" : "Pages",
-      done: totals[keys.reading],
-      target: goal.pages,
-    },
-    {
-      key: "podcasts",
-      label: podcast === "minutes" ? "Podcasts (min)" : "Podcasts",
-      done: totals[keys.podcasts],
-      target: goal.podcasts,
-    },
-    { key: "workshops", label: "Workshops", done: totals.workshops, target: goal.workshops },
-  ];
-}
-
 /** Desktop weekly goal card with an Edit dialog. */
 export function GoalCard({ learning, personId }: { learning: MyLearning; personId: string }) {
   const [editing, setEditing] = useState(false);
+  const empty = learning.goalItems.length === 0;
   return (
     <SectionCard
       title="This week's goal"
       action={
-        <button
-          type="button"
-          className="rounded-sm text-primary hover:underline focus-visible:outline-2 focus-visible:outline-ring"
-          onClick={() => setEditing(true)}
-        >
-          Edit
-        </button>
+        empty ? undefined : (
+          <button
+            type="button"
+            className="rounded-sm text-primary hover:underline focus-visible:outline-2 focus-visible:outline-ring"
+            onClick={() => setEditing(true)}
+          >
+            Edit
+          </button>
+        )
       }
     >
-      <div className="flex items-center gap-4">
-        <ProgressRing value={learning.progress} />
-        <GoalRows learning={learning} className="flex-1" />
-      </div>
+      {empty ? (
+        <GoalEmpty onAdd={() => setEditing(true)} />
+      ) : (
+        <div className="flex items-center gap-4">
+          <ProgressRing value={learning.progress} />
+          <GoalRows learning={learning} className="min-w-0 flex-1" />
+        </div>
+      )}
       <GoalDialog
         open={editing}
         onOpenChange={setEditing}
@@ -174,14 +171,29 @@ export function GoalCard({ learning, personId }: { learning: MyLearning; personI
   );
 }
 
+function GoalEmpty({ onAdd }: { onAdd: () => void }) {
+  return (
+    <div className="grid justify-items-start gap-3">
+      <p className="text-[13px] text-muted-foreground">
+        No goal for this week yet. Pick what you want to aim for: reading, check-ins, new customers
+        and more.
+      </p>
+      <Button type="button" size="sm" onClick={onAdd}>
+        <Plus /> Add a goal
+      </Button>
+    </div>
+  );
+}
+
+/** One line per item: this week's total against its target. */
 function GoalRows({ learning, className }: { learning: MyLearning; className?: string }) {
   return (
     <dl className={cn("grid gap-1.5 text-[12.5px]", className)}>
-      {goalRows(learning.goal, learning.totals).map((r) => (
-        <div key={r.key} className="flex justify-between gap-2">
-          <dt className="text-muted-foreground">{r.label}</dt>
-          <dd className="font-bold tabular-nums">
-            {r.done} / {r.target}
+      {learning.goalItems.map(({ item, category, done }) => (
+        <div key={item.kind} className="flex justify-between gap-2">
+          <dt className="min-w-0 truncate text-muted-foreground">{category.rowLabel(item.unit)}</dt>
+          <dd className="shrink-0 font-bold tabular-nums">
+            {done} / {item.target}
           </dd>
         </div>
       ))}
@@ -189,38 +201,50 @@ function GoalRows({ learning, className }: { learning: MyLearning; className?: s
   );
 }
 
-/** "35 of 60 pages", "40 of 120 min reading". */
-function readingLine(l: MyLearning): string {
-  const unit = l.goal.readingUnit ?? "pages";
-  const done = l.totals[goalKeys(l.goal).reading];
-  return unit === "minutes"
-    ? `${done} of ${l.goal.pages} min reading`
-    : `${done} of ${l.goal.pages} ${unit}`;
-}
-
 /** Phone weekly goal tile; tapping it opens the goal dialog (progress + edit). */
 export function GoalTile({ learning, personId }: { learning: MyLearning; personId: string }) {
   const [editing, setEditing] = useState(false);
   const pct = Math.round(learning.progress * 100);
+  const first = learning.goalItems[0];
   return (
     <>
       <button
         type="button"
         onClick={() => setEditing(true)}
         className={cn(CARD_BUTTON, "grid min-w-0 content-start gap-2 rounded-xl p-3")}
-        aria-label={`Weekly goal ${pct}% done. Open goal details`}
+        aria-label={
+          first ? `Weekly goal ${pct}% done. Open goal details` : "No weekly goal yet. Add a goal"
+        }
       >
         <span className="text-[12.5px] font-bold">Week goal</span>
-        <span className="text-[22px] font-extrabold leading-none tabular-nums">{pct}%</span>
-        <SegmentedBar total={1} segments={[{ value: learning.progress, className: "bg-sky" }]} />
-        <span className="text-[11px] leading-snug text-faint">{readingLine(learning)}</span>
+        {first ? (
+          <>
+            <span className="text-[22px] font-extrabold leading-none tabular-nums">{pct}%</span>
+            <SegmentedBar
+              total={1}
+              segments={[{ value: learning.progress, className: "bg-sky" }]}
+            />
+            <span className="text-[11px] leading-snug text-faint">{itemLine(first)}</span>
+          </>
+        ) : (
+          <>
+            <span className="grid size-[34px] place-items-center rounded-[10px] bg-primary-soft text-primary-ink">
+              <Plus className="size-5" aria-hidden="true" />
+            </span>
+            <span className="text-[11px] leading-snug text-faint">Tap to add a goal</span>
+          </>
+        )}
       </button>
       <GoalDialog
         open={editing}
         onOpenChange={setEditing}
         personId={personId}
         goal={learning.goal}
-        summary={<GoalRows learning={learning} className="rounded-lg bg-surface-2 px-3 py-2.5" />}
+        summary={
+          first ? (
+            <GoalRows learning={learning} className="rounded-lg bg-surface-2 px-3 py-2.5" />
+          ) : undefined
+        }
       />
     </>
   );
@@ -241,12 +265,12 @@ function GoalDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="max-h-[calc(100dvh-2rem)] max-w-md overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Weekly learning goal</DialogTitle>
+          <DialogTitle>Weekly goal</DialogTitle>
           <DialogDescription>
-            Targets for the last 7 days, counted from today. Only learning logged in the units you
-            pick here counts toward them.
+            What you want to do in the last 7 days, counted from today. Reading and podcasts count
+            only what you log in the unit you pick.
           </DialogDescription>
         </DialogHeader>
         {summary}
@@ -266,11 +290,15 @@ function GoalDialog({
   );
 }
 
-const GOAL_FIELDS: { key: "pages" | "podcasts" | "workshops"; label: string }[] = [
-  { key: "pages", label: "Reading" },
-  { key: "podcasts", label: "Podcasts" },
-  { key: "workshops", label: "Workshops" },
-];
+/** A goal item being edited: the target as typed. */
+interface DraftItem {
+  kind: GoalKind;
+  target: string;
+  unit?: LearningUnit;
+}
+
+const targetId = (kind: GoalKind) => `goal-${kind}-target`;
+const amountId = (kind: GoalKind) => `goal-${kind}-amount`;
 
 function GoalForm({
   goal,
@@ -281,85 +309,313 @@ function GoalForm({
   onSave: (g: LearningGoal) => void;
   onCancel: () => void;
 }) {
-  const [draft, setDraft] = useState<Record<(typeof GOAL_FIELDS)[number]["key"], string>>({
-    pages: String(goal.pages),
-    podcasts: String(goal.podcasts),
-    workshops: String(goal.workshops),
-  });
-  const [readingUnit, setReadingUnit] = useState<ReadingUnit>(goal.readingUnit ?? "pages");
-  const [podcastUnit, setPodcastUnit] = useState<PodcastUnit>(goal.podcastUnit ?? "episodes");
-  const parsed: LearningGoal = {
-    pages: Number(draft.pages),
-    podcasts: Number(draft.podcasts),
-    workshops: Number(draft.workshops),
-    readingUnit,
-    podcastUnit,
-  };
-  const valid = GOAL_FIELDS.every(
-    (r) =>
-      draft[r.key].trim() !== "" &&
-      Number.isInteger(parsed[r.key]) &&
-      parsed[r.key] >= 0 &&
-      parsed[r.key] <= 1000,
+  const unlocks = useUnlocks();
+  const [draft, setDraft] = useState<DraftItem[]>(() =>
+    goal.items.map((i) => ({ kind: i.kind, target: String(i.target), unit: i.unit })),
   );
-  const fieldLabel = (key: (typeof GOAL_FIELDS)[number]["key"]) =>
-    key === "pages"
-      ? `Reading (${readingUnit})`
-      : key === "podcasts"
-        ? `Podcasts (${podcastUnit})`
-        : "Workshops";
+  const addRef = useRef<HTMLButtonElement>(null);
+  // The kind just added from the menu: its target gets focus once the menu closes.
+  const added = useRef<GoalKind | null>(null);
+
+  const items: GoalItem[] = draft.map((d) => ({
+    kind: d.kind,
+    target: Number(d.target),
+    ...(d.unit ? { unit: d.unit } : {}),
+  }));
+  const invalid = new Set(
+    draft
+      .filter((d, i) => d.target.trim() === "" || !validTarget(items[i].target))
+      .map((d) => d.kind),
+  );
+  const addable = addableCategories(items, { pipeline: unlocks.can.pipeline });
+
+  const patch = (kind: GoalKind, p: Partial<DraftItem>) =>
+    setDraft((list) => list.map((d) => (d.kind === kind ? { ...d, ...p } : d)));
+  const add = (kind: GoalKind) => {
+    const item = newGoalItem(kind);
+    added.current = kind;
+    setDraft((list) => [...list, { kind, target: String(item.target), unit: item.unit }]);
+  };
+  // After a remove, focus moves to the Add button (there once something is removed).
+  const focusAdd = useRef(false);
+  useEffect(() => {
+    if (!focusAdd.current) return;
+    focusAdd.current = false;
+    addRef.current?.focus();
+  }, [draft]);
+  const remove = (kind: GoalKind) => {
+    focusAdd.current = true;
+    setDraft((list) => list.filter((d) => d.kind !== kind));
+  };
+
   return (
     <form
       className="grid gap-4"
       onSubmit={(e) => {
         e.preventDefault();
-        if (valid) onSave(parsed);
+        if (invalid.size === 0) onSave({ items });
       }}
     >
-      <div className="grid gap-1.5">
-        <Label className="text-xs font-semibold">Count reading in</Label>
-        <UnitToggle
-          label="Count reading in"
-          options={READING_UNITS}
-          value={readingUnit}
-          onChange={setReadingUnit}
+      {draft.length === 0 ? (
+        <p className="rounded-lg bg-surface-2 px-3 py-3 text-[13px] text-muted-foreground">
+          Nothing in your goal yet. Add what you want to aim for this week.
+        </p>
+      ) : (
+        <GoalItemList
+          draft={draft}
+          invalid={invalid}
+          onPatch={patch}
+          onRemove={remove}
+          onReorder={setDraft}
         />
-      </div>
-      <div className="grid gap-1.5">
-        <Label className="text-xs font-semibold">Count podcasts in</Label>
-        <UnitToggle
-          label="Count podcasts in"
-          options={PODCAST_UNITS}
-          value={podcastUnit}
-          onChange={setPodcastUnit}
-        />
-      </div>
-      <div className="grid grid-cols-3 gap-3">
-        {GOAL_FIELDS.map((r) => (
-          <div key={r.key} className="grid content-end gap-1.5">
-            <Label htmlFor={`goal-${r.key}`}>{fieldLabel(r.key)}</Label>
-            <Input
-              id={`goal-${r.key}`}
-              type="number"
-              inputMode="numeric"
-              min={0}
-              max={1000}
-              step={1}
-              value={draft[r.key]}
-              onChange={(e) => setDraft((d) => ({ ...d, [r.key]: e.target.value }))}
-            />
-          </div>
-        ))}
-      </div>
-      {!valid && <p className="text-[12.5px] text-bad">Use whole numbers from 0 to 1000.</p>}
+      )}
+      {addable.length > 0 && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button ref={addRef} type="button" variant="outline" className="justify-self-start">
+              <Plus /> {draft.length === 0 ? "Add a goal" : "Add"}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="start"
+            onCloseAutoFocus={(e) => {
+              const kind = added.current;
+              if (!kind) return;
+              added.current = null;
+              e.preventDefault();
+              // After the menu has let go of the dialog (it hides the rest while open).
+              setTimeout(() => document.getElementById(amountId(kind))?.focus(), 0);
+            }}
+          >
+            {addable.map((kind) => {
+              const category = goalCategory(kind);
+              const Icon = category.icon;
+              return (
+                <DropdownMenuItem key={kind} onSelect={() => add(kind)}>
+                  <Icon aria-hidden="true" /> {category.label}
+                </DropdownMenuItem>
+              );
+            })}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
       <DialogFooter className="gap-2">
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
         </Button>
-        <Button type="submit" disabled={!valid}>
+        <Button type="submit" disabled={invalid.size > 0}>
           Save goal
         </Button>
       </DialogFooter>
     </form>
+  );
+}
+
+/** "120 min", "60 pages" for items with units; just the number otherwise. */
+function amountText(d: DraftItem): string {
+  const category = goalCategory(d.kind);
+  const t = d.target.trim() || "?";
+  if (!category.units) return t;
+  const unit = d.unit ?? category.units[0].value;
+  return unit === "minutes" ? `${t} min` : `${t} ${unit}`;
+}
+
+/**
+ * The editor's compact list, one line per item: grip (drag, or arrow keys) ·
+ * name · amount (opens a popover with the target and unit) · remove.
+ */
+function GoalItemList({
+  draft,
+  invalid,
+  onPatch,
+  onRemove,
+  onReorder,
+}: {
+  draft: DraftItem[];
+  invalid: Set<GoalKind>;
+  onPatch: (kind: GoalKind, p: Partial<DraftItem>) => void;
+  onRemove: (kind: GoalKind) => void;
+  onReorder: (next: DraftItem[]) => void;
+}) {
+  const rows = useRef(new Map<GoalKind, HTMLLIElement>());
+  const [dragging, setDragging] = useState<GoalKind | null>(null);
+  const [announce, setAnnounce] = useState("");
+
+  const move = (kind: GoalKind, to: number) => {
+    const from = draft.findIndex((d) => d.kind === kind);
+    if (from < 0 || to < 0 || to >= draft.length || to === from) return;
+    const next = [...draft];
+    const [item] = next.splice(from, 1);
+    next.splice(to, 0, item);
+    onReorder(next);
+    setAnnounce(`${goalCategory(kind).label} moved to position ${to + 1} of ${draft.length}.`);
+  };
+
+  /** The slot under the pointer: how many other rows have their middle above it. */
+  const slotAt = (kind: GoalKind, y: number) =>
+    draft.filter((d) => {
+      if (d.kind === kind) return false;
+      const r = rows.current.get(d.kind)?.getBoundingClientRect();
+      return !!r && y > r.top + r.height / 2;
+    }).length;
+
+  return (
+    <>
+      <ul className="grid gap-1.5" aria-label="Goal items">
+        {draft.map((d, i) => {
+          const category = goalCategory(d.kind);
+          const Icon = category.icon;
+          const bad = invalid.has(d.kind);
+          const units = category.units;
+          return (
+            <li
+              key={d.kind}
+              ref={(el) => {
+                if (el) rows.current.set(d.kind, el);
+                else rows.current.delete(d.kind);
+              }}
+              className={cn(
+                "flex items-center gap-1.5 rounded-lg border border-line bg-surface p-1",
+                dragging === d.kind && "relative z-10 shadow-md ring-2 ring-ring",
+              )}
+            >
+              <button
+                type="button"
+                className="grid size-8 shrink-0 cursor-grab touch-none place-items-center rounded-md text-faint hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring active:cursor-grabbing"
+                aria-label={`Move ${category.label}, ${i + 1} of ${draft.length}. Use the up and down arrow keys.`}
+                onKeyDown={(e) => {
+                  if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+                    e.preventDefault();
+                    move(d.kind, i + (e.key === "ArrowUp" ? -1 : 1));
+                  }
+                }}
+                onPointerDown={(e) => {
+                  if (e.button !== 0) return;
+                  // Keep getting moves while the pointer leaves the handle.
+                  e.currentTarget.setPointerCapture?.(e.pointerId);
+                  setDragging(d.kind);
+                }}
+                onPointerMove={(e) => {
+                  if (dragging === d.kind) move(d.kind, slotAt(d.kind, e.clientY));
+                }}
+                onPointerUp={() => setDragging(null)}
+                onPointerCancel={() => setDragging(null)}
+              >
+                <GripVertical className="size-4" aria-hidden="true" />
+              </button>
+              <Icon className="size-4 shrink-0 text-primary" aria-hidden="true" />
+              <span className="min-w-0 flex-1 truncate pl-0.5 text-sm font-semibold">
+                {category.label}
+              </span>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    id={amountId(d.kind)}
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className={cn(
+                      "h-8 min-w-[4.5rem] shrink-0 tabular-nums",
+                      bad && "border-bad text-bad",
+                    )}
+                    aria-label={`${category.label} target: ${amountText(d)}. Change`}
+                    aria-invalid={bad || undefined}
+                  >
+                    {amountText(d)}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="grid w-64 gap-3 p-3">
+                  <div>
+                    <p className="text-sm font-semibold">{category.label}</p>
+                    <p className="text-[12px] leading-snug text-muted-foreground">
+                      {category.hint}
+                    </p>
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label htmlFor={targetId(d.kind)}>Target this week</Label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        id={targetId(d.kind)}
+                        type="number"
+                        inputMode="numeric"
+                        min={1}
+                        max={MAX_GOAL_TARGET}
+                        step={1}
+                        className="h-9 w-24"
+                        value={d.target}
+                        aria-invalid={bad || undefined}
+                        onChange={(e) => onPatch(d.kind, { target: e.target.value })}
+                      />
+                      {!units && (
+                        <span className="text-[12.5px] text-muted-foreground">
+                          {category.words()}
+                        </span>
+                      )}
+                    </div>
+                    {bad && (
+                      <p className="text-[12px] text-bad">
+                        Use a whole number from 1 to {MAX_GOAL_TARGET.toLocaleString()}.
+                      </p>
+                    )}
+                  </div>
+                  {units && (
+                    <div className="grid gap-1.5">
+                      <span className="text-sm font-medium" id={`goal-${d.kind}-unit`}>
+                        Count in
+                      </span>
+                      <div
+                        role="radiogroup"
+                        aria-labelledby={`goal-${d.kind}-unit`}
+                        className="flex flex-wrap gap-1.5"
+                      >
+                        {units.map((u) => {
+                          const on = (d.unit ?? units[0].value) === u.value;
+                          return (
+                            <button
+                              key={u.value}
+                              type="button"
+                              role="radio"
+                              aria-checked={on}
+                              className={cn(
+                                "rounded-full border px-3 py-1 text-[12.5px] font-semibold focus-visible:outline-2 focus-visible:outline-ring",
+                                on
+                                  ? "border-primary bg-primary-soft text-primary-ink"
+                                  : "border-line text-muted-foreground hover:bg-surface-2",
+                              )}
+                              onClick={() => onPatch(d.kind, { unit: u.value })}
+                            >
+                              {u.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </PopoverContent>
+              </Popover>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-8 shrink-0 text-muted-foreground"
+                aria-label={`Remove ${category.label}`}
+                onClick={() => onRemove(d.kind)}
+              >
+                <X />
+              </Button>
+            </li>
+          );
+        })}
+      </ul>
+      <p className="sr-only" aria-live="polite">
+        {announce}
+      </p>
+      {invalid.size > 0 && (
+        <p className="-mt-2 text-[12px] text-bad">
+          Check the {[...invalid].map((k) => goalCategory(k).label.toLowerCase()).join(" and ")}{" "}
+          target: use a whole number from 1 to {MAX_GOAL_TARGET.toLocaleString()}.
+        </p>
+      )}
+    </>
   );
 }

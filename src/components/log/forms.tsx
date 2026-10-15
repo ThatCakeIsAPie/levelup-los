@@ -32,6 +32,7 @@ import {
   addPerson,
   closeLog,
   effectiveBizClass,
+  goalUnit,
   latestLearningId,
   logContact,
   logLearning,
@@ -75,7 +76,7 @@ import { useCanShareWins } from "./canShareWins";
 import { BoardMoveField, BoardNote } from "./PipelineMoveField";
 import { TitleCombobox } from "./TitleCombobox";
 import { matchTitle, pastTitles } from "./titleSuggestions";
-import { boardTarget, movesToPlan } from "./pipelineMove";
+import { boardTarget, meetingBooking, movesToPlan } from "./pipelineMove";
 
 // ---------------------------------------------------------------------------
 // Shared: save + optional share + Undo toast
@@ -192,8 +193,10 @@ export function LearningForm() {
   const goal = useLearningGoal(user.personId);
   const [kind, setKind] = useState<LearningKind>("pages");
   const [title, setTitle] = useState("");
-  const [readingUnit, setReadingUnit] = useState<ReadingUnit>(goal.readingUnit ?? "pages");
-  const [podcastUnit, setPodcastUnit] = useState<PodcastUnit>(goal.podcastUnit ?? "episodes");
+  const [readingUnit, setReadingUnit] = useState<ReadingUnit>(goalUnit(goal, "reading") ?? "pages");
+  const [podcastUnit, setPodcastUnit] = useState<PodcastUnit>(
+    goalUnit(goal, "podcasts") ?? "episodes",
+  );
   const [amounts, setAmounts] = useState<Record<LearningUnit, string>>(UNIT_DEFAULT);
   const [date, setDate] = useState(localDate());
   const [win, setWin] = useWin(false, "");
@@ -710,14 +713,12 @@ export function RecruitTouchForm({ kind }: { kind: RecruitTouch }) {
     });
     const name = options.find((p) => p.id === personId)?.name ?? "";
     const target = kind === "meeting" ? boardTarget(board, boardPick) : null;
+    const booking = target ? meetingBooking(board, target, meetingDate) : null;
     const moved =
       kind === "plan"
         ? recordShowedPlan(personId)
         : target
-          ? movePipelineCard(personId, target, {
-              nextStep: "Meeting",
-              nextStepDate: meetingDate || null,
-            })
+          ? movePipelineCard(personId, target, booking ? { booking } : {})
           : null;
     finish({
       message: `${label} with ${name} logged`,

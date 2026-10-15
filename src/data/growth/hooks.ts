@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useCrmStore } from "@/stores/crmStore";
 import { usePeopleStore } from "@/stores/peopleStore";
 import { useSessionStore } from "@/stores/sessionStore";
@@ -6,7 +6,15 @@ import { localDate } from "@/lib/dates";
 import { visibleIdSet, type Viewer } from "../access";
 import { getViewer, useViewer } from "../session";
 import { useVisibleIds } from "../people";
-import { growthPath, hasReachedMilestone, monthOfDate, monthPv, type GrowthInput } from "./engine";
+import {
+  growthPath,
+  hasEverReachedMilestone,
+  isMilestoneHeld,
+  monthOfDate,
+  monthPv,
+  type GrowthInput,
+} from "./engine";
+import { recordMilestoneHistory } from "./mutations";
 import type { GrowthMilestoneCode, GrowthPath, PvOverride } from "./types";
 
 /** Everything the engine reads, from the stores (non-reactive). */
@@ -17,6 +25,7 @@ function currentInput(): GrowthInput {
     sales: crm.sales,
     overrides: crm.pvOverrides,
     marks: crm.milestoneMarks,
+    history: crm.milestoneHistory,
   };
 }
 
@@ -25,7 +34,11 @@ function useGrowthInput(): GrowthInput {
   const sales = useCrmStore((s) => s.sales);
   const overrides = useCrmStore((s) => s.pvOverrides);
   const marks = useCrmStore((s) => s.milestoneMarks);
-  return useMemo(() => ({ people, sales, overrides, marks }), [people, sales, overrides, marks]);
+  const history = useCrmStore((s) => s.milestoneHistory);
+  return useMemo(
+    () => ({ people, sales, overrides, marks, history }),
+    [people, sales, overrides, marks, history],
+  );
 }
 
 /**
@@ -57,20 +70,58 @@ export function getGrowthPath(personId: string): GrowthPath | undefined {
 }
 
 /**
- * True once the person has reached the milestone, from the data or a hand
- * mark (non-reactive). False for anyone the viewer can't see. For unlocks:
- * `hasReached(me, "first_sponsor")`, `hasReached(me, "3_10")`.
+ * True once the person has ever reached the milestone (from the data, the
+ * recorded history or a hand mark), whether or not it's held now
+ * (non-reactive). False for anyone the viewer can't see. For unlocks:
+ * `hasEverReached(me, "first_sponsor")`, `hasEverReached(me, "3_10")`
+ * (dropping below 3/10 keeps event planning).
  */
-export function hasReached(personId: string, code: GrowthMilestoneCode): boolean {
+export function hasEverReached(personId: string, code: GrowthMilestoneCode): boolean {
   const input = currentInput();
   if (!visibleIdSet(input.people, getViewer()).has(personId)) return false;
-  return hasReachedMilestone(input, personId, code, localDate());
+  return hasEverReachedMilestone(input, personId, code, localDate());
 }
 
-/** Reactive `hasReached`. */
-export function useHasReached(personId: string | undefined, code: GrowthMilestoneCode): boolean {
+/** Reactive `hasEverReached`. */
+export function useHasEverReached(
+  personId: string | undefined,
+  code: GrowthMilestoneCode,
+): boolean {
   const path = useGrowthPath(personId);
-  return !!path?.milestones.find((m) => m.code === code)?.reachedOn;
+  return !!path?.milestones.find((m) => m.code === code)?.firstReachedOn;
+}
+
+/**
+ * True when the milestone is held today: checked on the path (permanent once
+ * reached, live while the numbers meet it, monthly when met this month or
+ * last). Non-reactive; false for anyone the viewer can't see.
+ */
+export function isHeld(personId: string, code: GrowthMilestoneCode): boolean {
+  const input = currentInput();
+  if (!visibleIdSet(input.people, getViewer()).has(personId)) return false;
+  return isMilestoneHeld(input, personId, code, localDate());
+}
+
+/** Reactive `isHeld`. */
+export function useIsHeld(personId: string | undefined, code: GrowthMilestoneCode): boolean {
+  const path = useGrowthPath(personId);
+  return !!path?.milestones.find((m) => m.code === code)?.held;
+}
+
+/**
+ * Keeps the milestone history up to date for the signed-in person and the
+ * team they coach: mount once (the app shell). Writes only when the data
+ * shows something new (see `recordMilestoneHistory`).
+ */
+export function useRecordMilestoneHistory(): void {
+  const input = useGrowthInput();
+  const ids = useVisibleIds();
+  const viewer = useViewer();
+  const today = localDate();
+  useEffect(() => {
+    if (!viewer || viewer.role === "candidate") return;
+    recordMilestoneHistory();
+  }, [input, ids, viewer, today]);
 }
 
 /** One month's PV for a person: the logged total, the upline's figure (if any) and what counts. */

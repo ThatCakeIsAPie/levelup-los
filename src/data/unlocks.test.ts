@@ -9,7 +9,9 @@ import {
 } from "./unlocks";
 import { canManageEvents } from "./eventTypes/info";
 import { seedMilestoneMarks, seedPeople, seedPvOverrides, seedSales } from "./seed";
-import { growthPath } from "./growth/engine";
+import { hasEverReachedMilestone, historyUpdates, isMilestoneHeld } from "./growth/engine";
+import type { CrmPerson } from "@/stores/peopleStore";
+import type { GrowthMilestoneCode } from "./growth/types";
 import { seedDeputies } from "./team/seed";
 import { deputyOfIds } from "./team/rules";
 import { DEMO_USERS } from "@/stores/sessionStore";
@@ -168,6 +170,50 @@ describe("routeAccess", () => {
   });
 });
 
+describe("unlocks go by milestones ever reached, not held now", () => {
+  // Ana registered 2025-01-01 and reached 3/10 when her 10th person registered;
+  // one of them has since left, so she's at 9 people.
+  const ibo = (id: string, sponsorId: string | null, start: string): CrmPerson => ({
+    id,
+    name: id,
+    bizClass: "ibo",
+    sponsorId,
+    businessStartDate: start,
+  });
+  const team = [
+    ibo("ana", null, "2025-01-01"),
+    ibo("f1", "ana", "2025-02-01"),
+    ibo("f2", "ana", "2025-02-01"),
+    ibo("f3", "ana", "2025-02-01"),
+    ...Array.from({ length: 7 }, (_, i) => ibo(`d${i}`, "f1", "2025-04-01")),
+  ];
+  const today = "2026-10-13";
+  const recorded = historyUpdates(
+    { people: team, sales: [], overrides: [], marks: [] },
+    ["ana"],
+    "2026-06-01",
+  ).map((r) => ({ ...r, recordedAt: "2026-06-01T10:00:00.000Z" }));
+  const now = {
+    people: team.filter((p) => p.id !== "d6"),
+    sales: [],
+    overrides: [],
+    marks: [],
+    history: recorded,
+  };
+  const unlocks = () =>
+    u({
+      role: "ibo",
+      firstSponsor: hasEverReachedMilestone(now, "ana", "first_sponsor", today),
+      threeTen: hasEverReachedMilestone(now, "ana", "3_10", today),
+    });
+
+  it("dropping below 3/10 un-holds it on the path but keeps event planning", () => {
+    expect(isMilestoneHeld(now, "ana", "3_10", today)).toBe(false);
+    expect(unlocks().stage).toBe("builder");
+    expect(unlocks().can.eventPlanning).toBe(true);
+  });
+});
+
 describe("event planning goes through canManageEvents", () => {
   it("uses the unlock when given", () => {
     expect(canManageEvents({ role: "apprentice", eventPlanning: false })).toBe(false);
@@ -186,14 +232,14 @@ describe("the demo cast", () => {
   const deputies = seedDeputies();
   const stageOf = (personId: string) => {
     const user = DEMO_USERS.find((d) => d.personId === personId)!;
-    const path = growthPath(input, personId, localDate());
-    const reached = (c: string) => !!path.milestones.find((m) => m.code === c)?.reachedOn;
+    const ever = (c: GrowthMilestoneCode) =>
+      hasEverReachedMilestone(input, personId, c, localDate());
     return computeUnlocks({
       role: user.role,
       admin: user.admin,
       deputyOf: deputyOfIds(deputies, personId),
-      firstSponsor: reached("first_sponsor"),
-      threeTen: reached("3_10"),
+      firstSponsor: ever("first_sponsor"),
+      threeTen: ever("3_10"),
       switches: {},
       canChat: user.role !== "candidate",
     });

@@ -1,6 +1,13 @@
 import type { ReactNode } from "react";
 import { SectionCard, SegmentedBar, STAGE_LABEL, STAGE_SOLID_CLASS } from "@/components/brand";
-import { effectiveBizClass, useVisibleTeam, type Attendance, type BizClass } from "@/data";
+import {
+  effectiveBizClass,
+  isRegistered,
+  useCurrentUser,
+  useVisibleTeam,
+  type Attendance,
+  type BizClass,
+} from "@/data";
 import { cn } from "@/lib/utils";
 import { usePeopleMap } from "./hooks";
 
@@ -73,12 +80,17 @@ function Row({ label, value, hint }: { label: string; value: number; hint?: stri
  */
 export function EventDetailsPanel({ rows }: { rows: Attendance[] }) {
   const team = useVisibleTeam();
+  const me = useCurrentUser().personId;
   const count = (f: (a: Attendance) => boolean) => rows.filter(f).length;
   return (
     <SectionCard title="By the numbers">
       <div className="grid grid-cols-2 gap-2.5">
         <Group title="Pipeline">
-          <Row label="Your team" value={team.length} hint="Everyone on your business team" />
+          <Row
+            label="Your team"
+            value={team.filter((p) => p.id !== me && isRegistered(p)).length}
+            hint="Registered apprentices and IBOs on your team"
+          />
           <Row label="Want to go" value={count((a) => a.desireToAttend === "yes")} />
           <Row label="Have a ticket" value={count((a) => a.hasTicket)} />
         </Group>

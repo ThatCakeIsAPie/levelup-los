@@ -17,7 +17,7 @@ import {
   type LearningGoal,
   type Sale,
 } from "@/stores/crmStore";
-import type { MilestoneMark, PvOverride } from "@/data/growth/types";
+import type { MilestoneHistory, MilestoneMark, PvOverride } from "@/data/growth/types";
 import {
   useOpsStore,
   type Campaign,
@@ -44,6 +44,7 @@ import type {
   PipelineData,
   PipelineMove,
   PipelineStep,
+  StepCancellation,
   StatRequest,
   StatShare,
   StepHide,
@@ -270,6 +271,17 @@ export const crmBinding: Binding<CrmS> = {
       toRow: m.milestoneMarkToRow,
       fromRow: m.milestoneMarkFromRow,
       insert: "upsert",
+    }),
+    // History the app records; never deleted from the app.
+    listSpec<CrmS, MilestoneHistory>({
+      table: "milestone_history",
+      pk: ["person_id", "code"],
+      get: (s) => s.milestoneHistory,
+      set: (milestoneHistory) => ({ milestoneHistory }),
+      toRow: m.milestoneHistoryToRow,
+      fromRow: m.milestoneHistoryFromRow,
+      insert: "upsert",
+      delete: false,
     }),
     listSpec<CrmS, Learning>({
       table: "learning",
@@ -900,8 +912,11 @@ export const pipelineBinding: Binding<PipeS> = {
             p_person_id: r.person_id as string,
             p_to: r.to_column as string,
             p_move_id: r.id as string,
-            p_next_step: card?.nextStep ?? undefined,
+            // The booking the app worked out (kept, cleared or new); the
+            // database applies the same rule when none is sent.
+            p_next_column: card?.nextColumn ?? undefined,
             p_next_step_date: card?.nextStepDate ?? undefined,
+            p_next_step_time: card?.nextStepTime ?? undefined,
             p_source: card?.source ?? undefined,
             p_hot: card?.hot ?? undefined,
           });
@@ -983,6 +998,17 @@ export const pipelineBinding: Binding<PipeS> = {
         if (data) queueMicrotask(() => applyRemote("stat_requests", [data as unknown as Row]));
       },
     }),
+    // Added (cancel) and removed (undo), never edited; the database writes the
+    // activity entry.
+    listSpec<PipeS, StepCancellation>({
+      table: "pipeline_step_cancellations",
+      pk: ["id"],
+      get: (s) => s.cancellations,
+      set: (cancellations) => ({ cancellations }),
+      toRow: m.stepCancellationToRow,
+      fromRow: m.stepCancellationFromRow,
+      update: false,
+    }),
     listSpec<PipeS, StatShare>({
       table: "stat_shares",
       pk: ["owner_id", "viewer_id"],
@@ -1062,8 +1088,9 @@ export const customerPipelineBinding: Binding<CustS> = {
             p_to: r.to_column as string,
             p_move_id: r.id as string,
             p_customer_id: (r.created_customer_id as string | null) ?? undefined,
-            p_next_step: card?.nextStep ?? undefined,
+            p_next_column: card?.nextColumn ?? undefined,
             p_next_step_date: card?.nextStepDate ?? undefined,
+            p_next_step_time: card?.nextStepTime ?? undefined,
           });
           if (error) throw rpcError("move_customer_card", error);
           const out = (data ?? {}) as { move?: Row; card?: Row };

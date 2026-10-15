@@ -109,7 +109,7 @@ export function useTeamLearning(): Learning[] {
   );
 }
 
-/** A person's weekly learning goal (defaults to 60 pages / 3 podcasts / 1 workshop). */
+/** A person's weekly goal (defaults to Reading 60 pages · Podcasts 3 · Workshops 1). */
 export function useLearningGoal(personId: string | undefined): LearningGoal {
   const goals = useCrmStore((s) => s.goals);
   return learningGoalFor(goals, personId ?? "");
@@ -207,11 +207,6 @@ export function removeContact(id: string): void {
 /** Delete a logged sale. */
 export function removeSale(id: string): void {
   useCrmStore.getState().removeSale(id);
-}
-
-/** Update a person's weekly learning goal (partial patch). */
-export function setLearningGoal(personId: string, goal: Partial<LearningGoal>): void {
-  useCrmStore.getState().setLearningGoal(personId, goal);
 }
 
 /** Update "due for contact" thresholds. */

@@ -27,6 +27,7 @@ import {
   useCustomerCounts,
   useCustomersOf,
   useDownline,
+  isRegistered,
   useEvents,
   useLastContact,
   useLearning,
@@ -311,7 +312,7 @@ function BusinessProfile({ person }: { person: CrmPerson }) {
   const volume = ownCustomers.reduce((s, c) => s + (c.monthlyVolume ?? 0), 0);
   const contactDays = daysSince(lastContact);
   const learnDays = daysSince(learning[0]?.date);
-  const teamSize = useDownline(person.id).length;
+  const teamSize = useDownline(person.id).filter(isRegistered).length;
   const streak = learningStreak(learning);
 
   const stats = [

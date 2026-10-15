@@ -23,7 +23,7 @@ import { CardSheet } from "./CardSheet";
 import { MoveMenu } from "./moveCard";
 import { useMoveCard } from "./useMoveCard";
 import { useBoardDrag, type DragInfo } from "./useBoardDrag";
-import { ageLong, ageShort, nextStepText, overdue, ownCards, shortDate, stepBy } from "./format";
+import { ageLong, ageShort, bookingText, bookingTone, ownCards, shortDate, stepBy } from "./format";
 
 const SHOW = 5;
 
@@ -111,6 +111,9 @@ export function BoardView({
   };
   const markMine = useMemo(() => ownCards(board, me).mixed, [board, me]);
   const isMine = (ownerId: string) => markMine && ownerId === me;
+  // On a mixed board your own cards come first in every column (otherwise in
+  // the usual order: hot, then newest in the column).
+  const shown = useMemo(() => (markMine ? mineFirst(board, me) : board), [board, me, markMine]);
   const ctx: CardCtx = { columns: board.columns, def, drag, start, open, move, markMine, isMine };
   const isThisMonth = monthOf(localDate()) === month;
   const label = def.kind === "customer" ? "Customer pipeline board" : "Pipeline board";
@@ -120,13 +123,13 @@ export function BoardView({
       {desktop ? (
         <div ref={scroller} className="overflow-x-auto pb-2" aria-label={label}>
           <div className="flex w-max items-start gap-3.5">
-            {board.bands.map((band) => (
+            {shown.bands.map((band) => (
               <DesktopBand
                 key={band.milestone}
                 band={band}
                 month={month}
                 isThisMonth={isThisMonth}
-                registered={board.registered}
+                registered={shown.registered}
                 ctx={ctx}
               />
             ))}
@@ -142,7 +145,7 @@ export function BoardView({
             aria-label={label}
             className="-mx-4 flex snap-x snap-mandatory scroll-px-4 items-start gap-2.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
-            {board.bands.flatMap((band) =>
+            {shown.bands.flatMap((band) =>
               band.columns.map((col) => (
                 <PhoneColumn
                   key={col.column.id}
@@ -150,7 +153,7 @@ export function BoardView({
                   col={col}
                   month={month}
                   isThisMonth={isThisMonth}
-                  registered={board.registered}
+                  registered={shown.registered}
                   ctx={ctx}
                 />
               )),
@@ -167,6 +170,20 @@ export function BoardView({
       {children}
     </>
   );
+}
+
+/** The board with `me`'s cards first in each column and in Registered (stable sort). */
+function mineFirst<B extends string>(board: PipelineBoard<B>, me: string): PipelineBoard<B> {
+  const first = <T extends { ownerId: string }>(list: T[]) =>
+    [...list].sort((a, b) => Number(b.ownerId === me) - Number(a.ownerId === me));
+  return {
+    ...board,
+    bands: board.bands.map((band) => ({
+      ...band,
+      columns: band.columns.map((col) => ({ ...col, cards: first(col.cards) })),
+    })),
+    registered: { ...board.registered, cards: first(board.registered.cards) },
+  };
 }
 
 interface CardCtx {
@@ -448,7 +465,6 @@ function Heat({ card }: { card: BoardCard }) {
 function DesktopCard({ card, ctx }: { card: BoardCard; ctx: CardCtx }) {
   const dragging = ctx.drag?.personId === card.personId;
   const mine = ctx.isMine(card.ownerId);
-  const next = nextStepText(card.nextStep, card.nextStepDate);
   return (
     <div
       onPointerDown={(e) => ctx.start(e, card)}
@@ -490,23 +506,20 @@ function DesktopCard({ card, ctx }: { card: BoardCard; ctx: CardCtx }) {
           At {card.elsewhere.ownerName}&rsquo;s step: {card.elsewhere.label}
         </div>
       )}
-      {card.stale ? (
-        <div className="flex items-center gap-1.5 text-[11px] font-semibold text-warn-ink">
-          <ClockAlert className="size-3.5 shrink-0" aria-hidden="true" />
-          No movement in {ageLong(card.days)}
-        </div>
+      {card.booking ? (
+        <BookingLine card={card} />
       ) : (
-        next && (
-          <div
-            className={cn(
-              "flex min-w-0 items-center gap-1.5 text-[11px] font-semibold",
-              overdue(card.nextStepDate) ? "text-warn-ink" : "text-primary-ink",
-            )}
-          >
-            <CalendarClock className="size-3.5 shrink-0" aria-hidden="true" />
-            <span className="truncate">{next}</span>
+        card.stale && (
+          <div className="flex items-center gap-1.5 text-[11px] font-semibold text-warn-ink">
+            <ClockAlert className="size-3.5 shrink-0" aria-hidden="true" />
+            No movement in {ageLong(card.days)}
           </div>
         )
+      )}
+      {card.note && (
+        <div className="truncate text-[10.5px] text-muted-foreground" title={card.note}>
+          {card.note}
+        </div>
       )}
       <span data-no-drag className="absolute right-1 top-1" onClick={stop} onPointerDown={stop}>
         <MoveMenu
@@ -708,11 +721,9 @@ function PhoneColumn({
 
 function PhoneRow({ card, ctx }: { card: BoardCard; ctx: CardCtx }) {
   const dragging = ctx.drag?.personId === card.personId;
-  const next = nextStepText(card.nextStep, card.nextStepDate);
   const mine = ctx.isMine(card.ownerId);
   const sub = [card.listed ? (card.source ?? "") : ageLong(card.days)];
   if (!card.listed && card.source && ctx.def.kind === "customer") sub.push(card.source);
-  if (!card.stale && next) sub.push(next.charAt(0).toLowerCase() + next.slice(1));
   return (
     <div
       onPointerDown={(e) => ctx.start(e, card)}
@@ -746,9 +757,15 @@ function PhoneRow({ card, ctx }: { card: BoardCard; ctx: CardCtx }) {
           )}
         >
           <Whose ownerName={card.ownerName} mine={mine}>
-            {card.stale ? `no movement in ${ageLong(card.days)}` : sub.filter(Boolean).join(" · ")}
+            {card.stale && !card.booking
+              ? `no movement in ${ageLong(card.days)}`
+              : sub.filter(Boolean).join(" · ")}
           </Whose>
         </div>
+        {card.booking && <BookingLine card={card} phone />}
+        {card.note && (
+          <div className="truncate text-[10.5px] text-muted-foreground">{card.note}</div>
+        )}
       </div>
       <span data-no-drag onClick={stop} onPointerDown={stop}>
         <MoveMenu
@@ -766,6 +783,39 @@ function PhoneRow({ card, ctx }: { card: BoardCard; ctx: CardCtx }) {
             <GripVertical className="size-4" />
           </button>
         </MoveMenu>
+      </span>
+    </div>
+  );
+}
+
+/**
+ * A card's booked next step: "MG1 · Sat". Due today stands out (primary),
+ * overdue and a removed step read in warn.
+ */
+function BookingLine({ card, phone }: { card: BoardCard; phone?: boolean }) {
+  const b = card.booking;
+  const text = bookingText(b);
+  if (!b || !text) return null;
+  const hot = b.removed || b.due === "overdue" || b.due === "today";
+  return (
+    <div
+      className={cn(
+        "flex min-w-0 items-center gap-1.5 text-[11px] font-semibold",
+        phone ? "mt-0.5" : "",
+        bookingTone(b),
+      )}
+    >
+      <CalendarClock className="size-3.5 shrink-0" aria-hidden="true" />
+      <span
+        className={cn(
+          "truncate",
+          hot && "rounded px-1",
+          hot && (b.removed || b.due === "overdue" ? "bg-warn-soft" : "bg-primary-soft"),
+        )}
+      >
+        <span className="sr-only">Next step: </span>
+        {text}
+        {b.due === "overdue" && !b.removed && <span className="sr-only"> (overdue)</span>}
       </span>
     </div>
   );

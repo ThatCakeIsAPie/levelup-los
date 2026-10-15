@@ -11,7 +11,13 @@ import {
   seedSales,
   SEED_VERSION,
 } from "@/data/seed";
-import type { GrowthMilestoneCode, MilestoneMark, PvOverride } from "@/data/growth/types";
+import type {
+  GrowthMilestoneCode,
+  MilestoneHistory,
+  MilestoneMark,
+  PvOverride,
+} from "@/data/growth/types";
+import type { GoalItem } from "@/data/weeklyGoal";
 
 export interface Sale {
   id: string;
@@ -72,20 +78,23 @@ export interface Settings {
   customerDays: number;
   teamDays: number;
 }
-/** Weekly learning targets for one person. */
+/**
+ * A person's weekly goal: an ordered list of targets ("Reading 60 pages",
+ * "Contacts 10", "PV 150"), each kind at most once. Categories, units and how
+ * each is counted: src/data/weeklyGoal.ts. Empty = no goal.
+ */
 export interface LearningGoal {
-  /** Reading target, in `readingUnit`. */
-  pages: number;
-  /** Podcast target, in `podcastUnit`. */
-  podcasts: number;
-  workshops: number;
-  /** Missing = pages. */
-  readingUnit?: ReadingUnit;
-  /** Missing = episodes. */
-  podcastUnit?: PodcastUnit;
+  items: GoalItem[];
 }
 
-export const DEFAULT_LEARNING_GOAL: LearningGoal = { pages: 60, podcasts: 3, workshops: 1 };
+/** The goal for people who haven't set one: Reading 60 pages · Podcasts 3 · Workshops 1. */
+export const DEFAULT_LEARNING_GOAL: LearningGoal = {
+  items: [
+    { kind: "reading", target: 60, unit: "pages" },
+    { kind: "podcasts", target: 3, unit: "episodes" },
+    { kind: "workshops", target: 1 },
+  ],
+};
 export const DEFAULT_SETTINGS: Settings = { customerDays: 30, teamDays: 14 };
 
 interface CrmState {
@@ -99,6 +108,8 @@ interface CrmState {
   pvOverrides: PvOverride[];
   /** Milestones marked as reached by hand (one per person and milestone). */
   milestoneMarks: MilestoneMark[];
+  /** Milestone history the app recorded (one per person and milestone; src/data/growth). */
+  milestoneHistory: MilestoneHistory[];
   logSale: (s: Omit<Sale, "id">) => Sale;
   logContact: (c: Omit<Contact, "id">) => Contact;
   removeSale: (id: string) => void;
@@ -106,7 +117,7 @@ interface CrmState {
   logLearning: (l: Omit<Learning, "id">) => void;
   removeLearning: (id: string) => void;
   setSettings: (s: Partial<Settings>) => void;
-  setLearningGoal: (personId: string, goal: Partial<LearningGoal>) => void;
+  setLearningGoal: (personId: string, goal: LearningGoal) => void;
   /** Set (or with `null`, clear) a person's PV for a month. */
   setPvOverride: (
     personId: string,
@@ -119,6 +130,11 @@ interface CrmState {
     code: GrowthMilestoneCode,
     value: Omit<MilestoneMark, "personId" | "code"> | null,
   ) => void;
+  /**
+   * Merge recorded milestone history: per person and milestone the earlier
+   * first-reached day and the later last-met day win (as in the database).
+   */
+  recordMilestoneHistory: (rows: MilestoneHistory[]) => void;
 }
 
 /** The demo seed ("local" mode) or nothing until the database loads ("supabase" mode). */
@@ -132,6 +148,7 @@ function freshState() {
       goals: seedLearningGoals(),
       pvOverrides: seedPvOverrides(),
       milestoneMarks: seedMilestoneMarks(),
+      milestoneHistory: [] as MilestoneHistory[],
     }),
     {
       sales: [],
@@ -141,6 +158,7 @@ function freshState() {
       goals: {},
       pvOverrides: [],
       milestoneMarks: [],
+      milestoneHistory: [] as MilestoneHistory[],
     },
   );
 }
@@ -165,12 +183,7 @@ export const useCrmStore = create<CrmState>()(
       removeLearning: (id) => set({ learning: get().learning.filter((l) => l.id !== id) }),
       setSettings: (s) => set({ settings: { ...get().settings, ...s } }),
       setLearningGoal: (personId, goal) =>
-        set({
-          goals: {
-            ...get().goals,
-            [personId]: { ...learningGoalFor(get().goals, personId), ...goal },
-          },
-        }),
+        set({ goals: { ...get().goals, [personId]: { items: [...goal.items] } } }),
       setPvOverride: (personId, month, value) => {
         const rest = get().pvOverrides.filter(
           (o) => !(o.personId === personId && o.month === month),
@@ -182,6 +195,26 @@ export const useCrmStore = create<CrmState>()(
           (m) => !(m.personId === personId && m.code === code),
         );
         set({ milestoneMarks: value ? [...rest, { personId, code, ...value }] : rest });
+      },
+      recordMilestoneHistory: (rows) => {
+        if (!rows.length) return;
+        const key = (h: { personId: string; code: string }) => `${h.personId}|${h.code}`;
+        const byKey = new Map(get().milestoneHistory.map((h) => [key(h), h]));
+        for (const r of rows) {
+          const old = byKey.get(key(r));
+          byKey.set(
+            key(r),
+            old
+              ? {
+                  ...r,
+                  firstReachedOn:
+                    old.firstReachedOn < r.firstReachedOn ? old.firstReachedOn : r.firstReachedOn,
+                  lastMetOn: old.lastMetOn > r.lastMetOn ? old.lastMetOn : r.lastMetOn,
+                }
+              : r,
+          );
+        }
+        set({ milestoneHistory: [...byKey.values()] });
       },
     }),
     {
@@ -195,6 +228,7 @@ export const useCrmStore = create<CrmState>()(
         goals: s.goals,
         pvOverrides: s.pvOverrides,
         milestoneMarks: s.milestoneMarks,
+        milestoneHistory: s.milestoneHistory,
       }),
       version: SEED_VERSION,
       migrate: () => freshState() as unknown as CrmState,
@@ -221,12 +255,14 @@ export function lastSale(sales: Sale[], customerId: string): Sale | undefined {
 }
 export { daysSince } from "@/lib/dates";
 
-/** A person's weekly goal (falls back to DEFAULT_LEARNING_GOAL). */
+/** A person's weekly goal (falls back to DEFAULT_LEARNING_GOAL when they have none). */
 export function learningGoalFor(
   goals: Record<string, LearningGoal>,
   personId: string,
 ): LearningGoal {
-  return goals[personId] ?? DEFAULT_LEARNING_GOAL;
+  const goal = goals[personId];
+  // Anything saved without a list (an older demo store) reads as the default.
+  return goal && Array.isArray(goal.items) ? goal : DEFAULT_LEARNING_GOAL;
 }
 
 /** The unit an entry is measured in (undefined for workshops and conferences). */

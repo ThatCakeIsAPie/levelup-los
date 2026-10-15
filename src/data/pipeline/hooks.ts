@@ -70,6 +70,7 @@ import {
   type StepBand,
 } from "./types";
 import { columnsFor } from "./rules";
+import { bookingOf, bookingView, type BookingView } from "./booking";
 
 // ---------------------------------------------------------------------------
 // Shared helpers
@@ -208,13 +209,18 @@ export interface BoardCard {
   ownerStage: BizClass | undefined;
   /** Column on this board. */
   column: string;
+  /** The card's own column (a step this board may show under its milestone) and its band. */
+  cardColumn: string;
+  band: string;
   /** The card's own column when this board shows it under its milestone. */
   elsewhere: { label: string; ownerName: string } | null;
   days: number;
   stale: boolean;
   hot: boolean;
-  nextStep: string | null;
-  nextStepDate: string | null;
+  /** The booked next step, named as the owner's board names it (null: nothing booked). */
+  booking: BookingView | null;
+  /** The card's note. */
+  note: string | null;
   source: string | null;
   enteredAt: string;
   /** Customer board: a warm name on the list. */
@@ -264,11 +270,24 @@ export function usePipelineBoard(scope: PipelineScope, month: string): PipelineB
   const data = usePipelineStore();
   const lastContact = useLastContactMap();
   const columns = usePipelineColumns(opt?.leaderId);
+  const uplines = useUplines();
   const today = localDate();
   return useMemo(() => {
     if (!opt) return null;
     const byId = new Map(people.map((p) => [p.id, p]));
     const colIds = new Set(columns.map((c) => c.id));
+    const ownerCols = new Map<string, PipelineColumn[]>();
+    const boardOf = (ownerId: string) => {
+      let c = ownerCols.get(ownerId);
+      if (!c) {
+        c =
+          ownerId === opt.leaderId
+            ? columns
+            : columnsFor(chainOf(people, ownerId, uplines), data.steps, data.hides);
+        ownerCols.set(ownerId, c);
+      }
+      return c;
+    };
     const stepById = new Map(data.steps.map((s) => [s.id, s]));
     const owner = (p: CrmPerson) => (p.sponsorId ? byId.get(p.sponsorId) : undefined);
     const prospects = people.filter(
@@ -287,6 +306,8 @@ export function usePipelineBoard(scope: PipelineScope, month: string): PipelineB
         ownerName: o ? firstName(o.name) : "",
         ownerStage: o ? effectiveBizClass(o) : undefined,
         column: col,
+        cardColumn: card.column,
+        band,
         elsewhere:
           col !== card.column && step
             ? { label: step.label, ownerName: firstName(byId.get(step.ownerId)?.name ?? "") }
@@ -295,8 +316,8 @@ export function usePipelineBoard(scope: PipelineScope, month: string): PipelineB
         stale: isMilestoneBand(band) && isStale(card.enteredAt, lastContact.get(person.id), today),
         hot: card.hot,
         dim: band === "out",
-        nextStep: card.nextStep,
-        nextStepDate: card.nextStepDate,
+        booking: bookingView(bookingOf(card), boardOf(person.sponsorId!), today),
+        note: card.note,
         source: card.source,
         enteredAt: card.enteredAt,
       });
@@ -351,7 +372,7 @@ export function usePipelineBoard(scope: PipelineScope, month: string): PipelineB
       registered: { cards: regCards, total: regReaches.length },
       inProgress,
     };
-  }, [opt, people, ids, data, lastContact, columns, month, today]);
+  }, [opt, people, ids, data, lastContact, columns, month, today, uplines]);
 }
 
 // ---------------------------------------------------------------------------
@@ -665,6 +686,11 @@ export interface ProspectPipeline {
   }[];
   /** The viewer's board columns (for "Move to…"). */
   columns: PipelineColumn[];
+  /** The booked next step, as the owner's board names it. */
+  booking: BookingView | null;
+  /** The owner's board (what a booking may pick from). */
+  ownerColumns: PipelineColumn[];
+  ownerId: string | null;
 }
 
 export function useProspectPipeline(personId: string | undefined): ProspectPipeline | null {
@@ -674,6 +700,7 @@ export function useProspectPipeline(personId: string | undefined): ProspectPipel
   const data = usePipelineStore();
   const lastContact = useLastContactMap();
   const columns = usePipelineColumns(viewer?.personId);
+  const uplines = useUplines();
   const name = useNamer();
   const today = localDate();
   return useMemo(() => {
@@ -723,8 +750,20 @@ export function useProspectPipeline(personId: string | undefined): ProspectPipel
         by: name(m.movedBy),
       })),
       columns,
+      ...(() => {
+        const ownerId = person.sponsorId ?? null;
+        const ownerColumns =
+          !ownerId || ownerId === viewer.personId
+            ? columns
+            : columnsFor(chainOf(people, ownerId, uplines), data.steps, data.hides);
+        return {
+          ownerId,
+          ownerColumns,
+          booking: card ? bookingView(bookingOf(card), ownerColumns, today) : null,
+        };
+      })(),
     };
-  }, [viewer, personId, ids, people, data, columns, lastContact, today, name]);
+  }, [viewer, personId, ids, people, data, columns, lastContact, today, name, uplines]);
 }
 
 // ---------------------------------------------------------------------------

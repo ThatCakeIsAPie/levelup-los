@@ -48,9 +48,10 @@ function recentMonths(): string[] {
 
 /**
  * The upline's tools for a downline's growth path: set their PV for a month
- * (from the Amway app; replaces what's logged) and mark a milestone reached
- * by hand. Both record who made the change. Right side sheet on desktop,
- * bottom sheet on phones.
+ * (from the Amway app; replaces what's logged) and mark a milestone by hand
+ * (a permanent one counts as reached; for a live or monthly one it records
+ * when they first hit it, history only). Both record who made the change.
+ * Right side sheet on desktop, bottom sheet on phones.
  */
 export function CoachSheet({
   person,
@@ -289,6 +290,8 @@ function MarkForm({
   const [note, setNote] = useState(status.mark?.note ?? "");
   const today = localDate();
   const valid = /^\d{4}-\d{2}-\d{2}$/.test(date) && date <= today;
+  // A mark makes a permanent milestone reached; for the others it's history.
+  const history = status.hold !== "permanent";
 
   return (
     <form
@@ -297,7 +300,11 @@ function MarkForm({
         e.preventDefault();
         if (!valid) return;
         if (markMilestoneReached(person.id, code, date, note)) {
-          toast.success(`${status.label} marked as reached for ${name}`);
+          toast.success(
+            history
+              ? `Recorded when ${name} first hit ${status.label}`
+              : `${status.label} marked as reached for ${name}`,
+          );
           onDone();
         } else toast.error("Only an upline can mark this.");
       }}
@@ -323,9 +330,11 @@ function MarkForm({
             {path.milestones.map((m) => (
               <SelectItem key={m.code} value={m.code}>
                 {m.label}
-                {m.reachedOn && (
+                {m.firstReachedOn && (
                   <span className="ml-2 text-xs text-muted-foreground">
-                    reached {reachedShort(m.reachedOn)}
+                    {m.held && m.hold === "permanent"
+                      ? `reached ${reachedShort(m.firstReachedOn)}`
+                      : `${m.held ? "held · " : ""}first hit ${reachedShort(m.firstReachedOn)}`}
                   </span>
                 )}
               </SelectItem>
@@ -334,17 +343,27 @@ function MarkForm({
         </Select>
       </div>
 
+      {history && (
+        <p className="rounded-xl bg-surface-2 px-3.5 py-3 text-[12.5px] text-muted-foreground">
+          Record when {name} first hit {status.label}. It's kept as history and doesn't make it
+          count now: {status.label} counts while {name}{" "}
+          {status.hold === "live"
+            ? "meets it with today's numbers"
+            : "meets it this month or met it last month"}
+          {status.hold === "monthly" ? " (set a month's PV for that)" : ""}.
+        </p>
+      )}
       {status.autoOn && (
         <p className="rounded-xl bg-surface-2 px-3.5 py-3 text-[12.5px] text-muted-foreground">
-          The team's data already shows {name} reaching {status.label} on{" "}
-          <b className="text-foreground">{reachedLong(status.autoOn)}</b>. A date marked by hand
-          only counts when it's earlier.
+          The team's data already shows {name} {history ? "first hitting" : "reaching"}{" "}
+          {status.label} on <b className="text-foreground">{reachedLong(status.autoOn)}</b>. A date
+          marked by hand only counts when it's earlier.
         </p>
       )}
 
       <div className="grid gap-1.5">
         <Label htmlFor="coach-date" className="text-xs font-semibold">
-          Reached on
+          {history ? "First hit on" : "Reached on"}
         </Label>
         <Input
           id="coach-date"
@@ -369,7 +388,13 @@ function MarkForm({
 
       <div className="flex flex-wrap gap-2">
         <Button type="submit" disabled={!valid}>
-          {status.mark ? "Save the mark" : "Mark as reached"}
+          {status.mark
+            ? history
+              ? "Save the date"
+              : "Save the mark"
+            : history
+              ? "Record it"
+              : "Mark as reached"}
         </Button>
         {status.mark && (
           <Button

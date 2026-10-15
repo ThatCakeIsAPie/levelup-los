@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { format } from "date-fns";
-import { CalendarClock, ClockAlert, Flame, MoveRight, Undo2 } from "lucide-react";
+import { ClockAlert, Flame, MoveRight, StickyNote, Undo2 } from "lucide-react";
 import { SectionCard, ToneChip } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,7 +13,8 @@ import {
 } from "@/data";
 import { MoveMenu } from "@/modules/pipeline/moveCard";
 import { useMoveCard } from "@/modules/pipeline/useMoveCard";
-import { ageLong, nextStepText } from "@/modules/pipeline/format";
+import { ageLong } from "@/modules/pipeline/format";
+import { BookedStep } from "@/modules/pipeline/BookedStep";
 
 const LINK =
   "rounded-sm text-primary hover:underline focus-visible:outline-2 focus-visible:outline-ring";
@@ -29,7 +30,6 @@ export function PipelineCard({ person }: { person: CrmPerson }) {
   const [all, setAll] = useState(false);
   if (!p) return null;
   const history = all ? p.history : p.history.slice(0, 4);
-  const next = p.card ? nextStepText(p.card.nextStep, p.card.nextStepDate) : null;
 
   return (
     <SectionCard
@@ -61,10 +61,19 @@ export function PipelineCard({ person }: { person: CrmPerson }) {
           <span className="text-[12px] text-muted-foreground">
             {p.days === 0 ? "Moved here today" : `Here for ${ageLong(p.days)}`}
           </span>
-          {next && (
-            <span className="flex items-center gap-1.5 text-[12px] font-semibold text-primary-ink">
-              <CalendarClock className="size-3.5" aria-hidden="true" /> {next}
-            </span>
+          {p.booking && (
+            <BookedStep
+              board="recruiting"
+              cardId={person.id}
+              name={person.name}
+              booking={p.booking}
+            />
+          )}
+          {p.card?.note && (
+            <p className="flex items-start gap-1.5 whitespace-pre-line text-[12.5px] text-muted-foreground">
+              <StickyNote className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+              <span className="min-w-0">{p.card.note}</span>
+            </p>
           )}
           <MoveMenu
             columns={p.columns}

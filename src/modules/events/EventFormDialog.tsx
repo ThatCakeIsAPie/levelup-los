@@ -4,8 +4,10 @@ import { toast } from "sonner";
 import {
   EVENT_TYPE_INFO,
   EVENT_TYPES,
+  MAX_TICKET_URL,
   addEvent,
   allowsVirtual,
+  cleanTicketUrl,
   eventFormat,
   localDate,
   parseDate,
@@ -122,16 +124,21 @@ function EventForm({
     form.endDate && form.date && form.endDate < form.date
       ? "The end date can't be before the start date."
       : null;
+  const ticketUrl = cleanTicketUrl(form.ticketUrl);
+  const ticketBad = !!form.ticketUrl?.trim() && !ticketUrl;
+  const ticketError =
+    touched && ticketBad ? "Paste a web link, like https://venmo.com/u/your-name." : null;
 
   const submit = () => {
     setTouched(true);
-    if (!form.name.trim() || dateError || endError) return;
+    if (!form.name.trim() || dateError || endError || ticketBad) return;
     const clean: Draft = {
       ...form,
       name: form.name.trim(),
       endDate: form.endDate && form.endDate !== form.date ? form.endDate : undefined,
       location: form.location?.trim() || undefined,
       notes: form.notes?.trim() || undefined,
+      ticketUrl: ticketUrl ?? undefined,
       format: eventFormat(form),
     };
     if (event) {
@@ -289,6 +296,29 @@ function EventForm({
                 : "Dallas, TX"
           }
         />
+      </div>
+      <div className="grid gap-1.5">
+        <Label htmlFor="ev-ticket">Ticket link</Label>
+        <Input
+          id="ev-ticket"
+          type="url"
+          inputMode="url"
+          autoComplete="off"
+          maxLength={MAX_TICKET_URL}
+          value={form.ticketUrl ?? ""}
+          onChange={(e) => set({ ticketUrl: e.target.value })}
+          placeholder="https://… or venmo.com/u/…"
+          aria-invalid={!!ticketError || undefined}
+          aria-describedby="ev-ticket-hint"
+          onBlur={() => form.ticketUrl?.trim() && setTouched(true)}
+        />
+        <p
+          id="ev-ticket-hint"
+          className={ticketError ? "text-xs text-bad" : "text-xs text-muted-foreground"}
+        >
+          {ticketError ??
+            "Where people buy a ticket: the team's ticket page, a Venmo link… Optional. People get a Buy ticket button that goes straight there."}
+        </p>
       </div>
       <div className="grid gap-1.5">
         <Label htmlFor="ev-notes">Notes</Label>

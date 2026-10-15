@@ -10,10 +10,12 @@ import {
   daysFromToday,
   daysSince,
   effectiveBizClass,
+  isRegistered,
   localDate,
   missingRequiredFields,
   needsTicket,
   parseDate,
+  registeredOn,
   useAttendancesForEvent,
   useAttendancesForPerson,
   useContactSettings,
@@ -30,22 +32,25 @@ import {
   type CrmEvent,
 } from "@/data";
 
-export const STAGES = ["ibo", "apprentice", "prospect"] as const;
+export const STAGES = ["ibo", "apprentice"] as const;
 export type TeamStage = (typeof STAGES)[number];
 
-/** Team size (without you), people who joined in the last 30 days and the stage mix. */
+/**
+ * Team size (without you), people who registered in the last 30 days and the
+ * stage mix. Registered people only: prospects are on the pipeline, not the team.
+ */
 export function useTeamSummary() {
   const user = useCurrentUser();
   const visible = useVisibleTeam();
   return useMemo(() => {
-    const team = visible.filter((p) => p.id !== user.personId);
+    const team = visible.filter((p) => p.id !== user.personId && isRegistered(p));
     const since = daysFromToday(-30);
-    const mix: Record<TeamStage, number> = { ibo: 0, apprentice: 0, prospect: 0 };
+    const mix: Record<TeamStage, number> = { ibo: 0, apprentice: 0 };
     let fresh = 0;
     for (const p of team) {
-      const s = effectiveBizClass(p);
-      if (s !== "customer") mix[s]++;
-      if (p.joinedDate && p.joinedDate >= since) fresh++;
+      mix[effectiveBizClass(p) === "ibo" ? "ibo" : "apprentice"]++;
+      const on = registeredOn(p);
+      if (on && on >= since) fresh++;
     }
     return { count: team.length, fresh, mix };
   }, [visible, user.personId]);

@@ -58,6 +58,7 @@ import {
   useEventsAttentionCount,
   useMe,
   useUnreadChatsCount,
+  useRecordMilestoneHistory,
   useUnreadInboxCount,
 } from "@/data";
 import { badgeText, useNavAccess } from "./access";
@@ -89,7 +90,8 @@ const THEME_ICON: Record<ThemePreference, typeof Sun> = { light: Sun, dark: Moon
  *   main (with the section links of the category you're in) and the bottom
  *   tabs: Growth · Customers · Log FAB · Team · Events. The new apprentice
  *   keeps the short Home · Customers · + · Events · Me tabs and no top bar.
- * Renders the global LogSheet and the reset-demo confirmation once.
+ * Renders the global LogSheet and the reset-demo confirmation once, and keeps
+ * the growth path's milestone history recorded (MilestoneHistoryRecorder).
  *
  * Pages render inside <main>, which is the scroll container (full height
  * minus the tab bar on phones) and a flex column: the apprentice notice (if
@@ -131,8 +133,20 @@ export function AppShell({ children }: { children: ReactNode }) {
       />
       <LogSheet />
       <ResetDemoDialog open={resetOpen} onOpenChange={setResetOpen} />
+      <MilestoneHistoryRecorder />
     </div>
   );
+}
+
+/**
+ * Records growth milestone history (First sponsor and the headcount
+ * milestones) for you and the team you coach while the data shows it, so a
+ * later drop keeps the first-reached date and its unlocks (src/data/growth).
+ * Its own component so data changes don't re-render the shell.
+ */
+function MilestoneHistoryRecorder() {
+  useRecordMilestoneHistory();
+  return null;
 }
 
 /** Live counts for the amber nav badges. */

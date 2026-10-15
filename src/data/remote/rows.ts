@@ -18,8 +18,27 @@ import type { Tables } from "./database.types";
 import type { CrmPerson, StageChange } from "@/stores/peopleStore";
 import type { CrmEvent } from "@/stores/eventsStore";
 import type { Attendance, MissedEventNote } from "@/stores/attendanceStore";
-import type { Contact, Learning, LearningGoal, Sale, Settings } from "@/stores/crmStore";
-import type { GrowthMilestoneCode, MilestoneMark, PvOverride } from "@/data/growth/types";
+import type {
+  Contact,
+  Learning,
+  LearningGoal,
+  PodcastUnit,
+  ReadingUnit,
+  Sale,
+  Settings,
+} from "@/stores/crmStore";
+import {
+  itemsFromLegacy,
+  legacyGoalColumns,
+  normalizeItem,
+  parseGoalItems,
+} from "@/data/weeklyGoal";
+import type {
+  GrowthMilestoneCode,
+  MilestoneHistory,
+  MilestoneMark,
+  PvOverride,
+} from "@/data/growth/types";
 import type { Campaign, Logistics, Payment, ReportSchedule, SharedCost } from "@/stores/opsStore";
 import type { ActivityEvent } from "@/stores/activityStore";
 import type {
@@ -45,6 +64,7 @@ import type {
   Speaker,
 } from "@/data/library/types";
 import type {
+  CancelReason,
   MilestoneCode,
   PipelineCard,
   PipelineMove,
@@ -52,6 +72,7 @@ import type {
   StatRequest,
   StatShare,
   StepBand,
+  StepCancellation,
   StepHide,
   TeamSetting,
 } from "@/data/pipeline/types";
@@ -154,6 +175,7 @@ export function eventFromRow(r: R<"events">): CrmEvent {
     location: opt(r.location),
     notes: opt(r.notes),
     format: opt(r.format) as CrmEvent["format"],
+    ticketUrl: opt(r.ticket_url),
   };
 }
 
@@ -167,6 +189,7 @@ export function eventToRow(e: CrmEvent): Row {
     location: nul(e.location),
     notes: nul(e.notes),
     format: e.format ?? "in_person",
+    ticket_url: nul(e.ticketUrl),
   };
 }
 
@@ -453,6 +476,31 @@ export function milestoneMarkToRow(k: MilestoneMark): Row {
   };
 }
 
+// Milestone history the app records (the database keeps the earlier first
+// day and the later last day, and stamps who recorded it and when).
+
+export function milestoneHistoryFromRow(r: R<"milestone_history">): MilestoneHistory {
+  return {
+    personId: r.person_id!,
+    code: r.code as GrowthMilestoneCode,
+    firstReachedOn: r.first_reached_on ?? "",
+    lastMetOn: r.last_met_on ?? "",
+    recordedBy: opt(r.recorded_by),
+    recordedAt: isoOr(r.recorded_at),
+  };
+}
+
+export function milestoneHistoryToRow(h: MilestoneHistory): Row {
+  return {
+    person_id: h.personId,
+    code: h.code,
+    first_reached_on: h.firstReachedOn,
+    last_met_on: h.lastMetOn,
+    recorded_by: nul(h.recordedBy),
+    recorded_at: h.recordedAt,
+  };
+}
+
 export function learningFromRow(r: R<"learning">): Learning {
   return {
     id: r.id!,
@@ -477,27 +525,38 @@ export function learningToRow(l: Learning): Row {
   };
 }
 
+/**
+ * A weekly goal row. `items` null (rows from before lists) = the reading,
+ * podcast and workshop targets in the old columns (src/data/weeklyGoal.ts).
+ */
 export function goalFromRow(r: R<"learning_goals">): [string, LearningGoal] {
-  return [
-    r.person_id!,
-    {
-      pages: Number(r.pages ?? 60),
-      podcasts: Number(r.podcasts ?? 3),
-      workshops: Number(r.workshops ?? 1),
-      ...(r.reading_unit ? { readingUnit: r.reading_unit as LearningGoal["readingUnit"] } : {}),
-      ...(r.podcast_unit ? { podcastUnit: r.podcast_unit as LearningGoal["podcastUnit"] } : {}),
-    },
-  ];
+  const items =
+    r.items == null
+      ? itemsFromLegacy({
+          pages: Number(r.pages ?? 60),
+          podcasts: Number(r.podcasts ?? 3),
+          workshops: Number(r.workshops ?? 1),
+          readingUnit: r.reading_unit as ReadingUnit | null,
+          podcastUnit: r.podcast_unit as PodcastUnit | null,
+        })
+      : parseGoalItems(r.items);
+  return [r.person_id!, { items }];
 }
 
+/** The list, plus the old columns kept in step for older clients. */
 export function goalToRow(personId: string, g: LearningGoal): Row {
+  // normalizeItem builds fresh {kind, target, unit?} objects, so the sync
+  // engine's JSON comparison sees the same key order on both sides.
+  const items = g.items.map(normalizeItem);
+  const legacy = legacyGoalColumns(items);
   return {
     person_id: personId,
-    pages: g.pages,
-    podcasts: g.podcasts,
-    workshops: g.workshops,
-    reading_unit: nul(g.readingUnit),
-    podcast_unit: nul(g.podcastUnit),
+    items,
+    pages: legacy.pages,
+    podcasts: legacy.podcasts,
+    workshops: legacy.workshops,
+    reading_unit: legacy.readingUnit,
+    podcast_unit: legacy.podcastUnit,
   };
 }
 
@@ -989,8 +1048,10 @@ export function cardFromRow(r: R<"pipeline_cards">): PipelineCard {
     personId: r.person_id!,
     column: r.column_id ?? "contact",
     enteredAt: isoOr(r.entered_at),
-    nextStep: r.next_step ?? null,
+    nextColumn: r.next_column ?? null,
     nextStepDate: r.next_step_date ?? null,
+    nextStepTime: hhmm(r.next_step_time),
+    note: r.note ?? null,
     hot: !!r.hot,
     source: r.source ?? null,
     droppedAt: iso(r.dropped_at),
@@ -1004,8 +1065,10 @@ export function cardToRow(c: PipelineCard): Row {
     person_id: c.personId,
     column_id: c.column,
     entered_at: iso(c.enteredAt),
-    next_step: c.nextStep,
+    next_column: c.nextColumn,
     next_step_date: c.nextStepDate,
+    next_step_time: c.nextStepTime,
+    note: c.note,
     hot: c.hot,
     source: c.source,
     dropped_at: iso(c.droppedAt),
@@ -1035,6 +1098,41 @@ export function moveToRow(m: PipelineMove): Row {
     milestone: m.milestone,
     moved_at: iso(m.movedAt),
     moved_by: m.movedBy || null,
+  };
+}
+
+/** Postgres `time` ("19:00:00") as the app keeps it ("19:00"). */
+export const hhmm = (v: string | null | undefined): string | null => (v ? v.slice(0, 5) : null);
+
+export function stepCancellationFromRow(r: R<"pipeline_step_cancellations">): StepCancellation {
+  return {
+    id: r.id!,
+    board: r.board === "customer" ? "customer" : "recruiting",
+    cardId: r.card_id!,
+    ownerId: r.owner_id ?? "",
+    column: r.column_id!,
+    bookedDate: r.booked_date ?? null,
+    bookedTime: hhmm(r.booked_time),
+    reason: r.reason as CancelReason,
+    reasonText: r.reason_text ?? null,
+    cancelledAt: isoOr(r.cancelled_at),
+    cancelledBy: r.cancelled_by ?? "",
+  };
+}
+
+export function stepCancellationToRow(c: StepCancellation): Row {
+  return {
+    id: c.id,
+    board: c.board,
+    card_id: c.cardId,
+    owner_id: c.ownerId || null,
+    column_id: c.column,
+    booked_date: c.bookedDate,
+    booked_time: c.bookedTime,
+    reason: c.reason,
+    reason_text: c.reasonText,
+    cancelled_at: iso(c.cancelledAt),
+    cancelled_by: c.cancelledBy || null,
   };
 }
 
@@ -1182,8 +1280,10 @@ export function customerCardFromRow(r: R<"customer_cards">): CustomerCard {
     entryId: r.entry_id!,
     column: r.column_id ?? "not_contacted",
     enteredAt: isoOr(r.entered_at),
-    nextStep: r.next_step ?? null,
+    nextColumn: r.next_column ?? null,
     nextStepDate: r.next_step_date ?? null,
+    nextStepTime: hhmm(r.next_step_time),
+    note: r.note ?? null,
     updatedAt: isoOr(r.updated_at),
   };
 }
@@ -1194,8 +1294,10 @@ export function customerCardToRow(c: CustomerCard): Row {
     entry_id: c.entryId,
     column_id: c.column,
     entered_at: iso(c.enteredAt),
-    next_step: c.nextStep,
+    next_column: c.nextColumn,
     next_step_date: c.nextStepDate,
+    next_step_time: c.nextStepTime,
+    note: c.note,
   };
 }
 

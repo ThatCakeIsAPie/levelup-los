@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { seedAttendances, seedContacts, seedEvents, seedPeople, seedSales } from "@/data/seed";
 import { filterAttendances, visibleIdSet, type Viewer } from "@/data/access";
 import { daysFromToday } from "@/lib/dates";
-import type { CrmPerson, Role } from "@/data";
+import type { CrmPerson, DueBooking, Role } from "@/data";
 import { buildTodayItems, countByFilter, type TodayInput } from "./today";
 
 const people = seedPeople();
@@ -84,7 +84,7 @@ describe("buildTodayItems (seed data)", () => {
   it("counts items per filter", () => {
     const c = countByFilter(maria);
     expect(c.all).toBe(maria.length);
-    expect(c.team + c.customers + c.events).toBe(c.all);
+    expect(c.team + c.customers + c.events + c.pipeline).toBe(c.all);
     expect(c.customers).toBe(2);
   });
 
@@ -192,5 +192,57 @@ describe("do not contact", () => {
     const left = buildTodayItems({ ...input, doNotContact: skip });
     expect(left.some((i) => skip.has(i.person.id))).toBe(false);
     expect(left.length).toBe(all.filter((i) => !skip.has(i.person.id)).length);
+  });
+});
+
+describe("booked pipeline steps", () => {
+  const col = { id: "first_meeting", band: "first_meeting", kind: "milestone", label: "First meeting (MG1)" } as const; // prettier-ignore
+  const due = (o: Partial<DueBooking> & { cardId: string }): DueBooking => ({
+    board: "recruiting",
+    name: `Name ${o.cardId}`,
+    ownerId: "me",
+    column: col,
+    date: daysFromToday(0),
+    time: null,
+    due: "today",
+    daysLate: 0,
+    ...o,
+  });
+  const input = (bookings: DueBooking[], over: Partial<TodayInput> = {}): TodayInput => ({
+    viewerId: "me",
+    role: "apprentice",
+    people: [person({ id: "me", bizClass: "apprentice" }), person({ id: "p1", name: "Grace Kim" })],
+    lastContact: new Map([["p1", daysFromToday(0)]]),
+    settings,
+    events: [],
+    attendances: [],
+    sales: [],
+    bookings,
+    ...over,
+  });
+
+  it("lists due steps under Pipeline, overdue ones first, above IBO anniversaries", () => {
+    const items = buildTodayItems(
+      input([
+        due({ cardId: "p1", name: "Grace Kim" }),
+        due({ cardId: "le-1", board: "customer", name: "Lena Orr", due: "overdue", daysLate: 2 }),
+      ]),
+    );
+    expect(items.map((i) => i.key)).toEqual(["step:customer:le-1", "step:recruiting:p1"]);
+    expect(items.every((i) => i.filter === "pipeline")).toBe(true);
+    expect(items[0].score).toBe(752);
+    expect(items[0].score).toBeGreaterThan(700);
+    expect(items[0].score).toBeLessThan(800);
+    // A prospect is the real person; a list name stands in with its name.
+    expect(items[1].person.name).toBe("Grace Kim");
+    expect(items[0].person).toMatchObject({ id: "le-1", name: "Lena Orr" });
+    expect(countByFilter(items).pipeline).toBe(2);
+  });
+
+  it("leaves out Do not contact and candidates", () => {
+    expect(
+      buildTodayItems(input([due({ cardId: "p1" })], { doNotContact: new Set(["p1"]) })),
+    ).toHaveLength(0);
+    expect(buildTodayItems(input([due({ cardId: "p1" })], { role: "candidate" }))).toHaveLength(0);
   });
 });

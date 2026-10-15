@@ -120,8 +120,10 @@ export function implicitCustomerCard(entry: ListEntry): CustomerCard {
     entryId: entry.id,
     column: NOT_CONTACTED,
     enteredAt: entry.createdAt,
-    nextStep: null,
+    nextColumn: null,
     nextStepDate: null,
+    nextStepTime: null,
+    note: null,
     updatedAt: entry.createdAt,
   };
 }

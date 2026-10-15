@@ -799,8 +799,10 @@ export type Database = {
           column_id: string;
           entered_at: string;
           entry_id: string;
-          next_step: string | null;
+          next_column: string | null;
           next_step_date: string | null;
+          next_step_time: string | null;
+          note: string | null;
           updated_at: string;
           workspace_id: string;
         };
@@ -809,8 +811,10 @@ export type Database = {
           column_id: string;
           entered_at?: string;
           entry_id: string;
-          next_step?: string | null;
+          next_column?: string | null;
           next_step_date?: string | null;
+          next_step_time?: string | null;
+          note?: string | null;
           updated_at?: string;
           workspace_id?: string;
         };
@@ -818,8 +822,10 @@ export type Database = {
           column_id?: string;
           entered_at?: string;
           entry_id?: string;
-          next_step?: string | null;
+          next_column?: string | null;
           next_step_date?: string | null;
+          next_step_time?: string | null;
+          note?: string | null;
           updated_at?: string;
           workspace_id?: string;
         };
@@ -843,6 +849,7 @@ export type Database = {
       customer_moves: {
         Row: {
           band: string;
+          booking_before: Json | null;
           created_customer_id: string | null;
           entry_id: string;
           from_column: string | null;
@@ -857,6 +864,7 @@ export type Database = {
         ComputedFields: never;
         Insert: {
           band: string;
+          booking_before?: Json | null;
           created_customer_id?: string | null;
           entry_id: string;
           from_column?: string | null;
@@ -870,6 +878,7 @@ export type Database = {
         };
         Update: {
           band?: string;
+          booking_before?: Json | null;
           created_customer_id?: string | null;
           entry_id?: string;
           from_column?: string | null;
@@ -1158,6 +1167,7 @@ export type Database = {
           location: string | null;
           name: string;
           notes: string | null;
+          ticket_url: string | null;
           type: string;
           workspace_id: string;
         };
@@ -1172,6 +1182,7 @@ export type Database = {
           location?: string | null;
           name: string;
           notes?: string | null;
+          ticket_url?: string | null;
           type: string;
           workspace_id?: string;
         };
@@ -1185,6 +1196,7 @@ export type Database = {
           location?: string | null;
           name?: string;
           notes?: string | null;
+          ticket_url?: string | null;
           type?: string;
           workspace_id?: string;
         };
@@ -1437,6 +1449,7 @@ export type Database = {
       };
       learning_goals: {
         Row: {
+          items: Json | null;
           pages: number;
           person_id: string;
           podcast_unit: string | null;
@@ -1447,6 +1460,7 @@ export type Database = {
         };
         ComputedFields: never;
         Insert: {
+          items?: Json | null;
           pages?: number;
           person_id: string;
           podcast_unit?: string | null;
@@ -1456,6 +1470,7 @@ export type Database = {
           workspace_id?: string;
         };
         Update: {
+          items?: Json | null;
           pages?: number;
           person_id?: string;
           podcast_unit?: string | null;
@@ -2349,6 +2364,87 @@ export type Database = {
           },
         ];
       };
+      milestone_history: {
+        Row: {
+          code: string;
+          first_reached_on: string;
+          last_met_on: string;
+          person_id: string;
+          recorded_at: string;
+          recorded_by: string | null;
+          workspace_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          code: string;
+          first_reached_on: string;
+          last_met_on: string;
+          person_id: string;
+          recorded_at?: string;
+          recorded_by?: string | null;
+          workspace_id?: string;
+        };
+        Update: {
+          code?: string;
+          first_reached_on?: string;
+          last_met_on?: string;
+          person_id?: string;
+          recorded_at?: string;
+          recorded_by?: string | null;
+          workspace_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "milestone_history_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: false;
+            referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "milestone_history_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "milestone_history_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "milestone_history_recorded_by_fkey";
+            columns: ["recorded_by"];
+            isOneToOne: false;
+            referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "milestone_history_recorded_by_fkey";
+            columns: ["recorded_by"];
+            isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "milestone_history_recorded_by_fkey";
+            columns: ["recorded_by"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "milestone_history_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       milestone_marks: {
         Row: {
           code: string;
@@ -2801,8 +2897,10 @@ export type Database = {
           dropped_at: string | null;
           entered_at: string;
           hot: boolean;
-          next_step: string | null;
+          next_column: string | null;
           next_step_date: string | null;
+          next_step_time: string | null;
+          note: string | null;
           person_id: string;
           source: string | null;
           updated_at: string;
@@ -2814,8 +2912,10 @@ export type Database = {
           dropped_at?: string | null;
           entered_at?: string;
           hot?: boolean;
-          next_step?: string | null;
+          next_column?: string | null;
           next_step_date?: string | null;
+          next_step_time?: string | null;
+          note?: string | null;
           person_id: string;
           source?: string | null;
           updated_at?: string;
@@ -2826,8 +2926,10 @@ export type Database = {
           dropped_at?: string | null;
           entered_at?: string;
           hot?: boolean;
-          next_step?: string | null;
+          next_column?: string | null;
           next_step_date?: string | null;
+          next_step_time?: string | null;
+          note?: string | null;
           person_id?: string;
           source?: string | null;
           updated_at?: string;
@@ -2866,6 +2968,7 @@ export type Database = {
       };
       pipeline_moves: {
         Row: {
+          booking_before: Json | null;
           from_column: string | null;
           id: string;
           milestone: string;
@@ -2878,6 +2981,7 @@ export type Database = {
         };
         ComputedFields: never;
         Insert: {
+          booking_before?: Json | null;
           from_column?: string | null;
           id?: string;
           milestone: string;
@@ -2889,6 +2993,7 @@ export type Database = {
           workspace_id?: string;
         };
         Update: {
+          booking_before?: Json | null;
           from_column?: string | null;
           id?: string;
           milestone?: string;
@@ -2944,6 +3049,102 @@ export type Database = {
           },
           {
             foreignKeyName: "pipeline_moves_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      pipeline_step_cancellations: {
+        Row: {
+          board: string;
+          booked_date: string | null;
+          booked_time: string | null;
+          cancelled_at: string;
+          cancelled_by: string | null;
+          card_id: string;
+          column_id: string;
+          id: string;
+          owner_id: string | null;
+          reason: string;
+          reason_text: string | null;
+          workspace_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          board: string;
+          booked_date?: string | null;
+          booked_time?: string | null;
+          cancelled_at?: string;
+          cancelled_by?: string | null;
+          card_id: string;
+          column_id: string;
+          id?: string;
+          owner_id?: string | null;
+          reason: string;
+          reason_text?: string | null;
+          workspace_id?: string;
+        };
+        Update: {
+          board?: string;
+          booked_date?: string | null;
+          booked_time?: string | null;
+          cancelled_at?: string;
+          cancelled_by?: string | null;
+          card_id?: string;
+          column_id?: string;
+          id?: string;
+          owner_id?: string | null;
+          reason?: string;
+          reason_text?: string | null;
+          workspace_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "pipeline_step_cancellations_cancelled_by_fkey";
+            columns: ["cancelled_by"];
+            isOneToOne: false;
+            referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "pipeline_step_cancellations_cancelled_by_fkey";
+            columns: ["cancelled_by"];
+            isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "pipeline_step_cancellations_cancelled_by_fkey";
+            columns: ["cancelled_by"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "pipeline_step_cancellations_owner_id_fkey";
+            columns: ["owner_id"];
+            isOneToOne: false;
+            referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "pipeline_step_cancellations_owner_id_fkey";
+            columns: ["owner_id"];
+            isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "pipeline_step_cancellations_owner_id_fkey";
+            columns: ["owner_id"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "pipeline_step_cancellations_workspace_id_fkey";
             columns: ["workspace_id"];
             isOneToOne: false;
             referencedRelation: "workspaces";
@@ -3825,6 +4026,24 @@ export type Database = {
       approve_announcement:
         | { Args: { p_draft_id: string }; Returns: string }
         | { Args: { p_draft_id: string; p_message_id: string }; Returns: string };
+      board_column_ord: {
+        Args: { p_board: string; p_column: string; p_owner: string };
+        Returns: number;
+      };
+      board_columns: {
+        Args: { p_board: string; p_owner: string };
+        Returns: {
+          band: string;
+          id: string;
+          kind: string;
+          label: string;
+          ord: number;
+        }[];
+      };
+      booking_kept: {
+        Args: { p_board: string; p_booked: string; p_owner: string; p_to: string };
+        Returns: boolean;
+      };
       can_dm: { Args: { a: string; b: string }; Returns: boolean };
       can_edit_conversation: { Args: { p_conversation_id: string }; Returns: boolean };
       can_moderate_conversation: { Args: { p_conversation_id: string }; Returns: boolean };
@@ -3900,6 +4119,11 @@ export type Database = {
       is_moderator_or_leader: { Args: Record<PropertyKey, never>; Returns: boolean };
       is_team_chat: { Args: { p_conversation_id: string }; Returns: boolean };
       is_upline_of: { Args: { p_person_id: string }; Returns: boolean };
+      learning_goal_items_valid: { Args: { p_items: Json }; Returns: boolean };
+      legacy_next_column: {
+        Args: { p_board: string; p_current: string; p_owner: string; p_text: string };
+        Returns: string;
+      };
       library_can_edit: {
         Args: { p_created_by: string; p_workspace_id: string };
         Returns: boolean;
@@ -3944,8 +4168,9 @@ export type Database = {
           p_customer_id?: string;
           p_entry_id: string;
           p_move_id?: string;
-          p_next_step?: string;
+          p_next_column?: string;
           p_next_step_date?: string;
+          p_next_step_time?: string;
           p_to: string;
         };
         Returns: Json;
@@ -3954,8 +4179,9 @@ export type Database = {
         Args: {
           p_hot?: boolean;
           p_move_id?: string;
-          p_next_step?: string;
+          p_next_column?: string;
           p_next_step_date?: string;
+          p_next_step_time?: string;
           p_person_id: string;
           p_source?: string;
           p_to: string;
@@ -3964,6 +4190,7 @@ export type Database = {
       };
       my_chain_ids: { Args: Record<PropertyKey, never>; Returns: string[] };
       my_conversation_ids: { Args: Record<PropertyKey, never>; Returns: string[] };
+      normalize_step_text: { Args: { p_text: string }; Returns: string };
       notify: {
         Args: {
           p_actor: string;
@@ -4032,6 +4259,8 @@ export type Database = {
           person_id: string;
         }[];
       };
+      step_card_owner: { Args: { p_board: string; p_card_id: string }; Returns: string };
+      step_card_visible: { Args: { p_board: string; p_card_id: string }; Returns: boolean };
       sync_team_chats: {
         Args: { p_include_pinned: boolean; p_person_id: string };
         Returns: undefined;

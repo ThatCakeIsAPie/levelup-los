@@ -1,10 +1,12 @@
 /**
  * Pure learning helpers for the Dashboard. "This week" is the rolling last 7
- * days (today and the 6 days before), so the weekly goal and the week strip
- * never reset to zero on a Monday morning.
+ * days (today and the 6 days before; `goalWeek` in src/data/weeklyGoal.ts),
+ * so the weekly goal and the week strip never reset to zero on a Monday
+ * morning. The weekly goal itself is counted in src/data/weeklyGoal.ts.
  */
 import { addDays, format } from "date-fns";
 import {
+  goalWeek,
   learningStreak,
   learningUnit,
   localDate,
@@ -12,7 +14,6 @@ import {
   unitAmount,
   type CrmPerson,
   type Learning,
-  type LearningGoal,
 } from "@/data";
 
 export interface WeekTotals {
@@ -23,18 +24,6 @@ export interface WeekTotals {
   podcasts: number;
   listeningMinutes: number;
   workshops: number;
-}
-
-/** The totals that count toward the goal's reading and podcast targets. */
-export function goalKeys(goal: LearningGoal): {
-  reading: "pages" | "chapters" | "readingMinutes";
-  podcasts: "podcasts" | "listeningMinutes";
-} {
-  const r = goal.readingUnit ?? "pages";
-  return {
-    reading: r === "minutes" ? "readingMinutes" : r,
-    podcasts: goal.podcastUnit === "minutes" ? "listeningMinutes" : "podcasts",
-  };
 }
 
 export interface WeekDay {
@@ -49,7 +38,7 @@ export interface WeekDay {
 
 /** The first day of the rolling week that ends on `today`. */
 export function weekStart(today: string): string {
-  return localDate(addDays(parseDate(today), -6));
+  return goalWeek(today).from;
 }
 
 /** The last 7 days, oldest first (today last), with whether learning was logged. */
@@ -101,25 +90,6 @@ export function weekTotals(entries: Learning[], today: string): WeekTotals {
     if (key) out[key] += e.amount;
   }
   return out;
-}
-
-/**
- * Combined goal progress 0..1: the average of each target's progress, each
- * capped at 100%. Reading and podcasts count only entries in the goal's unit.
- */
-export function goalProgress(totals: WeekTotals, goal: LearningGoal): number {
-  const keys = goalKeys(goal);
-  const parts = (
-    [
-      [totals[keys.reading], goal.pages],
-      [totals[keys.podcasts], goal.podcasts],
-      [totals.workshops, goal.workshops],
-    ] as const
-  )
-    .filter(([, target]) => target > 0)
-    .map(([done, target]) => Math.min(1, done / target));
-  if (parts.length === 0) return 0;
-  return parts.reduce((s, x) => s + x, 0) / parts.length;
 }
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;

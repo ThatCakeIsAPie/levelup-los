@@ -1,7 +1,7 @@
 /**
  * Milestone engine (pure: no React, no stores). Works out where a person is
  * on the growth path from the sponsor tree, logged sales (PV), monthly PV set
- * by uplines and milestones marked by hand.
+ * by uplines, milestones marked by hand and the history the app recorded.
  *
  * Rules (docs/plans/mvp-plan-2026-10-13.md, "Growth path"):
  *  - PV counts per calendar month. A person's PV for a month is the PV of the
@@ -13,17 +13,26 @@
  *  - People counts are registered people (apprentices and IBOs) in your
  *    downline, not counting you; personal sponsors are the registered people
  *    on your frontline.
- *  - A milestone is reached the first time its rule is met and stays reached:
- *    PV rules look at every month on record, so a good month in the past
- *    keeps counting. A hand mark counts too; the earlier date wins.
+ *  - Whether a milestone is held today depends on its class (`hold`):
+ *    permanent ones (New apprentice, First sale, First sponsor) stay once
+ *    reached; live ones (3/10, 6/25, 6/50, 12/100) are held only while the
+ *    current numbers meet them; monthly ones (Core 150/300, Bronze
+ *    foundation/builder, 7,500 Platinum, Ruby) are held when the rule was met
+ *    this calendar month or last month (met in September: held through
+ *    October 31, gone on November 1 unless met again in November).
+ *  - History is kept apart from "held": the first day a milestone was ever
+ *    reached (from the data, the history recorded for count rules, or a hand
+ *    mark; the earliest wins) and, for live and monthly ones, the last time
+ *    it was met. A hand mark makes a permanent milestone reached; for a live
+ *    or monthly one it only adds history.
  *  - Dates (never before the person registered): PV rules use the day the
  *    month's running total first met the rule
  *    (an upline's monthly figure counts from the day it was set, or the last
  *    day of the month when set later). Count rules use the registration date
  *    of the person who completed them (`registeredOn`). First sale: the date
  *    of the first sale to a customer (personal orders don't count).
- *  - The path's "next" milestone is the first one not reached yet, in order;
- *    later ones reached out of order still show as reached.
+ *  - The path's "next" milestone is the first one not held now, in order;
+ *    later ones held out of order still show as held.
  */
 import { differenceInCalendarDays, getDaysInMonth } from "date-fns";
 import { parseDate } from "@/lib/dates";
@@ -35,6 +44,7 @@ import type {
   GrowthMilestoneCode,
   GrowthMilestoneDef,
   GrowthPath,
+  MilestoneHistory,
   MilestoneMark,
   MilestoneProgress,
   MilestoneStatus,
@@ -47,6 +57,8 @@ export interface GrowthInput {
   sales: Sale[];
   overrides: PvOverride[];
   marks: MilestoneMark[];
+  /** History the app recorded for count milestones (left out = nothing recorded). */
+  history?: MilestoneHistory[];
 }
 
 // ---------------------------------------------------------------------------
@@ -61,11 +73,25 @@ export function daysInMonth(month: string): number {
   return getDaysInMonth(parseDate(`${month}-01`));
 }
 
+/** The calendar month `n` months after (before, for a negative `n`) a "YYYY-MM" month. */
+export function addMonths(month: string, n: number): string {
+  const total = Number(month.slice(0, 4)) * 12 + Number(month.slice(5, 7)) - 1 + n;
+  const y = Math.floor(total / 12);
+  const m = total - y * 12 + 1;
+  return `${String(y).padStart(4, "0")}-${String(m).padStart(2, "0")}`;
+}
+
+/** The last day of a "YYYY-MM" month, "YYYY-MM-DD". */
+export const lastDayOf = (month: string): string =>
+  `${month}-${String(daysInMonth(month)).padStart(2, "0")}`;
+
 const dayOf = (date: string): number => Number(date.slice(8, 10));
 const dateIn = (month: string, day: number): string => `${month}-${String(day).padStart(2, "0")}`;
 const daysBetween = (from: string, to: string): number =>
   differenceInCalendarDays(parseDate(to), parseDate(from));
 const fmt = (n: number): string => Math.round(n).toLocaleString("en-US");
+const earliest = (...dates: (string | null | undefined)[]): string | null =>
+  dates.reduce<string | null>((a, d) => (d && (!a || d < a) ? d : a), null);
 
 /** Apprentices and IBOs (registered businesses). */
 export function isRegistered(p: CrmPerson): boolean {
@@ -128,6 +154,7 @@ interface Index {
   daily: Map<string, Map<string, number[]>>;
   overrides: Map<string, Map<string, PvOverride>>;
   marks: Map<string, Map<GrowthMilestoneCode, MilestoneMark>>;
+  history: Map<string, Map<GrowthMilestoneCode, MilestoneHistory>>;
   /** person -> date of their first sale to a customer. */
   firstSale: Map<string, string>;
   ownCum: Map<string, number[]>;
@@ -136,6 +163,18 @@ interface Index {
   ownMonths: Map<string, string[]>;
   descendants: Map<string, string[]>;
   paths: Map<string, GrowthPath>;
+}
+
+function byPersonAndCode<T extends { personId: string; code: GrowthMilestoneCode }>(
+  rows: T[],
+): Map<string, Map<GrowthMilestoneCode, T>> {
+  const out = new Map<string, Map<GrowthMilestoneCode, T>>();
+  for (const r of rows) {
+    let m = out.get(r.personId);
+    if (!m) out.set(r.personId, (m = new Map()));
+    m.set(r.code, r);
+  }
+  return out;
 }
 
 function buildIndex(input: GrowthInput, today: string): Index {
@@ -173,12 +212,6 @@ function buildIndex(input: GrowthInput, today: string): Index {
     if (!m) overrides.set(o.personId, (m = new Map()));
     m.set(o.month, o);
   }
-  const marks = new Map<string, Map<GrowthMilestoneCode, MilestoneMark>>();
-  for (const k of input.marks) {
-    let m = marks.get(k.personId);
-    if (!m) marks.set(k.personId, (m = new Map()));
-    m.set(k.code, k);
-  }
   return {
     today,
     month: monthOfDate(today),
@@ -186,7 +219,8 @@ function buildIndex(input: GrowthInput, today: string): Index {
     kids,
     daily,
     overrides,
-    marks,
+    marks: byPersonAndCode(input.marks),
+    history: byPersonAndCode(input.history ?? []),
     firstSale,
     ownCum: new Map(),
     groupCum: new Map(),
@@ -207,7 +241,8 @@ function indexFor(input: GrowthInput, today: string): Index {
     c.input.people === input.people &&
     c.input.sales === input.sales &&
     c.input.overrides === input.overrides &&
-    c.input.marks === input.marks
+    c.input.marks === input.marks &&
+    c.input.history === input.history
   ) {
     return c.index;
   }
@@ -340,7 +375,68 @@ function firstDay(month: string, holds: (dayIndex: number) => boolean): string |
   return null;
 }
 
-/** When the data first shows the milestone reached, or null. */
+/** A month in which a monthly (PV) rule was met, and the day it was first met in it. */
+interface MetMonth {
+  month: string;
+  on: string;
+}
+
+/**
+ * Every month on record in which a monthly (PV) rule was met, oldest first,
+ * with the day the month's running total first met it (not after today).
+ */
+function metMonths(ix: Index, id: string, def: GrowthMilestoneDef): MetMonth[] {
+  const c = def.check;
+  const out: MetMonth[] = [];
+  const push = (month: string, on: string | null) => {
+    if (on && on <= ix.today) out.push({ month, on });
+  };
+  switch (c.kind) {
+    case "personal_pv":
+      for (const m of ownMonths(ix, id)) {
+        const own = ownCum(ix, id, m);
+        push(
+          m,
+          firstDay(m, (i) => own[i] >= c.pv),
+        );
+      }
+      break;
+    case "group_pv":
+      for (const m of groupMonths(ix, id)) {
+        const total = totalCum(ix, id, m);
+        push(
+          m,
+          firstDay(m, (i) => total[i] >= c.pv),
+        );
+      }
+      break;
+    case "legs_pv": {
+      const legs = ix.kids.get(id) ?? [];
+      if (legs.length < c.legs) break;
+      for (const m of groupMonths(ix, id)) {
+        const total = totalCum(ix, id, m);
+        if (lastOf(total) < c.groupPv) continue;
+        const legCums = legs.map((k) => groupCum(ix, k, m));
+        push(
+          m,
+          firstDay(
+            m,
+            (i) => total[i] >= c.groupPv && legCums.filter((l) => l[i] >= c.legPv).length >= c.legs,
+          ),
+        );
+      }
+      break;
+    }
+    default:
+      break;
+  }
+  return out;
+}
+
+/**
+ * When the data shows the rule met, or null. Count rules look at the current
+ * sponsor tree (met right now or not); PV rules at the first month that met it.
+ */
 function autoReached(ix: Index, id: string, def: GrowthMilestoneDef): string | null {
   const person = ix.byId.get(id);
   if (!person) return null;
@@ -350,37 +446,6 @@ function autoReached(ix: Index, id: string, def: GrowthMilestoneDef): string | n
       return registeredOn(person);
     case "first_sale":
       return ix.firstSale.get(id) ?? null;
-    case "personal_pv": {
-      for (const m of ownMonths(ix, id)) {
-        const own = ownCum(ix, id, m);
-        const d = firstDay(m, (i) => own[i] >= c.pv);
-        if (d) return d;
-      }
-      return null;
-    }
-    case "group_pv": {
-      for (const m of groupMonths(ix, id)) {
-        const total = totalCum(ix, id, m);
-        const d = firstDay(m, (i) => total[i] >= c.pv);
-        if (d) return d;
-      }
-      return null;
-    }
-    case "legs_pv": {
-      const legs = ix.kids.get(id) ?? [];
-      if (legs.length < c.legs) return null;
-      for (const m of groupMonths(ix, id)) {
-        const total = totalCum(ix, id, m);
-        if (lastOf(total) < c.groupPv) continue;
-        const legCums = legs.map((k) => groupCum(ix, k, m));
-        const d = firstDay(
-          m,
-          (i) => total[i] >= c.groupPv && legCums.filter((l) => l[i] >= c.legPv).length >= c.legs,
-        );
-        if (d) return d;
-      }
-      return null;
-    }
     case "count": {
       const { sponsors, people } = teamDates(ix, id);
       if (sponsors.length < c.sponsors || people.length < c.people) return null;
@@ -388,6 +453,8 @@ function autoReached(ix: Index, id: string, def: GrowthMilestoneDef): string | n
       const b = c.people > 0 ? people[c.people - 1] : "";
       return (a > b ? a : b) || null;
     }
+    default:
+      return metMonths(ix, id, def)[0]?.on ?? null;
   }
 }
 
@@ -499,52 +566,98 @@ function progressFor(ix: Index, id: string, def: GrowthMilestoneDef): MilestoneP
 // Public API
 // ---------------------------------------------------------------------------
 
+function statusFor(
+  ix: Index,
+  personId: string,
+  def: GrowthMilestoneDef,
+  index: number,
+): MilestoneStatus {
+  const person = ix.byId.get(personId);
+  const registered = person ? registeredOn(person) : null;
+  // Nothing is reached before registering (people moved under you keep
+  // their own, older registration dates).
+  const clamp = (d: string | null): string | null =>
+    d && registered && d < registered ? registered : d;
+  const mark = ix.marks.get(personId)?.get(def.code) ?? null;
+  const recorded = ix.history.get(personId)?.get(def.code) ?? null;
+  const lastMonth = addMonths(ix.month, -1);
+
+  let held: boolean;
+  let dataOn: string | null;
+  let lastMetOn: string | null = null;
+  let heldVia: MilestoneStatus["heldVia"] = null;
+  let heldUntil: string | null = null;
+
+  if (def.hold === "monthly") {
+    // Held when met this calendar month or last month; a hand mark is history only.
+    const months = person ? metMonths(ix, personId, def) : [];
+    dataOn = clamp(months[0]?.on ?? null);
+    const last = months[months.length - 1];
+    lastMetOn = last ? clamp(last.on) : null;
+    if (months.some((m) => m.month === ix.month)) heldVia = "this_month";
+    else if (months.some((m) => m.month === lastMonth)) heldVia = "last_month";
+    held = heldVia !== null;
+    if (heldVia)
+      heldUntil = lastDayOf(addMonths(heldVia === "this_month" ? ix.month : lastMonth, 1));
+  } else {
+    const now = person ? clamp(autoReached(ix, personId, def)) : null;
+    // Recorded history (count rules) keeps what the tree may no longer show.
+    dataOn = earliest(now, recorded?.firstReachedOn);
+    if (def.hold === "live") {
+      // Held only while the numbers meet it now; a hand mark is history only.
+      held = now !== null;
+      lastMetOn = held ? ix.today : (recorded?.lastMetOn ?? null);
+    } else {
+      // Permanent: reached once (data, recorded history or a hand mark) is reached.
+      held = dataOn !== null || mark !== null;
+    }
+  }
+
+  const firstReachedOn = earliest(dataOn, mark?.reachedOn);
+  const source: MilestoneStatus["source"] = !firstReachedOn
+    ? null
+    : dataOn === firstReachedOn
+      ? "auto"
+      : "manual";
+  return {
+    code: def.code,
+    label: def.label,
+    rule: def.rule,
+    index,
+    hold: def.hold,
+    state: held ? "held" : firstReachedOn ? "lost" : "never",
+    held,
+    firstReachedOn,
+    source,
+    autoOn: dataOn,
+    mark,
+    lastMetOn,
+    heldVia,
+    heldUntil,
+    daysTaken: null,
+    progress: !held || heldVia === "last_month" ? progressFor(ix, personId, def) : null,
+  };
+}
+
 function computePath(ix: Index, personId: string): GrowthPath {
   const person = ix.byId.get(personId);
-  const marks = ix.marks.get(personId);
-  const registered = person ? registeredOn(person) : null;
-  const statuses: MilestoneStatus[] = GROWTH_MILESTONES.map((def, index) => {
-    let autoOn = person ? autoReached(ix, personId, def) : null;
-    // Nothing is reached before registering (people moved under you keep
-    // their own, older registration dates).
-    if (autoOn && registered && autoOn < registered) autoOn = registered;
-    const mark = marks?.get(def.code) ?? null;
-    let reachedOn: string | null = null;
-    let source: MilestoneStatus["source"] = null;
-    if (autoOn && (!mark || autoOn <= mark.reachedOn)) {
-      reachedOn = autoOn;
-      source = "auto";
-    } else if (mark) {
-      reachedOn = mark.reachedOn;
-      source = "manual";
-    }
-    return {
-      code: def.code,
-      label: def.label,
-      rule: def.rule,
-      index,
-      reachedOn,
-      source,
-      autoOn,
-      mark,
-      daysTaken: null,
-      progress: reachedOn ? null : progressFor(ix, personId, def),
-    };
-  });
+  const statuses = GROWTH_MILESTONES.map((def, index) => statusFor(ix, personId, def, index));
   let prev: string | null = null;
   for (const s of statuses) {
-    if (!s.reachedOn) continue;
+    if (!s.firstReachedOn) continue;
     if (prev) {
-      const d = daysBetween(prev, s.reachedOn);
+      const d = daysBetween(prev, s.firstReachedOn);
       s.daysTaken = d >= 0 ? d : null;
     }
-    prev = s.reachedOn;
+    prev = s.firstReachedOn;
   }
-  const nextIndex = statuses.findIndex((s) => !s.reachedOn);
+  const nextIndex = statuses.findIndex((s) => !s.held);
   const next = nextIndex === -1 ? null : statuses[nextIndex];
-  const reached = statuses.filter((s) => s.reachedOn);
-  const latest = reached.length ? reached[reached.length - 1] : null;
-  const before = nextIndex > 0 ? statuses[nextIndex - 1].reachedOn : null;
+  const held = statuses.filter((s) => s.held);
+  const latest = held.length ? held[held.length - 1] : null;
+  // "Working on it since…" only for a milestone never reached before.
+  const before =
+    nextIndex > 0 && next?.state === "never" ? statuses[nextIndex - 1].firstReachedOn : null;
   const month = ix.month;
   return {
     personId,
@@ -554,6 +667,7 @@ function computePath(ix: Index, personId: string): GrowthPath {
     next,
     latest,
     workingDays: before ? Math.max(0, daysBetween(before, ix.today)) : null,
+    keepUp: statuses.filter((s) => s.heldVia === "last_month"),
     thisMonth: {
       month,
       pv: lastOf(ownCum(ix, personId, month)),
@@ -578,14 +692,75 @@ export function growthPath(input: GrowthInput, personId: string, today: string):
   return path;
 }
 
-/** True once the person has reached the milestone (from the data or a hand mark). */
-export function hasReachedMilestone(
+const statusIn = (
+  input: GrowthInput,
+  personId: string,
+  code: GrowthMilestoneCode,
+  today: string,
+): MilestoneStatus | undefined =>
+  growthPath(input, personId, today).milestones.find((m) => m.code === code);
+
+/**
+ * True once the person has ever reached the milestone (from the data,
+ * recorded history or a hand mark), whether it's held now or not. Unlocks go
+ * by this: dropping below 3/10 keeps event planning.
+ */
+export function hasEverReachedMilestone(
   input: GrowthInput,
   personId: string,
   code: GrowthMilestoneCode,
   today: string,
 ): boolean {
-  return !!growthPath(input, personId, today).milestones.find((m) => m.code === code)?.reachedOn;
+  return !!statusIn(input, personId, code, today)?.firstReachedOn;
+}
+
+/** True when the milestone is held today (checked on the path). */
+export function isMilestoneHeld(
+  input: GrowthInput,
+  personId: string,
+  code: GrowthMilestoneCode,
+  today: string,
+): boolean {
+  return !!statusIn(input, personId, code, today)?.held;
+}
+
+/** A history row to write (who and when are added by the caller / database). */
+export type HistoryUpdate = Omit<MilestoneHistory, "recordedBy" | "recordedAt">;
+
+/**
+ * History rows to write so the count milestones (First sponsor and the
+ * headcount ones) the data shows met right now are remembered when the tree
+ * later changes: a row when there is none, when the data shows an earlier
+ * first day, or when the last-met day is from an earlier month (refreshed at
+ * most once a month). Only rows that change, merged with what's recorded.
+ */
+export function historyUpdates(
+  input: GrowthInput,
+  personIds: Iterable<string>,
+  today: string,
+): HistoryUpdate[] {
+  const ix = indexFor(input, today);
+  const out: HistoryUpdate[] = [];
+  for (const personId of personIds) {
+    const person = ix.byId.get(personId);
+    if (!person || !isRegistered(person)) continue;
+    const registered = registeredOn(person);
+    for (const def of GROWTH_MILESTONES) {
+      if (def.check.kind !== "count") continue;
+      let now = autoReached(ix, personId, def);
+      if (!now) continue;
+      if (registered && now < registered) now = registered;
+      const rec = ix.history.get(personId)?.get(def.code);
+      if (rec && rec.firstReachedOn <= now && monthOfDate(rec.lastMetOn) >= ix.month) continue;
+      out.push({
+        personId,
+        code: def.code,
+        firstReachedOn: rec && rec.firstReachedOn < now ? rec.firstReachedOn : now,
+        lastMetOn: rec && rec.lastMetOn > today ? rec.lastMetOn : today,
+      });
+    }
+  }
+  return out;
 }
 
 /** A person's PV for one month: the logged total, the upline's figure if any, and what counts. */
