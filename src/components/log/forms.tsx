@@ -49,6 +49,7 @@ import {
   unpost,
   useCurrentUser,
   useLastContactMap,
+  useLearning,
   useLearningGoal,
   useProspectPipeline,
   useVisibleCustomers,
@@ -72,6 +73,8 @@ import {
 import { ShareAsWin, type WinDraft } from "./ShareAsWin";
 import { useCanShareWins } from "./canShareWins";
 import { BoardMoveField, BoardNote } from "./PipelineMoveField";
+import { TitleCombobox } from "./TitleCombobox";
+import { matchTitle, pastTitles } from "./titleSuggestions";
 import { boardTarget, movesToPlan } from "./pipelineMove";
 
 // ---------------------------------------------------------------------------
@@ -194,6 +197,9 @@ export function LearningForm() {
   const [amounts, setAmounts] = useState<Record<LearningUnit, string>>(UNIT_DEFAULT);
   const [date, setDate] = useState(localDate());
   const [win, setWin] = useWin(false, "");
+  // Books (or podcasts) you've logged before, for the title dropdown.
+  const history = useLearning(user.personId);
+  const titles = useMemo(() => pastTitles(history, kind), [history, kind]);
   const unit: LearningUnit | undefined =
     kind === "pages" ? readingUnit : kind === "podcast" ? podcastUnit : undefined;
   const amount = unit ? Number(amounts[unit]) : 1;
@@ -201,13 +207,15 @@ export function LearningForm() {
 
   const save = () => {
     if (!valid) return;
-    logLearning({ kind, title: title.trim(), amount, ...(unit ? { unit } : {}), date });
+    // Typed an old title in different case? Log it under the existing spelling.
+    const name = matchTitle(titles, title)?.title ?? title.trim();
+    logLearning({ kind, title: name, amount, ...(unit ? { unit } : {}), date });
     const id = latestLearningId();
     finish({
       message: "Learning logged",
       undoneMessage: "Learning removed",
       undo: () => id && removeLearning(id),
-      learning: win.on && id ? { learningId: id, title: title.trim() } : null,
+      learning: win.on && id ? { learningId: id, title: name } : null,
     });
   };
 
@@ -240,10 +248,12 @@ export function LearningForm() {
         </div>
       </Field>
       <Field label={kind === "pages" ? "Book" : "Title"} htmlFor="log-title">
-        <Input
+        <TitleCombobox
           id="log-title"
           value={title}
-          onChange={(e) => setTitle(e.target.value)}
+          onChange={setTitle}
+          titles={titles}
+          noun={kind === "pages" ? "book" : kind}
           placeholder={kind === "pages" ? "e.g. Go-Givers Sell More" : "e.g. Leadership Hour #45"}
         />
       </Field>

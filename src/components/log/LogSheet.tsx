@@ -156,6 +156,11 @@ export function LogSheet() {
       <Sheet open={open} onOpenChange={(o) => !o && closeLog()}>
         <SheetContent
           side={desktop ? "right" : "bottom"}
+          // Escape in an open dropdown (e.g. the book list) closes just the dropdown.
+          onEscapeKeyDown={(e) => {
+            if ((e.target as HTMLElement).getAttribute?.("aria-expanded") === "true")
+              e.preventDefault();
+          }}
           className={cn(
             "flex flex-col gap-0 p-0",
             desktop ? "w-full sm:max-w-md" : "max-h-[92dvh] rounded-t-card pb-safe",
