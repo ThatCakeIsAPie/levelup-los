@@ -1,5 +1,12 @@
 /** Pure helpers for the Log sheet's pipeline fields (PipelineMoveField.tsx). */
-import { bandIndex, type PipelineColumn, type ProspectPipeline } from "@/data";
+import {
+  RECRUITING_BOARD,
+  bandIndex,
+  bookableColumns,
+  type Booking,
+  type PipelineColumn,
+  type ProspectPipeline,
+} from "@/data";
 
 /**
  * Columns after the card's current one (Registered is done from the board,
@@ -21,3 +28,17 @@ export function boardTarget(p: ProspectPipeline | null, pick: string): string | 
 /** Will "Showed the plan" move this prospect to First plan? */
 export const movesToPlan = (p: ProspectPipeline | null) =>
   !!p?.onBoard && !!p.column && bandIndex(p.column.band) < bandIndex("first_plan");
+
+/**
+ * "Booked a meeting" with a day: the meeting is the card's next step, booked
+ * into the column after the one it moves to (on the owner's board).
+ */
+export function meetingBooking(
+  p: ProspectPipeline | null,
+  target: string,
+  day: string,
+): Booking | null {
+  if (!p || !day) return null;
+  const next = bookableColumns(p.ownerColumns, target, RECRUITING_BOARD)[0];
+  return next ? { nextColumn: next.id, nextStepDate: day, nextStepTime: null } : null;
+}

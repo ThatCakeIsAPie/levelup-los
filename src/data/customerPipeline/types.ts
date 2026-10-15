@@ -143,9 +143,14 @@ export interface CustomerCard {
   column: string;
   /** When the card entered its current column (ISO timestamp). */
   enteredAt: string;
-  nextStep: string | null;
+  /** The booked next step: a column on the list owner's board, or null (see ../pipeline/booking.ts). */
+  nextColumn: string | null;
   /** "YYYY-MM-DD" */
   nextStepDate: string | null;
+  /** "HH:MM", optional. */
+  nextStepTime: string | null;
+  /** A free-text note on the card (at most MAX_CARD_NOTE characters). */
+  note: string | null;
   updatedAt: string;
 }
 

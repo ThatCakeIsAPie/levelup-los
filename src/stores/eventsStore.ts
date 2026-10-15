@@ -26,6 +26,8 @@ export interface CrmEvent {
   notes?: string;
   /** In person (the default), virtual or both; see `eventFormat()` in @/data. */
   format?: EventFormat;
+  /** Where to buy a ticket (team site, Venmo...): an http(s) link; see `cleanTicketUrl()`. */
+  ticketUrl?: string;
 }
 
 interface EventsState {

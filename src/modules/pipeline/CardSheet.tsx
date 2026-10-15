@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { ArrowUpRight, ClockAlert, Flame, MoveRight, UserMinus } from "lucide-react";
+import { toast } from "sonner";
 import { PersonAvatar, ToneChip, useIsDesktop } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,13 +18,21 @@ import { toastWithUndo } from "@/components/log/quickLog";
 import { cn } from "@/lib/utils";
 import {
   RECRUITING_BAND_LABEL,
+  RECRUITING_BOARD,
+  bookNextStep,
+  bookableColumns,
+  bookingError,
+  sameBooking,
   dropPipelineCard,
   updatePipelineCard,
+  usePipelineColumns,
   type BoardCard,
   type PipelineColumn,
 } from "@/data";
 import { MoveMenu } from "./moveCard";
-import { ageLong } from "./format";
+import { ageLong, bookingState } from "./format";
+import { BookingFields, NoteField } from "./BookingFields";
+import { BookedStep } from "./BookedStep";
 
 /** A card's details: where it is, move it, next step, hot, where you met, take it off the board. */
 export function CardSheet({
@@ -75,20 +84,30 @@ function CardDetails({
   onClose: () => void;
 }) {
   const col = columns.find((c) => c.id === card.column);
-  const [next, setNext] = useState(card.nextStep ?? "");
-  const [date, setDate] = useState(card.nextStepDate ?? "");
+  const ownerColumns = usePipelineColumns(card.ownerId);
+  const bookable = bookableColumns(ownerColumns, card.cardColumn, RECRUITING_BOARD, card.band);
+  const initial = bookingState(card.booking);
+  const [booking, setBooking] = useState(initial);
+  const [note, setNote] = useState(card.note ?? "");
   const [source, setSource] = useState(card.source ?? "");
-  const dirty =
-    next !== (card.nextStep ?? "") ||
-    date !== (card.nextStepDate ?? "") ||
-    source !== (card.source ?? "");
+  const [error, setError] = useState<string | null>(null);
+  const bookingChanged = !sameBooking(booking, initial);
+  const dirty = bookingChanged || note !== (card.note ?? "") || source !== (card.source ?? "");
 
   const save = () => {
-    updatePipelineCard(card.personId, {
-      nextStep: next.trim() || null,
-      nextStepDate: date || null,
-      source: source.trim() || null,
-    });
+    if (bookingChanged) {
+      const err = bookingError(booking, bookable);
+      if (err) {
+        setError(err);
+        return;
+      }
+      const r = bookNextStep("recruiting", card.personId, booking);
+      if (!r.ok) {
+        toast.error(r.error);
+        return;
+      }
+    }
+    updatePipelineCard(card.personId, { note, source: source.trim() || null });
     onClose();
   };
 
@@ -143,6 +162,13 @@ function CardDetails({
           </MoveMenu>
         </div>
 
+        <BookedStep
+          board="recruiting"
+          cardId={card.personId}
+          name={card.name}
+          booking={card.booking}
+          onCancelled={onClose}
+        />
         <form
           className="grid gap-3"
           onSubmit={(e) => {
@@ -150,32 +176,22 @@ function CardDetails({
             save();
           }}
         >
-          <div className="grid grid-cols-[minmax(0,1fr)_9.5rem] gap-2.5">
-            <div className="grid gap-1.5">
-              <Label htmlFor="card-next" className="text-[12px] text-muted-foreground">
-                Next step
-              </Label>
-              <Input
-                id="card-next"
-                value={next}
-                maxLength={40}
-                placeholder="e.g. MG1, Call, Info 2"
-                onChange={(e) => setNext(e.target.value)}
-              />
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="card-date" className="text-[12px] text-muted-foreground">
-                When
-              </Label>
-              <Input
-                id="card-date"
-                type="date"
-                className="min-w-0"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-              />
-            </div>
-          </div>
+          <BookingFields
+            id="card-booking"
+            columns={bookable}
+            bands={RECRUITING_BOARD.bands}
+            value={booking}
+            onChange={(b) => {
+              setBooking(b);
+              setError(null);
+            }}
+          />
+          {error && (
+            <p className="text-[12.5px] font-semibold text-bad" role="alert">
+              {error}
+            </p>
+          )}
+          <NoteField id="card-note" value={note} onChange={setNote} />
           <div className="grid gap-1.5">
             <Label htmlFor="card-source" className="text-[12px] text-muted-foreground">
               Where you met

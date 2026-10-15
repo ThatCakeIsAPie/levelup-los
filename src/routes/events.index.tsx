@@ -246,7 +246,10 @@ function TypeFilter({ types, value }: { types: EventType[]; value?: EventType })
     );
   };
   return (
-    <nav aria-label="Show one type of event" className="-mx-4 overflow-x-auto px-4 lg:mx-0 lg:px-0">
+    <nav
+      aria-label="Show one type of event"
+      className="-mx-4 overflow-x-auto px-4 [scrollbar-width:none] lg:mx-0 lg:px-0 [&::-webkit-scrollbar]:hidden"
+    >
       <div className="flex w-max gap-1.5 lg:w-auto lg:flex-wrap">
         {chip(undefined, "All")}
         {types.map((t) => chip(t, EVENT_TYPE_INFO[t].plural))}

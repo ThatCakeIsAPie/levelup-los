@@ -21,6 +21,7 @@ import {
   type Attendance,
   type CrmEvent,
 } from "@/data";
+import { BuyTicketButton } from "@/modules/events/BuyTicketButton";
 import { attendanceStatus, dateRange, daysUntil, plural, ticketStats } from "./format";
 
 function Countdown({ event, compact }: { event: CrmEvent; compact?: boolean }) {
@@ -262,7 +263,9 @@ export function MyEventsCard({ viewerId }: { viewerId: string }) {
       ) : (
         <div>
           {list.map((e) => {
-            const st = attendanceStatus(byEvent.get(e.id), e);
+            const a = byEvent.get(e.id);
+            const st = attendanceStatus(a, e);
+            const needsTicket = !a?.hasTicket && a?.desireToAttend !== "no";
             return (
               <div
                 key={e.id}
@@ -283,6 +286,9 @@ export function MyEventsCard({ viewerId }: { viewerId: string }) {
                       {st.detail ?? [dateRange(e), e.location].filter(Boolean).join(" · ")}
                     </span>
                   </div>
+                  {needsTicket && (
+                    <BuyTicketButton event={e} variant="soft" size="sm" className="mt-2 h-8" />
+                  )}
                 </div>
               </div>
             );

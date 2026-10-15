@@ -148,8 +148,8 @@ select throws_ok($$insert into public.pipeline_moves (person_id, owner_id, to_co
   '42501', null, 'moves are only written by move_pipeline_card()');
 select throws_ok($$update public.pipeline_cards set column_id = 'registered' where person_id = '9'$$,
   '42501', null, 'a card''s column changes only through moves');
-select lives_ok($$update public.pipeline_cards set next_step = 'Call', hot = true where person_id = '9'$$,
-  'the next step and hot flag are plain edits');
+select lives_ok($$update public.pipeline_cards set note = 'Call first', hot = true where person_id = '9'$$,
+  'the note and hot flag are plain edits');
 select throws_ok($$select public.move_pipeline_card('9', 's-nowhere')$$, '22023', null,
   'unknown columns are refused');
 select throws_ok($$select public.move_pipeline_card('9', 'first_plan')$$, '22023', null,

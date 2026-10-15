@@ -26,7 +26,7 @@ import type { Logistics, SharedCost } from "@/stores/opsStore";
 import { pipelineSeedPeople } from "./pipeline/seedPeople";
 
 /** Bump to reset every persisted store to a fresh seed on next load. */
-export const SEED_VERSION = 11;
+export const SEED_VERSION = 13;
 
 const ago = (n: number) => daysFromToday(-n);
 const ahead = (n: number) => daysFromToday(n);
@@ -332,6 +332,7 @@ export function seedEvents(): CrmEvent[] {
       location: "Dallas, TX",
       notes: "Two-day leadership conference. Team van leaves Friday 7am.",
       format: "both",
+      ticketUrl: "https://tickets.example.com/fall-leadership-weekend",
     },
     {
       id: "e5",
@@ -341,6 +342,7 @@ export function seedEvents(): CrmEvent[] {
       location: "Dallas, TX and Zoom",
       notes: "Recognition, new apprentices, Fall Weekend ticket push.",
       format: "both",
+      ticketUrl: "https://venmo.com/u/levelup-team",
     },
     {
       id: "e2",

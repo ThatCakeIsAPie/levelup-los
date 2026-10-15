@@ -14,6 +14,7 @@ export {
   usesTravel,
   type EventTypeInfo,
 } from "./info";
+export { MAX_TICKET_URL, cleanTicketUrl, ticketHost } from "./ticketLink";
 export {
   MISSED_WINDOW_DAYS,
   missedEventStreaks,

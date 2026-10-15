@@ -3,6 +3,7 @@ import { SectionCard, SegmentedBar, STAGE_LABEL, STAGE_SOLID_CLASS } from "@/com
 import {
   effectiveBizClass,
   isRegistered,
+  useCurrentUser,
   useVisibleTeam,
   type Attendance,
   type BizClass,
@@ -79,6 +80,7 @@ function Row({ label, value, hint }: { label: string; value: number; hint?: stri
  */
 export function EventDetailsPanel({ rows }: { rows: Attendance[] }) {
   const team = useVisibleTeam();
+  const me = useCurrentUser().personId;
   const count = (f: (a: Attendance) => boolean) => rows.filter(f).length;
   return (
     <SectionCard title="By the numbers">
@@ -86,7 +88,7 @@ export function EventDetailsPanel({ rows }: { rows: Attendance[] }) {
         <Group title="Pipeline">
           <Row
             label="Your team"
-            value={team.filter(isRegistered).length}
+            value={team.filter((p) => p.id !== me && isRegistered(p)).length}
             hint="Registered apprentices and IBOs on your team"
           />
           <Row label="Want to go" value={count((a) => a.desireToAttend === "yes")} />

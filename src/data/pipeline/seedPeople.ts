@@ -53,7 +53,14 @@ export interface Placement {
   contactDaysAgo?: number;
   hot?: boolean;
   source?: string;
-  next?: { text: string; inDays: number };
+  /**
+   * The booked next step: a column on the owner's board, in `inDays` days
+   * (0 = today, negative = overdue), at `time` ("HH:MM") if given. A column
+   * the owner's board doesn't show books the next column instead.
+   */
+  next?: { column: string; inDays: number; time?: string };
+  /** The card's note. */
+  note?: string;
 }
 
 export interface Registration {
@@ -108,51 +115,51 @@ const COLUMN_WEIGHTS: [string, number, number][] = [
   ["s-f3", 3, 2],
 ];
 
-/** What the next step after each column is usually called. */
-export const NEXT_TEXT: Record<string, string> = {
-  contact: "Share story",
-  "s-story": "Open the door",
-  "s-door": "MG1",
-  first_meeting: "Book",
-  "s-book": "MG2",
-  "s-mg2": "Info",
-  "s-3way": "Info",
-  first_plan: "F1 call",
-  "s-f1": "Info 2",
-  "s-info2": "F2 call",
-  "s-f2": "Info 3",
-  "s-info3": "F3",
-  "s-f3": "Register",
+/** The column a card in each column usually books next. */
+export const NEXT_COLUMN: Record<string, string> = {
+  contact: "s-story",
+  "s-story": "s-door",
+  "s-door": "first_meeting",
+  first_meeting: "s-book",
+  "s-book": "s-mg2",
+  "s-mg2": "first_plan",
+  "s-3way": "first_plan",
+  first_plan: "s-f1",
+  "s-f1": "s-info2",
+  "s-info2": "s-f2",
+  "s-f2": "s-info3",
+  "s-info3": "s-f3",
+  "s-f3": "registered",
 };
 
 /** Hand-placed existing prospects (the CRM seed's people). */
 const EXISTING: Placement[] = [
-  { personId: "5", column: "s-f2", enteredDaysAgo: 9, source: "Old friend", next: { text: "Info 3", inDays: 4 } },
-  { personId: "9", column: "first_plan", enteredDaysAgo: 3, hot: true, next: { text: "Bring to Fall Weekend", inDays: 26 } },
+  { personId: "5", column: "s-f2", enteredDaysAgo: 9, source: "Old friend", next: { column: "s-info3", inDays: 0, time: "19:00" }, note: "Bring her husband this time" },
+  { personId: "9", column: "first_plan", enteredDaysAgo: 3, hot: true, next: { column: "s-f1", inDays: -1 }, note: "Bring to Fall Weekend" },
   { personId: "10", column: "s-door", enteredDaysAgo: 18 },
-  { personId: "12", column: "first_meeting", enteredDaysAgo: 2, source: "Gym", next: { text: "Book", inDays: 3 } },
-  { personId: "15", column: "s-mg2", enteredDaysAgo: 8, next: { text: "Info", inDays: 2 } },
-  { personId: "16", column: "s-f1", enteredDaysAgo: 6, next: { text: "Call", inDays: 1 } },
+  { personId: "12", column: "first_meeting", enteredDaysAgo: 2, source: "Gym", next: { column: "s-book", inDays: 3 } },
+  { personId: "15", column: "s-mg2", enteredDaysAgo: 8, next: { column: "first_plan", inDays: 2 } },
+  { personId: "16", column: "s-f1", enteredDaysAgo: 6, next: { column: "s-info2", inDays: 1 }, note: "Call first" },
   { personId: "18", column: "s-story", enteredDaysAgo: 4, source: "Neighbor" },
-  { personId: "20", column: "s-info2", enteredDaysAgo: 5, next: { text: "F2 call", inDays: 2 } },
-  { personId: "21", column: "s-story", enteredDaysAgo: 2, source: "Coworker", next: { text: "Open the door", inDays: 3 } },
-  { personId: "100", column: "s-door", enteredDaysAgo: 6, next: { text: "MG1", inDays: 3 } },
+  { personId: "20", column: "s-info2", enteredDaysAgo: 5, next: { column: "s-f2", inDays: 2 } },
+  { personId: "21", column: "s-story", enteredDaysAgo: 2, source: "Coworker", next: { column: "s-door", inDays: 0 } },
+  { personId: "100", column: "s-door", enteredDaysAgo: 6, next: { column: "first_meeting", inDays: 3 } },
   { personId: "101", column: "s-book", enteredDaysAgo: 10 },
   { personId: "102", column: "contact", enteredDaysAgo: 33 },
   { personId: "103", column: "s-f1", enteredDaysAgo: 24 },
   { personId: "105", column: "s-story", enteredDaysAgo: 5, source: "Instagram" },
   { personId: "110", column: "s-mg2", enteredDaysAgo: 11 },
-  { personId: "113", column: "first_meeting", enteredDaysAgo: 4, next: { text: "Book", inDays: 1 } },
-  { personId: "200", column: "s-book", enteredDaysAgo: 7, next: { text: "MG2", inDays: 2 } },
+  { personId: "113", column: "first_meeting", enteredDaysAgo: 4, next: { column: "s-book", inDays: 1 } },
+  { personId: "200", column: "s-book", enteredDaysAgo: 7, next: { column: "s-mg2", inDays: -2 } },
   { personId: "202", column: "s-f3", enteredDaysAgo: 12 },
-  { personId: "204", column: "s-door", enteredDaysAgo: 4, source: "Coworker", next: { text: "MG1", inDays: 2 } },
+  { personId: "204", column: "s-door", enteredDaysAgo: 4, source: "Coworker", next: { column: "first_meeting", inDays: 0, time: "18:30" }, note: "Coffee at Main St" },
   { personId: "205", column: "s-f1", enteredDaysAgo: 13 },
   { personId: "207", column: "s-mg2", enteredDaysAgo: 5 },
   { personId: "209", column: "s-info3", enteredDaysAgo: 8 },
-  { personId: "212", column: "s-3way", enteredDaysAgo: 6, next: { text: "Info", inDays: 4 } },
-  { personId: "214", column: "first_meeting", enteredDaysAgo: 1, hot: true, next: { text: "Book", inDays: 2 } },
+  { personId: "212", column: "s-3way", enteredDaysAgo: 6, next: { column: "first_plan", inDays: 4 } },
+  { personId: "214", column: "first_meeting", enteredDaysAgo: 1, hot: true, next: { column: "s-book", inDays: 2 } },
   { personId: "304", column: "s-f2", enteredDaysAgo: 10 },
-  { personId: "305", column: "s-info2", enteredDaysAgo: 4, next: { text: "F2 call", inDays: 3 } },
+  { personId: "305", column: "s-info2", enteredDaysAgo: 4, next: { column: "s-f2", inDays: 3 } },
   { personId: "308", column: "s-door", enteredDaysAgo: 3, source: "Family" },
   { personId: "309", column: "s-3way", enteredDaysAgo: 2 },
   { personId: "310", column: "first_plan", enteredDaysAgo: 9 },
@@ -217,9 +224,10 @@ export function pipelineSeedPlan(): Plan {
       contactDaysAgo: contact,
       hot: fresh && rng() < 0.1,
       source: rng() < 0.5 ? pick(SOURCES) : undefined,
+      // Some booked steps are due today or overdue (-2 to 3 days).
       next:
         fresh && rng() < 0.6
-          ? { text: NEXT_TEXT[column], inDays: 1 + Math.floor(rng() * 6) }
+          ? { column: NEXT_COLUMN[column], inDays: Math.floor(rng() * 6) - 2 }
           : undefined,
     });
     people.push({
@@ -232,6 +240,23 @@ export function pipelineSeedPlan(): Plan {
       ...(CITY[owner] && rng() < 0.6 ? { location: CITY[owner] } : {}),
     });
   });
+
+  // Maria and Anita each get a first meeting booked for tonight and a first
+  // plan that is a day overdue (Home's "Done" moves them through milestones).
+  const CONTACT_BAND = ["contact", "s-story", "s-door"];
+  const MEETING_BAND = ["first_meeting", "s-book", "s-mg2"];
+  for (const owner of ["1", "2"]) {
+    const mine = (cols: string[]) =>
+      placements.find(
+        (pl) =>
+          cols.includes(pl.column) &&
+          people.some((p) => p.id === pl.personId && p.sponsorId === owner),
+      );
+    const a = mine(CONTACT_BAND);
+    if (a) a.next = { column: "first_meeting", inDays: 0, time: "19:00" };
+    const b = mine(MEETING_BAND);
+    if (b) b.next = { column: "first_plan", inDays: -1 };
+  }
 
   const registrations: Registration[] = [];
   for (const r of REGISTERED) {

@@ -458,7 +458,7 @@ export async function fetchLibrary(client: SupabaseClient): Promise<LibrarySnaps
  */
 export async function fetchPipeline(client: SupabaseClient, me: string): Promise<PipelineSnapshot> {
   const all = (t: string, order: Order[]) => fetchAll(client, t, order);
-  const [steps, hides, cards, moves, settings, shares, requests, chain, customer] =
+  const [steps, hides, cards, moves, settings, shares, requests, cancellations, chain, customer] =
     await Promise.all([
       all("pipeline_steps", [
         ["created_at", true],
@@ -482,6 +482,10 @@ export async function fetchPipeline(client: SupabaseClient, me: string): Promise
         ["created_at", true],
         ["id", true],
       ]),
+      all("pipeline_step_cancellations", [
+        ["cancelled_at", true],
+        ["id", true],
+      ]),
       client.rpc("sponsor_chain", { p_person_id: me }),
       fetchCustomerPipeline(client),
     ]);
@@ -495,6 +499,7 @@ export async function fetchPipeline(client: SupabaseClient, me: string): Promise
       settings: settings.map((r) => m.teamSettingFromRow(r)),
       shares: shares.map((r) => m.shareFromRow(r)),
       requests: requests.map((r) => m.statRequestFromRow(r)),
+      cancellations: cancellations.map((r) => m.stepCancellationFromRow(r)),
     },
     customer,
     chain: ((chain.data ?? []) as Row[]).map((r) => ({

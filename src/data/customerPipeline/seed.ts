@@ -54,7 +54,8 @@ function makeRng(seed: number) {
 
 /**
  * One name on a list: [name, how you know them, rating, final column, days
- * in that column, linked customer id?, next step?, next step in n days?].
+ * in that column, linked customer id?, booked next column?, booked in n days
+ * (0 today, negative overdue)?, the card's note?].
  */
 type Spec = [
   name: string,
@@ -63,9 +64,13 @@ type Spec = [
   column: string,
   days: number,
   customerId?: string,
-  nextStep?: string,
+  next?: string,
   nextIn?: number,
+  note?: string,
 ];
+
+/** Booked times ("HH:MM") by name. */
+const TIMES: Record<string, string> = { "Lena Orr": "17:00", "Jay Holloway": "18:30" };
 
 const nc = "not_contacted";
 const ni = "not_interested";
@@ -88,19 +93,29 @@ const LISTS: Record<string, Spec[]> = {
     ["Frank Ibarra", "Neighbor", null, nc, 6],
     ["Ivy Chen", "Yoga class", null, nc, 6],
     ["Paul Okafor", "Barber", null, nc, 3],
-    ["Rosa Delmar", "Coffee shop", null, "contact", 2, undefined, "Text", 3],
+    ["Rosa Delmar", "Coffee shop", null, "contact", 2, undefined, sampled, 3, "Text her first"],
     ["Trent Walsh", "Farmers market", null, "contact", 4],
     ["Nadia Bloom", "Kids' soccer", "warm", "contact", 6],
     ["Ben Fordham", "Gym", null, "contact", 4],
     ["Tia Adams", "Neighbor", null, "contact", 5],
     ["Noah Grant", "Old coworker", null, "contact", 8],
     ["Sasha Reid", "Church", "warm", "contact", 10],
-    ["Lena Ortega", "Tried XS Energy", "hot", sampled, 3, undefined, "Follow up", 0],
+    [
+      "Lena Ortega",
+      "Tried XS Energy",
+      "hot",
+      sampled,
+      3,
+      undefined,
+      "first_meeting",
+      0,
+      "Loved the XS Energy",
+    ],
     ["Carla Mendez", "Tried the skin care", null, sampled, 6],
-    ["Kim Brady", "Skin care chat", null, "first_meeting", 1],
+    ["Kim Brady", "Skin care chat", null, "first_meeting", 1, undefined, meeting2, -1],
     ["Hal Porter", "Coffee chat", null, "first_meeting", 7],
-    ["Jay Holloway", "Wants a water filter", null, meeting2, 6],
-    ["Grace Lin", "Old neighbor", null, "first_sale", 7, "c1", "Offer Ditto", 6],
+    ["Jay Holloway", "Wants a water filter", null, meeting2, 6, undefined, "first_sale", 0],
+    ["Grace Lin", "Old neighbor", null, "first_sale", 7, "c1", "on_ditto", 6, "Offer Ditto"],
     ["Hannah Boyd", "Kids' school", null, "first_sale", 12, "c3"],
     ["Omar Haddad", "Gym", null, sampleBox, 5, "c4"],
     ["Peter Vargas", "Church", null, "on_ditto", 4, "c2"],
@@ -116,9 +131,19 @@ const LISTS: Record<string, Spec[]> = {
     ["Elena Ruiz", "Work friend", "hot", nc, 5],
     ["Quinn Avery", "Dog park", null, "contact", 3],
     ["Gina Lowe", "Church", null, "contact", 6],
-    ["Martin Cole", "Old coworker", null, sampled, 4, undefined, "Ask how it went", 1],
-    ["Lori Banks", "Book club", "warm", "first_meeting", 3],
-    ["Wes Carver", "Gym", null, "first_sale", 20, "c6", "Offer Ditto", 2],
+    [
+      "Martin Cole",
+      "Old coworker",
+      null,
+      sampled,
+      4,
+      undefined,
+      "first_meeting",
+      0,
+      "Ask how it went",
+    ],
+    ["Lori Banks", "Book club", "warm", "first_meeting", 3, undefined, "first_sale", 1],
+    ["Wes Carver", "Gym", null, "first_sale", 20, "c6", "on_ditto", -1],
     ["Julia Stern", "Book club", null, "on_ditto", 41, "c5"],
     ["Ned Fry", "Gym", null, ni, 22],
   ],
@@ -134,9 +159,19 @@ const LISTS: Record<string, Spec[]> = {
     ["Derrick Lane", "Barbershop", "warm", nc, 9],
     ["Keisha Monroe", "College", "hot", nc, 7],
     ["Tony Banks", "Cousin", null, nc, 4],
-    ["Lila Hart", "Coffee shop", null, "contact", 2, undefined, "Text Fri", 2],
+    ["Lila Hart", "Coffee shop", null, "contact", 2, undefined, sampled, 2, "Text Fri"],
     ["Andre Mills", "Gym", null, "contact", 6],
-    ["Fay Gordon", "Work friend", null, sampled, 5, undefined, "Follow up", 0],
+    [
+      "Fay Gordon",
+      "Work friend",
+      null,
+      sampled,
+      5,
+      undefined,
+      "first_meeting",
+      0,
+      "Follow up on the sample",
+    ],
     ["Kofi Mensah", "Cousin", null, "on_ditto", 19, "c8"],
   ],
   // Marcus.
@@ -159,14 +194,14 @@ const LISTS: Record<string, Spec[]> = {
     ["Nora Quinn", "Kids' school", null, nc, 6],
     ["Pete Lindgren", "Barber", null, nc, 5],
     ["Zoe Hart", "Yoga class", "warm", nc, 5],
-    ["Rosa Delgadillo", "Coffee shop", null, "contact", 2, undefined, "Text Fri", 3],
+    ["Rosa Delgadillo", "Coffee shop", null, "contact", 2, undefined, sampled, 3, "Text Fri"],
     ["Benny Cruz", "Farmers market", null, "contact", 3],
     ["Lucia Gomez", "Dog park", null, "contact", 4],
     ["Ben Forde", "Gym", null, "contact", 4],
     ["Tia Andrews", "Neighbor", null, "contact", 5],
-    ["Lena Orr", "Tried XS Energy", "hot", sampled, 3, undefined, "Follow up", 0],
-    ["Kim Bray", "Skin care chat", null, "first_meeting", 1],
-    ["Lena Duarte", "Coworker", null, "first_sale", 7, "c11", "Offer Ditto", 7],
+    ["Lena Orr", "Tried XS Energy", "hot", sampled, 3, undefined, "first_meeting", 0],
+    ["Kim Bray", "Skin care chat", null, "first_meeting", 1, undefined, "first_sale", -1],
+    ["Lena Duarte", "Coworker", null, "first_sale", 7, "c11", "on_ditto", 7, "Offer Ditto"],
     ["Sam Rios", "Gym", null, ni, 6],
   ],
 };
@@ -247,7 +282,7 @@ export function seedCustomerPipeline(people: CrmPerson[], now = new Date()): Cus
 
   for (const [ownerId, specs] of Object.entries(LISTS)) {
     if (!exists.has(ownerId)) continue;
-    specs.forEach(([name, howKnown, rating, column, days, customerId, nextStep, nextIn], i) => {
+    specs.forEach(([name, howKnown, rating, column, days, customerId, next, nextIn, note], i) => {
       const id = `le-${ownerId}-${i + 1}`;
       const path = pathTo(column, bandOf);
       // Each earlier milestone a few days before the next one.
@@ -283,8 +318,10 @@ export function seedCustomerPipeline(people: CrmPerson[], now = new Date()): Cus
         entryId: id,
         column,
         enteredAt,
-        nextStep: nextStep ?? null,
-        nextStepDate: nextStep && nextIn !== undefined ? localDate(addDays(now, nextIn)) : null,
+        nextColumn: next ?? null,
+        nextStepDate: next && nextIn !== undefined ? localDate(addDays(now, nextIn)) : null,
+        nextStepTime: (next && TIMES[name]) || null,
+        note: note ?? null,
         updatedAt: enteredAt,
       });
     });

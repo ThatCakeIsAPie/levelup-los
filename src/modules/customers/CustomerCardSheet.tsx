@@ -10,10 +10,9 @@ import {
   Phone,
   ShoppingBag,
 } from "lucide-react";
+import { toast } from "sonner";
 import { PersonAvatar, ToneChip, useIsDesktop } from "@/components/brand";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Sheet,
   SheetContent,
@@ -27,8 +26,13 @@ import {
   CUSTOMER_BAND_LABEL,
   CUSTOMER_BOARD,
   addEntryToRecruiting,
+  bookNextStep,
+  bookableColumns,
+  bookingError,
+  sameBooking,
   openLog,
   updateCustomerCard,
+  useCustomerColumns,
   updateListEntry,
   useListEntry,
   usePerson,
@@ -38,7 +42,9 @@ import {
   type PipelineColumn,
 } from "@/data";
 import { MoveMenu } from "@/modules/pipeline/moveCard";
-import { ageLong } from "@/modules/pipeline/format";
+import { ageLong, bookingState } from "@/modules/pipeline/format";
+import { BookingFields, NoteField } from "@/modules/pipeline/BookingFields";
+import { BookedStep } from "@/modules/pipeline/BookedStep";
 import { RatingPicker } from "./ListEntryDialog";
 
 /** A customer card's details: where it is, move it, next step, warm/hot, the people it became. */
@@ -100,15 +106,29 @@ function Details({
   const prospect = usePerson(entry?.prospectId ?? undefined);
   const recruiting = usePipelineAccess();
   const col = columns.find((c) => c.id === card.column);
-  const [next, setNext] = useState(card.nextStep ?? "");
-  const [date, setDate] = useState(card.nextStepDate ?? "");
-  const dirty = next !== (card.nextStep ?? "") || date !== (card.nextStepDate ?? "");
+  const ownerColumns = useCustomerColumns(card.ownerId);
+  const bookable = bookableColumns(ownerColumns, card.cardColumn, CUSTOMER_BOARD, card.band);
+  const initial = bookingState(card.booking);
+  const [booking, setBooking] = useState(initial);
+  const [note, setNote] = useState(card.note ?? "");
+  const [error, setError] = useState<string | null>(null);
+  const bookingChanged = !sameBooking(booking, initial);
+  const dirty = bookingChanged || note !== (card.note ?? "");
 
   const save = () => {
-    updateCustomerCard(card.personId, {
-      nextStep: next.trim() || null,
-      nextStepDate: date || null,
-    });
+    if (bookingChanged) {
+      const err = bookingError(booking, bookable);
+      if (err) {
+        setError(err);
+        return;
+      }
+      const r = bookNextStep("customer", card.personId, booking);
+      if (!r.ok) {
+        toast.error(r.error);
+        return;
+      }
+    }
+    if (note !== (card.note ?? "")) updateCustomerCard(card.personId, { note });
     onClose();
   };
 
@@ -194,6 +214,13 @@ function Details({
           </div>
         )}
 
+        <BookedStep
+          board="customer"
+          cardId={card.personId}
+          name={card.name}
+          booking={card.booking}
+          onCancelled={onClose}
+        />
         <form
           className="grid gap-3"
           onSubmit={(e) => {
@@ -201,32 +228,22 @@ function Details({
             save();
           }}
         >
-          <div className="grid grid-cols-[minmax(0,1fr)_9.5rem] gap-2.5">
-            <div className="grid gap-1.5">
-              <Label htmlFor="cc-next" className="text-[12px] text-muted-foreground">
-                Next step
-              </Label>
-              <Input
-                id="cc-next"
-                value={next}
-                maxLength={40}
-                placeholder="e.g. Text, Bring a sample"
-                onChange={(e) => setNext(e.target.value)}
-              />
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="cc-date" className="text-[12px] text-muted-foreground">
-                When
-              </Label>
-              <Input
-                id="cc-date"
-                type="date"
-                className="min-w-0"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-              />
-            </div>
-          </div>
+          <BookingFields
+            id="cc-booking"
+            columns={bookable}
+            bands={CUSTOMER_BOARD.bands}
+            value={booking}
+            onChange={(b) => {
+              setBooking(b);
+              setError(null);
+            }}
+          />
+          {error && (
+            <p className="text-[12.5px] font-semibold text-bad" role="alert">
+              {error}
+            </p>
+          )}
+          <NoteField id="cc-note" value={note} onChange={setNote} />
           <Button type="submit" disabled={!dirty}>
             Save
           </Button>

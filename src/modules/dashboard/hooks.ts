@@ -8,6 +8,7 @@ import {
   useContactSettings,
   useCurrentUser,
   useDoNotContactIds,
+  useDueBookings,
   useEvents,
   useLastContactMap,
   useMissedFollowUps,
@@ -29,6 +30,7 @@ export function useTodayItems(): TodayItem[] {
   const sales = useSales();
   const doNotContact = useDoNotContactIds();
   const missed = useMissedFollowUps();
+  const bookings = useDueBookings();
   return useMemo(
     () =>
       buildTodayItems({
@@ -42,8 +44,20 @@ export function useTodayItems(): TodayItem[] {
         sales,
         doNotContact,
         missed,
+        bookings,
       }),
-    [user, people, lastContact, settings, events, attendances, sales, doNotContact, missed],
+    [
+      user,
+      people,
+      lastContact,
+      settings,
+      events,
+      attendances,
+      sales,
+      doNotContact,
+      missed,
+      bookings,
+    ],
   );
 }
 

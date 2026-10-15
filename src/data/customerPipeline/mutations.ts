@@ -20,6 +20,7 @@ import { getViewer } from "../session";
 import { chainOf, columnsFor, validateMove } from "../pipeline/rules";
 import { addPipelineProspect } from "../pipeline/mutations";
 import type { PipelineColumn } from "../pipeline/types";
+import { bookingAfterMove, bookingOf, cleanNote, type Booking } from "../pipeline/booking";
 import { customerPipeline, updateCustomerPipeline } from "./store";
 import {
   canEditListOf,
@@ -66,6 +67,13 @@ function columnsForMove(ownerId: string, me: string): PipelineColumn<CustomerBan
   const theirs = columnsFor(chainOf(people, ownerId, uplines()), steps, hides, CUSTOMER_BOARD);
   const ids = new Set(mine.map((c) => c.id));
   return [...mine, ...theirs.filter((c) => !ids.has(c.id))];
+}
+
+/** The list owner's board: where bookings live. */
+function ownerColumns(ownerId: string): PipelineColumn<CustomerBand>[] {
+  const { steps, hides } = customerPipeline();
+  const people = usePeopleStore.getState().people;
+  return columnsFor(chainOf(people, ownerId, uplines()), steps, hides, CUSTOMER_BOARD);
 }
 
 function cardOf(entry: ListEntry): { card: CustomerCard; stored: boolean } {
@@ -230,12 +238,14 @@ export type CustomerMoveResult =
  * Move a card to a column (a milestone, a fixed column or a step on the
  * owner's or your board) and record the move. Reaching First sale makes the
  * entry a customer of the list's owner; reaching On Ditto marks them as a
- * subscription customer. The next step is cleared unless one is given.
+ * subscription customer. A booked next step is cleared when the card moves
+ * into its column or past it, and kept when it moves backwards, unless
+ * `booking` books a new one.
  */
 export function moveCustomerCard(
   entryId: string,
   to: string,
-  opts: { nextStep?: string | null; nextStepDate?: string | null } = {},
+  opts: { booking?: Booking } = {},
 ): CustomerMoveResult {
   const me = actor();
   if (!me) return { ok: false, reason: "no-access" };
@@ -268,8 +278,7 @@ export function moveCustomerCard(
     ...card,
     column: to,
     enteredAt: at,
-    nextStep: opts.nextStep !== undefined ? opts.nextStep : null,
-    nextStepDate: opts.nextStepDate !== undefined ? opts.nextStepDate : null,
+    ...(opts.booking ?? bookingAfterMove(bookingOf(card), to, ownerColumns(entry.ownerId), band)),
     updatedAt: at,
   });
   updateCustomerPipeline((s) => ({ moves: [...s.moves, move] }));
@@ -319,16 +328,17 @@ export function startListEntry(entryId: string): CustomerMoveResult {
  * marketplace is a contact made).
  */
 export function addCustomerContact(
-  input: ListEntryInput & { column?: string; nextStep?: string; nextStepDate?: string },
+  input: ListEntryInput & { column?: string; booking?: Booking },
 ): EntryResult {
   const r = addListEntry(input);
   if (!r.ok) return r;
   const column = input.column ?? "contact";
   if (column === NOT_CONTACTED) return r;
-  const moved = moveCustomerCard(r.entry.id, column, {
-    nextStep: clean(input.nextStep),
-    nextStepDate: input.nextStepDate || null,
-  });
+  const moved = moveCustomerCard(
+    r.entry.id,
+    column,
+    input.booking?.nextColumn ? { booking: input.booking } : {},
+  );
   return {
     ok: true,
     entry: r.entry,
@@ -339,15 +349,38 @@ export function addCustomerContact(
   };
 }
 
-/** Edit a card's next step (a card still on the list gets one in "Not contacted yet"). */
+/**
+ * Edit a card's booked next step or note (a card still on the list gets one
+ * in "Not contacted yet"). Returns an undo (puts back what the patch
+ * changed), or null when nothing was saved.
+ */
 export function updateCustomerCard(
   entryId: string,
-  patch: Partial<Pick<CustomerCard, "nextStep" | "nextStepDate">>,
-): void {
+  patch: Partial<Pick<CustomerCard, "nextColumn" | "nextStepDate" | "nextStepTime" | "note">>,
+): (() => void) | null {
   const entry = actor() ? visibleEntry(entryId) : undefined;
-  if (!entry) return;
+  if (!entry) return null;
   const { card } = cardOf(entry);
-  putCard({ ...card, ...patch, updatedAt: now() });
+  const next = "note" in patch ? { ...patch, note: cleanNote(patch.note) } : patch;
+  putCard({ ...card, ...next, updatedAt: now() });
+  const before = Object.fromEntries(
+    Object.keys(next).map((k) => [k, card[k as keyof CustomerCard]]),
+  ) as Partial<CustomerCard>;
+  return () => {
+    const cur = customerPipeline().cards.find((c) => c.entryId === entryId);
+    if (cur) putCard({ ...cur, ...before, updatedAt: now() });
+  };
+}
+
+/** The entry's card and its owner's board (for the booking rules). */
+export function getCustomerCardContext(entryId: string): {
+  card: CustomerCard;
+  entry: ListEntry;
+  columns: PipelineColumn<CustomerBand>[];
+} | null {
+  const entry = actor() ? visibleEntry(entryId) : undefined;
+  if (!entry) return null;
+  return { card: cardOf(entry).card, entry, columns: ownerColumns(entry.ownerId) };
 }
 
 /**

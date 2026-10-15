@@ -33,6 +33,7 @@ import {
 } from "../pipeline/rules";
 import { MIN_SAMPLE, type PipelineColumn, type PipelineScope } from "../pipeline/types";
 import { usePipelineStore } from "../pipeline/store";
+import { bookingOf, bookingView } from "../pipeline/booking";
 import { useCustomerPipelineStore } from "./store";
 import {
   canEditListOf,
@@ -254,11 +255,24 @@ export function useCustomerBoard(
   const data = useCustomerPipelineStore();
   const people = usePeopleStore((s) => s.people);
   const columns = useCustomerColumns(opt?.leaderId);
+  const uplines = usePipelineUplines();
   const today = localDate();
   return useMemo(() => {
     if (!opt) return null;
     const byId = new Map(people.map((p) => [p.id, p]));
     const colIds = new Set(columns.map((c) => c.id));
+    const ownerCols = new Map<string, PipelineColumn<CustomerBand>[]>();
+    const boardOf = (ownerId: string) => {
+      let c = ownerCols.get(ownerId);
+      if (!c) {
+        c =
+          ownerId === opt.leaderId
+            ? columns
+            : columnsFor(chainOf(people, ownerId, uplines), data.steps, data.hides, CUSTOMER_BOARD);
+        ownerCols.set(ownerId, c);
+      }
+      return c;
+    };
     const stepById = new Map(data.steps.map((s) => [s.id, s]));
     const byColumn = new Map<string, BoardCard[]>(columns.map((c) => [c.id, []]));
     const mine = entries.filter((e) => opt.owners.has(e.ownerId));
@@ -274,6 +288,8 @@ export function useCustomerBoard(
         ownerName: o ? firstName(o.name) : "",
         ownerStage: o ? effectiveBizClass(o) : undefined,
         column: col,
+        cardColumn: card.column,
+        band,
         elsewhere:
           col !== card.column && step
             ? { label: step.label, ownerName: firstName(byId.get(step.ownerId)?.name ?? "") }
@@ -284,8 +300,8 @@ export function useCustomerBoard(
         warm: entry.rating === "warm",
         listed: !stored || card.column === NOT_CONTACTED,
         dim: band === "out",
-        nextStep: card.nextStep,
-        nextStepDate: card.nextStepDate,
+        booking: bookingView(bookingOf(card), boardOf(entry.ownerId), today),
+        note: card.note,
         source: entry.howKnown,
         enteredAt: card.enteredAt,
       });
@@ -317,7 +333,7 @@ export function useCustomerBoard(
       return { milestone: b, columns: cols, count };
     });
     return { columns, bands, registered: { cards: [], total: 0 }, inProgress };
-  }, [opt, entries, data, people, columns, month, today]);
+  }, [opt, entries, data, people, columns, month, today, uplines]);
 }
 
 /**

@@ -204,8 +204,10 @@ describe("cards and moves", () => {
         entryId: "b",
         column: "contact",
         enteredAt: "2026-10-05T10:00:00.000Z",
-        nextStep: null,
+        nextColumn: null,
         nextStepDate: null,
+        nextStepTime: null,
+        note: null,
         updatedAt: "",
       },
     ];
@@ -325,8 +327,10 @@ describe("do not contact", () => {
       entryId,
       column,
       enteredAt: "",
-      nextStep: null,
+      nextColumn: null,
       nextStepDate: null,
+      nextStepTime: null,
+      note: null,
       updatedAt: "",
     });
     expect([

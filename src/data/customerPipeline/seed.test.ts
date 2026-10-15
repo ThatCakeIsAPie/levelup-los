@@ -2,10 +2,12 @@ import { describe, expect, it } from "vitest";
 import { localDate } from "@/lib/dates";
 import { seedPeople } from "../seed";
 import { downlineIds } from "../access";
-import { countReaches, monthBounds, monthOf } from "../pipeline/rules";
+import { chainOf, columnsFor, countReaches, monthBounds, monthOf } from "../pipeline/rules";
+import { bookableColumns, bookingOf, dueBookings } from "../pipeline/booking";
+import type { BoardDef } from "../pipeline/types";
 import { cardBand, customerReaches, isSaleBand } from "./rules";
 import { seedCustomerPipeline } from "./seed";
-import { CUSTOMER_MILESTONES } from "./types";
+import { CUSTOMER_BOARD, CUSTOMER_MILESTONES } from "./types";
 
 const people = seedPeople();
 const byId = new Map(people.map((p) => [p.id, p]));
@@ -80,5 +82,38 @@ describe("customer pipeline seed", () => {
 
   it("stays small enough for browser storage", () => {
     expect(JSON.stringify(data).length).toBeLessThan(200_000);
+  });
+
+  it("books next steps after each card's column, and each demo login has some due", () => {
+    const def = CUSTOMER_BOARD as BoardDef<string>;
+    const owner = new Map(data.entries.map((e) => [e.id, e.ownerId]));
+    for (const c of data.cards) {
+      if (!c.nextColumn) continue;
+      const cols = columnsFor(chainOf(people, owner.get(c.entryId)!), data.steps, data.hides, def);
+      expect(bookableColumns(cols, c.column, def).map((x) => x.id)).toContain(c.nextColumn);
+    }
+    const today = localDate();
+    for (const me of ["1", "2", "4", "700"]) {
+      if (!byId.has(me)) continue;
+      const cols = columnsFor(chainOf(people, me), data.steps, data.hides, def);
+      const due = dueBookings(
+        data.cards
+          .filter((c) => owner.get(c.entryId) === me)
+          .map((c) => ({
+            board: "customer" as const,
+            cardId: c.entryId,
+            name: c.entryId,
+            ownerId: me,
+            personIds: [],
+            booking: bookingOf(c),
+            column: c.column,
+            dropped: false,
+            columns: cols,
+          })),
+        me,
+        today,
+      );
+      expect(due.length).toBeGreaterThan(0);
+    }
   });
 });

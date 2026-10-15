@@ -97,10 +97,17 @@ export interface PipelineCard {
   column: string;
   /** When the card entered its current column (ISO timestamp). */
   enteredAt: string;
-  /** Short next-step text ("MG1", "Call", "Bring to Fall Weekend"). */
-  nextStep: string | null;
-  /** "YYYY-MM-DD" */
+  /**
+   * The booked next step: a column on the owner's board (after the current
+   * one) the card moves into next, or null. See ./booking.ts.
+   */
+  nextColumn: string | null;
+  /** "YYYY-MM-DD": when the next step is booked for. */
   nextStepDate: string | null;
+  /** "HH:MM" (24-hour), optional. */
+  nextStepTime: string | null;
+  /** A free-text note on the card (at most MAX_CARD_NOTE characters). */
+  note: string | null;
   hot: boolean;
   /** Where you met ("Gym", "Referral"). */
   source: string | null;
@@ -165,6 +172,35 @@ export interface StatRequest {
   decidedAt: string | null;
 }
 
+/** Why a booked next step was cancelled (Home's "Cancel" and the card sheets). */
+export type CancelReason =
+  "they_cancelled" | "no_show" | "unreachable" | "not_interested" | "other";
+
+/**
+ * `pipeline_step_cancellations`: a booked next step that was called off, on
+ * either board, kept for stats (no-show rates). The booking itself is
+ * cleared from the card; the card's note stays.
+ */
+export interface StepCancellation {
+  id: string;
+  board: BoardKind;
+  /** The prospect's person id (recruiting) or the list entry id (customer board). */
+  cardId: string;
+  /** Whose card it was (the prospect's sponsor, or the list's owner). */
+  ownerId: string;
+  /** The booked column. */
+  column: string;
+  /** "YYYY-MM-DD" the step was booked for. */
+  bookedDate: string | null;
+  /** "HH:MM", when a time was booked. */
+  bookedTime: string | null;
+  reason: CancelReason;
+  /** "Other…": the reason in their words (required then, at most MAX_CANCEL_TEXT). */
+  reasonText: string | null;
+  cancelledAt: string;
+  cancelledBy: string;
+}
+
 /** Every pipeline table, as the browser store keeps it. */
 export interface PipelineData {
   steps: PipelineStep[];
@@ -174,7 +210,14 @@ export interface PipelineData {
   settings: TeamSetting[];
   shares: StatShare[];
   requests: StatRequest[];
+  /** Cancelled next steps on both boards. */
+  cancellations: StepCancellation[];
 }
+
+/** Longest card note. */
+export const MAX_CARD_NOTE = 500;
+/** Longest "Other…" cancellation reason. */
+export const MAX_CANCEL_TEXT = 200;
 
 export const DEFAULT_MG1_GOAL = 80;
 export const DEFAULT_TARGETS: ConversionTargets = {

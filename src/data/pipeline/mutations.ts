@@ -24,6 +24,7 @@ import {
   type CustomerStepBand,
 } from "../customerPipeline/types";
 import { pipeline, updatePipeline } from "./store";
+import { bookingAfterMove, bookingOf, cleanNote, type Booking } from "./booking";
 import {
   bandIndex,
   bandOf,
@@ -107,6 +108,13 @@ function columnsForMove(person: CrmPerson, me: string): PipelineColumn[] {
   return [...mine, ...theirs.filter((c) => !ids.has(c.id))];
 }
 
+/** The prospect's owner's board (their sponsor's sponsor line): where bookings live. */
+function ownerColumns(person: CrmPerson, me: string): PipelineColumn[] {
+  const { steps, hides } = pipeline();
+  const people = usePeopleStore.getState().people;
+  return columnsFor(chainOf(people, person.sponsorId ?? me, uplines()), steps, hides);
+}
+
 /** The card as stored, or the implicit Contact made card for a prospect without one. */
 function cardOf(person: CrmPerson): { card: PipelineCard; stored: boolean } {
   const stored = pipeline().cards.find((c) => c.personId === person.id);
@@ -151,12 +159,14 @@ export type MoveResult =
  * Move a prospect's card to a column (a milestone or a step on their owner's
  * or your board) and record the move. Moving into Registered makes them an
  * apprentice from today (stage history and activity come from updatePerson).
- * The next step is cleared unless one is given.
+ * A booked next step is cleared when the card moves into its column or past
+ * it, and kept when it moves backwards (bookingAfterMove), unless `booking`
+ * books a new one.
  */
 export function movePipelineCard(
   personId: string,
   to: string,
-  opts: { nextStep?: string | null; nextStepDate?: string | null } = {},
+  opts: { booking?: Booking } = {},
 ): MoveResult {
   const me = actor();
   if (!me) return { ok: false, reason: "no-access" };
@@ -181,8 +191,8 @@ export function movePipelineCard(
     ...card,
     column: to,
     enteredAt: at,
-    nextStep: opts.nextStep !== undefined ? opts.nextStep : null,
-    nextStepDate: opts.nextStepDate !== undefined ? opts.nextStepDate : null,
+    ...(opts.booking ??
+      bookingAfterMove(bookingOf(card), to, ownerColumns(person, me), check.to.band)),
     updatedAt: at,
   });
   updatePipeline((s) => ({ moves: [...s.moves, move] }));
@@ -231,8 +241,10 @@ function createCard(
     personId: person.id,
     column,
     enteredAt: at,
-    nextStep: null,
+    nextColumn: null,
     nextStepDate: null,
+    nextStepTime: null,
+    note: null,
     hot: false,
     source: null,
     droppedAt: null,
@@ -285,8 +297,9 @@ export function addPipelineProspect(input: {
   source?: string;
   sponsorId?: string;
   column?: string;
-  nextStep?: string;
-  nextStepDate?: string;
+  /** A booked next step (a column after `column` on the owner's board). */
+  booking?: Booking;
+  note?: string;
 }): { person: CrmPerson; undo: () => void } | null {
   const me = actor();
   const name = input.name.trim();
@@ -308,8 +321,8 @@ export function addPipelineProspect(input: {
       : logContact({ personId: person.id, date: today, note: "New contact" });
   const r = createCard(person, me, column, {
     source: input.source?.trim() || null,
-    nextStep: input.nextStep?.trim() || null,
-    nextStepDate: input.nextStepDate || null,
+    ...(input.booking?.nextColumn ? input.booking : {}),
+    note: cleanNote(input.note),
   });
   return {
     person,
@@ -347,15 +360,43 @@ export function showedPlanMoves(personId: string): boolean {
   return bandIndex(currentBand(person)) < bandIndex("first_plan");
 }
 
-/** Edit a card's next step, hot flag or source. */
+/**
+ * Edit a card's booked next step, note, hot flag or source. Returns an undo
+ * (puts back what the patch changed), or null when nothing was saved.
+ */
 export function updatePipelineCard(
   personId: string,
-  patch: Partial<Pick<PipelineCard, "nextStep" | "nextStepDate" | "hot" | "source">>,
-): void {
+  patch: Partial<
+    Pick<PipelineCard, "nextColumn" | "nextStepDate" | "nextStepTime" | "note" | "hot" | "source">
+  >,
+): (() => void) | null {
   const person = actor() ? visiblePerson(personId) : undefined;
-  if (!person || person.bizClass !== "prospect") return;
+  if (!person || person.bizClass !== "prospect") return null;
   const { card } = cardOf(person);
-  putCard({ ...card, ...patch, updatedAt: now() });
+  const clean = "note" in patch ? { ...patch, note: cleanNote(patch.note) } : patch;
+  putCard({ ...card, ...clean, updatedAt: now() });
+  const before = Object.fromEntries(
+    Object.keys(clean).map((k) => [k, card[k as keyof PipelineCard]]),
+  ) as Partial<PipelineCard>;
+  return () => {
+    const cur = pipeline().cards.find((c) => c.personId === personId);
+    if (cur) putCard({ ...cur, ...before, updatedAt: now() });
+  };
+}
+
+/** The prospect's card and their owner's board (for the booking rules). */
+export function getPipelineCardContext(
+  personId: string,
+): { card: PipelineCard; columns: PipelineColumn[]; ownerId: string; name: string } | null {
+  const me = actor();
+  const person = me ? visiblePerson(personId) : undefined;
+  if (!me || !person || person.bizClass !== "prospect") return null;
+  return {
+    card: cardOf(person).card,
+    columns: ownerColumns(person, me),
+    ownerId: person.sponsorId ?? me,
+    name: person.name,
+  };
 }
 
 /**

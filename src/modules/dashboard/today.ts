@@ -6,6 +6,9 @@
  * Ranking (higher score first):
  *   1. Event tickets whose planned purchase date has passed   1000 + days late
  *   2. Event follow-ups that are overdue, due today/tomorrow   800–900+
+ *      Booked pipeline steps due today or overdue (own cards)  750 + days late
+ *      (both boards; src/data/pipeline/booking.ts dueBookings, "Do not
+ *      contact" left out; Done moves the card, Reschedule, Cancel)
  *   3. Apprentices at their IBO anniversary (due / 30 days)    700 / 500
  *      Missed an event they came to last time (uplines)       650 - days since
  *      (src/data/eventTypes/missed.ts; cleared for every upline by a
@@ -23,12 +26,13 @@ import {
   type Attendance,
   type CrmEvent,
   type CrmPerson,
+  type DueBooking,
   type MissedStreak,
   type Role,
   type Sale,
 } from "@/data";
 
-export type TodayFilter = "team" | "customers" | "events";
+export type TodayFilter = "team" | "customers" | "events" | "pipeline";
 
 interface Base {
   key: string;
@@ -78,6 +82,11 @@ export type TodayItem =
       daysAgo: number;
     })
   | (Base & {
+      kind: "step";
+      /** A booked next step due today or overdue on one of the viewer's cards. */
+      booking: DueBooking;
+    })
+  | (Base & {
       kind: "anniversary";
       level: Exclude<ApprenticeAlert, null>;
       /** The day they become an IBO ("YYYY-MM-DD"). */
@@ -110,6 +119,11 @@ export interface TodayInput {
    * members only, never the viewer). "Do not contact" doesn't apply to them.
    */
   missed?: MissedStreak[];
+  /**
+   * Booked next steps due today or overdue on the viewer's own cards, both
+   * boards (`useDueBookings()`, "Do not contact" already left out).
+   */
+  bookings?: DueBooking[];
   /** "Now"; defaults to the current time. */
   now?: Date;
 }
@@ -186,6 +200,31 @@ export function buildTodayItems(input: TodayInput): TodayItem[] {
         streak,
         daysAgo,
         score: 650 - daysAgo,
+      });
+    }
+  }
+
+  // Booked pipeline steps that are due (the viewer's own cards).
+  if (input.role !== "candidate") {
+    const everyone = new Map(input.people.map((p) => [p.id, p] as const));
+    for (const b of input.bookings ?? []) {
+      // A list name isn't a person: stand in with its name (the row links to the board).
+      const person: CrmPerson =
+        (b.board === "recruiting" ? everyone.get(b.cardId) : undefined) ??
+        ({
+          id: b.cardId,
+          name: b.name,
+          bizClass: b.board === "customer" ? "customer" : "prospect",
+        } as CrmPerson);
+      if (skip?.has(person.id)) continue;
+      items.push({
+        key: `step:${b.board}:${b.cardId}`,
+        kind: "step",
+        filter: "pipeline",
+        person,
+        self: false,
+        booking: b,
+        score: 750 + Math.min(49, b.daysLate),
       });
     }
   }
@@ -283,7 +322,7 @@ function contactScore(days: number | null, threshold: number): number {
 
 /** Item counts per filter chip. */
 export function countByFilter(items: TodayItem[]): Record<"all" | TodayFilter, number> {
-  const out = { all: items.length, team: 0, customers: 0, events: 0 };
+  const out = { all: items.length, team: 0, customers: 0, events: 0, pipeline: 0 };
   for (const it of items) out[it.filter]++;
   return out;
 }

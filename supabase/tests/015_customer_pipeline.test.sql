@@ -101,8 +101,8 @@ select throws_ok($$insert into public.customer_cards (entry_id, column_id) value
   '42501', null, 'a new card starts in Not contacted yet');
 select throws_ok($$update public.customer_cards set column_id = 'on_ditto' where entry_id = 'le-700-20'$$,
   '42501', null, 'a card''s column changes only through a move');
-select lives_ok($$update public.customer_cards set next_step = 'Offer Ditto' where entry_id = 'le-700-20'$$,
-  'the next step is edited directly');
+select lives_ok($$update public.customer_cards set note = 'Offer Ditto' where entry_id = 'le-700-20'$$,
+  'the note is edited directly');
 select throws_ok($$select public.move_customer_card('le-700-1', 'not_contacted')$$, '22023', null,
   'already there (a name without a card is in Not contacted yet)');
 select throws_ok($$select public.move_customer_card('le-700-1', 'cs-nowhere')$$, '22023', null,
