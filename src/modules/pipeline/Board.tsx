@@ -111,6 +111,9 @@ export function BoardView({
   };
   const markMine = useMemo(() => ownCards(board, me).mixed, [board, me]);
   const isMine = (ownerId: string) => markMine && ownerId === me;
+  // On a mixed board your own cards come first in every column (otherwise in
+  // the usual order: hot, then newest in the column).
+  const shown = useMemo(() => (markMine ? mineFirst(board, me) : board), [board, me, markMine]);
   const ctx: CardCtx = { columns: board.columns, def, drag, start, open, move, markMine, isMine };
   const isThisMonth = monthOf(localDate()) === month;
   const label = def.kind === "customer" ? "Customer pipeline board" : "Pipeline board";
@@ -120,13 +123,13 @@ export function BoardView({
       {desktop ? (
         <div ref={scroller} className="overflow-x-auto pb-2" aria-label={label}>
           <div className="flex w-max items-start gap-3.5">
-            {board.bands.map((band) => (
+            {shown.bands.map((band) => (
               <DesktopBand
                 key={band.milestone}
                 band={band}
                 month={month}
                 isThisMonth={isThisMonth}
-                registered={board.registered}
+                registered={shown.registered}
                 ctx={ctx}
               />
             ))}
@@ -142,7 +145,7 @@ export function BoardView({
             aria-label={label}
             className="-mx-4 flex snap-x snap-mandatory scroll-px-4 items-start gap-2.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
-            {board.bands.flatMap((band) =>
+            {shown.bands.flatMap((band) =>
               band.columns.map((col) => (
                 <PhoneColumn
                   key={col.column.id}
@@ -150,7 +153,7 @@ export function BoardView({
                   col={col}
                   month={month}
                   isThisMonth={isThisMonth}
-                  registered={board.registered}
+                  registered={shown.registered}
                   ctx={ctx}
                 />
               )),
@@ -167,6 +170,20 @@ export function BoardView({
       {children}
     </>
   );
+}
+
+/** The board with `me`'s cards first in each column and in Registered (stable sort). */
+function mineFirst<B extends string>(board: PipelineBoard<B>, me: string): PipelineBoard<B> {
+  const first = <T extends { ownerId: string }>(list: T[]) =>
+    [...list].sort((a, b) => Number(b.ownerId === me) - Number(a.ownerId === me));
+  return {
+    ...board,
+    bands: board.bands.map((band) => ({
+      ...band,
+      columns: band.columns.map((col) => ({ ...col, cards: first(col.cards) })),
+    })),
+    registered: { ...board.registered, cards: first(board.registered.cards) },
+  };
 }
 
 interface CardCtx {

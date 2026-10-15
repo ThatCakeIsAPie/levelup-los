@@ -250,11 +250,11 @@ function TeamTile() {
             ? "people on your team"
             : `${t.count === 1 ? "person" : "people"} · ${
                 t.fresh > 0 ? `+${t.fresh}` : "none"
-              } new in 30 days`
+              } registered in 30 days`
         }
       />
       {t.count === 0 ? (
-        <Meta>People you sponsor show up here with their stage. Open the map to add them.</Meta>
+        <Meta>People you sponsor show up here once they register. Open the map to add them.</Meta>
       ) : (
         <>
           <SegmentedBar

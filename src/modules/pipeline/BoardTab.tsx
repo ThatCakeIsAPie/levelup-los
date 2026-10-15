@@ -14,8 +14,8 @@ import { InPipelineCard } from "./InPipelineCard";
 import { deltaText, plural } from "./format";
 
 /**
- * Board tab: this month's first meetings against the goal, milestone activity,
- * how many are in the pipeline now, then the board.
+ * Board tab: this month's first meetings against the goal beside milestone
+ * activity and how many are in the pipeline now, then the board.
  */
 export function BoardTab({
   board,
@@ -32,13 +32,15 @@ export function BoardTab({
     <div className="grid gap-4">
       <div className="grid gap-3 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1.6fr)] lg:gap-4">
         <GoalCard activity={activity} month={month} isThisMonth={isThisMonth} />
-        <Kpis activity={activity} month={month} />
+        <div className="grid content-start gap-3 lg:gap-4">
+          <Kpis activity={activity} month={month} />
+          <InPipelineCard
+            board={board as unknown as PipelineBoard<string>}
+            bands={IN_PIPELINE}
+            until="they register"
+          />
+        </div>
       </div>
-      <InPipelineCard
-        board={board as unknown as PipelineBoard<string>}
-        bands={IN_PIPELINE}
-        until="they register"
-      />
       <Board board={board} month={month} />
     </div>
   );

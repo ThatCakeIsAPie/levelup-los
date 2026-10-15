@@ -16,12 +16,14 @@ export function InPipelineCard({
   board,
   bands,
   until,
+  className,
 }: {
   board: PipelineBoard<string>;
   /** The bands that count, in board order, with their labels. */
   bands: { id: string; label: string }[];
   /** The milestone that ends it ("Registered"). */
   until: string;
+  className?: string;
 }) {
   const { personId } = usePipelineAccess();
   const now = inPipeline(
@@ -31,7 +33,12 @@ export function InPipelineCard({
   );
   const label = (band: string) => bands.find((b) => b.id === band)?.label ?? band;
   return (
-    <section className="grid gap-3 rounded-card border border-line bg-card px-4 py-3.5 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-center sm:gap-6 sm:px-[18px]">
+    <section
+      className={cn(
+        "grid gap-3 rounded-card border border-line bg-card px-4 py-3.5 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-center sm:gap-6 sm:px-[18px]",
+        className,
+      )}
+    >
       <div className="flex items-baseline gap-2.5">
         <b className="text-[28px] font-extrabold leading-none tabular-nums">{now.total}</b>
         <div className="grid">
