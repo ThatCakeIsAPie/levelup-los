@@ -14,6 +14,7 @@ import { toastWithUndo } from "@/components/log/quickLog";
 import {
   CUSTOMER_BAND_LABEL,
   DO_NOT_CONTACT,
+  REFERRAL_SOURCE,
   closeLog,
   getListEntry,
   getPerson,
@@ -85,7 +86,12 @@ export function useCustomerMove(columns: PipelineColumn<CustomerBand>[]) {
     }
     toastWithUndo(`${name} moved to ${label}`, r.undo, {
       ...opts,
-      description: to === DO_NOT_CONTACT ? "They won't show up in any reminders." : undefined,
+      description:
+        to === DO_NOT_CONTACT
+          ? "They won't show up in any reminders."
+          : to === REFERRAL_SOURCE
+            ? "Open their card to add the names they pass on."
+            : undefined,
     });
   };
 

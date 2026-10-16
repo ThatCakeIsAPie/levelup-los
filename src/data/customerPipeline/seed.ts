@@ -15,6 +15,7 @@ import { localDate } from "@/lib/dates";
 import type { CrmPerson } from "@/stores/peopleStore";
 import {
   CUSTOMER_MILESTONES,
+  REFERRAL_SOURCE,
   STARTER_CUSTOMER_STEPS,
   type CustomerBand,
   type CustomerCard,
@@ -87,12 +88,12 @@ const LISTS: Record<string, Spec[]> = {
     ["Mia Parker", "Church", "hot", nc, 15],
     ["Owen Hughes", "Gym", null, nc, 15],
     ["Renee Castillo", "Kids' school", null, nc, 12],
-    ["Gabe Santos", "Old coworker", null, nc, 12],
+    ["Gabe Santos", "Old coworker", "cold", nc, 12],
     ["Lucy Tran", "Book club", "warm", nc, 9],
     ["Marcy Dale", "Cousin", "warm", nc, 9],
     ["Frank Ibarra", "Neighbor", null, nc, 6],
     ["Ivy Chen", "Yoga class", null, nc, 6],
-    ["Paul Okafor", "Barber", null, nc, 3],
+    ["Paul Okafor", "Barber", "cold", nc, 3],
     ["Rosa Delmar", "Coffee shop", null, "contact", 2, undefined, sampled, 3, "Text her first"],
     ["Trent Walsh", "Farmers market", null, "contact", 4],
     ["Nadia Bloom", "Kids' soccer", "warm", "contact", 6],
@@ -149,7 +150,7 @@ const LISTS: Record<string, Spec[]> = {
   ],
   // David: Anita's crossline (Maria sees both; Anita and Jamal never see David's).
   "3": [
-    ["Carmen Diaz", "Neighbor", null, nc, 10],
+    ["Carmen Diaz", "Neighbor", "cold", nc, 10],
     ["Hugo Brandt", "Gym", "warm", nc, 7],
     ["Iris Kemp", "Church", null, "contact", 5],
     ["Dana Pratt", "Neighbor", null, "first_sale", 30, "c7"],
@@ -192,7 +193,7 @@ const LISTS: Record<string, Spec[]> = {
     ["Ruby Ng", "Book club", null, nc, 7],
     ["Eli Shaw", "Neighbor", null, nc, 6],
     ["Nora Quinn", "Kids' school", null, nc, 6],
-    ["Pete Lindgren", "Barber", null, nc, 5],
+    ["Pete Lindgren", "Barber", "cold", nc, 5],
     ["Zoe Hart", "Yoga class", "warm", nc, 5],
     ["Rosa Delgadillo", "Coffee shop", null, "contact", 2, undefined, sampled, 3, "Text Fri"],
     ["Benny Cruz", "Farmers market", null, "contact", 3],
@@ -204,6 +205,29 @@ const LISTS: Record<string, Spec[]> = {
     ["Lena Duarte", "Coworker", null, "first_sale", 7, "c11", "on_ditto", 7, "Offer Ditto"],
     ["Sam Rios", "Gym", null, ni, 6],
   ],
+};
+
+/**
+ * Referral sources and the names they passed on (src/data/referrals), added
+ * after the lists and the history so the rest of the seed stays as it was.
+ * Maria's Wendy Shaw referred Kara and Leo (Joy came from Nina Alvarez, 570, a
+ * referral source on Maria's recruiting board); Jamal's Ray Dunn has been in
+ * the column 9 days without a name, so Jamal's Home says "Ask Ray for names".
+ */
+const REFERRAL_LISTS: Record<string, Spec[]> = {
+  "1": [
+    ["Wendy Shaw", "Old neighbor", null, REFERRAL_SOURCE, 12],
+    ["Kara Bloom", "Wendy's sister", "warm", nc, 6],
+    ["Leo Martin", "Wendy's coworker", null, "contact", 3],
+    ["Joy Alvarez", "Nina's cousin", null, nc, 4],
+  ],
+  "4": [["Ray Dunn", "Barbershop", null, REFERRAL_SOURCE, 9]],
+};
+/** Who referred each name: another name on the same list, or a person id (`person:`). */
+const REFERRED_BY: Record<string, string> = {
+  "Kara Bloom": "Wendy Shaw",
+  "Leo Martin": "Wendy Shaw",
+  "Joy Alvarez": "person:570",
 };
 
 /** Names added by an upline helping (shown as "added by Jamal"). */
@@ -223,7 +247,9 @@ function pathTo(column: string, bandOf: (c: string) => CustomerBand): CustomerBa
   const band = bandOf(column);
   if (band === "start") return [];
   if (band === "out")
-    return column === "do_not_contact" ? ["contact"] : ["contact", "first_meeting"];
+    return column === "do_not_contact" || column === REFERRAL_SOURCE
+      ? ["contact"]
+      : ["contact", "first_meeting"];
   const i = CUSTOMER_MILESTONES.indexOf(band as CustomerMilestone);
   // Milestones before the final band (the final band's milestone too when the column is a step).
   return CUSTOMER_MILESTONES.slice(0, column === band ? i : i + 1);
@@ -251,7 +277,7 @@ export function seedCustomerPipeline(people: CrmPerson[], now = new Date()): Cus
   const stepBand = new Map(steps.map((s) => [s.id, s.band as CustomerBand]));
   const bandOf = (c: string): CustomerBand => {
     if (c === "not_contacted") return "start";
-    if (c === "not_interested" || c === "do_not_contact") return "out";
+    if (c === "not_interested" || c === "do_not_contact" || c === REFERRAL_SOURCE) return "out";
     return stepBand.get(c) ?? (c as CustomerBand);
   };
 
@@ -280,51 +306,65 @@ export function seedCustomerPipeline(people: CrmPerson[], now = new Date()): Cus
     });
   };
 
+  const addSpec = (ownerId: string, spec: Spec, i: number): void => {
+    const [name, howKnown, rating, column, days, customerId, next, nextIn, note] = spec;
+    const id = `le-${ownerId}-${i + 1}`;
+    const path = pathTo(column, bandOf);
+    // Each earlier milestone a few days before the next one.
+    const gaps: number[] = [];
+    let acc = days;
+    for (let k = path.length - 1; k >= 0; k--) gaps[k] = acc += 3 + Math.floor(rng() * 4);
+    const firstDay = (gaps[0] ?? days) + 2 + Math.floor(rng() * 5);
+    const createdAt = stamp(firstDay, 8);
+    entries.push({
+      id,
+      ownerId,
+      name,
+      howKnown,
+      phone: rng() < 0.6 ? `555-01${String(10 + ((i * 7) % 90)).padStart(2, "0")}` : null,
+      email: null,
+      notes: null,
+      rating,
+      customerId: customerId && exists.has(customerId) ? customerId : null,
+      prospectId: null,
+      ...referredBy(ownerId, name),
+      addedBy: ADDED_BY[name] ?? ownerId,
+      createdAt,
+      updatedAt: createdAt,
+    });
+    if (column === "not_contacted") return;
+    let from: string | null = null;
+    path.forEach((band, k) => {
+      addMove(id, ownerId, from, band, stamp(gaps[k], 10));
+      from = band;
+    });
+    const enteredAt = stamp(days, 15);
+    addMove(id, ownerId, from, column, enteredAt);
+    cards.push({
+      entryId: id,
+      column,
+      enteredAt,
+      nextColumn: next ?? null,
+      nextStepDate: next && nextIn !== undefined ? localDate(addDays(now, nextIn)) : null,
+      nextStepTime: (next && TIMES[name]) || null,
+      note: note ?? null,
+      updatedAt: enteredAt,
+    });
+  };
+  /** The links of a name in REFERRED_BY (its referrer is earlier on the same list). */
+  const referredBy = (ownerId: string, name: string) => {
+    const by = REFERRED_BY[name];
+    if (by?.startsWith("person:")) {
+      const id = by.slice("person:".length);
+      return { referredBy: exists.has(id) ? id : null, referredByEntry: null };
+    }
+    const entry = by ? entries.find((e) => e.ownerId === ownerId && e.name === by) : undefined;
+    return { referredBy: null, referredByEntry: entry?.id ?? null };
+  };
+
   for (const [ownerId, specs] of Object.entries(LISTS)) {
     if (!exists.has(ownerId)) continue;
-    specs.forEach(([name, howKnown, rating, column, days, customerId, next, nextIn, note], i) => {
-      const id = `le-${ownerId}-${i + 1}`;
-      const path = pathTo(column, bandOf);
-      // Each earlier milestone a few days before the next one.
-      const gaps: number[] = [];
-      let acc = days;
-      for (let k = path.length - 1; k >= 0; k--) gaps[k] = acc += 3 + Math.floor(rng() * 4);
-      const firstDay = (gaps[0] ?? days) + 2 + Math.floor(rng() * 5);
-      const createdAt = stamp(firstDay, 8);
-      entries.push({
-        id,
-        ownerId,
-        name,
-        howKnown,
-        phone: rng() < 0.6 ? `555-01${String(10 + ((i * 7) % 90)).padStart(2, "0")}` : null,
-        email: null,
-        notes: null,
-        rating,
-        customerId: customerId && exists.has(customerId) ? customerId : null,
-        prospectId: null,
-        addedBy: ADDED_BY[name] ?? ownerId,
-        createdAt,
-        updatedAt: createdAt,
-      });
-      if (column === "not_contacted") return;
-      let from: string | null = null;
-      path.forEach((band, k) => {
-        addMove(id, ownerId, from, band, stamp(gaps[k], 10));
-        from = band;
-      });
-      const enteredAt = stamp(days, 15);
-      addMove(id, ownerId, from, column, enteredAt);
-      cards.push({
-        entryId: id,
-        column,
-        enteredAt,
-        nextColumn: next ?? null,
-        nextStepDate: next && nextIn !== undefined ? localDate(addDays(now, nextIn)) : null,
-        nextStepTime: (next && TIMES[name]) || null,
-        note: note ?? null,
-        updatedAt: enteredAt,
-      });
-    });
+    specs.forEach((spec, i) => addSpec(ownerId, spec, i));
   }
 
   // History: names worked and since removed from a list (counts only).
@@ -356,6 +396,12 @@ export function seedCustomerPipeline(people: CrmPerson[], now = new Date()): Cus
         }
       }
     });
+  }
+
+  for (const [ownerId, specs] of Object.entries(REFERRAL_LISTS)) {
+    if (!exists.has(ownerId)) continue;
+    const start = LISTS[ownerId]?.length ?? 0;
+    specs.forEach((spec, i) => addSpec(ownerId, spec, start + i));
   }
 
   return { entries, steps, hides: [], cards, moves };

@@ -1,12 +1,5 @@
 import { format } from "date-fns";
-import {
-  isUpcoming,
-  localDate,
-  parseDate,
-  usesTickets,
-  type Attendance,
-  type CrmEvent,
-} from "@/data";
+import { isUpcoming, localDate, parseDate, type Attendance, type CrmEvent } from "@/data";
 import type { Tone } from "@/components/brand";
 
 /** "Oct 3" this year, "Oct 3, 2025" otherwise (or always with `year: true`). */
@@ -56,11 +49,19 @@ export const DESIRE_LABEL = { yes: "Wants to go", maybe: "Maybe", no: "Not going
 
 export type ChipSpec = { tone: Tone; label: string };
 
-/** Status chips for one attendance row (desire / ticket / attended). */
-export function attendanceChips(a: Attendance, ev: CrmEvent, today = localDate()): ChipSpec[] {
+/**
+ * Status chips for one attendance row (desire / ticket / attended). `tickets`:
+ * the event's category uses tickets (`usesTickets(category)`).
+ */
+export function attendanceChips(
+  a: Attendance,
+  ev: CrmEvent,
+  tickets: boolean,
+  today = localDate(),
+): ChipSpec[] {
   const chips: ChipSpec[] = [];
   // Events without tickets: coming / came (and how), nothing about tickets.
-  if (!usesTickets(ev.type)) {
+  if (!tickets) {
     if (a.attended === true)
       chips.push({ tone: "good", label: a.mode === "virtual" ? "Came · virtual" : "Came" });
     else if (a.attended === false) chips.push({ tone: "bad", label: "Wasn't there" });

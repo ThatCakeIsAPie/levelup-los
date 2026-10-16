@@ -11,7 +11,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  EVENT_TYPE_LABEL,
   MODE_LABEL,
   closeLog,
   daysFromToday,
@@ -19,14 +18,16 @@ import {
   localDate,
   parseDate,
   setEventAttendance,
+  useCategoryOf,
   useCurrentUser,
   useEvents,
   useVisibleAttendances,
+  useVisibleCustomers,
   useVisibleTeam,
   type AttendMode,
 } from "@/data";
 import { Segmented } from "@/modules/events/Segmented";
-import { MODE_ICON } from "@/modules/events/typeIcons";
+import { MODE_ICON } from "@/modules/events/categoryIcons";
 import { toastWithUndo } from "./quickLog";
 import { Field } from "./parts";
 
@@ -34,15 +35,17 @@ import { Field } from "./parts";
 const DAYS_BACK = 14;
 
 /**
- * "Went to an event": who came (you, or someone on your team) to an event
- * from the last two weeks, in person or virtually. Counts toward their
- * activity and ends a missed-event follow-up.
+ * "Went to an event": who came (you, someone on your team or one of your
+ * customers) to an event from the last two weeks, in person or virtually.
+ * Counts toward their activity and ends a missed-event follow-up.
  */
 export function AttendanceForm({ initialPersonId }: { initialPersonId?: string }) {
   const user = useCurrentUser();
   const events = useEvents();
   const team = useVisibleTeam();
+  const customers = useVisibleCustomers();
   const rows = useVisibleAttendances();
+  const categoryOf = useCategoryOf();
   const recent = useMemo(() => {
     const today = localDate();
     const from = daysFromToday(-DAYS_BACK);
@@ -50,8 +53,13 @@ export function AttendanceForm({ initialPersonId }: { initialPersonId?: string }
   }, [events]);
   const people = useMemo(() => {
     if (user.role === "candidate") return [];
-    return team.filter((p) => p.id !== user.personId).sort((a, b) => a.name.localeCompare(b.name));
-  }, [team, user]);
+    const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name);
+    // Your team first, then your customers (they count toward attendance too).
+    return [
+      ...team.filter((p) => p.id !== user.personId).sort(byName),
+      ...customers.filter((c) => c.ownerId === user.personId).sort(byName),
+    ];
+  }, [team, customers, user]);
 
   const [eventId, setEventId] = useState(recent[0]?.id ?? "");
   const [personId, setPersonId] = useState(
@@ -60,7 +68,7 @@ export function AttendanceForm({ initialPersonId }: { initialPersonId?: string }
       : user.personId,
   );
   const event = recent.find((e) => e.id === eventId);
-  const modes = event ? eventModes(event) : [];
+  const modes = event ? eventModes(event, categoryOf(event)) : [];
   const [picked, setPicked] = useState<AttendMode | undefined>();
   const mode = picked && modes.includes(picked) ? picked : modes[0];
   const already = rows.find((a) => a.eventId === eventId && a.personId === personId);
@@ -103,7 +111,7 @@ export function AttendanceForm({ initialPersonId }: { initialPersonId?: string }
               <SelectItem key={e.id} value={e.id}>
                 {e.name}
                 <span className="ml-2 text-xs text-muted-foreground">
-                  {e.name === EVENT_TYPE_LABEL[e.type] ? "" : `${EVENT_TYPE_LABEL[e.type]} · `}
+                  {e.name === categoryOf(e).name ? "" : `${categoryOf(e).name} · `}
                   {format(parseDate(e.date), "EEE, MMM d")}
                 </span>
               </SelectItem>
@@ -122,6 +130,9 @@ export function AttendanceForm({ initialPersonId }: { initialPersonId?: string }
               {people.map((p) => (
                 <SelectItem key={p.id} value={p.id}>
                   {p.name}
+                  {p.bizClass === "customer" && (
+                    <span className="ml-2 text-xs text-muted-foreground">Customer</span>
+                  )}
                 </SelectItem>
               ))}
             </SelectContent>

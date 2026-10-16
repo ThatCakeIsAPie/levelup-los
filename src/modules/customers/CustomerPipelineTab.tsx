@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { ArrowRight, Columns3, Plus } from "lucide-react";
+import { ArrowRight, Columns3, Plus, Users } from "lucide-react";
 import { PageHeader, SectionCard } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import {
@@ -183,6 +183,14 @@ function Conversions({ funnel }: { funnel: CustomerFunnel }) {
           );
         })}
       </ol>
+      {funnel.referralSources > 0 && (
+        <p className="mt-2 flex items-center gap-1.5 text-[12px] font-semibold text-primary-ink">
+          <Users className="size-3.5 shrink-0" aria-hidden="true" />
+          {funnel.referralSources}{" "}
+          {funnel.referralSources === 1 ? "became a referral source" : "became referral sources"}{" "}
+          and passed on names
+        </p>
+      )}
       <p className="mt-2 text-[11px] text-faint">
         Rates show from {plural(10, "name")} at a step, so small numbers don&rsquo;t mislead.
       </p>

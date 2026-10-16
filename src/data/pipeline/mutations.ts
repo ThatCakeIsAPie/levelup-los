@@ -16,6 +16,8 @@ import type { Notification } from "../chat/types";
 import { addPerson, removePerson, updatePerson } from "../people";
 import { logContact, removeContact } from "../crm";
 import { getViewer } from "../session";
+import type { ContactRating } from "../rating";
+import { linksFor, type Ref } from "../referrals/rules";
 import { visibleIdSet } from "../access";
 import { customerPipeline, updateCustomerPipeline } from "../customerPipeline/store";
 import {
@@ -245,7 +247,7 @@ function createCard(
     nextStepDate: null,
     nextStepTime: null,
     note: null,
-    hot: false,
+    rating: null,
     source: null,
     droppedAt: null,
     updatedAt: at,
@@ -272,13 +274,16 @@ function createCard(
  */
 export function startPipelineCard(
   personId: string,
-  opts: { source?: string | null } = {},
+  opts: { source?: string | null; rating?: ContactRating | null } = {},
 ): (() => void) | null {
   const me = actor();
   const person = me ? visiblePerson(personId) : undefined;
   if (!me || !person || person.bizClass !== "prospect") return null;
   if (pipeline().cards.some((c) => c.personId === personId)) return null;
-  const r = createCard(person, me, "contact", { source: opts.source?.trim() || null });
+  const r = createCard(person, me, "contact", {
+    source: opts.source?.trim() || null,
+    rating: opts.rating ?? null,
+  });
   if (!r) return null;
   return () => {
     removeMoves([r.move.id]);
@@ -300,6 +305,10 @@ export function addPipelineProspect(input: {
   /** A booked next step (a column after `column` on the owner's board). */
   booking?: Booking;
   note?: string;
+  /** Hot / Warm / Cold (null: not rated). */
+  rating?: ContactRating | null;
+  /** Who referred them (a person or a name on a list; src/data/referrals). */
+  referredBy?: Ref | null;
 }): { person: CrmPerson; undo: () => void } | null {
   const me = actor();
   const name = input.name.trim();
@@ -312,6 +321,7 @@ export function addPipelineProspect(input: {
     joinedDate: today,
     ...(input.phone?.trim() ? { phone: input.phone.trim() } : {}),
     ...(input.source?.trim() ? { notes: `Met: ${input.source.trim()}` } : {}),
+    ...(input.referredBy ? linksFor(input.referredBy) : {}),
   });
   const column = input.column ?? "contact";
   // Someone not contacted yet has no contact to log.
@@ -323,6 +333,7 @@ export function addPipelineProspect(input: {
     source: input.source?.trim() || null,
     ...(input.booking?.nextColumn ? input.booking : {}),
     note: cleanNote(input.note),
+    rating: input.rating ?? null,
   });
   return {
     person,
@@ -361,13 +372,16 @@ export function showedPlanMoves(personId: string): boolean {
 }
 
 /**
- * Edit a card's booked next step, note, hot flag or source. Returns an undo
+ * Edit a card's booked next step, note, rating (hot / warm / cold) or source. Returns an undo
  * (puts back what the patch changed), or null when nothing was saved.
  */
 export function updatePipelineCard(
   personId: string,
   patch: Partial<
-    Pick<PipelineCard, "nextColumn" | "nextStepDate" | "nextStepTime" | "note" | "hot" | "source">
+    Pick<
+      PipelineCard,
+      "nextColumn" | "nextStepDate" | "nextStepTime" | "note" | "rating" | "source"
+    >
   >,
 ): (() => void) | null {
   const person = actor() ? visiblePerson(personId) : undefined;

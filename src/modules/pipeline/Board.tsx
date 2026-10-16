@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { format } from "date-fns";
 import { useNavigate } from "@tanstack/react-router";
 import { CalendarClock, ClockAlert, Flag, GripVertical, MoreHorizontal, X } from "lucide-react";
-import { PersonAvatar, useIsDesktop } from "@/components/brand";
+import { PersonAvatar, RatingChip, useIsDesktop } from "@/components/brand";
 import { cn } from "@/lib/utils";
 import {
   RECRUITING_BOARD,
@@ -23,6 +23,7 @@ import { CardSheet } from "./CardSheet";
 import { MoveMenu } from "./moveCard";
 import { useMoveCard } from "./useMoveCard";
 import { useBoardDrag, type DragInfo } from "./useBoardDrag";
+import { CardReferralLines } from "./Referrals";
 import { ageLong, ageShort, bookingText, bookingTone, ownCards, shortDate, stepBy } from "./format";
 
 const SHOW = 5;
@@ -445,21 +446,9 @@ function OwnerTag({
   );
 }
 
-/** "Hot" / "Warm" chips. */
+/** "Hot" / "Warm" / "Cold" chip. */
 function Heat({ card }: { card: BoardCard }) {
-  if (card.hot)
-    return (
-      <span className="rounded-full bg-bad-soft px-1.5 text-[10px] font-extrabold text-bad">
-        Hot
-      </span>
-    );
-  if (card.warm)
-    return (
-      <span className="rounded-full bg-warn-soft px-1.5 text-[10px] font-extrabold text-warn-ink">
-        Warm
-      </span>
-    );
-  return null;
+  return <RatingChip rating={card.rating} size="xs" />;
 }
 
 function DesktopCard({ card, ctx }: { card: BoardCard; ctx: CardCtx }) {
@@ -506,6 +495,7 @@ function DesktopCard({ card, ctx }: { card: BoardCard; ctx: CardCtx }) {
           At {card.elsewhere.ownerName}&rsquo;s step: {card.elsewhere.label}
         </div>
       )}
+      <CardReferralLines card={card} />
       {card.booking ? (
         <BookingLine card={card} />
       ) : (
@@ -762,6 +752,7 @@ function PhoneRow({ card, ctx }: { card: BoardCard; ctx: CardCtx }) {
               : sub.filter(Boolean).join(" · ")}
           </Whose>
         </div>
+        <CardReferralLines card={card} />
         {card.booking && <BookingLine card={card} phone />}
         {card.note && (
           <div className="truncate text-[10.5px] text-muted-foreground">{card.note}</div>

@@ -28,6 +28,7 @@ import {
   type Sale,
 } from "@/data";
 import { cn } from "@/lib/utils";
+import { displayPhone, phoneHref } from "@/lib/phone";
 import { AddCustomerDialog } from "./AddCustomerDialog";
 import { CustomerPipelineTab } from "./CustomerPipelineTab";
 import { CustomersTabs, type CustomersTab } from "./CustomersTabs";
@@ -350,9 +351,9 @@ function ContactLinks({ person }: { person: CrmPerson }) {
   return (
     <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
       {person.phone && (
-        <a href={`tel:${person.phone}`} className={linkCls}>
+        <a href={`tel:${phoneHref(person.phone)}`} className={linkCls}>
           <Phone className="size-3 shrink-0" aria-hidden="true" />
-          <span className="truncate">{person.phone}</span>
+          <span className="truncate">{displayPhone(person.phone)}</span>
         </a>
       )}
       {person.email && (

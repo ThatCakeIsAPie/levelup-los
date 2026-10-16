@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { dataStorage, seedOr } from "./storage";
 import { seedActivity, SEED_VERSION } from "@/data/seed";
+import { useSessionStore } from "./sessionStore";
 
 export type ActivityEntity = "person" | "event" | "attendance";
 export type ActivityKind =
@@ -19,6 +20,12 @@ export interface ActivityEvent {
   id: string;
   timestamp: string; // ISO
   actorName: string;
+  /**
+   * Who did it, when known: set when logged in this app (the signed-in person)
+   * and from the database's `actor_id`. Entries without it are "You" when
+   * `actorName` says so.
+   */
+  actorId?: string;
   entityType: ActivityEntity;
   entityId: string;
   /** Secondary entity (e.g. for attendance rows: the person it belongs to). */
@@ -43,11 +50,13 @@ export const useActivityStore = create<ActivityState>()(
     (set, get) => ({
       events: seedOr(seedActivity, []),
       log: (e) => {
+        const actorId = useSessionStore.getState().user?.personId;
         const entry: ActivityEvent = {
           ...e,
           id: crypto.randomUUID(),
           timestamp: new Date().toISOString(),
           actorName: ACTOR,
+          ...(actorId ? { actorId } : {}),
         };
         set({ events: [entry, ...get().events] });
       },

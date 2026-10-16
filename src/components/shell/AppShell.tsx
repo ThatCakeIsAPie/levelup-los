@@ -46,7 +46,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Logo, PersonAvatar } from "@/components/brand";
-import { LogSheet } from "@/components/log/LogSheet";
+import { LogButton, LogSheet } from "@/components/log/LogSheet";
 import { cn } from "@/lib/utils";
 import { THEME_OPTIONS, useTheme, type ThemePreference } from "@/lib/theme";
 import {
@@ -85,7 +85,9 @@ const THEME_ICON: Record<ThemePreference, typeof Sun> = { light: Sun, dark: Moon
 
 /**
  * Logged-in app frame.
- * - lg+ : fixed 212px navy sidebar (logo, grouped nav, user menu) + scrolling main.
+ * - lg+ : fixed 212px navy sidebar (logo, grouped nav, user menu), a slim top
+ *   bar with the one Log button at the far right (DesktopBar), then the
+ *   scrolling main. Pages don't add their own Log button.
  * - <lg : a top bar (logo for Home, Chats, the Inbox, your avatar for More),
  *   main (with the section links of the category you're in) and the bottom
  *   tabs: Growth · Customers · Log FAB · Team · Events. The new apprentice
@@ -108,6 +110,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="flex h-dvh flex-col bg-app lg:pl-[212px]">
       <Sidebar onReset={() => setResetOpen(true)} />
       {!starter && <TopBar onMore={() => setMoreOpen(true)} />}
+      <DesktopBar />
       <main
         className={cn(
           "relative flex min-h-0 flex-1 flex-col overflow-y-auto lg:pt-0",
@@ -508,6 +511,19 @@ function StarterTabBar({ onMore }: { onMore: () => void }) {
         Me
       </button>
     </nav>
+  );
+}
+
+/**
+ * Desktop top bar (lg+): the Log button at the far top right, outside every
+ * page, so it's in the same place on every page. Phones use the round Log
+ * button in the middle of the tab bar instead.
+ */
+function DesktopBar() {
+  return (
+    <header className="relative z-20 hidden h-[52px] shrink-0 items-center justify-end gap-2 border-b border-line bg-surface px-[26px] lg:flex">
+      <LogButton />
+    </header>
   );
 }
 

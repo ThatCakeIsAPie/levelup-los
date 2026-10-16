@@ -3,7 +3,6 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import {
   ArrowDown,
   ArrowUp,
-  ChevronLeft,
   GripVertical,
   FileText,
   Headphones,
@@ -17,7 +16,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { EmptyState, PageHeader, useIsDesktop } from "@/components/brand";
+import { Breadcrumbs, EmptyState, PageHeader, useIsDesktop } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -71,8 +70,10 @@ export function ChannelScreen({
         {!desktop && (
           <PageHeader
             title="Library"
-            back={{ to: "/library", label: "Library" }}
-            logButton={false}
+            crumbs={[
+              { label: "Library", link: { to: "/library" } },
+              { label: "Channel not found" },
+            ]}
           />
         )}
         <EmptyState
@@ -177,14 +178,12 @@ function Channel({
   let number = 0;
   return (
     <div className="grid content-start">
+      {/* Desktop shows the channel next to the library list, so no trail there. */}
       {!desktop && (
-        <Link
-          to="/library"
-          className="mx-4 mt-4 inline-flex w-fit items-center gap-1 text-[12.5px] font-medium text-muted-foreground hover:text-foreground"
-        >
-          <ChevronLeft className="size-3.5" aria-hidden="true" />
-          Library
-        </Link>
+        <Breadcrumbs
+          className="mx-4 mt-4"
+          items={[{ label: "Library", link: { to: "/library" } }, { label: c.title }]}
+        />
       )}
       <header className="grid gap-4 border-b border-line px-4 py-4 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center sm:gap-5 lg:px-[26px] lg:py-[22px]">
         <ChannelIcon

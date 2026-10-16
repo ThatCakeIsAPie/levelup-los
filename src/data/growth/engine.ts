@@ -177,15 +177,21 @@ function byPersonAndCode<T extends { personId: string; code: GrowthMilestoneCode
   return out;
 }
 
-function buildIndex(input: GrowthInput, today: string): Index {
-  const byId = new Map(input.people.map((p) => [p.id, p]));
+/** Business-path children by sponsor id (customers never count toward a team). */
+function businessKids(people: CrmPerson[]): Map<string, string[]> {
   const kids = new Map<string, string[]>();
-  for (const p of input.people) {
+  for (const p of people) {
     if (p.bizClass === "customer" || !p.sponsorId || p.sponsorId === p.id) continue;
     const arr = kids.get(p.sponsorId) ?? [];
     arr.push(p.id);
     kids.set(p.sponsorId, arr);
   }
+  return kids;
+}
+
+function buildIndex(input: GrowthInput, today: string): Index {
+  const byId = new Map(input.people.map((p) => [p.id, p]));
+  const kids = businessKids(input.people);
   const daily = new Map<string, Map<string, number[]>>();
   const firstSale = new Map<string, string>();
   for (const s of input.sales) {
@@ -362,6 +368,46 @@ function teamDates(ix: Index, id: string): { sponsors: string[]; people: string[
     .filter((d): d is string => d !== null)
     .sort();
   return { sponsors, people };
+}
+
+/** A person's structure: "4/27" = 4 frontline, 27 in the whole group (not them). */
+export interface TeamStructure {
+  /** People they personally sponsored. */
+  frontline: number;
+  /** Everyone in their downline, at any depth. */
+  total: number;
+}
+
+/**
+ * The team-map structure in the milestone notation (3/10, 6/25): registered
+ * personal sponsors / registered people in the whole group, not counting the
+ * person, counted exactly like the headcount milestones (`teamDates`).
+ * `includeProspects` also counts prospects (the map's "Include prospects";
+ * those numbers are not milestone numbers).
+ */
+export function teamStructure(
+  people: CrmPerson[],
+  personId: string,
+  opts: { includeProspects?: boolean } = {},
+): TeamStructure {
+  const byId = new Map(people.map((p) => [p.id, p]));
+  const kids = businessKids(people);
+  const counts = (id: string) => {
+    const p = byId.get(id);
+    return !!p && (isRegistered(p) || (!!opts.includeProspects && p.bizClass === "prospect"));
+  };
+  const frontline = (kids.get(personId) ?? []).filter(counts).length;
+  let total = 0;
+  const seen = new Set([personId]);
+  const stack = [...(kids.get(personId) ?? [])];
+  while (stack.length) {
+    const id = stack.pop()!;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    if (counts(id)) total++;
+    stack.push(...(kids.get(id) ?? []));
+  }
+  return { frontline, total };
 }
 
 // ---------------------------------------------------------------------------

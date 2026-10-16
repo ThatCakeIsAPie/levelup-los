@@ -39,7 +39,6 @@ export function InboxPage() {
       <PageHeader
         title="Inbox"
         subtitle={unread ? `${unread} unread` : "You're all caught up"}
-        logButton={false}
         actions={
           <Button
             variant="outline"

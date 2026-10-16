@@ -23,7 +23,6 @@ export function LearningPage() {
       <PageHeader
         title="Learning"
         subtitle="Books, audios and events that grow your business"
-        logButton={false}
         actions={
           <Button onClick={() => openLog({ tab: "learning" })}>
             <Plus /> Log learning

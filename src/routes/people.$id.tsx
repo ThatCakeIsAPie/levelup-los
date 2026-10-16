@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { quickCheckIn } from "@/components/log/quickLog";
+import { displayPhone } from "@/lib/phone";
 import {
   BookOpen,
   CalendarDays,
   Check,
-  ChevronLeft,
   GitBranch,
   IdCard,
   Mail,
@@ -34,25 +34,34 @@ import {
   usePerson,
   useSales,
   useSponsorChain,
+  useUnlocks,
   type CrmPerson,
 } from "@/data";
 import {
+  Breadcrumbs,
   EmptyState,
   SectionCard,
   StageChip,
   StatStrip,
   ToneChip,
   useIsDesktop,
+  type Crumb,
 } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ProfilePathCard } from "@/modules/growth/GrowthPath";
 import { PipelineCard } from "@/modules/people/PipelineCard";
+import { ReferralsCard } from "@/modules/people/ReferralsCard";
 import { StatsAccessCard } from "@/modules/pipeline/StatsSharing";
 import { EventsCard, EventsTab, NextEventCard } from "@/modules/people/Events";
 import { TeamCard } from "@/modules/people/TeamCard";
 import { CustomersCard, CustomersTab } from "@/modules/people/Customers";
-import { DetailsTab, TagList, type DetailsPermissions } from "@/modules/people/DetailsTab";
+import {
+  DeletePersonDialog,
+  DetailsTab,
+  TagList,
+  type DetailsPermissions,
+} from "@/modules/people/DetailsTab";
 import { FeedList } from "@/modules/people/ActivityFeed";
 import { usePersonFeed } from "@/modules/people/feed";
 import { ProfileHero, type HeroAction } from "@/modules/people/Hero";
@@ -81,7 +90,7 @@ function PersonProfile({ id }: { id: string }) {
   if (!person) {
     return (
       <div className={PAGE}>
-        <BackLink to="/people" label="People" />
+        <ProfileCrumbs current="Person not found" />
         <EmptyState
           className="mt-6"
           icon={<UserRoundSearch />}
@@ -107,42 +116,17 @@ function PersonProfile({ id }: { id: string }) {
 // Shared bits
 // ---------------------------------------------------------------------------
 
-function BackLink({
-  to,
-  label,
-  current,
-}: {
-  to: "/people" | "/customers";
-  label: string;
-  current?: string;
-}) {
-  return (
-    <nav
-      aria-label="Breadcrumb"
-      className="flex items-center gap-1.5 text-[12.5px] text-muted-foreground"
-    >
-      <Link
-        to={to}
-        className="inline-flex items-center gap-1 rounded-sm font-medium hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
-      >
-        <ChevronLeft className="size-4" aria-hidden="true" />
-        {label}
-      </Link>
-      {current && (
-        <>
-          <span className="hidden text-faint lg:inline" aria-hidden="true">
-            /
-          </span>
-          <span
-            className="hidden truncate font-semibold text-foreground lg:inline"
-            aria-current="page"
-          >
-            {current}
-          </span>
-        </>
-      )}
-    </nav>
-  );
+/** "People › Anita Patel" / "Customers › Grace Lin" above the profile. */
+function ProfileCrumbs({ customer, current }: { customer?: boolean; current: string }) {
+  const unlocks = useUnlocks();
+  const parent: Crumb | null = customer
+    ? { label: "Customers", link: { to: "/customers", search: { tab: "customers" } } }
+    : unlocks.can.people
+      ? { label: "People", link: { to: "/people" } }
+      : null;
+  // Someone without the People page (a new apprentice on their own profile) has no trail.
+  if (!parent) return null;
+  return <Breadcrumbs items={[parent, { label: current }]} />;
 }
 
 function MissingChip({ person, onFix }: { person: CrmPerson; onFix?: () => void }) {
@@ -286,6 +270,7 @@ function BusinessProfile({ person }: { person: CrmPerson }) {
 
   const [tab, setTab] = useState<BizTab>("overview");
   const [editing, setEditing] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [addCustomer, setAddCustomer] = useState(false);
   // The Activity tab is desktop-only; on phones it folds into Overview.
   const activeTab: BizTab = !isDesktop && tab === "activity" ? "overview" : tab;
@@ -404,7 +389,7 @@ function BusinessProfile({ person }: { person: CrmPerson }) {
       ),
     },
     person.location && { key: "loc", icon: MapPin, content: person.location },
-    person.phone && { key: "phone", icon: Phone, content: person.phone },
+    person.phone && { key: "phone", icon: Phone, content: displayPhone(person.phone) },
     (person.iboNumber || person.ltdNumber) && {
       key: "ids",
       icon: IdCard,
@@ -427,7 +412,7 @@ function BusinessProfile({ person }: { person: CrmPerson }) {
 
   return (
     <div className={PAGE}>
-      <BackLink to="/people" label="People" current={person.name} />
+      <ProfileCrumbs current={person.name} />
 
       <ProfileHero
         person={person}
@@ -444,7 +429,16 @@ function BusinessProfile({ person }: { person: CrmPerson }) {
         contact={!isSelf}
         actions={actions}
         onEditDetails={openDetailsEdit}
+        onDelete={perms.canDelete ? () => setDeleteOpen(true) : undefined}
       />
+      {perms.canDelete && (
+        <DeletePersonDialog
+          person={person}
+          open={deleteOpen}
+          onOpenChange={setDeleteOpen}
+          onDeleted={() => navigate({ to: "/people" })}
+        />
+      )}
 
       {isDesktop && <StatStrip items={stats} />}
 
@@ -457,6 +451,7 @@ function BusinessProfile({ person }: { person: CrmPerson }) {
               <div className="grid min-w-0 content-start gap-4">
                 <ProfilePathCard person={person} canEdit={perms.canEditStage} />
                 <PipelineCard person={person} />
+                <ReferralsCard person={person} />
                 <EventsCard
                   person={person}
                   canEdit={canEditEvents}
@@ -479,6 +474,7 @@ function BusinessProfile({ person }: { person: CrmPerson }) {
             <div className="grid gap-3">
               <ProfilePathCard person={person} canEdit={perms.canEditStage} compact />
               <PipelineCard person={person} />
+              <ReferralsCard person={person} />
               <NextEventCard person={person} canEdit={canEditEvents} />
               <StatStrip items={stats} />
               <TeamCard person={person} />
@@ -503,13 +499,7 @@ function BusinessProfile({ person }: { person: CrmPerson }) {
         </TabsContent>
 
         <TabsContent value="details" className="mt-0">
-          <DetailsTab
-            person={person}
-            perms={perms}
-            editing={editing}
-            setEditing={setEditing}
-            onDeleted={() => navigate({ to: "/people" })}
-          />
+          <DetailsTab person={person} perms={perms} editing={editing} setEditing={setEditing} />
         </TabsContent>
 
         {isDesktop && (
@@ -537,6 +527,7 @@ function CustomerProfile({ person }: { person: CrmPerson }) {
   const lastContact = useLastContact(person.id);
   const [tab, setTab] = useState<CustTab>("overview");
   const [editing, setEditing] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   const contactDays = daysSince(lastContact);
   const lastBuy = sales[0];
@@ -618,7 +609,7 @@ function CustomerProfile({ person }: { person: CrmPerson }) {
       content: ownsIt ? <span>Your customer</span> : <span>Customer of {ownerLink}</span>,
     },
     person.location && { key: "loc", icon: MapPin, content: person.location },
-    person.phone && { key: "phone", icon: Phone, content: person.phone },
+    person.phone && { key: "phone", icon: Phone, content: displayPhone(person.phone) },
     person.email && {
       key: "email",
       icon: Mail,
@@ -639,7 +630,7 @@ function CustomerProfile({ person }: { person: CrmPerson }) {
 
   return (
     <div className={PAGE}>
-      <BackLink to="/customers" label="Customers" current={person.name} />
+      <ProfileCrumbs customer current={person.name} />
 
       <ProfileHero
         person={person}
@@ -662,7 +653,16 @@ function CustomerProfile({ person }: { person: CrmPerson }) {
         contact
         actions={actions}
         onEditDetails={openDetailsEdit}
+        onDelete={perms.canDelete ? () => setDeleteOpen(true) : undefined}
       />
+      {perms.canDelete && (
+        <DeletePersonDialog
+          person={person}
+          open={deleteOpen}
+          onOpenChange={setDeleteOpen}
+          onDeleted={() => navigate({ to: "/customers", search: { tab: "customers" } })}
+        />
+      )}
 
       <StatStrip items={stats} />
 
@@ -733,13 +733,7 @@ function CustomerProfile({ person }: { person: CrmPerson }) {
         </TabsContent>
 
         <TabsContent value="details" className="mt-0">
-          <DetailsTab
-            person={person}
-            perms={perms}
-            editing={editing}
-            setEditing={setEditing}
-            onDeleted={() => navigate({ to: "/customers" })}
-          />
+          <DetailsTab person={person} perms={perms} editing={editing} setEditing={setEditing} />
         </TabsContent>
 
         <TabsContent value="activity" className="mt-0">

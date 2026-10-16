@@ -1,22 +1,11 @@
-// Event types, quick attendance and missed-event follow-ups (MVP plan "Events").
-export {
-  EVENT_TYPES,
-  EVENT_TYPE_INFO,
-  EVENT_TYPE_LABEL,
-  EVENT_FORMAT_LABEL,
-  MODE_LABEL,
-  allowsVirtual,
-  canManageEvents,
-  eventFormat,
-  eventModes,
-  isEventType,
-  usesTickets,
-  usesTravel,
-  type EventTypeInfo,
-} from "./info";
+// How people join events, quick attendance and missed-event follow-ups (MVP
+// plan "Events"). The kinds of event are the team's categories
+// (src/data/eventCategories).
+export { EVENT_FORMAT_LABEL, MODE_LABEL, canManageEvents } from "./info";
 export { MAX_TICKET_URL, cleanTicketUrl, ticketHost } from "./ticketLink";
 export {
   MISSED_WINDOW_DAYS,
+  missedAudience,
   missedEventStreaks,
   openMissedFollowUps,
   type MissedHandled,
@@ -27,6 +16,7 @@ export {
   addMissedNote,
   removeMissedNote,
   setEventAttendance,
+  useCanFollowUpMissed,
   useCanManageEvents,
   useMissedAtEvent,
   useMissedFollowUps,

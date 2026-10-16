@@ -85,14 +85,14 @@ export function getUpcomingFollowUps(
 
 /**
  * Auto-picked comparison events for the audit (Compare) view: the previous
- * event of the same type, and the same-type event closest to one year
- * earlier (within 90 days). Calendar-day math on "YYYY-MM-DD" dates.
+ * event of the same category, and the same-category event closest to one
+ * year earlier (within 90 days). Calendar-day math on "YYYY-MM-DD" dates.
  */
 export function getComparisonEvents(
   current: CrmEvent,
   events: CrmEvent[],
 ): { prior?: CrmEvent; lastYear?: CrmEvent } {
-  const sameType = events.filter((e) => e.id !== current.id && e.type === current.type);
+  const sameType = events.filter((e) => e.id !== current.id && e.categoryId === current.categoryId);
   const prior = sameType
     .filter((e) => e.date < current.date)
     .sort((a, b) => b.date.localeCompare(a.date))[0];

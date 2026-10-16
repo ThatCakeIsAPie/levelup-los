@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Flame, Plus, Save, Thermometer } from "lucide-react";
+import { Plus, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -20,7 +20,8 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { toastWithUndo } from "@/components/log/quickLog";
-import { cn } from "@/lib/utils";
+import { PhoneInput, RatingPicker } from "@/components/brand";
+import { ReferrerPicker } from "@/modules/pipeline/Referrals";
 import {
   MAX_ENTRY_NAME,
   MAX_ENTRY_NOTES,
@@ -32,6 +33,7 @@ import {
   useListOwners,
   useListEntry,
   type ListRating,
+  type Ref,
 } from "@/data";
 
 /** Where "Add someone" can put a new name on the board. */
@@ -91,6 +93,8 @@ function EntryForm({ mode, onDone }: { mode: EntryDialogMode; onDone: () => void
   const [email, setEmail] = useState(existing?.email ?? "");
   const [notes, setNotes] = useState(existing?.notes ?? "");
   const [rating, setRating] = useState<ListRating | null>(existing?.rating ?? null);
+  // Kept for "Save and add another": a referral source usually passes on several names.
+  const [referredBy, setReferredBy] = useState<Ref | null>(null);
   const [column, setColumn] = useState<string>("contact");
   const [ownerId, setOwnerId] = useState(
     mode.kind === "list" ? mode.ownerId : (owners.find((o) => o.isMe)?.id ?? ""),
@@ -119,8 +123,8 @@ function EntryForm({ mode, onDone }: { mode: EntryDialogMode; onDone: () => void
     }
     const r =
       mode.kind === "board"
-        ? addCustomerContact({ ...input, ownerId, column })
-        : addListEntry({ ...input, ownerId });
+        ? addCustomerContact({ ...input, ownerId, column, referredBy })
+        : addListEntry({ ...input, ownerId, referredBy });
     if (!r.ok) return setError(r.error);
     const whose = owner && !owner.isMe ? `${owner.name.split(" ")[0]}'s list` : "your list";
     toastWithUndo(
@@ -190,12 +194,7 @@ function EntryForm({ mode, onDone }: { mode: EntryDialogMode; onDone: () => void
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="grid gap-1.5">
           <Label htmlFor="le-phone">Phone (optional)</Label>
-          <Input
-            id="le-phone"
-            type="tel"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-          />
+          <PhoneInput id="le-phone" value={phone} onValueChange={setPhone} />
         </div>
         <div className="grid gap-1.5">
           <Label htmlFor="le-email">Email (optional)</Label>
@@ -210,10 +209,13 @@ function EntryForm({ mode, onDone }: { mode: EntryDialogMode; onDone: () => void
           />
         </div>
       </div>
-      <fieldset className="grid gap-1.5">
-        <legend className="mb-1.5 text-sm font-medium">How warm are they?</legend>
+      <div className="grid gap-1.5">
+        <span className="text-sm font-medium">How warm are they? (optional)</span>
         <RatingPicker value={rating} onChange={setRating} />
-      </fieldset>
+      </div>
+      {mode.kind !== "edit" && (
+        <ReferrerPicker id="le-referred" value={referredBy} onChange={setReferredBy} />
+      )}
       {mode.kind === "board" && (
         <div className="grid gap-1.5">
           <Label htmlFor="le-column">Start in</Label>
@@ -272,50 +274,5 @@ function EntryForm({ mode, onDone }: { mode: EntryDialogMode; onDone: () => void
         </Button>
       </DialogFooter>
     </form>
-  );
-}
-
-/** None / Warm / Hot. */
-export function RatingPicker({
-  value,
-  onChange,
-}: {
-  value: ListRating | null;
-  onChange: (v: ListRating | null) => void;
-}) {
-  const options: { v: ListRating | null; label: string; icon?: typeof Flame }[] = [
-    { v: null, label: "Not sure" },
-    { v: "warm", label: "Warm", icon: Thermometer },
-    { v: "hot", label: "Hot", icon: Flame },
-  ];
-  return (
-    <div className="flex gap-1.5" role="radiogroup" aria-label="How warm are they?">
-      {options.map((o) => {
-        const on = value === o.v;
-        const Icon = o.icon;
-        return (
-          <button
-            key={o.label}
-            type="button"
-            role="radio"
-            aria-checked={on}
-            onClick={() => onChange(o.v)}
-            className={cn(
-              "inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[12.5px] font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-ring",
-              on
-                ? o.v === "hot"
-                  ? "border-bad bg-bad-soft text-bad"
-                  : o.v === "warm"
-                    ? "border-warn bg-warn-soft text-warn-ink"
-                    : "border-foreground bg-surface-2 text-foreground"
-                : "border-line text-muted-foreground hover:bg-surface-2",
-            )}
-          >
-            {Icon && <Icon className="size-3.5" aria-hidden="true" />}
-            {o.label}
-          </button>
-        );
-      })}
-    </div>
   );
 }

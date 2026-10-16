@@ -2,7 +2,9 @@ import { useMemo } from "react";
 import { usePeopleStore, type CrmPerson, type LosSyncEntry } from "@/stores/peopleStore";
 import { useAttendanceStore } from "@/stores/attendanceStore";
 import { useOpsStore } from "@/stores/opsStore";
+import { logPerson } from "@/stores/activityStore";
 import { IS_SUPABASE } from "@/lib/config";
+import { normalizePhone } from "@/lib/phone";
 import { scheduleRefresh, serverSide } from "./remote";
 import { rosterWithout } from "./cascade";
 import { downlineOf, sponsorChain, visibleCustomers, visibleIdSet, type Viewer } from "./access";
@@ -135,12 +137,50 @@ export function getPerson(id: string): CrmPerson | undefined {
 
 /** Add a person (business or customer). Logs to the activity timeline. */
 export function addPerson(p: Omit<CrmPerson, "id"> & { id?: string }): CrmPerson {
-  return usePeopleStore.getState().add(p);
+  return usePeopleStore.getState().add(withPhone(p));
 }
 
 /** Patch a person. Stage changes are recorded in stageHistory + activity. */
 export function updatePerson(id: string, patch: Partial<CrmPerson>): void {
-  usePeopleStore.getState().update(id, patch);
+  usePeopleStore.getState().update(id, withPhone(patch));
+}
+
+/** Phone numbers are stored one way: "(512) 555-0102" (src/lib/phone.ts). */
+function withPhone<T extends { phone?: string }>(p: T): T {
+  if (!("phone" in p) || p.phone === undefined) return p;
+  return { ...p, phone: normalizePhone(p.phone) || undefined };
+}
+
+/**
+ * Patch several people at once (bulk actions on the People list); each change
+ * is recorded like `updatePerson`. Returns an undo that puts back exactly the
+ * fields that changed, stage history included, so an undone stage change
+ * doesn't count as a registration.
+ */
+export function updatePeople(changes: { id: string; patch: Partial<CrmPerson> }[]): () => void {
+  const store = usePeopleStore.getState();
+  const before = new Map<string, { prev: CrmPerson; keys: (keyof CrmPerson)[] }>();
+  for (const { id, patch } of changes) {
+    const prev = store.getById(id);
+    if (!prev || before.has(id)) continue;
+    before.set(id, {
+      prev,
+      keys: [...(Object.keys(patch) as (keyof CrmPerson)[]), "stageHistory", "lastUpdatedAt"],
+    });
+    store.update(id, patch);
+  }
+  return () => {
+    usePeopleStore.setState({
+      people: usePeopleStore.getState().people.map((p) => {
+        const b = before.get(p.id);
+        if (!b) return p;
+        const restored: Record<string, unknown> = { ...p };
+        for (const k of b.keys) restored[k] = b.prev[k];
+        return restored as unknown as CrmPerson;
+      }),
+    });
+    for (const id of before.keys()) logPerson("updated", id, "Change undone");
+  };
 }
 
 /**

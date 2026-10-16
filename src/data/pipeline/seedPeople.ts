@@ -15,6 +15,7 @@
 import { subDays } from "date-fns";
 import { localDate } from "@/lib/dates";
 import type { CrmPerson } from "@/stores/peopleStore";
+import type { ContactRating } from "../rating";
 
 const ago = (n: number) => localDate(subDays(new Date(), n));
 
@@ -46,12 +47,13 @@ export const DAVID_HIDES = { personId: "3", stepId: "s-info3" };
 
 export interface Placement {
   personId: string;
-  /** Milestone code or step id. */
+  /** Milestone code, step id, or "referral_source" (reached from Contact made). */
   column: string;
   enteredDaysAgo: number;
   /** First contact; defaults to the person's joinedDate. */
   contactDaysAgo?: number;
-  hot?: boolean;
+  /** Hot / Warm / Cold (src/data/rating.ts). */
+  rating?: ContactRating;
   source?: string;
   /**
    * The booked next step: a column on the owner's board, in `inDays` days
@@ -134,15 +136,15 @@ export const NEXT_COLUMN: Record<string, string> = {
 
 /** Hand-placed existing prospects (the CRM seed's people). */
 const EXISTING: Placement[] = [
-  { personId: "5", column: "s-f2", enteredDaysAgo: 9, source: "Old friend", next: { column: "s-info3", inDays: 0, time: "19:00" }, note: "Bring her husband this time" },
-  { personId: "9", column: "first_plan", enteredDaysAgo: 3, hot: true, next: { column: "s-f1", inDays: -1 }, note: "Bring to Fall Weekend" },
-  { personId: "10", column: "s-door", enteredDaysAgo: 18 },
+  { personId: "5", column: "s-f2", enteredDaysAgo: 9, rating: "warm", source: "Old friend", next: { column: "s-info3", inDays: 0, time: "19:00" }, note: "Bring her husband this time" },
+  { personId: "9", column: "first_plan", enteredDaysAgo: 3, rating: "hot", next: { column: "s-f1", inDays: -1 }, note: "Bring to Fall Weekend" },
+  { personId: "10", column: "s-door", enteredDaysAgo: 18, rating: "cold" },
   { personId: "12", column: "first_meeting", enteredDaysAgo: 2, source: "Gym", next: { column: "s-book", inDays: 3 } },
   { personId: "15", column: "s-mg2", enteredDaysAgo: 8, next: { column: "first_plan", inDays: 2 } },
   { personId: "16", column: "s-f1", enteredDaysAgo: 6, next: { column: "s-info2", inDays: 1 }, note: "Call first" },
   { personId: "18", column: "s-story", enteredDaysAgo: 4, source: "Neighbor" },
   { personId: "20", column: "s-info2", enteredDaysAgo: 5, next: { column: "s-f2", inDays: 2 } },
-  { personId: "21", column: "s-story", enteredDaysAgo: 2, source: "Coworker", next: { column: "s-door", inDays: 0 } },
+  { personId: "21", column: "s-story", enteredDaysAgo: 2, rating: "warm", source: "Coworker", next: { column: "s-door", inDays: 0 } },
   { personId: "100", column: "s-door", enteredDaysAgo: 6, next: { column: "first_meeting", inDays: 3 } },
   { personId: "101", column: "s-book", enteredDaysAgo: 10 },
   { personId: "102", column: "contact", enteredDaysAgo: 33 },
@@ -157,7 +159,7 @@ const EXISTING: Placement[] = [
   { personId: "207", column: "s-mg2", enteredDaysAgo: 5 },
   { personId: "209", column: "s-info3", enteredDaysAgo: 8 },
   { personId: "212", column: "s-3way", enteredDaysAgo: 6, next: { column: "first_plan", inDays: 4 } },
-  { personId: "214", column: "first_meeting", enteredDaysAgo: 1, hot: true, next: { column: "s-book", inDays: 2 } },
+  { personId: "214", column: "first_meeting", enteredDaysAgo: 1, rating: "hot", next: { column: "s-book", inDays: 2 } },
   { personId: "304", column: "s-f2", enteredDaysAgo: 10 },
   { personId: "305", column: "s-info2", enteredDaysAgo: 4, next: { column: "s-f2", inDays: 3 } },
   { personId: "308", column: "s-door", enteredDaysAgo: 3, source: "Family" },
@@ -165,6 +167,28 @@ const EXISTING: Placement[] = [
   { personId: "310", column: "first_plan", enteredDaysAgo: 9 },
   { personId: "311", column: "s-book", enteredDaysAgo: 15 },
 ]; // prettier-ignore
+
+/**
+ * Referral sources (src/data/referrals): Maria's Nina passed on two names a
+ * couple of weeks ago, and Hector (in the column 9 days) hasn't yet, so Home
+ * says "Ask Hector for names". Jamal's Zane Hayes (205) referred Andre Lewis
+ * (21, src/data/seed.ts). All reach Contact made only, so the first-meeting
+ * numbers stay as tuned.
+ */
+const REFERRALS: { id: string; name: string; joined: number; referredBy?: string; place: Omit<Placement, "personId"> }[] = [
+  { id: "570", name: "Nina Alvarez", joined: 25, place: { column: "referral_source", enteredDaysAgo: 18, source: "Gym" } },
+  { id: "571", name: "Ty Jordan", joined: 4, referredBy: "570", place: { column: "contact", enteredDaysAgo: 4, rating: "warm", source: "Referral" } },
+  { id: "572", name: "Mae Collins", joined: 9, referredBy: "570", place: { column: "s-story", enteredDaysAgo: 2, source: "Referral" } },
+  { id: "573", name: "Hector Ruiz", joined: 16, place: { column: "referral_source", enteredDaysAgo: 9, source: "Coworker" } },
+]; // prettier-ignore
+
+/** Jamal's prospect who passes on names (Andre Lewis, 21, is one of them). */
+const JAMAL_REFERRAL_SOURCE: Placement = {
+  personId: "205",
+  column: "referral_source",
+  enteredDaysAgo: 10,
+  contactDaysAgo: 16,
+};
 
 /** People who registered lately (now apprentices). */
 const REGISTERED: { id: string; name: string; sponsorId: string; reg: number; contact: number; ibo: boolean }[] = [
@@ -222,7 +246,8 @@ export function pipelineSeedPlan(): Plan {
       column,
       enteredDaysAgo: entered,
       contactDaysAgo: contact,
-      hot: fresh && rng() < 0.1,
+      // Same draws as before ratings had three values; older cards cool off.
+      rating: fresh && rng() < 0.1 ? "hot" : !fresh && i % 5 === 0 ? "cold" : undefined,
       source: rng() < 0.5 ? pick(SOURCES) : undefined,
       // Some booked steps are due today or overdue (-2 to 3 days).
       next:
@@ -240,6 +265,23 @@ export function pipelineSeedPlan(): Plan {
       ...(CITY[owner] && rng() < 0.6 ? { location: CITY[owner] } : {}),
     });
   });
+
+  // Referral sources and the people they referred (Maria's, Jamal's).
+  for (const r of REFERRALS) {
+    placements.push({ personId: r.id, contactDaysAgo: r.joined, ...r.place });
+    people.push({
+      id: r.id,
+      name: r.name,
+      bizClass: "prospect",
+      sponsorId: "1",
+      pipelineStage: "prospect",
+      joinedDate: ago(r.joined),
+      location: CITY["1"],
+      ...(r.referredBy ? { referredBy: r.referredBy } : {}),
+    });
+  }
+  const zane = placements.findIndex((pl) => pl.personId === JAMAL_REFERRAL_SOURCE.personId);
+  if (zane >= 0) placements[zane] = JAMAL_REFERRAL_SOURCE;
 
   // Maria and Anita each get a first meeting booked for tonight and a first
   // plan that is a day overdue (Home's "Done" moves them through milestones).

@@ -16,7 +16,8 @@
  *    (`CUSTOMER_BOARD`): a start column, four fixed milestones (Contact →
  *    First meeting → First sale → On Ditto), leader steps between them
  *    (inherited down the sponsor line, hidden or added like recruiting
- *    steps), and two outcome columns.
+ *    steps), and three outcome columns (Referral source, Not interested,
+ *    Do not contact).
  *  - One card per entry (`CustomerCard`); an entry without one sits in "Not
  *    contacted yet". Every move is recorded (`CustomerMove`) and is the only
  *    source of activity and conversions, as on the recruiting board.
@@ -25,10 +26,14 @@
  *    subscription customer (`CrmPerson.dittoSince`). "Do not contact" hides
  *    the linked people from every reminder.
  */
+import type { ContactRating } from "../rating";
 import {
   DO_NOT_CONTACT,
   NOT_CONTACTED,
   NOT_INTERESTED,
+  REFERRAL_SOURCE,
+  REFERRAL_SOURCE_HINT,
+  REFERRAL_SOURCE_LABEL,
   type BoardDef,
   type PipelineStep,
   type StepHide,
@@ -60,12 +65,13 @@ export const CUSTOMER_MILESTONE_LABEL: Record<CustomerMilestone, string> = {
 };
 
 /** The fixed start and outcome columns (the same ids as on the recruiting board). */
-export { DO_NOT_CONTACT, NOT_CONTACTED, NOT_INTERESTED };
+export { DO_NOT_CONTACT, NOT_CONTACTED, NOT_INTERESTED, REFERRAL_SOURCE };
 export type FixedCustomerColumn =
-  typeof NOT_CONTACTED | typeof NOT_INTERESTED | typeof DO_NOT_CONTACT;
+  typeof NOT_CONTACTED | typeof REFERRAL_SOURCE | typeof NOT_INTERESTED | typeof DO_NOT_CONTACT;
 
 export const FIXED_CUSTOMER_COLUMNS = [
   { id: NOT_CONTACTED, band: "start", label: "Not contacted yet", hint: "From your list" },
+  { id: REFERRAL_SOURCE, band: "out", label: REFERRAL_SOURCE_LABEL, hint: REFERRAL_SOURCE_HINT },
   { id: NOT_INTERESTED, band: "out", label: "Not interested", hint: "Revisit in 6 months" },
   { id: DO_NOT_CONTACT, band: "out", label: "Do not contact", hint: "Hidden from reminders" },
 ] as const satisfies readonly {
@@ -109,7 +115,8 @@ export const STARTER_CUSTOMER_STEPS: { band: CustomerStepBand; label: string }[]
   { band: "first_sale", label: "Sample box sale" },
 ];
 
-export type ListRating = "warm" | "hot";
+/** Hot / Warm / Cold (src/data/rating.ts). */
+export type ListRating = ContactRating;
 
 /** `list_entries`: a name on someone's list. */
 export interface ListEntry {
@@ -127,6 +134,10 @@ export interface ListEntry {
   customerId: string | null;
   /** The prospect this name became on the recruiting pipeline. */
   prospectId: string | null;
+  /** Who referred this name: a person (src/data/referrals; at most one of the two). */
+  referredBy: string | null;
+  /** …or another name on a list (a referral source on the customer board). */
+  referredByEntry: string | null;
   /** Who added it (the owner, or an upline helping them). */
   addedBy: string;
   createdAt: string;

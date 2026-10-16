@@ -179,7 +179,6 @@ function LibraryHome() {
             ? `${views.length} ${views.length === 1 ? "channel" : "channels"} · ${done} of ${total} lessons done`
             : "Talks, videos and documents from your team"
         }
-        logButton={false}
         actions={
           <>
             {!desktop && (

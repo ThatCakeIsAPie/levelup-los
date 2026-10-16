@@ -20,6 +20,7 @@ import {
   columnsFor,
   countReaches,
   countReachesByOwner,
+  dayOf,
   daysInColumn,
   monthActivity,
   monthBounds,
@@ -34,6 +35,9 @@ import {
 import { MIN_SAMPLE, type PipelineColumn, type PipelineScope } from "../pipeline/types";
 import { usePipelineStore } from "../pipeline/store";
 import { bookingOf, bookingView } from "../pipeline/booking";
+import { ratingRank } from "../rating";
+import { useReferralIndex } from "../referrals/hooks";
+import { newReferralSources } from "../referrals/rules";
 import { useCustomerPipelineStore } from "./store";
 import {
   canEditListOf,
@@ -50,6 +54,7 @@ import {
   CUSTOMER_MILESTONES,
   CUSTOMER_STEP_BANDS,
   NOT_CONTACTED,
+  REFERRAL_SOURCE,
   type CustomerBand,
   type CustomerCard,
   type CustomerMilestone,
@@ -172,7 +177,7 @@ export function useYourList(ownerId: string | undefined): YourList {
     const byId = new Map(people.map((p) => [p.id, p]));
     const colIds = new Set(columns.map((c) => c.id));
     const order = new Map(columns.map((c, i) => [c.id, i]));
-    const rank = (e: ListEntry) => (e.rating === "hot" ? 0 : e.rating === "warm" ? 1 : 2);
+    const rank = (e: ListEntry) => ratingRank(e.rating);
     const rows = entryCards(
       entries.filter((e) => e.ownerId === owner.id),
       cards,
@@ -256,6 +261,7 @@ export function useCustomerBoard(
   const people = usePeopleStore((s) => s.people);
   const columns = useCustomerColumns(opt?.leaderId);
   const uplines = usePipelineUplines();
+  const refs = useReferralIndex();
   const today = localDate();
   return useMemo(() => {
     if (!opt) return null;
@@ -296,21 +302,21 @@ export function useCustomerBoard(
             : null,
         days: daysInColumn(card.enteredAt, today),
         stale: isCustomerStale(card.enteredAt, band, today),
-        hot: entry.rating === "hot",
-        warm: entry.rating === "warm",
+        rating: entry.rating,
         listed: !stored || card.column === NOT_CONTACTED,
-        dim: band === "out",
+        dim: band === "out" && card.column !== REFERRAL_SOURCE,
         booking: bookingView(bookingOf(card), boardOf(entry.ownerId), today),
         note: card.note,
         source: entry.howKnown,
         enteredAt: card.enteredAt,
+        referredBy: refs.referrerOf({ kind: "entry", id: entry.id })?.name ?? null,
+        referrals: refs.count({ kind: "entry", id: entry.id }),
       });
     }
     for (const list of byColumn.values()) {
       list.sort(
         (a, b) =>
-          Number(b.hot) - Number(a.hot) ||
-          Number(!!b.warm) - Number(!!a.warm) ||
+          ratingRank(a.rating) - ratingRank(b.rating) ||
           a.days - b.days ||
           a.name.localeCompare(b.name),
       );
@@ -333,7 +339,7 @@ export function useCustomerBoard(
       return { milestone: b, columns: cols, count };
     });
     return { columns, bands, registered: { cards: [], total: 0 }, inProgress };
-  }, [opt, entries, data, people, columns, month, today, uplines]);
+  }, [opt, entries, data, people, columns, month, today, uplines, refs]);
 }
 
 /**
@@ -393,6 +399,8 @@ export interface CustomerFunnel {
   rates: CustomerRate[];
   /** Per person (the viewer first, then their downline with activity). */
   rows: { personId: string; name: string; counts: MilestoneCounts<CustomerMilestone> }[];
+  /** Names moved to Referral source in the period (they passed on names instead of buying). */
+  referralSources: number;
 }
 
 /** Milestone-to-milestone conversions over the last `periodDays` days. */
@@ -430,7 +438,14 @@ export function useCustomerFunnel(scope: PipelineScope, periodDays: number): Cus
           Number(b.personId === viewer.personId) - Number(a.personId === viewer.personId) ||
           b.counts.contact - a.counts.contact,
       );
-    return { from, to: today, counts, rates, rows };
+    const referralSources = newReferralSources(
+      moves.map((m) => ({ personId: m.entryId, ownerId: m.ownerId, to: m.to, movedAt: m.movedAt })),
+      opt.owners,
+      from,
+      today,
+      dayOf,
+    );
+    return { from, to: today, counts, rates, rows, referralSources };
   }, [opt, viewer, moves, people, from, today]);
 }
 

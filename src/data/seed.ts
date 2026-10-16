@@ -25,9 +25,10 @@ import { registeredOn } from "./growth/engine";
 import type { ActivityEvent } from "@/stores/activityStore";
 import type { Logistics, SharedCost } from "@/stores/opsStore";
 import { pipelineSeedPeople } from "./pipeline/seedPeople";
+import { starterCategoryId as cat, type StarterKey } from "./eventCategories/rules";
 
 /** Bump to reset every persisted store to a fresh seed on next load. */
-export const SEED_VERSION = 14;
+export const SEED_VERSION = 16; // 16: event categories (events have categoryId, not type)
 
 const ago = (n: number) => daysFromToday(-n);
 const ahead = (n: number) => daysFromToday(n);
@@ -169,10 +170,12 @@ export function seedPeople(): CrmPerson[] {
       joinedDate: ago(14),
       email: "beau@example.com",
     }),
+    // Referred by Zane Hayes (205), Jamal's referral source (src/data/pipeline/seedPeople.ts).
     biz("21", "Andre Lewis", "prospect", "4", {
       location: "Decatur, GA",
       joinedDate: ago(9),
       phone: "404-555-0121",
+      referredBy: "205",
     }),
 
     // Customer path: always owned by an apprentice or IBO, never a downline.
@@ -327,7 +330,7 @@ export function seedEvents(): CrmEvent[] {
     {
       id: "e1",
       name: "Fall Leadership Weekend",
-      type: "conference",
+      categoryId: cat("conference"),
       date: fall,
       endDate: localDate(addDays(parseDate(fall), 1)),
       location: "Dallas, TX",
@@ -338,7 +341,7 @@ export function seedEvents(): CrmEvent[] {
     {
       id: "e5",
       name: "Monthly Team Meeting",
-      type: "monthly_meeting",
+      categoryId: cat("monthly_meeting"),
       date: ahead(10),
       location: "Dallas, TX and Zoom",
       notes: "Recognition, new apprentices, Fall Weekend ticket push.",
@@ -348,7 +351,7 @@ export function seedEvents(): CrmEvent[] {
     {
       id: "e2",
       name: `Fall Leadership Weekend ${yearOf(lastFall)}`,
-      type: "conference",
+      categoryId: cat("conference"),
       date: lastFall,
       endDate: localDate(addDays(parseDate(lastFall), 1)),
       location: "Dallas, TX",
@@ -357,7 +360,7 @@ export function seedEvents(): CrmEvent[] {
     {
       id: "e3",
       name: "Summer Conference",
-      type: "conference",
+      categoryId: cat("conference"),
       date: ago(91),
       endDate: ago(90),
       location: "Orlando, FL",
@@ -366,7 +369,7 @@ export function seedEvents(): CrmEvent[] {
     {
       id: "e4",
       name: "September Team Meeting",
-      type: "monthly_meeting",
+      categoryId: cat("monthly_meeting"),
       date: ago(20),
       location: "Zoom",
       format: "virtual",
@@ -374,7 +377,7 @@ export function seedEvents(): CrmEvent[] {
     {
       id: "e6",
       name: "August Team Meeting",
-      type: "monthly_meeting",
+      categoryId: cat("monthly_meeting"),
       date: ago(48),
       location: "Zoom",
       format: "virtual",
@@ -393,20 +396,28 @@ function recurringEvents(): CrmEvent[] {
   const owls = (id: string, d: number): CrmEvent => ({
     id,
     name: "Night Owls",
-    type: "night_owls",
+    categoryId: cat("night_owls"),
     date: day(d),
     location: "Maria's place, Dallas",
     format: "in_person",
   });
   const ev = (
     id: string,
-    type: CrmEvent["type"],
+    type: StarterKey,
     name: string,
     d: number,
     format: CrmEvent["format"],
     location: string,
     notes?: string,
-  ): CrmEvent => ({ id, name, type, date: day(d), location, format, ...(notes ? { notes } : {}) });
+  ): CrmEvent => ({
+    id,
+    name,
+    categoryId: cat(type),
+    date: day(d),
+    location,
+    format,
+    ...(notes ? { notes } : {}),
+  });
   return [
     owls("no1", -30),
     owls("no2", -23),

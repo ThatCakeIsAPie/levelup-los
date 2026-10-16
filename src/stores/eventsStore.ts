@@ -3,22 +3,20 @@ import { persist } from "zustand/middleware";
 import { dataStorage, seedOr } from "./storage";
 import { logEvent } from "./activityStore";
 import { seedEvents, SEED_VERSION } from "@/data/seed";
+import { convertLegacyEvents } from "@/data/eventCategories/rules";
 
-/**
- * The six event types (docs/plans/mvp-plan-2026-10-13.md "Events"). Labels,
- * which ones can be joined online and which use tickets / travel live in
- * src/data/eventTypes.
- */
-export type EventType =
-  "info_session" | "work_session" | "night_owls" | "training" | "monthly_meeting" | "conference";
-
-/** How people can join: in person, online, or either (online only where the type allows it). */
+/** How people can join: in person, online, or either (online only where the category allows it). */
 export type EventFormat = "in_person" | "virtual" | "both";
 
 export interface CrmEvent {
   id: string;
   name: string;
-  type: EventType;
+  /**
+   * The team's event category (src/data/eventCategories): its name, icon and
+   * settings (online, tickets, travel, missed-event reminders). Look it up
+   * with `useCategoryOf()` / `eventCategory(e)` from @/data.
+   */
+  categoryId: string;
   date: string; // "YYYY-MM-DD" (first day)
   /** Last day for multi-day events ("YYYY-MM-DD"); omit for single-day events. */
   endDate?: string;
@@ -64,6 +62,11 @@ export const useEventsStore = create<EventsState>()(
       partialize: (s) => ({ events: s.events }),
       version: SEED_VERSION,
       migrate: () => ({ events: seedEvents() }) as unknown as EventsState,
+      // Events saved before categories had a `type`: give them its category.
+      merge: (persisted, current) => {
+        const saved = (persisted as Partial<EventsState> | undefined)?.events;
+        return saved ? { ...current, events: convertLegacyEvents(saved) } : current;
+      },
     },
   ),
 );

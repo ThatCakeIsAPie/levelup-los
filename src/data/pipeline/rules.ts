@@ -614,7 +614,7 @@ export function implicitCard(p: CrmPerson): PipelineCard {
     nextStepDate: null,
     nextStepTime: null,
     note: null,
-    hot: false,
+    rating: null,
     source: null,
     droppedAt: null,
     updatedAt: at,

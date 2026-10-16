@@ -11,7 +11,7 @@ import type { ChatAccess } from "@/data";
 export function ChatGate({ access }: { access: ChatAccess }) {
   return (
     <div className="mx-auto grid w-full max-w-2xl content-start gap-5 px-4 py-5 lg:px-[26px] lg:py-[22px]">
-      <PageHeader title="Chats" logButton={false} />
+      <PageHeader title="Chats" />
       <section className="grid gap-5 overflow-hidden rounded-card border border-line bg-surface">
         <div className="grid gap-3 bg-event px-5 py-6 text-event-fg sm:px-7">
           <span className="grid size-12 place-items-center rounded-xl bg-white/10">

@@ -4,8 +4,9 @@ import {
   localDate,
   needsTicket,
   parseDate,
-  usesTickets,
+  usesTravel,
   type Attendance,
+  type CategoryLookup,
   type CrmEvent,
 } from "@/data";
 
@@ -53,32 +54,39 @@ export function ticketStats(rows: Attendance[], today = localDate()) {
   return { invited, bought, plannedThisWeek, needTicket };
 }
 
-/** The event the dashboard features: the next conference, else the next event. */
+/**
+ * The event the dashboard features: the next one whose category has travel
+ * (a conference), else the next event.
+ */
 export function pickFeaturedEvent(
   upcoming: CrmEvent[],
   mine: Attendance[],
   candidate: boolean,
+  categoryOf: CategoryLookup,
 ): CrmEvent | undefined {
   if (candidate) {
     const onList = new Set(mine.map((a) => a.eventId));
     const own = upcoming.find((e) => onList.has(e.id));
     if (own) return own;
   }
-  return upcoming.find((e) => e.type === "conference") ?? upcoming[0];
+  return upcoming.find((e) => usesTravel(categoryOf(e))) ?? upcoming[0];
 }
 
 /** Status of one person's attendance row, for chips. */
 export function attendanceStatus(
   a: Attendance | undefined,
-  /** Events without tickets read "Coming" / "Maybe" / "Can't make it". */
-  event?: Pick<CrmEvent, "type">,
+  /**
+   * Whether the event's category uses tickets (`usesTickets(category)`);
+   * events without them read "Coming" / "Maybe" / "Can't make it".
+   */
+  tickets = true,
 ): {
   tone: Tone;
   label: string;
   detail?: string;
 } {
   if (!a) return { tone: "neutral", label: "Not on the list yet" };
-  if (event && !usesTickets(event.type)) {
+  if (!tickets) {
     if (a.desireToAttend === "yes") return { tone: "good", label: "Coming" };
     if (a.desireToAttend === "maybe") return { tone: "info", label: "Maybe" };
     if (a.desireToAttend === "no") return { tone: "neutral", label: "Can't make it" };

@@ -33,6 +33,8 @@ export interface Sale {
    * Set by logSale; older sales without it fall back to the same rule.
    */
   personId?: string;
+  /** When it was logged (ISO); missing on older and seeded rows. */
+  createdAt?: string;
 }
 /** How a contact was recorded: by hand, from a chat conversation, or at an event. */
 export type ContactSource = "manual" | "message" | "event";
@@ -48,6 +50,8 @@ export interface Contact {
    * builds contacts without it.
    */
   source?: ContactSource;
+  /** When it was logged (ISO); missing on older and seeded rows. */
+  createdAt?: string;
 }
 
 /** Contacts with `source` filled in ("manual" when missing). */
@@ -73,6 +77,8 @@ export interface Learning {
    */
   unit?: LearningUnit;
   date: string;
+  /** When it was logged (ISO); missing on older and seeded rows. */
+  createdAt?: string;
 }
 export interface Settings {
   customerDays: number;
@@ -168,18 +174,29 @@ export const useCrmStore = create<CrmState>()(
     (set, get) => ({
       ...freshState(),
       logSale: (s) => {
-        const sale: Sale = { ...s, id: crypto.randomUUID() };
+        const sale: Sale = { createdAt: new Date().toISOString(), ...s, id: crypto.randomUUID() };
         set({ sales: [sale, ...get().sales] });
         return sale;
       },
       logContact: (c) => {
-        const contact: Contact = { source: "manual", ...c, id: crypto.randomUUID() };
+        const contact: Contact = {
+          source: "manual",
+          createdAt: new Date().toISOString(),
+          ...c,
+          id: crypto.randomUUID(),
+        };
         set({ contacts: [contact, ...get().contacts] });
         return contact;
       },
       removeSale: (id) => set({ sales: get().sales.filter((s) => s.id !== id) }),
       removeContact: (id) => set({ contacts: get().contacts.filter((c) => c.id !== id) }),
-      logLearning: (l) => set({ learning: [{ ...l, id: crypto.randomUUID() }, ...get().learning] }),
+      logLearning: (l) =>
+        set({
+          learning: [
+            { createdAt: new Date().toISOString(), ...l, id: crypto.randomUUID() },
+            ...get().learning,
+          ],
+        }),
       removeLearning: (id) => set({ learning: get().learning.filter((l) => l.id !== id) }),
       setSettings: (s) => set({ settings: { ...get().settings, ...s } }),
       setLearningGoal: (personId, goal) =>
@@ -283,6 +300,29 @@ const UNIT_WORDS: Record<LearningUnit, [string, string]> = {
 export function unitAmount(amount: number, unit: LearningUnit): string {
   const [one, many] = UNIT_WORDS[unit];
   return `${amount} ${amount === 1 ? one : many}`;
+}
+
+/**
+ * One line for a learning entry, as the profile's activity and Home's "What
+ * you did today" show it: "Read 20 pages of Atomic Habits", "Listened to a
+ * podcast: …", "Went to a workshop: …".
+ */
+export function learningLine(l: Pick<Learning, "kind" | "unit" | "amount" | "title">): string {
+  if (l.kind === "pages") {
+    return learningUnit(l) === "minutes"
+      ? `Read ${l.title} for ${unitAmount(l.amount, "minutes")}`
+      : `Read ${unitAmount(l.amount, learningUnit(l)!)} of ${l.title}`;
+  }
+  if (l.kind === "podcast") {
+    return learningUnit(l) === "minutes"
+      ? `Listened to ${l.title} for ${unitAmount(l.amount, "minutes")}`
+      : l.amount === 1
+        ? `Listened to a podcast: ${l.title}`
+        : `Listened to ${unitAmount(l.amount, "episodes")}: ${l.title}`;
+  }
+  return l.kind === "workshop"
+    ? `Went to a workshop: ${l.title}`
+    : `Went to a conference: ${l.title}`;
 }
 
 /** Consecutive days (ending today or yesterday) with any learning logged. */

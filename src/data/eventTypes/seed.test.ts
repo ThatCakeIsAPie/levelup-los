@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { localDate } from "@/lib/dates";
-import { effectiveBizClass } from "@/stores/peopleStore";
 import { DEMO_USERS } from "@/stores/sessionStore";
 import { filterAttendances, visibleIdSet } from "../access";
 import { seedAttendances, seedContacts, seedEvents, seedMissedNotes, seedPeople } from "../seed";
-import { eventFormat } from "./info";
-import { missedEventStreaks, openMissedFollowUps } from "./missed";
+import { categoryLookup, eventFormat, startingCategories } from "../eventCategories/rules";
+import { missedAudience, missedEventStreaks, openMissedFollowUps } from "./missed";
+
+const categories = startingCategories();
+const categoryOf = categoryLookup(categories);
 
 const people = seedPeople();
 const events = seedEvents();
@@ -24,28 +26,23 @@ function followUpsFor(personId: string) {
     contacts: contacts.filter((c) => ids.has(c.personId)),
     notes: notes.filter((n) => ids.has(n.personId)),
     today: localDate(),
+    categories,
   });
-  const team = new Set(
-    people
-      .filter((p) => ids.has(p.id) && ["apprentice", "ibo"].includes(effectiveBizClass(p)))
-      .map((p) => p.id),
+  const audience = missedAudience(
+    people.filter((p) => ids.has(p.id)),
+    personId,
   );
-  return openMissedFollowUps(streaks, personId, team).map((s) => `${s.personId}:${s.latest.id}`);
+  return openMissedFollowUps(streaks, personId, audience).map(
+    (s) => `${s.personId}:${s.latest.id}`,
+  );
 }
 
-describe("seed: event types and missed-event follow-ups", () => {
-  it("has every type, with formats its type allows", () => {
-    const types = new Set(events.map((e) => e.type));
-    expect([...types].sort()).toEqual([
-      "conference",
-      "info_session",
-      "monthly_meeting",
-      "night_owls",
-      "training",
-      "work_session",
-    ]);
-    for (const e of events) expect(eventFormat(e)).toBe(e.format);
-    expect(events.filter((e) => e.type === "night_owls")).toHaveLength(7);
+describe("seed: event categories and missed-event follow-ups", () => {
+  it("uses every starting category, with formats its category allows", () => {
+    const used = new Set(events.map((e) => e.categoryId));
+    expect([...used].sort()).toEqual(categories.map((c) => c.id).sort());
+    for (const e of events) expect(eventFormat(e, categoryOf(e))).toBe(e.format);
+    expect(events.filter((e) => e.categoryId === "w1-night_owls")).toHaveLength(7);
   });
 
   it("gives the demo logins their follow-ups", () => {

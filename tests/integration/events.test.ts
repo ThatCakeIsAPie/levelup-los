@@ -1,5 +1,5 @@
 /**
- * Event types and missed-event follow-ups against the local database: what
+ * Event categories and missed-event follow-ups against the local database: what
  * each demo login's follow-ups are, an upline logging a downline's attendance
  * (in person / virtual) and a check-in or an "already handled" note clearing
  * a follow-up for every upline, and a note from a downline refused.
@@ -15,8 +15,8 @@ import { useSessionStore } from "@/stores/sessionStore";
 import { useAttendanceStore } from "@/stores/attendanceStore";
 import {
   addMissedNote,
-  effectiveBizClass,
   logContact,
+  missedAudience,
   missedEventStreaks,
   openMissedFollowUps,
   removeContact,
@@ -69,13 +69,9 @@ function openFollowUps(snap: Snapshot, me: string): string[] {
     contacts: snap.crm.contacts,
     notes: snap.crm.missedNotes,
     today: localDate(),
+    categories: snap.crm.eventCategories,
   });
-  const team = new Set(
-    snap.crm.people
-      .filter((p) => ["apprentice", "ibo"].includes(effectiveBizClass(p)))
-      .map((p) => p.id),
-  );
-  return openMissedFollowUps(streaks, me, team)
+  return openMissedFollowUps(streaks, me, missedAudience(snap.crm.people, me))
     .map((s) => `${s.personId}:${s.latest.id}`)
     .sort();
 }
@@ -99,10 +95,20 @@ afterAll(async () => {
   await Promise.all(clients.map((c) => c.auth.signOut({ scope: "local" })));
 });
 
-describe("event types and missed-event follow-ups", () => {
-  it("loads the six types and the same follow-ups as the browser demo", async () => {
+describe("event categories and missed-event follow-ups", () => {
+  it("loads the six starting categories and the same follow-ups as the browser demo", async () => {
     const snap = await fetchSnapshot(await login("jamal"), "4");
-    expect(new Set(snap.crm.events.map((e) => e.type)).size).toBe(6);
+    const starting = snap.crm.eventCategories.filter((c) => c.id.startsWith("w1-"));
+    expect(starting.map((c) => c.name)).toEqual([
+      "Night Owls",
+      "Work session",
+      "Info session",
+      "Training",
+      "Monthly team meeting",
+      "Conference",
+    ]);
+    expect(new Set(snap.crm.events.map((e) => e.categoryId)).size).toBe(6);
+    expect(snap.crm.events.find((e) => e.id === "no5")?.categoryId).toBe("w1-night_owls");
     expect(snap.crm.events.find((e) => e.id === "is2")?.format).toBe("both");
     expect(snap.crm.attendances.find((a) => a.id === "is1-21")?.attended).toBe(true);
     expect(openFollowUps(snap, "4")).toEqual(["700:no5"]);

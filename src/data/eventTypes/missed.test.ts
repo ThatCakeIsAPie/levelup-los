@@ -1,17 +1,29 @@
 import { describe, expect, it } from "vitest";
 import { addDays, format } from "date-fns";
 import { parseDate } from "@/lib/dates";
-import type { CrmEvent, EventType } from "@/stores/eventsStore";
+import type { CrmEvent } from "@/stores/eventsStore";
 import type { Attendance, MissedEventNote } from "@/stores/attendanceStore";
-import { missedEventStreaks, openMissedFollowUps, type MissedInput } from "./missed";
+import type { CrmPerson } from "@/stores/peopleStore";
+import { starterCategoryId, startingCategories, type StarterKey } from "../eventCategories/rules";
+import {
+  missedAudience,
+  missedEventStreaks,
+  openMissedFollowUps,
+  type MissedInput,
+} from "./missed";
 
 const TODAY = "2026-10-13";
 const day = (n: number) => format(addDays(parseDate(TODAY), n), "yyyy-MM-dd");
 
-const ev = (id: string, type: EventType, offset: number, endOffset?: number): CrmEvent => ({
+const ev = (
+  id: string,
+  key: StarterKey | string,
+  offset: number,
+  endOffset?: number,
+): CrmEvent => ({
   id,
   name: id,
-  type,
+  categoryId: key.includes("-") ? key : starterCategoryId(key as StarterKey),
   date: day(offset),
   ...(endOffset !== undefined ? { endDate: day(endOffset) } : {}),
 });
@@ -51,14 +63,18 @@ describe("missedEventStreaks", () => {
   it("flags someone who came last week but not this week (weekly Night Owls)", () => {
     const s = run({ attendances: [came("o2", "tasha"), came("o3", "jamal"), came("o2", "jamal")] });
     expect(s).toHaveLength(1);
-    expect(s[0]).toMatchObject({ personId: "tasha", type: "night_owls", key: "tasha:night_owls" });
+    expect(s[0]).toMatchObject({
+      personId: "tasha",
+      categoryId: "w1-night_owls",
+      key: "tasha:w1-night_owls",
+    });
     expect(s[0].lastAttended.id).toBe("o2");
     expect(s[0].latest.id).toBe("o3");
     expect(s[0].missed.map((e) => e.id)).toEqual(["o3"]);
     expect(s[0].handled).toBeUndefined();
   });
 
-  it("leaves people who never came to that type alone", () => {
+  it("leaves people who never came to that category alone", () => {
     const s = run({ attendances: [came("o3", "jamal"), row("o3", "beau", { attended: false })] });
     expect(s).toEqual([]);
   });
@@ -119,7 +135,7 @@ describe("missedEventStreaks", () => {
     expect(s.map((x) => x.personId)).toEqual(["jamal"]);
   });
 
-  it("works out each type on its own", () => {
+  it("works out each category on its own", () => {
     const events = [...owls, ev("t1", "training", -20), ev("t2", "training", -6)];
     const s = run({
       events,
@@ -130,7 +146,7 @@ describe("missedEventStreaks", () => {
         came("t2", "jamal"),
       ],
     });
-    expect(s.map((x) => x.key)).toEqual(["tasha:training"]);
+    expect(s.map((x) => x.key)).toEqual(["tasha:w1-training"]);
   });
 
   it("drops misses older than the window", () => {
@@ -213,5 +229,74 @@ describe("openMissedFollowUps", () => {
   it("only shows people on the viewer's team, and only open ones", () => {
     const open = openMissedFollowUps(streaks, "maria", new Set(["tasha", "lead"]));
     expect(open.map((s) => s.personId)).toEqual(["tasha"]);
+  });
+});
+
+describe("missed follow-ups per category", () => {
+  const attendances = [came("o2", "tasha"), came("o3", "jamal")];
+
+  it("skips categories that don't remind uplines", () => {
+    const categories = startingCategories().map((c) =>
+      c.id === "w1-night_owls" ? { ...c, countsForMissed: false } : c,
+    );
+    expect(run({ attendances, categories })).toEqual([]);
+    expect(run({ attendances, categories: startingCategories() })).toHaveLength(1);
+  });
+
+  it("keeps counting an archived category's events", () => {
+    const categories = startingCategories().map((c) =>
+      c.id === "w1-night_owls" ? { ...c, archivedAt: "2026-10-12T00:00:00.000Z" } : c,
+    );
+    expect(run({ attendances, categories }).map((x) => x.personId)).toEqual(["tasha"]);
+  });
+
+  it("joins two categories' runs once they're merged", () => {
+    // Book club on two Saturdays, then merged into Night Owls: one run.
+    const events = [ev("b1", "team-book_club", -16), ev("o3", "night_owls", -7)];
+    const before = run({ events, attendances: [came("b1", "tasha"), came("o3", "jamal")] });
+    expect(before).toEqual([]);
+    const merged = events.map((e) => ({ ...e, categoryId: "w1-night_owls" }));
+    const after = run({ events: merged, attendances: [came("b1", "tasha"), came("o3", "jamal")] });
+    expect(after.map((x) => `${x.personId}:${x.latest.id}`)).toEqual(["tasha:o3"]);
+  });
+
+  it("counts a team's own category like the starting ones", () => {
+    const events = [ev("c1", "team-couples", -14), ev("c2", "team-couples", -7)];
+    const s = run({
+      events,
+      attendances: [came("c1", "tasha"), came("c2", "jamal")],
+      categories: [{ id: "team-couples", countsForMissed: true }],
+    });
+    expect(s.map((x) => x.key)).toEqual(["tasha:team-couples"]);
+  });
+});
+
+describe("missedAudience (who an upline follows up)", () => {
+  const p = (id: string, bizClass: CrmPerson["bizClass"], o: Partial<CrmPerson> = {}): CrmPerson =>
+    ({ id, name: id, bizClass, ...o }) as CrmPerson;
+  const people = [
+    p("maria", "ibo"),
+    p("jamal", "apprentice", { sponsorId: "maria" }),
+    p("carlos", "prospect", { sponsorId: "jamal" }),
+    p("grace", "customer", { ownerId: "maria" }),
+    p("kofi", "customer", { ownerId: "jamal" }),
+    p("lena", "customer", { ownerId: "someone-else" }),
+    p("omar", "customer", { ownerId: "maria" }),
+  ];
+
+  it("includes the team and customers of the viewer or their team, never prospects", () => {
+    const a = missedAudience(people, "maria");
+    expect([...a].sort()).toEqual(["grace", "jamal", "kofi", "maria", "omar"]);
+  });
+
+  it("leaves out customers in Do not contact", () => {
+    expect(missedAudience(people, "maria", new Date(), new Set(["omar"])).has("omar")).toBe(false);
+  });
+
+  it("gives the customer's owner the follow-up when a customer misses", () => {
+    const events = [ev("i1", "info_session", -14), ev("i2", "info_session", -7)];
+    const streaks = run({ events, attendances: [came("i1", "grace"), came("i2", "jamal")] });
+    const open = openMissedFollowUps(streaks, "maria", missedAudience(people, "maria"));
+    expect(open.map((s) => s.personId)).toEqual(["grace"]);
   });
 });

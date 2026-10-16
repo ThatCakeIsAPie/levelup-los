@@ -29,6 +29,8 @@ export {
   saleSellerId,
   isPersonalOrder,
   isRegistered,
+  teamStructure,
+  type TeamStructure,
   type GrowthInput,
   type HistoryUpdate,
 } from "./engine";

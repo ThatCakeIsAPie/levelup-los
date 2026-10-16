@@ -55,6 +55,10 @@ export interface CrmPerson {
   lastUpdatedAt?: string; // ISO
   /** Stable link to a mind-map node (shared roster). */
   losUid?: string;
+  /** Prospects and customers: who referred them, a person (src/data/referrals; at most one of the two). */
+  referredBy?: string | null;
+  /** …or a name on a list (a referral source on the customer board). */
+  referredByEntry?: string | null;
 }
 
 interface PeopleState {

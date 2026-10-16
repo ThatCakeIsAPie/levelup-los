@@ -117,6 +117,7 @@ describe("columns: milestones, bands and inherited steps", () => {
       "f1",
       "info3",
       "registered",
+      "referral_source",
       "not_interested",
       "do_not_contact",
     ]);
@@ -135,6 +136,7 @@ describe("columns: milestones, bands and inherited steps", () => {
       "f1",
       "info3",
       "registered",
+      "referral_source",
       "not_interested",
       "do_not_contact",
     ]);
@@ -149,12 +151,14 @@ describe("columns: milestones, bands and inherited steps", () => {
     ]);
     expect(bandOf("not_contacted", steps)).toBe("start");
     expect(bandOf("do_not_contact", steps)).toBe("out");
+    expect(bandOf("referral_source", steps)).toBe("out");
     expect(recruitingBand("gone", steps)).toBe("contact");
   });
 
   it("won't let a step take a fixed column's name", () => {
     expect(stepLabelError("Not interested", [])).toMatch(/milestone/);
     expect(stepLabelError("do not contact", [])).toMatch(/milestone/);
+    expect(stepLabelError("Referral source", [])).toMatch(/milestone/);
   });
 
   it("a leader's own step is not seen by their upline or a crossline", () => {
@@ -228,7 +232,7 @@ describe("moves", () => {
     nextStepDate: null,
     nextStepTime: null,
     note: null,
-    hot: false,
+    rating: null,
     source: null,
     droppedAt: null,
     updatedAt: "2026-10-01T10:00:00.000Z",

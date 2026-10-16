@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useCallback, useEffect, useId, useMemo } from "react";
+import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import {
   ChevronsDownUp,
   ChevronsUpDown,
@@ -14,10 +14,9 @@ import { MindmapCanvas } from "@/components/mindmap/MindmapCanvas";
 import { NodeCard } from "@/components/mindmap/NodeCard";
 import { NODE_H, NODE_W } from "@/components/mindmap/layout";
 import type { PositionedNode, TreeNode } from "@/components/mindmap/types";
-import { useTreeStore } from "@/components/mindmap/useTreeStore";
+import { rosterIdOf, useTreeStore } from "@/components/mindmap/useTreeStore";
 import { UploadButton } from "@/components/import/UploadButton";
 import { useSpreadsheetUpload } from "@/components/import/useSpreadsheetUpload";
-import { LogButton } from "@/components/log/LogSheet";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -27,15 +26,19 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Switch } from "@/components/ui/switch";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { autoMap } from "@/lib/parseSpreadsheet";
+import { cn } from "@/lib/utils";
 import { rosterToRows } from "@/lib/demoData";
 import {
   effectiveBizClass,
+  teamStructure,
   useCurrentUser,
   useMe,
   useMonthPvById,
   useVisibleTeam,
   type CrmPerson,
+  type TeamStructure,
 } from "@/data";
 
 export const Route = createFileRoute("/mindmap")({
@@ -60,10 +63,48 @@ function findByName(nodes: TreeNode[], name: string): TreeNode | null {
   return null;
 }
 
+/**
+ * "Include prospects" on the map, remembered per viewer on this device.
+ * Off by default: the team is registered people, like Home.
+ */
+function useIncludeProspects(personId: string): [boolean, (on: boolean) => void] {
+  const key = `levelup.mindmap.prospects.${personId}`;
+  const read = () => {
+    try {
+      return localStorage.getItem(key) === "1";
+    } catch {
+      return false;
+    }
+  };
+  const [state, setState] = useState(() => ({ key, on: read() }));
+  // Another person signing in on this device gets their own choice.
+  const on = state.key === key ? state.on : read();
+  const set = (next: boolean) => {
+    setState({ key, on: next });
+    try {
+      if (next) localStorage.setItem(key, "1");
+      else localStorage.removeItem(key);
+    } catch {
+      // Storage blocked: the choice lasts until the page reloads.
+    }
+  };
+  return [on, set];
+}
+
 function MindmapPage() {
   const user = useCurrentUser();
   const me = useMe();
-  const team = useVisibleTeam();
+  const visibleTeam = useVisibleTeam();
+  const [includeProspects, setIncludeProspects] = useIncludeProspects(user.personId);
+  // Without prospects the map draws registered people only. A prospect with
+  // someone under them stays, so nobody below them drops off the map.
+  const team = useMemo(() => {
+    if (includeProspects) return visibleTeam;
+    const sponsors = new Set(visibleTeam.map((p) => p.sponsorId));
+    return visibleTeam.filter(
+      (p) => p.bizClass !== "prospect" || p.id === user.personId || sponsors.has(p.id),
+    );
+  }, [visibleTeam, includeProspects, user.personId]);
   const pvById = useMonthPvById();
   const roots = useTreeStore((s) => s.roots);
   const source = useTreeStore((s) => s.source);
@@ -115,6 +156,9 @@ function MindmapPage() {
         uploaded={uploaded}
         isCandidate={isCandidate}
         onUseRoster={() => loadRoster(false)}
+        people={visibleTeam}
+        includeProspects={includeProspects}
+        onIncludeProspects={setIncludeProspects}
       />
       <div className="relative min-h-0 flex-1">
         {isCandidate ? (
@@ -150,52 +194,151 @@ function MindmapPage() {
   );
 }
 
+function findNodeById(node: TreeNode, id: string): TreeNode | null {
+  if (node.person.id === id) return node;
+  for (const c of node.children) {
+    const hit = findNodeById(c, id);
+    if (hit) return hit;
+  }
+  return null;
+}
+
+/**
+ * Frontline/total for a map node. Roster maps count like the growth path
+ * (registered people, `teamStructure`); an uploaded sheet has no stages, so
+ * it counts everyone in it.
+ */
+function structureOf(node: TreeNode, people: CrmPerson[], includeProspects: boolean) {
+  const id = rosterIdOf(node.person);
+  if (id) return teamStructure(people, id, { includeProspects });
+  return {
+    frontline: node.children.length,
+    total: Math.max(0, (node.person.memberCount ?? 1) - 1),
+  };
+}
+
+/** "4/27": 4 personally sponsored, 27 in the whole group, with the meaning in a tooltip. */
+function StructureBadge({
+  s,
+  whose,
+  mode,
+}: {
+  s: TeamStructure;
+  /** "you" or a first name, for the explanation. */
+  whose: string;
+  mode: "registered" | "prospects" | "sheet";
+}) {
+  const ratio = `${s.frontline}/${s.total}`;
+  const people = (n: number) => `${n} ${n === 1 ? "person" : "people"}`;
+  const notMe = whose === "you" ? "not counting you" : `not counting ${whose}`;
+  const explain =
+    mode === "registered"
+      ? `${s.frontline} personally sponsored · ${people(s.total)} registered in the whole group, ${notMe}. The same count as the 3/10 and 6/25 milestones.`
+      : mode === "prospects"
+        ? `${s.frontline} on the frontline · ${people(s.total)} in the whole group, prospects included, ${notMe}. Milestones count registered people only.`
+        : `${s.frontline} on the frontline · ${people(s.total)} in the whole group, ${notMe}, from the spreadsheet.`;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          aria-label={`${ratio}: ${explain}`}
+          className={cn(
+            "inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[12px] font-bold tabular-nums focus-visible:outline-2 focus-visible:outline-ring",
+            mode === "prospects"
+              ? "bg-stage-prospect-soft text-stage-prospect-ink"
+              : "bg-primary-soft text-primary-ink",
+          )}
+        >
+          {ratio}
+          {mode === "prospects" && <span className="font-semibold">with prospects</span>}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent aria-hidden="true" className="max-w-64">
+        {explain}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
 function Toolbar({
   root,
   rootCount,
   uploaded,
   isCandidate,
   onUseRoster,
+  people,
+  includeProspects,
+  onIncludeProspects,
 }: {
   root: TreeNode | undefined;
   rootCount: number;
   uploaded: boolean;
   isCandidate: boolean;
   onUseRoster: () => void;
+  /** Everyone on the viewer's team (for the structure numbers). */
+  people: CrmPerson[];
+  includeProspects: boolean;
+  onIncludeProspects: (on: boolean) => void;
 }) {
   const user = useCurrentUser();
   const expandAll = useTreeStore((s) => s.expandAll);
   const collapseAll = useTreeStore((s) => s.collapseAll);
   const showAllCustomers = useTreeStore((s) => s.showAllCustomers);
   const setShowAllCustomers = useTreeStore((s) => s.setShowAllCustomers);
+  const selectedId = useTreeStore((s) => s.selectedId);
+  const select = useTreeStore((s) => s.select);
   const upload = useSpreadsheetUpload();
   const switchId = useId();
+  const prospectsId = useId();
 
-  const members = root?.person.memberCount ?? 1;
+  // The structure follows the card you tapped; otherwise the whole map.
+  const focus = (root && selectedId && findNodeById(root, selectedId)) || root;
+  const focused = !!focus && focus !== root;
   const isMe = root?.person.name === user.name;
-  const people = `${members} ${members === 1 ? "person" : "people"}`;
+  const structure = useMemo(
+    () => (focus ? structureOf(focus, people, includeProspects && !uploaded) : null),
+    [focus, people, includeProspects, uploaded],
+  );
+  const whose =
+    focus && !(focus === root && isMe) ? focus.person.name.split(/[ ,]+/)[0] || "them" : "you";
 
   return (
-    <header className="flex shrink-0 items-center gap-x-3 gap-y-2 border-b border-line bg-app px-4 py-2.5 lg:px-[26px] lg:py-3">
+    <header className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b border-line bg-app px-4 py-2.5 lg:px-[26px] lg:py-3">
       {upload.input}
       <div className="min-w-0 flex-1">
         <h1 className="text-[19px] font-extrabold leading-tight lg:text-[22px]">Mindmap</h1>
         <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[12.5px] text-muted-foreground">
           {isCandidate ? (
             <span className="truncate">Just you for now</span>
-          ) : root ? (
+          ) : focus && structure ? (
             <>
-              <PersonAvatar name={root.person.name} size="sm" className="hidden size-5 sm:grid" />
+              <PersonAvatar name={focus.person.name} size="sm" className="hidden size-5 sm:grid" />
               <span className="truncate">
-                {isMe ? "Your team" : `${root.person.name}'s team`} ·{" "}
-                <span className="tabular-nums">{people}</span>
-                {uploaded && (rootCount > 1 ? ` · tree 1 of ${rootCount}` : " · from spreadsheet")}
+                {focused ? focus.person.name : isMe ? "Your team" : `${focus.person.name}'s team`}
+                {!focused &&
+                  uploaded &&
+                  (rootCount > 1 ? ` · tree 1 of ${rootCount}` : " · from spreadsheet")}
               </span>
+              <StructureBadge
+                s={structure}
+                whose={whose}
+                mode={uploaded ? "sheet" : includeProspects ? "prospects" : "registered"}
+              />
+              {focused && (
+                <button
+                  type="button"
+                  onClick={() => select(null)}
+                  className="shrink-0 rounded font-semibold text-primary hover:underline focus-visible:outline-2 focus-visible:outline-ring"
+                >
+                  {isMe ? "Back to you" : "Whole map"}
+                </button>
+              )}
             </>
           ) : uploaded ? (
             <span className="truncate">From spreadsheet</span>
           ) : null}
-          {uploaded && (
+          {uploaded && !focused && (
             <button
               type="button"
               onClick={onUseRoster}
@@ -209,16 +352,29 @@ function Toolbar({
 
       {!isCandidate && (
         <>
-          <div className="flex items-center gap-2">
-            <Switch
-              id={switchId}
-              checked={showAllCustomers}
-              onCheckedChange={setShowAllCustomers}
-            />
-            <label htmlFor={switchId} className="cursor-pointer text-[12.5px] font-semibold">
-              <span className="sm:hidden">Customers</span>
-              <span className="hidden sm:inline">Show customers</span>
-            </label>
+          <div className="flex items-center gap-4 max-sm:order-last max-sm:w-full">
+            {!uploaded && (
+              <div className="flex items-center gap-2">
+                <Switch
+                  id={prospectsId}
+                  checked={includeProspects}
+                  onCheckedChange={onIncludeProspects}
+                />
+                <label htmlFor={prospectsId} className="cursor-pointer text-[12.5px] font-semibold">
+                  Include prospects
+                </label>
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              <Switch
+                id={switchId}
+                checked={showAllCustomers}
+                onCheckedChange={setShowAllCustomers}
+              />
+              <label htmlFor={switchId} className="cursor-pointer text-[12.5px] font-semibold">
+                Show customers
+              </label>
+            </div>
           </div>
 
           <div className="hidden items-center gap-2 xl:flex">
@@ -259,7 +415,6 @@ function Toolbar({
           </DropdownMenu>
         </>
       )}
-      <LogButton className="hidden lg:inline-flex" />
     </header>
   );
 }

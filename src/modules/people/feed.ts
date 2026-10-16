@@ -1,8 +1,7 @@
 import { useMemo } from "react";
 import {
-  learningUnit,
+  learningLine,
   parseDate,
-  unitAmount,
   useActivity,
   useAttendancesForPerson,
   useChatPeople,
@@ -120,21 +119,13 @@ export function usePersonFeed(personId: string): FeedItem[] {
     }
 
     for (const l of learning) {
-      const text =
-        l.kind === "pages"
-          ? learningUnit(l) === "minutes"
-            ? `Read ${l.title} for ${unitAmount(l.amount, "minutes")}`
-            : `Read ${unitAmount(l.amount, learningUnit(l)!)} of ${l.title}`
-          : l.kind === "podcast"
-            ? learningUnit(l) === "minutes"
-              ? `Listened to ${l.title} for ${unitAmount(l.amount, "minutes")}`
-              : l.amount === 1
-                ? `Listened to a podcast: ${l.title}`
-                : `Listened to ${unitAmount(l.amount, "episodes")}: ${l.title}`
-            : l.kind === "workshop"
-              ? `Went to a workshop: ${l.title}`
-              : `Went to a conference: ${l.title}`;
-      out.push({ id: `learn-${l.id}`, at: timeOf(l.date), when: l.date, text, dot: "sky" });
+      out.push({
+        id: `learn-${l.id}`,
+        at: timeOf(l.date),
+        when: l.date,
+        text: learningLine(l),
+        dot: "sky",
+      });
     }
 
     for (const s of sales) {

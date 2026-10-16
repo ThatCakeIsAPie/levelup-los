@@ -3,7 +3,6 @@ import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { PersonAvatar, StageChip, ToneChip, useIsDesktop } from "@/components/brand";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
@@ -45,6 +44,7 @@ import { cn } from "@/lib/utils";
 import { usePeopleMap } from "./hooks";
 import { riskReasons } from "./lib";
 import { Segmented } from "./Segmented";
+import { ClearableDate } from "./ClearableDate";
 
 /**
  * Every per-attendee field in one place (desire, ticket, dates, helper,
@@ -145,12 +145,12 @@ function EditFields({
 
         <div className="grid gap-1.5">
           <Label>Wants to go</Label>
-          <Segmented<DesireLevel>
+          <Segmented<DesireLevel | "unset">
             label="Wants to go"
-            allowEmpty
-            value={a.desireToAttend}
-            onChange={(v) => up({ desireToAttend: v })}
+            value={a.desireToAttend ?? "unset"}
+            onChange={(v) => up({ desireToAttend: v === "unset" ? undefined : v })}
             options={[
+              { value: "unset", label: "Not asked" },
               { value: "yes", label: "Yes" },
               { value: "maybe", label: "Maybe" },
               { value: "no", label: "No" },
@@ -192,11 +192,11 @@ function EditFields({
               <Label htmlFor={fid("plan")} className="text-xs font-medium text-muted-foreground">
                 Plans to buy by
               </Label>
-              <Input
+              <ClearableDate
                 id={fid("plan")}
-                type="date"
-                value={a.plannedPurchaseDate ?? ""}
-                onChange={(e) => up({ plannedPurchaseDate: e.target.value || undefined })}
+                label="plans to buy by date"
+                value={a.plannedPurchaseDate}
+                onChange={(v) => up({ plannedPurchaseDate: v })}
               />
             </div>
           )}
@@ -220,14 +220,14 @@ function EditFields({
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           <div className="grid gap-1.5">
             <Label htmlFor={fid("fu")}>Follow-up</Label>
-            <Input
+            <ClearableDate
               id={fid("fu")}
-              type="date"
-              value={a.followUpDate ?? ""}
-              onChange={(e) => up({ followUpDate: e.target.value || undefined })}
+              label="follow-up date"
+              value={a.followUpDate}
+              onChange={(v) => up({ followUpDate: v })}
             />
           </div>
           <div className="grid gap-1.5">
@@ -241,6 +241,9 @@ function EditFields({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">No helper</SelectItem>
+                {a.helperId && !visible.some((p) => p.id === a.helperId) && (
+                  <SelectItem value={a.helperId}>Someone outside your team</SelectItem>
+                )}
                 {visible
                   .filter((p) => p.id !== a.personId && p.bizClass !== "customer")
                   .map((p) => (
@@ -276,7 +279,7 @@ function EditFields({
           <Textarea
             id={fid("notes")}
             value={a.notes ?? ""}
-            onChange={(e) => up({ notes: e.target.value })}
+            onChange={(e) => up({ notes: e.target.value || undefined })}
             placeholder="Anything the team should know"
           />
         </div>

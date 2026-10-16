@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import {
   CalendarDays,
   Check,
@@ -13,12 +13,16 @@ import {
 import { Bar, BarChart, CartesianGrid, XAxis } from "recharts";
 import {
   ActionRow,
+  Breadcrumbs,
   DateBadge,
   EmptyState,
   Logo,
   PageHeader,
   PersonAvatar,
+  PhoneInput,
   ProgressRing,
+  RatingChip,
+  RatingPicker,
   SectionCard,
   SegmentedBar,
   StageChip,
@@ -37,7 +41,7 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import { daysFromToday, openLog, type BizClass, type LogTab } from "@/data";
+import { daysFromToday, openLog, type BizClass, type ContactRating, type LogTab } from "@/data";
 
 export const Route = createFileRoute("/styleguide")({
   head: () => ({ meta: [{ title: "Styleguide — LevelUp LOS" }] }),
@@ -52,6 +56,43 @@ function Swatch({ cls, name }: { cls: string; name: string }) {
     <div className="grid gap-1.5">
       <div className={`h-12 rounded-lg border border-line ${cls}`} />
       <code className="text-[11px] text-muted-foreground">{name}</code>
+    </div>
+  );
+}
+
+/** Breadcrumbs (phones fold the earlier steps), PhoneInput and the rating control. */
+function ContactBits() {
+  const [phone, setPhone] = useState("");
+  const [rating, setRating] = useState<ContactRating | null>("warm");
+  return (
+    <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid content-start gap-2">
+        <Breadcrumbs
+          items={[{ label: "People", link: { to: "/people" } }, { label: "Anita Patel" }]}
+        />
+        <Breadcrumbs
+          items={[
+            { label: "Library", link: { to: "/library" } },
+            { label: "All talks", link: { to: "/library/talks" } },
+            { label: "Leading through the first year" },
+          ]}
+        />
+      </div>
+      <div className="grid content-start gap-2">
+        <PhoneInput
+          aria-label="Phone"
+          placeholder="(512) 555-0102"
+          value={phone}
+          onValueChange={setPhone}
+        />
+        <RatingPicker value={rating} onChange={setRating} />
+        <div className="flex gap-1.5">
+          <RatingChip rating="hot" />
+          <RatingChip rating="warm" />
+          <RatingChip rating="cold" />
+          <RatingChip rating="hot" size="xs" />
+        </div>
+      </div>
     </div>
   );
 }
@@ -81,7 +122,7 @@ function StyleguidePage() {
       <PageHeader
         title="Styleguide"
         subtitle="Every brand component in each variant. Toggle the theme to check dark mode."
-        back={{ to: "/", label: "Home" }}
+        crumbs={[{ label: "Home", link: { to: "/" } }, { label: "Styleguide" }]}
         actions={<ThemeSwitcher />}
       />
 
@@ -347,6 +388,10 @@ function StyleguidePage() {
           </Block>
         </div>
       </div>
+
+      <Block title="Breadcrumbs, phone and Hot / Warm / Cold">
+        <ContactBits />
+      </Block>
 
       <div className="grid gap-5 lg:grid-cols-2">
         <Block title="Buttons + inputs (shadcn, token-styled)">

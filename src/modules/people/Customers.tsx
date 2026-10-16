@@ -18,7 +18,7 @@ import {
   useSales,
   type CrmPerson,
 } from "@/data";
-import { EmptyState, PersonAvatar, SectionCard, ToneChip } from "@/components/brand";
+import { EmptyState, PersonAvatar, PhoneInput, SectionCard, ToneChip } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -387,7 +387,11 @@ function CustomerForm({
           <Input id="cust-name" value={f.name} onChange={set("name")} required autoFocus />
         </F>
         <F label="Phone" id="cust-phone">
-          <Input id="cust-phone" type="tel" value={f.phone} onChange={set("phone")} />
+          <PhoneInput
+            id="cust-phone"
+            value={f.phone}
+            onValueChange={(phone) => setF((s) => ({ ...s, phone }))}
+          />
         </F>
         <F label="Email" id="cust-email">
           <Input id="cust-email" type="email" value={f.email} onChange={set("email")} />

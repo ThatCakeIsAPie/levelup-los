@@ -25,12 +25,14 @@ import {
 } from "./seedPeople";
 import {
   DEFAULT_TARGETS,
+  REFERRAL_SOURCE,
   type MilestoneCode,
   type PipelineCard,
   type PipelineColumn,
   type PipelineData,
   type PipelineMove,
   type PipelineStep,
+  type RecruitingBand,
   type StatRequest,
   type StatShare,
   type StepBand,
@@ -187,14 +189,19 @@ export function seedPipeline(people: CrmPerson[], now: Date = new Date()): Pipel
         d === 0
           ? new Date(now.getTime() - todayCount-- * 17 * 60_000).toISOString()
           : stamp(now, d, 10 + Math.floor(minute / 60), minute % 60);
-      const band = isMilestone(col) ? col : steps.find((s) => s.id === col)!.band;
+      const band =
+        col === REFERRAL_SOURCE
+          ? "out"
+          : isMilestone(col)
+            ? col
+            : steps.find((s) => s.id === col)!.band;
       moves.push({
         id: `pm${n++}`,
         personId,
         ownerId,
         from: prev,
         to: col,
-        milestone: band as MilestoneCode,
+        milestone: band as RecruitingBand,
         movedAt,
         movedBy: ownerId,
       });
@@ -225,26 +232,34 @@ export function seedPipeline(people: CrmPerson[], now: Date = new Date()): Pipel
     const person = byId.get(pl.personId);
     if (!person || person.bizClass !== "prospect" || !person.sponsorId) continue;
     const cols = columnsOf(person.sponsorId);
-    let idx = cols.findIndex((c) => c.id === pl.column);
+    // A referral source was contacted, then passed on names instead.
+    const referral = pl.column === REFERRAL_SOURCE;
+    let idx = referral ? 0 : cols.findIndex((c) => c.id === pl.column);
     if (idx < 0) idx = cols.findIndex((c) => c.id === (bandOfSeed(pl.column, steps) ?? "contact"));
     const joined = person.joinedDate ? agoOfDay(person.joinedDate) : pl.enteredDaysAgo;
-    const contactAgo = Math.max(pl.contactDaysAgo ?? joined, pl.enteredDaysAgo);
-    record(person.id, person.sponsorId, pathTo(cols, idx, contactAgo, pl.enteredDaysAgo));
+    const contactAgo = Math.max(
+      pl.contactDaysAgo ?? joined,
+      pl.enteredDaysAgo + (referral ? 1 : 0),
+    );
+    record(person.id, person.sponsorId, [
+      ...pathTo(cols, idx, contactAgo, referral ? contactAgo : pl.enteredDaysAgo),
+      ...(referral ? ([[REFERRAL_SOURCE, pl.enteredDaysAgo]] as [string, number][]) : []),
+    ]);
     const enteredAt = moves[moves.length - 1].movedAt;
     // The booked column, or the next one when the owner's board doesn't show it.
-    const after = cols.slice(idx + 1);
+    const after = referral ? [] : cols.slice(idx + 1);
     const nextCol = pl.next
       ? (after.find((c) => c.id === pl.next!.column) ?? after[0] ?? null)
       : null;
     cards.push({
       personId: person.id,
-      column: cols[idx].id,
+      column: referral ? REFERRAL_SOURCE : cols[idx].id,
       enteredAt,
       nextColumn: nextCol?.id ?? null,
       nextStepDate: nextCol && pl.next ? localDate(addDays(now, pl.next.inDays)) : null,
       nextStepTime: (nextCol && pl.next?.time) || null,
       note: pl.note ?? null,
-      hot: !!pl.hot,
+      rating: pl.rating ?? null,
       source: pl.source ?? null,
       droppedAt: null,
       updatedAt: enteredAt,

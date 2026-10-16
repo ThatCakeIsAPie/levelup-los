@@ -17,7 +17,7 @@ import { usePeopleStore } from "@/stores/peopleStore";
 import { seedPipeline } from "./seed";
 import { convertLegacyCards } from "./booking";
 import { chainOf, columnsFor, recruitingBand } from "./rules";
-import type { PipelineColumn, PipelineData } from "./types";
+import type { PipelineCard, PipelineColumn, PipelineData } from "./types";
 
 export const PIPELINE_STORAGE_KEY = "levelup.pipeline";
 /** Bump when the stored shape changes (resets everyone's pipeline demo data). */
@@ -40,7 +40,8 @@ export function emptyPipeline(): PipelineData {
 /**
  * Saved demo data from before booked next steps: free-text `nextStep` on the
  * cards becomes a booked column when it names one on the owner's board,
- * else the card's note (convertLegacyCards).
+ * else the card's note (convertLegacyCards). A card's old `hot` flag becomes
+ * its rating.
  */
 export function upgradePipeline(state: PipelineData): PipelineData {
   const people = usePeopleStore.getState().people;
@@ -59,7 +60,15 @@ export function upgradePipeline(state: PipelineData): PipelineData {
     columns: columnsOf(sponsor.get(c.personId) ?? null),
     band: recruitingBand(c.column, state.steps ?? []),
   }));
-  return { ...state, cards, cancellations: state.cancellations ?? [] };
+  return { ...state, cards: cards.map(withRating), cancellations: state.cancellations ?? [] };
+}
+
+/** Saved demo cards from before Hot / Warm / Cold had `hot: boolean` instead of `rating`. */
+function withRating<T extends PipelineCard>(card: T): T {
+  const old = card as T & { hot?: boolean };
+  if (old.rating !== undefined) return card;
+  const { hot, ...rest } = old;
+  return { ...rest, rating: hot ? "hot" : null } as T;
 }
 
 function fresh(): PipelineData {

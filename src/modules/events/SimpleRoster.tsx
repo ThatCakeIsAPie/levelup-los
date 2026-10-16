@@ -15,39 +15,55 @@ import {
   assignToEvent,
   effectiveBizClass,
   eventModes,
+  useEventCategory,
   removeAttendance,
   setEventAttendance,
   updateAttendance,
   type AttendMode,
   type Attendance,
+  type BizClass,
   type CrmEvent,
   type DesireLevel,
 } from "@/data";
+import { StageFilterChips } from "@/components/filters/StageFilterChips";
 import { AddAttendeeDialog } from "./AddAttendeeDialog";
 import { usePeopleMap } from "./hooks";
 import { Segmented } from "./Segmented";
 import { cameOptions, cameValue, type Came } from "./attendance";
+import { countByStage, filterByStage, stageChips } from "./stageFilter";
 
 export function SimpleRoster({
   event,
   rows,
   started,
+  stages = [],
+  onStages,
 }: {
   event: CrmEvent;
   rows: Attendance[];
   /** The event day has come: record who came instead of who's coming. */
   started: boolean;
+  /** Stages shown together (`?stage=apprentice,ibo`); empty = everyone. */
+  stages?: BizClass[];
+  onStages?: (next: BizClass[]) => void;
 }) {
   const people = usePeopleMap();
   const [query, setQuery] = useState("");
-  const modes = eventModes(event);
-  const sorted = useMemo(() => {
+  const modes = eventModes(event, useEventCategory(event));
+  const matching = useMemo(() => {
     const q = query.trim().toLowerCase();
     return rows
       .filter((a) => people.has(a.personId))
-      .filter((a) => !q || people.get(a.personId)!.name.toLowerCase().includes(q))
-      .sort((a, b) => people.get(a.personId)!.name.localeCompare(people.get(b.personId)!.name));
+      .filter((a) => !q || people.get(a.personId)!.name.toLowerCase().includes(q));
   }, [rows, people, query]);
+  const stageCounts = useMemo(() => countByStage(matching, people), [matching, people]);
+  const sorted = useMemo(
+    () =>
+      [...filterByStage(matching, people, stages)].sort((a, b) =>
+        people.get(a.personId)!.name.localeCompare(people.get(b.personId)!.name),
+      ),
+    [matching, people, stages],
+  );
   const existing = rows.map((a) => a.personId);
 
   const came = rows.filter((a) => a.attended === true).length;
@@ -114,6 +130,17 @@ export function SimpleRoster({
           : `${going} coming. Tap to change anyone's answer.`}
       </p>
 
+      {onStages && rows.length > 0 && (
+        <StageFilterChips
+          label="Show"
+          stages={stageChips(stageCounts, stages)}
+          value={stages}
+          onChange={onStages}
+          counts={stageCounts}
+          total={matching.length}
+        />
+      )}
+
       {rows.length === 0 ? (
         <EmptyState
           icon={<Users />}
@@ -128,7 +155,11 @@ export function SimpleRoster({
         <EmptyState
           icon={<Search />}
           title="No matches"
-          body={`Nobody on the list matches “${query}”.`}
+          body={
+            query
+              ? `Nobody on the list matches “${query}”.`
+              : "Nobody in the groups you picked. Tap All to see everyone."
+          }
         />
       ) : (
         <SectionCard className="py-1 sm:py-1">
@@ -166,7 +197,7 @@ export function SimpleRoster({
                             v === undefined ? null : v === "no" ? false : v,
                           )
                         }
-                        options={cameOptions(event)}
+                        options={cameOptions(modes)}
                       />
                     ) : (
                       <Segmented<DesireLevel>

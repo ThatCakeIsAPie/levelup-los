@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/brand";
 import { Label } from "@/components/ui/label";
 import { addPerson, localDate } from "@/data";
 
@@ -88,11 +89,10 @@ export function AddCustomerDialog({
           </Field>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Phone" htmlFor="cust-phone" optional>
-              <Input
+              <PhoneInput
                 id="cust-phone"
-                type="tel"
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                onValueChange={setPhone}
                 autoComplete="off"
               />
             </Field>

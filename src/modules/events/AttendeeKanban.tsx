@@ -107,20 +107,23 @@ export function AttendeeKanban({
                       <ToneChip tone="neutral">Follow up {shortDate(a.followUpDate)}</ToneChip>
                     )}
                   </div>
-                  {col.key === "interested" && (
+                  {(col.key === "invited" || col.key === "interested") && (
                     <Select
-                      value={a.desireToAttend ?? ""}
+                      value={a.desireToAttend ?? "unset"}
                       onValueChange={(v) =>
-                        updateAttendance(a.id, { desireToAttend: v as DesireLevel })
+                        updateAttendance(a.id, {
+                          desireToAttend: v === "unset" ? undefined : (v as DesireLevel),
+                        })
                       }
                     >
                       <SelectTrigger
                         className="h-7 text-xs"
                         aria-label={`${p?.name ?? "Attendee"} wants to go`}
                       >
-                        <SelectValue placeholder="Wants to go?" />
+                        <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="unset">Not asked</SelectItem>
                         <SelectItem value="yes">Wants to go</SelectItem>
                         <SelectItem value="maybe">Maybe</SelectItem>
                         <SelectItem value="no">Not going</SelectItem>

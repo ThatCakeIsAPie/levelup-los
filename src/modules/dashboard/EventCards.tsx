@@ -11,11 +11,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
-  EVENT_TYPE_LABEL,
   attentionItems,
   useAttendancesForEvent,
   useAttendancesForPerson,
+  useCategoryOf,
   useDoNotContactIds,
+  useEventCategory,
   useUpcomingEvents,
   usesTickets,
   type Attendance,
@@ -92,9 +93,11 @@ export function NextEventCard({
 function TeamEvent({ event, compact }: { event: CrmEvent; compact?: boolean }) {
   const rows = useAttendancesForEvent(event.id);
   const skip = useDoNotContactIds();
+  const category = useEventCategory(event);
+  const tickets = usesTickets(category);
   const s = ticketStats(rows);
   // Same rule as the Events nav badge and the Events list cards.
-  const attention = attentionItems(event, rows, undefined, skip).length;
+  const attention = attentionItems({ ...event, tickets }, rows, undefined, skip).length;
   const bar = (
     <SegmentedBar
       total={Math.max(1, s.invited)}
@@ -105,10 +108,9 @@ function TeamEvent({ event, compact }: { event: CrmEvent; compact?: boolean }) {
       ]}
     />
   );
-  const tickets = usesTickets(event.type);
   const coming = rows.filter((a) => a.desireToAttend === "yes").length;
   const meta = [
-    EVENT_TYPE_LABEL[event.type],
+    category.name,
     dateRange(event),
     event.location,
     tickets ? `${s.invited} invited` : null,
@@ -209,7 +211,7 @@ function CandidateEvent({
   const mine = useAttendancesForPerson(viewerId);
   const status = attendanceStatus(
     mine.find((a) => a.eventId === event.id),
-    event,
+    usesTickets(useEventCategory(event)),
   );
   const meta = [dateRange(event), event.location].filter(Boolean).join(" · ");
   return (
@@ -239,6 +241,7 @@ function CandidateEvent({
 export function MyEventsCard({ viewerId }: { viewerId: string }) {
   const upcoming = useUpcomingEvents();
   const mine = useAttendancesForPerson(viewerId);
+  const categoryOf = useCategoryOf();
   const byEvent = new Map(mine.map((a) => [a.eventId, a]));
   // Events they're on first, then the rest, soonest first within each group.
   const list = [...upcoming]
@@ -264,7 +267,7 @@ export function MyEventsCard({ viewerId }: { viewerId: string }) {
         <div>
           {list.map((e) => {
             const a = byEvent.get(e.id);
-            const st = attendanceStatus(a, e);
+            const st = attendanceStatus(a, usesTickets(categoryOf(e)));
             const needsTicket = !a?.hasTicket && a?.desireToAttend !== "no";
             return (
               <div

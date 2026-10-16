@@ -1,15 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Attendance } from "@/stores/attendanceStore";
 import { attentionItems } from "../attention";
-import {
-  EVENT_TYPES,
-  allowsVirtual,
-  canManageEvents,
-  eventFormat,
-  eventModes,
-  usesTickets,
-  usesTravel,
-} from "./info";
+import { canManageEvents } from "./info";
 
 const row = (o: Partial<Attendance>): Attendance => ({
   id: "a",
@@ -21,25 +13,7 @@ const row = (o: Partial<Attendance>): Attendance => ({
   ...o,
 });
 
-describe("event types", () => {
-  it("follows the plan's table", () => {
-    expect(EVENT_TYPES.filter(allowsVirtual)).toEqual([
-      "info_session",
-      "training",
-      "monthly_meeting",
-      "conference",
-    ]);
-    expect(EVENT_TYPES.filter(usesTickets)).toEqual(["monthly_meeting", "conference"]);
-    expect(EVENT_TYPES.filter(usesTravel)).toEqual(["conference"]);
-  });
-
-  it("keeps in-person-only types in person", () => {
-    expect(eventFormat({ type: "night_owls", format: "virtual" })).toBe("in_person");
-    expect(eventFormat({ type: "training" })).toBe("in_person");
-    expect(eventModes({ type: "info_session", format: "both" })).toEqual(["in_person", "virtual"]);
-    expect(eventModes({ type: "conference", format: "virtual" })).toEqual(["virtual"]);
-  });
-
+describe("who may plan events", () => {
   it("lets everyone but candidates plan events (for now)", () => {
     expect(canManageEvents({ role: "leader" })).toBe(true);
     expect(canManageEvents({ role: "apprentice" })).toBe(true);
@@ -47,9 +21,10 @@ describe("event types", () => {
   });
 });
 
-describe("attentionItems for events without tickets", () => {
+describe("attentionItems for events whose category has no tickets", () => {
   const now = new Date(2026, 9, 13, 12);
-  const upcoming = { type: "night_owls" as const, date: "2026-10-16" };
+  // A category without tickets (Night Owls); `tickets` comes from usesTickets(category).
+  const upcoming = { tickets: false, date: "2026-10-16" };
 
   it("doesn't nag about tickets or helpers", () => {
     const rows = [
@@ -58,7 +33,7 @@ describe("attentionItems for events without tickets", () => {
     ];
     expect(attentionItems(upcoming, rows, now)).toEqual([]);
     // The same rows on a conference do need attention.
-    expect(attentionItems({ ...upcoming, type: "conference" }, rows, now)).toHaveLength(2);
+    expect(attentionItems({ ...upcoming, tickets: true }, rows, now)).toHaveLength(2);
   });
 
   it("still flags a follow-up that's due", () => {
@@ -67,7 +42,7 @@ describe("attentionItems for events without tickets", () => {
   });
 
   it("never flags unrecorded attendance once it's over", () => {
-    const past = { type: "work_session" as const, date: "2026-10-01" };
+    const past = { tickets: false, date: "2026-10-01" };
     expect(attentionItems(past, [row({ hasTicket: true })], now)).toEqual([]);
   });
 });

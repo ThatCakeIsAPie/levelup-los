@@ -49,6 +49,8 @@ const entry = (id: string, ownerId: string, extra: Partial<ListEntry> = {}): Lis
   rating: null,
   customerId: null,
   prospectId: null,
+  referredBy: null,
+  referredByEntry: null,
   addedBy: ownerId,
   createdAt: "2026-10-01T15:00:00.000Z",
   updatedAt: "2026-10-01T15:00:00.000Z",
@@ -102,6 +104,7 @@ describe("the customer board layout", () => {
       "first_sale",
       "sbox",
       "on_ditto",
+      "referral_source",
       "not_interested",
       "do_not_contact",
     ]);
@@ -133,6 +136,7 @@ describe("the customer board layout", () => {
       "first_meeting",
       "first_plan",
       "registered",
+      "referral_source",
       "not_interested",
       "do_not_contact",
     ]);

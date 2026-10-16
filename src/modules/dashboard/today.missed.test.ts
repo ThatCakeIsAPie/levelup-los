@@ -13,13 +13,13 @@ const person = (id: string, o: Partial<CrmPerson> = {}): CrmPerson => ({
 const ev = (id: string, d: number) => ({
   id,
   name: "Night Owls",
-  type: "night_owls" as const,
+  categoryId: "w1-night_owls",
   date: daysFromToday(d),
 });
 const streak = (personId: string, latestDaysAgo: number): MissedStreak => ({
-  key: `${personId}:night_owls`,
+  key: `${personId}:w1-night_owls`,
   personId,
-  type: "night_owls",
+  categoryId: "w1-night_owls",
   lastAttended: ev("o1", -latestDaysAgo - 7),
   missed: [ev("o2", -latestDaysAgo)],
   latest: ev("o2", -latestDaysAgo),
@@ -45,7 +45,10 @@ const base = (o: Partial<TodayInput>): TodayInput => ({
 describe("buildTodayItems: missed-event follow-ups", () => {
   it("adds one Events item per open follow-up, most recent miss first", () => {
     const items = buildTodayItems(base({ missed: [streak("ed", 9), streak("tasha", 2)] }));
-    expect(items.map((i) => i.key)).toEqual(["missed:tasha:night_owls", "missed:ed:night_owls"]);
+    expect(items.map((i) => i.key)).toEqual([
+      "missed:tasha:w1-night_owls",
+      "missed:ed:w1-night_owls",
+    ]);
     expect(items[0]).toMatchObject({ kind: "missed", filter: "events", daysAgo: 2, score: 648 });
     expect(countByFilter(items).events).toBe(2);
   });

@@ -226,7 +226,7 @@ function Pipeline({ tab, onTab }: { tab: PipelineTab; onTab: (tab: PipelineTab) 
 function NoPipeline() {
   return (
     <div className={cn(PAGE, "mx-auto max-w-2xl")}>
-      <PageHeader title="Pipeline" logButton={false} />
+      <PageHeader title="Pipeline" />
       <EmptyState
         icon={<Kanban />}
         title="Your pipeline starts when you register"

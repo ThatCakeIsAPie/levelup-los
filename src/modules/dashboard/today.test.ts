@@ -3,7 +3,15 @@ import { seedAttendances, seedContacts, seedEvents, seedPeople, seedSales } from
 import { filterAttendances, visibleIdSet, type Viewer } from "@/data/access";
 import { daysFromToday } from "@/lib/dates";
 import type { CrmPerson, DueBooking, Role } from "@/data";
-import { buildTodayItems, countByFilter, type TodayInput } from "./today";
+import {
+  buildTodayItems,
+  countByFilter,
+  groupToday,
+  INVITE_WINDOW_DAYS,
+  MAX_INVITES,
+  type TodayInput,
+  type TodayItem,
+} from "./today";
 
 const people = seedPeople();
 const contacts = seedContacts(people);
@@ -114,7 +122,7 @@ describe("buildTodayItems (rules)", () => {
     sales: [],
     ...over,
   });
-  const event = { id: "ev", name: "Rally", type: "conference" as const, date: daysFromToday(20) };
+  const event = { id: "ev", name: "Rally", categoryId: "w1-conference", date: daysFromToday(20) };
   const row = (o: Partial<TodayInput["attendances"][number]>) => ({
     id: "a",
     eventId: "ev",
@@ -175,8 +183,8 @@ describe("buildTodayItems (rules)", () => {
   });
 
   it("counts never-contacted people from the day they joined", () => {
-    const fresh = person({ id: "n", joinedDate: daysFromToday(-3) });
-    const old = person({ id: "o", joinedDate: daysFromToday(-40) });
+    const fresh = person({ id: "n", joinedDate: daysFromToday(-3), bizClass: "apprentice" });
+    const old = person({ id: "o", joinedDate: daysFromToday(-40), bizClass: "apprentice" });
     const items = buildTodayItems(base({ people: [fresh, old] }));
     expect(items.map((i) => i.key)).toEqual(["team:o"]);
     expect(items[0].kind === "team" && items[0].never).toBe(true);
@@ -230,6 +238,7 @@ describe("booked pipeline steps", () => {
     );
     expect(items.map((i) => i.key)).toEqual(["step:customer:le-1", "step:recruiting:p1"]);
     expect(items.every((i) => i.filter === "pipeline")).toBe(true);
+    expect(items.map((i) => i.sub)).toEqual(["customer", "recruiting"]);
     expect(items[0].score).toBe(752);
     expect(items[0].score).toBeGreaterThan(700);
     expect(items[0].score).toBeLessThan(800);

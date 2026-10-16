@@ -17,6 +17,7 @@ import { format } from "date-fns";
 import type { Tables } from "./database.types";
 import type { CrmPerson, StageChange } from "@/stores/peopleStore";
 import type { CrmEvent } from "@/stores/eventsStore";
+import type { CategoryIcon, CategoryTone, EventCategory } from "@/data/eventCategories/types";
 import type { Attendance, MissedEventNote } from "@/stores/attendanceStore";
 import type {
   Contact,
@@ -41,6 +42,7 @@ import type {
 } from "@/data/growth/types";
 import type { Campaign, Logistics, Payment, ReportSchedule, SharedCost } from "@/stores/opsStore";
 import type { ActivityEvent } from "@/stores/activityStore";
+import { sanitizeLayout, type HomeLayout } from "@/data/homeLayout";
 import type {
   AnnouncementDraft,
   Attachment,
@@ -85,6 +87,7 @@ import type {
   ListRating,
 } from "@/data/customerPipeline/types";
 import type { Deputy, FeatureKey, FeatureSwitch } from "@/data/team/types";
+import { asRating } from "@/data/rating";
 
 export type Row = Record<string, unknown>;
 type R<T extends keyof import("./database.types").Database["public"]["Tables"]> = Partial<
@@ -137,6 +140,8 @@ export function personFromRow(r: R<"people">): CrmPerson {
     lastUpdatedAt: iso(r.last_updated_at) ?? undefined,
     losUid: opt(r.los_uid),
     dittoSince: opt(r.ditto_since),
+    referredBy: r.referred_by ?? null,
+    referredByEntry: r.referred_by_entry ?? null,
   };
 }
 
@@ -162,6 +167,8 @@ export function personToRow(p: CrmPerson): Row {
     last_updated_at: p.lastUpdatedAt ? iso(p.lastUpdatedAt) : undefined,
     los_uid: nul(p.losUid),
     ditto_since: nul(p.dittoSince),
+    referred_by: p.referredBy ?? null,
+    referred_by_entry: p.referredByEntry ?? null,
   };
 }
 
@@ -169,7 +176,7 @@ export function eventFromRow(r: R<"events">): CrmEvent {
   return {
     id: r.id!,
     name: r.name ?? "",
-    type: r.type as CrmEvent["type"],
+    categoryId: r.category_id ?? "",
     date: r.date ?? "",
     endDate: opt(r.end_date),
     location: opt(r.location),
@@ -183,13 +190,48 @@ export function eventToRow(e: CrmEvent): Row {
   return {
     id: e.id,
     name: e.name,
-    type: e.type,
+    category_id: e.categoryId,
     date: e.date,
     end_date: nul(e.endDate),
     location: nul(e.location),
     notes: nul(e.notes),
     format: e.format ?? "in_person",
     ticket_url: nul(e.ticketUrl),
+  };
+}
+
+export function eventCategoryFromRow(r: R<"event_categories">): EventCategory {
+  return {
+    id: r.id!,
+    name: r.name ?? "",
+    icon: (r.icon ?? "calendar") as CategoryIcon,
+    tone: (r.tone ?? "neutral") as CategoryTone,
+    allowsVirtual: !!r.allows_virtual,
+    usesTickets: !!r.uses_tickets,
+    usesTravel: !!r.uses_travel,
+    countsForMissed: r.counts_for_missed_followups ?? true,
+    welcomesCustomers: !!r.welcomes_customers,
+    position: Number(r.position ?? 0),
+    archivedAt: iso(r.archived_at) ?? undefined,
+    createdBy: opt(r.created_by),
+    createdAt: isoOr(r.created_at),
+  };
+}
+
+/** Who made it and when are the database's (stamped on insert, never changed). */
+export function eventCategoryToRow(c: EventCategory): Row {
+  return {
+    id: c.id,
+    name: c.name,
+    icon: c.icon,
+    tone: c.tone,
+    allows_virtual: c.allowsVirtual,
+    uses_tickets: c.usesTickets,
+    uses_travel: c.usesTravel,
+    counts_for_missed_followups: c.countsForMissed,
+    welcomes_customers: c.welcomesCustomers,
+    position: c.position,
+    archived_at: iso(c.archivedAt),
   };
 }
 
@@ -391,6 +433,7 @@ export function contactFromRow(r: R<"contacts">): Contact {
     date: r.date ?? "",
     note: opt(r.note),
     source: (r.source as Contact["source"]) ?? "manual",
+    ...(r.created_at ? { createdAt: isoOr(r.created_at) } : {}),
   };
 }
 
@@ -402,6 +445,8 @@ export function contactToRow(c: Contact): Row {
     date: c.date,
     note: nul(c.note),
     source: c.source ?? "manual",
+    // When it was logged ("What you did today"); the database stamps rows without it.
+    ...(c.createdAt ? { created_at: c.createdAt } : {}),
   };
 }
 
@@ -414,6 +459,7 @@ export function saleFromRow(r: R<"sales">): Sale {
     amount: num(r.amount),
     pv: num(r.pv),
     personId: opt(r.person_id),
+    ...(r.created_at ? { createdAt: isoOr(r.created_at) } : {}),
   };
 }
 
@@ -427,6 +473,7 @@ export function saleToRow(s: Sale): Row {
     pv: nul(s.pv),
     // Left out when unknown: the database fills in the customer's owner.
     person_id: s.personId,
+    ...(s.createdAt ? { created_at: s.createdAt } : {}),
   };
 }
 
@@ -510,6 +557,7 @@ export function learningFromRow(r: R<"learning">): Learning {
     amount: Number(r.amount ?? 1),
     ...(r.unit ? { unit: r.unit as Learning["unit"] } : {}),
     date: r.date ?? "",
+    ...(r.created_at ? { createdAt: isoOr(r.created_at) } : {}),
   };
 }
 
@@ -522,6 +570,7 @@ export function learningToRow(l: Learning): Row {
     amount: l.amount,
     unit: nul(l.unit),
     date: l.date,
+    ...(l.createdAt ? { created_at: l.createdAt } : {}),
   };
 }
 
@@ -569,6 +618,19 @@ export function settingsToRow(personId: string, s: Settings): Row {
 }
 
 // ---------------------------------------------------------------------------
+// Home card layout (dashboard_layouts)
+// ---------------------------------------------------------------------------
+
+/** A layout row; one the app can't read is the default (an empty list). */
+export function homeLayoutFromRow(r: R<"dashboard_layouts">): [string, HomeLayout] {
+  return [r.person_id!, sanitizeLayout(r.layout) ?? { order: [], side: [] }];
+}
+
+export function homeLayoutToRow(personId: string, l: HomeLayout): Row {
+  return { person_id: personId, layout: { order: [...l.order], side: [...l.side] } };
+}
+
+// ---------------------------------------------------------------------------
 // Activity
 // ---------------------------------------------------------------------------
 
@@ -578,6 +640,8 @@ export function activityFromRow(r: R<"activity">, me: string): ActivityEvent {
     id: r.id!,
     timestamp: isoOr(r.timestamp),
     actorName: r.actor_id && r.actor_id === me ? "You" : (r.actor_name ?? "Someone"),
+    // Not written back: the database stamps who did it.
+    ...(r.actor_id ? { actorId: r.actor_id } : {}),
     entityType: r.entity_type as ActivityEvent["entityType"],
     entityId: r.entity_id!,
     relatedPersonId: opt(r.related_person_id),
@@ -1052,7 +1116,7 @@ export function cardFromRow(r: R<"pipeline_cards">): PipelineCard {
     nextStepDate: r.next_step_date ?? null,
     nextStepTime: hhmm(r.next_step_time),
     note: r.note ?? null,
-    hot: !!r.hot,
+    rating: asRating(r.rating) ?? (r.hot ? "hot" : null),
     source: r.source ?? null,
     droppedAt: iso(r.dropped_at),
     updatedAt: isoOr(r.updated_at),
@@ -1069,7 +1133,9 @@ export function cardToRow(c: PipelineCard): Row {
     next_step_date: c.nextStepDate,
     next_step_time: c.nextStepTime,
     note: c.note,
-    hot: c.hot,
+    rating: c.rating,
+    // Kept in step with the rating (the move RPC and older clients use it).
+    hot: c.rating === "hot",
     source: c.source,
     dropped_at: iso(c.droppedAt),
   };
@@ -1215,9 +1281,11 @@ export function listEntryFromRow(r: R<"list_entries">): ListEntry {
     phone: r.phone ?? null,
     email: r.email ?? null,
     notes: r.notes ?? null,
-    rating: (r.rating as ListRating | null) ?? null,
+    rating: asRating(r.rating) as ListRating | null,
     customerId: r.customer_id ?? null,
     prospectId: r.prospect_id ?? null,
+    referredBy: r.referred_by ?? null,
+    referredByEntry: r.referred_by_entry ?? null,
     addedBy: r.added_by ?? r.owner_id ?? "",
     createdAt: isoOr(r.created_at),
     updatedAt: isoOr(r.updated_at),
@@ -1239,6 +1307,8 @@ export function listEntryToRow(e: ListEntry): Row {
     notes: e.notes,
     rating: e.rating,
     prospect_id: e.prospectId,
+    referred_by: e.referredBy ?? null,
+    referred_by_entry: e.referredByEntry ?? null,
     added_by: e.addedBy || null,
     created_at: iso(e.createdAt),
   };

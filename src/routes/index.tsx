@@ -4,6 +4,7 @@ import { format } from "date-fns";
 import { PageHeader, useIsDesktop } from "@/components/brand";
 import {
   useAttendancesForPerson,
+  useCategoryOf,
   useCurrentUser,
   useMe,
   useUnlocks,
@@ -20,6 +21,8 @@ import { TeamCard, TeamLearningCard } from "@/modules/dashboard/TeamCards";
 import { MyLearningCard, PathCard } from "@/modules/dashboard/JourneyCards";
 import { ContinueLearningCard } from "@/modules/library/HomeCards";
 import { FirstSponsorCelebration, NextMilestoneCard } from "@/modules/growth/HomeCards";
+import { MyDayCard } from "@/modules/dashboard/MyDayCard";
+import { HomeGrid, type HomeCards } from "@/modules/dashboard/HomeGrid";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -54,7 +57,8 @@ function Dashboard() {
   const myRows = useAttendancesForPerson(user.personId);
   // Before First sponsor the event card is about your own plans, like a candidate's.
   const personalEvents = candidate || starter;
-  const featured = pickFeaturedEvent(upcoming, myRows, personalEvents);
+  const categoryOf = useCategoryOf();
+  const featured = pickFeaturedEvent(upcoming, myRows, personalEvents, categoryOf);
   const visibleTeam = useVisibleTeam();
   const team = useMemo(
     () => visibleTeam.filter((p) => p.id !== user.personId),
@@ -78,62 +82,52 @@ function Dashboard() {
       compact={!desktop}
     />
   );
-  const side = candidate ? (
-    <>
-      <PathCard me={me} />
-      <MyLearningCard entries={learning.entries} />
-    </>
-  ) : starter ? (
-    <>
-      <MyEventsCard viewerId={user.personId} />
-      <MyLearningCard entries={learning.entries} />
-    </>
-  ) : (
-    <>
-      <TeamCard team={team} compact={!desktop} />
-      <TeamLearningCard team={team} viewerId={user.personId} compact={!desktop} />
-    </>
-  );
-
-  if (!desktop) {
-    return (
-      <div className="grid content-start gap-3 px-4 py-5">
-        {header}
-        {!candidate && <NextMilestoneCard />}
-        {!candidate && <FirstSponsorCelebration />}
-        <div className="grid grid-cols-2 gap-2.5">
-          <StreakTile learning={learning} />
-          <GoalTile learning={learning} personId={user.personId} />
+  // Every Home card by id; the person arranges them (HomeGrid, saved per
+  // person: src/data/homeLayout.ts). null = not shown to them.
+  const cards: HomeCards = {
+    milestone: candidate ? null : (
+      <>
+        <NextMilestoneCard />
+        <FirstSponsorCelebration />
+      </>
+    ),
+    learning: desktop ? (
+      <div className="@container">
+        <div className="grid gap-4 @[520px]:grid-cols-2">
+          <StreakCard learning={learning} />
+          <GoalCard learning={learning} personId={user.personId} />
         </div>
-        {can.library && <ContinueLearningCard />}
-        {event}
-        {can.inbox && <InboxCard compact />}
-        {today}
-        {candidate && <MyEventsCard viewerId={user.personId} />}
-        {side}
       </div>
-    );
-  }
+    ) : (
+      <div className="grid grid-cols-2 gap-2.5">
+        <StreakTile learning={learning} />
+        <GoalTile learning={learning} personId={user.personId} />
+      </div>
+    ),
+    library: can.library ? <ContinueLearningCard /> : null,
+    event,
+    inbox: can.inbox ? <InboxCard compact={!desktop} /> : null,
+    today,
+    myEvents: personalEvents ? <MyEventsCard viewerId={user.personId} /> : null,
+    team: personalEvents ? null : <TeamCard team={team} compact={!desktop} />,
+    teamLearning: personalEvents ? null : (
+      <TeamLearningCard team={team} viewerId={user.personId} compact={!desktop} />
+    ),
+    path: candidate ? <PathCard me={me} /> : null,
+    myLearning: personalEvents ? <MyLearningCard entries={learning.entries} /> : null,
+    myDay: <MyDayCard compact={!desktop} />,
+  };
 
   return (
-    <div className="grid content-start gap-[18px] px-[26px] py-[22px]">
+    <div
+      className={
+        desktop
+          ? "grid content-start gap-[18px] px-[26px] py-[22px]"
+          : "grid content-start gap-3 px-4 py-5"
+      }
+    >
       {header}
-      <div className="grid grid-cols-[1fr_1fr_1.25fr] gap-4">
-        <StreakCard learning={learning} />
-        <GoalCard learning={learning} personId={user.personId} />
-        {event}
-      </div>
-      <div className="grid grid-cols-[1.6fr_1fr] items-start gap-4">
-        <div className="grid min-w-0 content-start gap-4">
-          {!candidate && <NextMilestoneCard />}
-          {!candidate && <FirstSponsorCelebration />}
-          {can.library && <ContinueLearningCard />}
-          {can.inbox && <InboxCard />}
-          {today}
-          {candidate && <MyEventsCard viewerId={user.personId} />}
-        </div>
-        <div className="grid min-w-0 content-start gap-4">{side}</div>
-      </div>
+      <HomeGrid cards={cards} desktop={desktop} />
     </div>
   );
 }

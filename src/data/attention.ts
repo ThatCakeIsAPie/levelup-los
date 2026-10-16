@@ -7,7 +7,6 @@ import { addDays, format } from "date-fns";
 import { localDate, parseDate } from "@/lib/dates";
 import type { Attendance } from "@/stores/attendanceStore";
 import type { CrmEvent } from "@/stores/eventsStore";
-import { usesTickets } from "./eventTypes/info";
 
 export type AttentionCode =
   "date_passed" | "no_helper" | "no_followup" | "buy_due" | "followup_due" | "unrecorded";
@@ -22,6 +21,12 @@ export interface AttentionItem {
 const short = (d: string) => format(parseDate(d), "MMM d");
 
 /**
+ * An event as the rule needs it: its days, and whether its category uses
+ * tickets (`usesTickets(category)` from src/data/eventCategories).
+ */
+export type AttentionEvent = Pick<CrmEvent, "date" | "endDate"> & { tickets: boolean };
+
+/**
  * Everyone on an event who needs a nudge this week, one item per person,
  * most urgent first. Upcoming events flag: planned ticket date passed,
  * planning to buy within a week, a follow-up due within a week, and people
@@ -29,8 +34,8 @@ const short = (d: string) => format(parseDate(d), "MMM d");
  * flag ticket holders whose attendance was never recorded.
  */
 export function attentionItems(
-  /** Events without tickets (Night Owls, trainings...) only flag follow-ups due. */
-  event: Pick<CrmEvent, "date" | "endDate"> & Partial<Pick<CrmEvent, "type">>,
+  /** Events whose category has no tickets (Night Owls, trainings...) only flag follow-ups due. */
+  event: AttentionEvent,
   rows: Attendance[],
   now = new Date(),
   /** People hidden from reminders ("Do not contact" on the customer board). */
@@ -42,7 +47,7 @@ export function attentionItems(
   const out: AttentionItem[] = [];
   const followUpDue = (a: Attendance) =>
     !!a.followUpDate && a.followUpDate >= today && a.followUpDate <= weekOut;
-  const tickets = !event.type || usesTickets(event.type);
+  const tickets = event.tickets;
   for (const a of rows) {
     if (skip?.has(a.personId)) continue;
     if (!tickets) {
@@ -113,7 +118,7 @@ export function attentionItems(
  * Events nav badge). `rows` may span every event; each event counts its own.
  */
 export function upcomingAttentionCount(
-  events: CrmEvent[],
+  events: (AttentionEvent & Pick<CrmEvent, "id">)[],
   rows: Attendance[],
   now = new Date(),
   skip?: ReadonlySet<string>,

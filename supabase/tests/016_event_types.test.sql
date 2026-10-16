@@ -1,4 +1,6 @@
 -- Event types and missed-event notes (migration 20261014001000_event_types).
+-- The types are event categories since 20261016002000_event_categories (more
+-- in 025_event_categories); the six became the starting categories 'w1-<type>'.
 --
 -- Seed facts (src/data/seed.ts): Tasha (700) is Jamal's (4) apprentice, Jamal
 -- is Anita's (2), Anita is Maria's (1). David (3) is Maria's too, a crossline
@@ -42,25 +44,27 @@ select has_column('public', 'events', 'format', 'events say how people join');
 select has_column('public', 'attendances', 'mode', 'attendance says in person or virtual');
 select hasnt_column('public', 'attendances', 'ticket_type', 'ticket_type was renamed to mode');
 select has_table('public', 'missed_event_notes', 'missed_event_notes exists');
-select is((select count(*)::int from public.events where type not in
-  ('info_session', 'work_session', 'night_owls', 'training', 'monthly_meeting', 'conference')), 0,
-  'every event has one of the six types');
-select is((select type from public.events where id = 'e4'), 'monthly_meeting',
+select is((select count(*)::int from public.events where category_id not in
+  (select id from public.event_categories where id like 'w1-%')), 0,
+  'every event has one of the six starting categories');
+select is((select category_id from public.events where id = 'e4'), 'w1-monthly_meeting',
   'team meetings are monthly team meetings');
 select is((select mode from public.attendances where id = 'a6'), 'virtual',
   'stream tickets are virtual tickets');
-select is((select count(*)::int from public.events where type = 'night_owls'), 7,
+select is((select count(*)::int from public.events where category_id = 'w1-night_owls'), 7,
   'the recurring Night Owls are seeded');
 
 -- Types and formats ------------------------------------------------------------------
 select pg_temp.login('1');
-select throws_ok($$insert into public.events (name, type, date) values ('X', 'team_meeting', current_date)$$,
+select throws_ok($$insert into public.events (name, category_id, date) values ('X', 'w1-team_meeting', current_date)$$,
   '23514', null, 'the old team_meeting type is gone');
-select throws_ok($$insert into public.events (name, type, date, format) values ('X', 'night_owls', current_date, 'virtual')$$,
-  '23514', null, 'Night Owls are in person only');
-select throws_ok($$insert into public.events (name, type, date, format) values ('X', 'work_session', current_date, 'both')$$,
-  '23514', null, 'work sessions are in person only');
-select lives_ok($$insert into public.events (id, name, type, date, format) values ('t-tr', 'Training', 'training', current_date, 'both')$$,
+select lives_ok($$insert into public.events (id, name, category_id, date, format) values
+  ('t-no', 'X', 'w1-night_owls', current_date, 'virtual'),
+  ('t-ws', 'X', 'w1-work_session', current_date, 'both')$$,
+  'an online format on an in-person-only category is accepted…');
+select is((select string_agg(format, ',' order by id) from public.events where id in ('t-no', 't-ws')),
+  'in_person,in_person', '…and kept in person (Night Owls and work sessions)');
+select lives_ok($$insert into public.events (id, name, category_id, date, format) values ('t-tr', 'Training', 'w1-training', current_date, 'both')$$,
   'a training can be in person and virtual');
 select is((select format from public.events where id = 'no1'), 'in_person',
   'format defaults to in person');

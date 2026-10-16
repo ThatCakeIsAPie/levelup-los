@@ -33,7 +33,7 @@ export function emptyCustomerPipeline(): CustomerPipelineData {
 /**
  * Saved demo data from before booked next steps: free-text `nextStep` becomes
  * a booked column when it names one on the list owner's board, else the
- * card's note.
+ * card's note. Names saved before "Referred by" get empty links.
  */
 export function upgradeCustomerPipeline(state: CustomerPipelineData): CustomerPipelineData {
   const people = usePeopleStore.getState().people;
@@ -61,7 +61,13 @@ export function upgradeCustomerPipeline(state: CustomerPipelineData): CustomerPi
     }),
     CUSTOMER_BOARD as BoardDef<string>,
   );
-  return { ...state, cards };
+  // Saved names from before "Referred by" (src/data/referrals) have no links.
+  const entries = (state.entries ?? []).map((e) =>
+    e.referredBy === undefined || e.referredByEntry === undefined
+      ? { ...e, referredBy: e.referredBy ?? null, referredByEntry: e.referredByEntry ?? null }
+      : e,
+  );
+  return { ...state, entries, cards };
 }
 
 function fresh(): CustomerPipelineData {

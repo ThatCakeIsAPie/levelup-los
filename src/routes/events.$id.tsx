@@ -1,9 +1,15 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { CalendarX2, ChevronLeft, MapPin, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { CalendarX2, MapPin, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { DateBadge, EmptyState, SectionCard, StatStrip, ToneChip } from "@/components/brand";
-import { LogButton } from "@/components/log/LogSheet";
+import {
+  Breadcrumbs,
+  DateBadge,
+  EmptyState,
+  SectionCard,
+  StatStrip,
+  ToneChip,
+} from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -30,10 +36,12 @@ import {
   useUnlocks,
   useCurrentUser,
   useEvent,
+  useEventCategory,
   useSharedCosts,
   usesTickets,
   usesTravel,
   type Attendance,
+  type BizClass,
   type CrmEvent,
 } from "@/data";
 import { cn } from "@/lib/utils";
@@ -49,7 +57,9 @@ import { MyPlanCard } from "@/modules/events/MyPlanCard";
 import { MyAttendanceCard } from "@/modules/events/MyAttendanceCard";
 import { EventMissedPanel } from "@/modules/events/MissedFollowUps";
 import { SimpleRoster } from "@/modules/events/SimpleRoster";
-import { EventFormatChip, EventTypeChip } from "@/modules/events/typeMeta";
+import { ATTENDEE_STAGES } from "@/modules/events/stageFilter";
+import { listParam, parseListParam } from "@/lib/searchList";
+import { EventCategoryChip, EventFormatChip } from "@/modules/events/categoryMeta";
 import { eventTiming, formatEventRange, timingLabel } from "@/modules/events/lib";
 
 type TabKey = "overview" | "attendees" | "travel" | "compare";
@@ -62,12 +72,15 @@ const TABS: readonly TabKey[] = ["overview", "attendees", "travel", "compare"];
 interface EventSearch {
   tab?: TabKey;
   filter?: AttendeeFilter;
+  /** Attendee stages shown together, comma-separated (`?stage=apprentice,ibo`). */
+  stage?: string;
 }
 
 export const Route = createFileRoute("/events/$id")({
   validateSearch: (search: Record<string, unknown>): EventSearch => ({
     tab: TABS.includes(search.tab as TabKey) ? (search.tab as TabKey) : undefined,
     filter: search.filter === "no-ticket" ? "no-ticket" : undefined,
+    stage: listParam(parseListParam(search.stage, ATTENDEE_STAGES)),
   }),
   head: () => ({ meta: [{ title: "Event — LevelUp LOS" }] }),
   component: EventDetail,
@@ -89,17 +102,22 @@ function EventDetail() {
     setSearch((prev) => ({
       tab: t === "overview" ? undefined : t,
       filter: t === "attendees" ? prev.filter : undefined,
+      stage: prev.stage,
     }));
+  const stages = parseListParam(search.stage, ATTENDEE_STAGES) ?? [];
+  const setStages = (next: BizClass[]) =>
+    setSearch((prev) => ({ ...prev, stage: listParam(next) }));
   // Keep the id while the sheet animates closed so its content doesn't blank out.
   const [edit, setEdit] = useState<{ id: string | null; open: boolean }>({
     id: null,
     open: false,
   });
+  const category = useEventCategory(event);
 
   if (!event) {
     return (
       <div className="grid gap-5 px-4 py-5 lg:px-[26px] lg:py-[22px]">
-        <BackLink />
+        <BackLink current="Event not found" />
         <EmptyState
           icon={<CalendarX2 />}
           title="Event not found"
@@ -123,10 +141,11 @@ function EventDetail() {
   // management or comparisons. Before First sponsor there's no team roster.
   const attending = candidate || !manage;
   const personal = candidate || !teamUnlocked;
-  // Conferences keep the full ticket / travel toolkit; the monthly meeting
-  // keeps tickets; the smaller events get the light roster on the Overview.
-  const tickets = usesTickets(event.type);
-  const travel = usesTravel(event.type);
+  // The category's settings decide the page: travel keeps the full ticket /
+  // travel toolkit (conferences), tickets keep the ticket board (the monthly
+  // meeting), and the rest get the light roster on the Overview.
+  const tickets = usesTickets(category);
+  const travel = usesTravel(category);
   const shown: TabKey[] = [
     "overview",
     ...(tickets && !attending ? (["attendees"] as const) : []),
@@ -141,7 +160,7 @@ function EventDetail() {
   return (
     <div className="grid gap-5 px-4 py-5 lg:px-[26px] lg:py-[22px]">
       <div className="grid gap-2">
-        <BackLink />
+        <BackLink current={event.name} />
         <Hero event={event} manage={manage} />
       </div>
 
@@ -198,6 +217,8 @@ function EventDetail() {
               started={started}
               finished={finished}
               candidate={personal}
+              stages={stages}
+              onStages={setStages}
             />
           ) : attending ? (
             <CandidateOverview event={event} rows={rows} finished={finished} />
@@ -214,6 +235,8 @@ function EventDetail() {
               onEdit={openEdit}
               filter={search.filter}
               onClearFilter={() => setSearch((prev) => ({ ...prev, filter: undefined }))}
+              stages={stages}
+              onStages={setStages}
             />
           </TabsContent>
         )}
@@ -241,16 +264,9 @@ function EventDetail() {
   );
 }
 
-function BackLink() {
-  return (
-    <Link
-      to="/events"
-      className="inline-flex w-fit items-center gap-1 rounded-sm text-[12.5px] font-medium text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
-    >
-      <ChevronLeft className="size-3.5" aria-hidden="true" />
-      Events
-    </Link>
-  );
+/** "Events › Fall Leadership Weekend". */
+function BackLink({ current }: { current: string }) {
+  return <Breadcrumbs items={[{ label: "Events", link: { to: "/events" } }, { label: current }]} />;
 }
 
 /** Title card: navy while the event is ahead (like the list's feature card), plain once it's over. */
@@ -281,7 +297,7 @@ function Hero({ event, manage }: { event: CrmEvent; manage: boolean }) {
             )}
           </p>
           <div className="mt-2 flex flex-wrap gap-1.5">
-            <EventTypeChip type={event.type} onNavy={navy} />
+            <EventCategoryChip event={event} onNavy={navy} />
             <EventFormatChip event={event} onNavy={navy} />
             <ToneChip
               tone={
@@ -304,12 +320,6 @@ function Hero({ event, manage }: { event: CrmEvent; manage: boolean }) {
               </small>
             </div>
           )}
-          <LogButton
-            className={cn(
-              "hidden lg:inline-flex",
-              navy && "bg-sky text-on-sky hover:bg-sky/90 focus-visible:ring-offset-event",
-            )}
-          />
           {manage && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -433,12 +443,16 @@ function LightOverview({
   started,
   finished,
   candidate,
+  stages,
+  onStages,
 }: {
   event: CrmEvent;
   rows: Attendance[];
   started: boolean;
   finished: boolean;
   candidate: boolean;
+  stages: BizClass[];
+  onStages: (next: BizClass[]) => void;
 }) {
   const count = (f: (a: Attendance) => boolean) => rows.filter(f).length;
   const came = (a: Attendance) => a.attended === true;
@@ -474,7 +488,13 @@ function LightOverview({
             <h2 id="roster-h" className="text-sm font-bold">
               {started ? "Who came" : "Who's coming"}
             </h2>
-            <SimpleRoster event={event} rows={rows} started={started} />
+            <SimpleRoster
+              event={event}
+              rows={rows}
+              started={started}
+              stages={stages}
+              onStages={onStages}
+            />
           </section>
         </div>
         <div className="grid gap-4">

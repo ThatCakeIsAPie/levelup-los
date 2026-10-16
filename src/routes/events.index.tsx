@@ -11,13 +11,14 @@ import {
 } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import {
-  EVENT_TYPE_INFO,
-  EVENT_TYPES,
+  categoryForLegacyType,
   daysFromToday,
-  isEventType,
+  legacyStarterKey,
   localDate,
   needsTicket,
+  useAllEventCategories,
   useCanManageEvents,
+  useCategoryOf,
   useCurrentUser,
   useDoNotContactIds,
   usePastEvents,
@@ -27,31 +28,37 @@ import {
   type Attendance,
   type CrmEvent,
   type CrmPerson,
-  type EventType,
+  type EventCategory,
   usesTickets,
+  usesTravel,
 } from "@/data";
 import { cn } from "@/lib/utils";
 import { AvatarStack } from "@/modules/events/AvatarStack";
 import { EventFormTrigger } from "@/modules/events/EventFormDialog";
 import {
-  EVENT_TYPE_LABEL,
   attendanceStatus,
   attentionItems,
   eventTiming,
   formatEventRange,
   timingLabel,
 } from "@/modules/events/lib";
-import { EventFormatChip, EventTypeChip } from "@/modules/events/typeMeta";
-import { EVENT_TYPE_ICON } from "@/modules/events/typeIcons";
+import { EventCategoryChip, EventFormatChip } from "@/modules/events/categoryMeta";
+import { categoryIcon } from "@/modules/events/categoryIcons";
 
-/** `?type=night_owls` shows one type of event. */
+/**
+ * `?category=<id>` shows one category of event. Old links with
+ * `?type=night_owls` (the fixed types before categories) still work: they
+ * show that starting category.
+ */
 interface EventsSearch {
-  type?: EventType;
+  category?: string;
+  type?: string;
 }
 
 export const Route = createFileRoute("/events/")({
   validateSearch: (search: Record<string, unknown>): EventsSearch => ({
-    type: isEventType(search.type) ? search.type : undefined,
+    category: typeof search.category === "string" && search.category ? search.category : undefined,
+    type: legacyStarterKey(search.type) ? (search.type as string) : undefined,
   }),
   head: () => ({ meta: [{ title: "Events — LevelUp LOS" }] }),
   component: EventsPage,
@@ -59,6 +66,9 @@ export const Route = createFileRoute("/events/")({
 
 interface EventSummary {
   event: CrmEvent;
+  category: EventCategory;
+  /** The category uses tickets. */
+  tickets: boolean;
   rows: Attendance[];
   people: CrmPerson[];
   invited: number;
@@ -82,12 +92,15 @@ function useEventSummaries(events: CrmEvent[]): EventSummary[] {
   const people = useVisiblePeople();
   const user = useCurrentUser();
   const skip = useDoNotContactIds();
+  const categoryOf = useCategoryOf();
   return useMemo(() => {
     const byId = new Map(people.map((p) => [p.id, p]));
     const today = localDate();
     const weekOut = daysFromToday(7);
     return events.map((event) => {
       const rows = all.filter((a) => a.eventId === event.id);
+      const category = categoryOf(event);
+      const tickets = usesTickets(category);
       const bought = rows.filter((a) => a.hasTicket).length;
       const plannedRows = rows.filter((a) => !a.hasTicket && a.plannedPurchaseDate);
       const eligible = rows.filter((a) => a.hasTicket || a.desireToAttend === "yes").length;
@@ -96,6 +109,8 @@ function useEventSummaries(events: CrmEvent[]): EventSummary[] {
       const ordered = [...rows].sort((a, b) => Number(b.hasTicket) - Number(a.hasTicket));
       return {
         event,
+        category,
+        tickets,
         rows,
         people: ordered.map((a) => byId.get(a.personId)).filter((p): p is CrmPerson => !!p),
         invited: rows.length,
@@ -105,7 +120,7 @@ function useEventSummaries(events: CrmEvent[]): EventSummary[] {
           (a) => a.plannedPurchaseDate! >= today && a.plannedPurchaseDate! <= weekOut,
         ).length,
         needTicket: rows.filter(needsTicket).length,
-        attention: attentionItems(event, rows, undefined, skip).length,
+        attention: attentionItems({ ...event, tickets }, rows, undefined, skip).length,
         attended,
         attendedVirtual: rows.filter((a) => a.attended === true && a.mode === "virtual").length,
         going: rows.filter((a) => a.desireToAttend === "yes").length,
@@ -113,33 +128,45 @@ function useEventSummaries(events: CrmEvent[]): EventSummary[] {
         mine: rows.find((a) => a.personId === user.personId),
       };
     });
-  }, [events, all, people, user.personId, skip]);
+  }, [events, all, people, user.personId, skip, categoryOf]);
 }
 
 function EventsPage() {
   const user = useCurrentUser();
   const navigate = useNavigate();
-  const { type } = Route.useSearch();
+  const search = Route.useSearch();
+  const categories = useAllEventCategories();
+  // The category shown: `?category=`, or the starting category an old `?type=` link means.
+  const selected = search.category
+    ? categories.find((c) => c.id === search.category)
+    : categoryForLegacyType(search.type, categories);
+  const filterId = selected?.id ?? search.category;
   const allUpcoming = useUpcomingEvents();
   const allPast = usePastEvents();
   const upcoming = useEventSummaries(
-    useMemo(() => allUpcoming.filter((e) => !type || e.type === type), [allUpcoming, type]),
+    useMemo(
+      () => allUpcoming.filter((e) => !filterId || e.categoryId === filterId),
+      [allUpcoming, filterId],
+    ),
   );
   const past = useEventSummaries(
-    useMemo(() => allPast.filter((e) => !type || e.type === type), [allPast, type]),
+    useMemo(
+      () => allPast.filter((e) => !filterId || e.categoryId === filterId),
+      [allPast, filterId],
+    ),
   );
-  // Filter chips for the types that have events.
-  const types = useMemo(() => {
-    const have = new Set([...allUpcoming, ...allPast].map((e) => e.type));
-    return EVENT_TYPES.filter((t) => have.has(t));
-  }, [allUpcoming, allPast]);
+  // Filter chips: the team's active categories (and an archived one an old link points at).
+  const chips = useMemo(() => {
+    const active = categories.filter((c) => !c.archivedAt);
+    return selected?.archivedAt ? [...active, selected] : active;
+  }, [categories, selected]);
   const manage = useCanManageEvents();
   const candidate = user.role === "candidate";
 
-  // The next conference gets the navy feature card; the rest are regular cards.
-  const featured = upcoming.find((s) => s.event.type === "conference");
+  // The next event with travel (a conference) gets the navy feature card.
+  const featured = upcoming.find((s) => usesTravel(s.category));
   const others = upcoming.filter((s) => s !== featured);
-  const kind = type ? EVENT_TYPE_INFO[type].plural.toLowerCase() : "events";
+  const kind = selected ? `${selected.name} events` : "events";
 
   const newEvent = (label = "New event") =>
     manage ? (
@@ -160,7 +187,7 @@ function EventsPage() {
         actions={newEvent()}
       />
 
-      {types.length > 1 && <TypeFilter types={types} value={type} />}
+      {chips.length > 1 && <CategoryFilter categories={chips} value={filterId} />}
 
       <section aria-labelledby="upcoming-h" className="grid gap-3">
         <h2 id="upcoming-h" className="text-sm font-bold">
@@ -221,16 +248,16 @@ function EventsPage() {
   );
 }
 
-/** One chip per event type that has events, plus "All". Lives in the URL (`?type=`). */
-function TypeFilter({ types, value }: { types: EventType[]; value?: EventType }) {
-  const chip = (t: EventType | undefined, label: string) => {
-    const Icon = t ? EVENT_TYPE_ICON[t] : null;
-    const on = value === t;
+/** "All" plus one chip per category. Lives in the URL (`?category=`). */
+function CategoryFilter({ categories, value }: { categories: EventCategory[]; value?: string }) {
+  const chip = (c: EventCategory | undefined, label: string) => {
+    const Icon = c ? categoryIcon(c) : null;
+    const on = value === c?.id;
     return (
       <Link
-        key={t ?? "all"}
+        key={c?.id ?? "all"}
         to="/events"
-        search={t ? { type: t } : {}}
+        search={c ? { category: c.id } : {}}
         replace
         aria-current={on ? "page" : undefined}
         className={cn(
@@ -247,12 +274,12 @@ function TypeFilter({ types, value }: { types: EventType[]; value?: EventType })
   };
   return (
     <nav
-      aria-label="Show one type of event"
+      aria-label="Show one category of event"
       className="-mx-4 overflow-x-auto px-4 [scrollbar-width:none] lg:mx-0 lg:px-0 [&::-webkit-scrollbar]:hidden"
     >
       <div className="flex w-max gap-1.5 lg:w-auto lg:flex-wrap">
         {chip(undefined, "All")}
-        {types.map((t) => chip(t, EVENT_TYPE_INFO[t].plural))}
+        {categories.map((c) => chip(c, c.name))}
       </div>
     </nav>
   );
@@ -298,7 +325,7 @@ function FeaturedCard({
         <DateBadge date={event.date} className="bg-white/10" />
         <div className="min-w-0 flex-1">
           <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
-            Next {EVENT_TYPE_LABEL[event.type].toLowerCase()}
+            Next {s.category.name.toLowerCase()}
           </p>
           <h3 className="text-[17px] font-extrabold leading-snug lg:text-lg">
             <Link
@@ -438,7 +465,7 @@ function UpcomingCard({ s, candidate }: { s: EventSummary; candidate: boolean })
           </h3>
           <MetaLine event={event} className="mt-0.5" />
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-            <EventTypeChip type={event.type} />
+            <EventCategoryChip event={event} />
             <EventFormatChip event={event} />
             <ToneChip tone={t.kind === "now" || t.days <= 7 ? "warn" : "info"}>
               {timingLabel(t)}
@@ -449,7 +476,7 @@ function UpcomingCard({ s, candidate }: { s: EventSummary; candidate: boolean })
 
       {candidate ? (
         <CandidateStatus mine={s.mine} />
-      ) : !usesTickets(event.type) ? (
+      ) : !s.tickets ? (
         <p className="text-[12.5px] text-muted-foreground">
           {s.going > 0 ? (
             <>
@@ -487,7 +514,7 @@ function UpcomingCard({ s, candidate }: { s: EventSummary; candidate: boolean })
               {s.attention} need attention
             </ToneChip>
           )}
-          {usesTickets(event.type) && s.needTicket > 0 && <NeedTicketLink s={s} />}
+          {s.tickets && s.needTicket > 0 && <NeedTicketLink s={s} />}
         </div>
       )}
     </SectionCard>
@@ -510,7 +537,7 @@ function PastRow({ s, candidate }: { s: EventSummary; candidate: boolean }) {
           {event.name}
         </Link>
         <p className="truncate text-xs text-muted-foreground">
-          {EVENT_TYPE_LABEL[event.type]}
+          {s.category.name}
           {event.location ? ` · ${event.location}` : ""} · {timingLabel(t)}
         </p>
       </div>
@@ -524,7 +551,7 @@ function PastRow({ s, candidate }: { s: EventSummary; candidate: boolean }) {
               came
               {s.attendedVirtual > 0 && ` · ${s.attendedVirtual} virtual`}
             </span>
-            {usesTickets(event.type) && (
+            {s.tickets && (
               <span className="text-muted-foreground">
                 Show rate{" "}
                 <b className="text-[13px] font-bold tabular-nums text-foreground">

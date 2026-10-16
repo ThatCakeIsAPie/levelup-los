@@ -41,8 +41,14 @@ export * from "./chat";
 // Recruiting pipeline: board, activity goal, conversions, stat sharing (src/data/pipeline)
 export * from "./pipeline";
 
+// Hot / Warm / Cold for new contacts (lists and the recruiting board)
+export * from "./rating";
+
 // Your list and the customer pipeline (src/data/customerPipeline)
 export * from "./customerPipeline";
+
+// Referral sources and "Referred by" on both pipelines (src/data/referrals)
+export * from "./referrals";
 
 // Library: All talks catalog, channels, progress (src/data/library)
 export * from "./library";
@@ -50,8 +56,11 @@ export * from "./library";
 // Growth path: milestone engine, monthly PV, hand-marked milestones (src/data/growth)
 export * from "./growth";
 
-// Event types, quick attendance, missed-event follow-ups (src/data/eventTypes)
+// How people join events, quick attendance, missed-event follow-ups (src/data/eventTypes)
 export * from "./eventTypes";
+
+// Event categories: the team's own kinds of event (src/data/eventCategories)
+export * from "./eventCategories";
 
 // Unlocks (what each person sees), feature switches, leader deputies (src/data/team)
 export * from "./team";
@@ -95,6 +104,7 @@ export {
   useDownline,
   addPerson,
   updatePerson,
+  updatePeople,
   removePerson,
   syncPeopleFromLos,
   getPersonByLosUid,
@@ -128,6 +138,7 @@ export {
   needsTicket,
   type AttentionCode,
   type AttentionItem,
+  type AttentionEvent,
 } from "./attention";
 
 // Contacts, sales, learning
@@ -174,6 +185,22 @@ export {
 
 // Activity timeline
 export { useActivity, useEventActivity } from "./activity";
+export {
+  HOME_CARDS,
+  HOME_CARD_LABEL,
+  arrangeHome,
+  moveHomeCard,
+  nudgeHomeCard,
+  resolveLayout,
+  sameLayout,
+  sanitizeLayout,
+  type HomeArrangement,
+  type HomeCardId,
+  type HomeColumn,
+  type HomeLayout,
+} from "./homeLayout";
+export { useHomeLayout, setHomeLayout, resetHomeLayout } from "./homeLayoutHooks";
+export { useMyDay, myDayItems, type MyDayItem, type MyDayKind, type MyDayInput } from "./myDay";
 
 // Wallet, shared costs, travel, campaigns, report schedules
 export {
@@ -213,6 +240,7 @@ export {
   bestLearningStreak,
   learningGoalFor,
   learningUnit,
+  learningLine,
   unitAmount,
   DEFAULT_LEARNING_GOAL,
   DEFAULT_SETTINGS,
@@ -248,7 +276,7 @@ export type {
   PersonPath,
   ApprenticeAlert,
 } from "@/stores/peopleStore";
-export type { CrmEvent, EventFormat, EventType } from "@/stores/eventsStore";
+export type { CrmEvent, EventFormat } from "@/stores/eventsStore";
 export type {
   Attendance,
   AttendMode,

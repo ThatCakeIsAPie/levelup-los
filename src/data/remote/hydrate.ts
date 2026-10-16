@@ -28,18 +28,22 @@ import { useLibraryExtras, type ChannelTeaser, type LibraryExtras } from "@/data
 import type { PipelineData } from "@/data/pipeline/types";
 import type { CustomerPipelineData } from "@/data/customerPipeline/types";
 import type { TeamData } from "@/data/team/types";
+import type { EventCategory } from "@/data/eventCategories/types";
+import type { HomeLayout } from "@/data/homeLayout";
 import {
   activityBinding,
   attendanceBinding,
   chatBinding,
   crmBinding,
   libraryBinding,
+  eventCategoriesBinding,
   eventsBinding,
   opsBinding,
   peopleBinding,
   pipelineBinding,
   customerPipelineBinding,
   teamBinding,
+  homeLayoutBinding,
 } from "./bindings";
 import { replaceStore } from "./engine";
 import { useRemoteStore, type ChainEntry, type DirectoryEntry, type RsvpCounts } from "./extras";
@@ -79,6 +83,8 @@ export async function fetchAll(
 
 export interface CrmSnapshot {
   people: CrmPerson[];
+  /** The team's event categories (archived ones too: old events use them). */
+  eventCategories: EventCategory[];
   events: CrmEvent[];
   attendances: Attendance[];
   missedNotes: MissedEventNote[];
@@ -98,6 +104,8 @@ export interface CrmSnapshot {
   activity: ActivityEvent[];
   /** Team settings: deputies (yours, or the leaders you act for) and feature switches. */
   team: TeamData;
+  /** Your Home card layout (RLS: only your own row), by person id. */
+  homeLayouts: Record<string, HomeLayout>;
 }
 
 export interface LibrarySnapshot {
@@ -146,6 +154,8 @@ export async function fetchCrm(client: SupabaseClient, me: string): Promise<CrmS
     milestoneMarks,
     milestoneHistory,
     missedNotes,
+    homeLayouts,
+    eventCategories,
   ] = await Promise.all([
     all("people", [["id", true]]),
     all("events", [
@@ -220,6 +230,11 @@ export async function fetchCrm(client: SupabaseClient, me: string): Promise<CrmS
       ["created_at", false],
       ["id", true],
     ]),
+    all("dashboard_layouts", [["person_id", true]]),
+    all("event_categories", [
+      ["position", true],
+      ["id", true],
+    ]),
   ]);
 
   const costList = costs.map((r) => m.costFromRow(r));
@@ -233,6 +248,7 @@ export async function fetchCrm(client: SupabaseClient, me: string): Promise<CrmS
 
   return {
     people: people.map((r) => m.personFromRow(r)),
+    eventCategories: eventCategories.map((r) => m.eventCategoryFromRow(r)),
     events: events.map((r) => m.eventFromRow(r)),
     attendances: attendances.map((r) => m.attendanceFromRow(r)),
     missedNotes: missedNotes.map((r) => m.missedNoteFromRow(r)),
@@ -251,6 +267,7 @@ export async function fetchCrm(client: SupabaseClient, me: string): Promise<CrmS
     schedules: schedules.map((r) => m.scheduleFromRow(r)),
     activity: activity.map((r) => m.activityFromRow(r, me)),
     team: await team,
+    homeLayouts: Object.fromEntries(homeLayouts.map((r) => m.homeLayoutFromRow(r))),
   };
 }
 
@@ -571,6 +588,7 @@ export function applyCrm(s: CrmSnapshot): void {
   // Deputies first: they widen what the client-side visibility rules show.
   replaceStore(teamBinding, s.team);
   replaceStore(peopleBinding, { people: s.people });
+  replaceStore(eventCategoriesBinding, { categories: s.eventCategories });
   replaceStore(eventsBinding, { events: s.events });
   replaceStore(attendanceBinding, { attendances: s.attendances, missedNotes: s.missedNotes });
   replaceStore(crmBinding, {
@@ -591,6 +609,7 @@ export function applyCrm(s: CrmSnapshot): void {
     schedules: s.schedules,
   });
   replaceStore(activityBinding, { events: s.activity });
+  replaceStore(homeLayoutBinding, { layouts: s.homeLayouts });
 }
 
 /**

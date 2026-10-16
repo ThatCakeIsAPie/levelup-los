@@ -73,6 +73,8 @@ export interface Binding<S> {
 /** Parents before children (inserts/updates in this order, deletes in reverse). */
 export const TABLE_ORDER = [
   "people",
+  // Categories before the events that use them.
+  "event_categories",
   "events",
   "attendances",
   "missed_event_notes",
