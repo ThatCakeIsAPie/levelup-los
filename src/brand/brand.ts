@@ -5,25 +5,25 @@
  */
 export const brand = {
   /** App name: page titles, aria-labels, share text. */
-  name: "Network Marketing CRM",
+  name: "Heroes LOS",
   /** Text set next to the mark in the sidebar and on the sign-in page. Usually the name; shorten it if the name does not fit the sidebar. */
-  wordmark: "Network CRM",
+  wordmark: "Heroes LOS",
   /** Small line under the wordmark and in the sign-in footer. Empty string hides it. */
-  orgLine: "",
-  /** The team the app is for: "the Acme team", "Welcome to Acme chats!". Empty string reads "your team" / "team chats". */
-  teamName: "",
+  orgLine: "Team Heroes",
+  /** The team the app is for: "the Heroes team", "Welcome to Heroes chats!". Empty string reads "your team" / "team chats". */
+  teamName: "Heroes",
   /** <meta name=description>. */
-  description: "Team, customer, and event management for network marketing teams.",
+  description: "Team, customer, and event management for Team Heroes.",
   /** Stable machine id: calendar UIDs etc. Never change it on a live brand. */
-  slug: "network-marketing-crm",
+  slug: "heroes-los",
   /**
    * Prefix of every localStorage key (`<prefix>.crm`) and IndexedDB name
    * (`<prefix>-chat-media`). Never change it on a live brand: users would lose
    * their saved data.
    */
-  storagePrefix: "nmcrm",
+  storagePrefix: "heroes",
   /** Browser chrome colour: `initial` is the static <meta theme-color>, light/dark match --app-bg. */
-  themeColor: { initial: "#181E2B", light: "#F5F6FA", dark: "#0E1118" },
+  themeColor: { initial: "#142423", light: "#F4EFE3", dark: "#0E1C1A" },
   /**
    * Colours for generated demo artwork (placeholder thumbnails, the demo map,
    * demo PDFs). They are baked into images and files, so they are not theme
@@ -31,23 +31,23 @@ export const brand = {
    */
   art: {
     /** Deep ink: title text in demo PDFs, the start pin on the demo map, the poster gradient start. */
-    ink: "#1B2230",
+    ink: "#142423",
     /** Primary brand tint: PDF top band, the route line on the demo map, the poster gradient end. */
-    primary: "#4F46E5",
+    primary: "#1D5546",
     /** Highlight: the poster's circle and middle bar. */
-    highlight: "#8F98F7",
+    highlight: "#E3C271",
     /** Warm accent: the poster's first bar and the end pin on the demo map. */
-    accent: "#F2A93B",
+    accent: "#F07850",
     /** Text on dark artwork (poster subtitle). */
-    onDark: "#C5CBD8",
+    onDark: "#E7DCC6",
     /** Secondary text in demo PDFs (subtitle). */
-    pdfMuted: "#5A6272",
+    pdfMuted: "#5A6760",
     /** Faint footer text in demo PDFs. */
-    pdfFaint: "#8A93A4",
+    pdfFaint: "#8B958E",
     /** Placeholder text lines in demo PDF pages. */
-    pdfLine: "#E1E4EC",
+    pdfLine: "#E3DCC9",
     /** Demo map: land, roads, a park/block and the label text. */
-    map: { land: "#EEF0F6", road: "#FFFFFF", block: "#DDE1F5", label: "#1B2230" },
+    map: { land: "#EFE9DA", road: "#FBF8F1", block: "#DCE6D6", label: "#142423" },
   },
 } as const;
 

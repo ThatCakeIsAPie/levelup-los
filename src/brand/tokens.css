@@ -1,24 +1,42 @@
 /*
  * Brand tokens: every raw colour value and the wordmark font.
  * ===========================================================
+ * Heroes: deep green and gold, on parchment in the light theme and on the
+ * green scale in the dark theme. The raw palette is the Team Heroes site's:
+ *   greens  #091211 deepest, #0e1c1a deep, #142423 base, #1e3531 raised, #2c4a44 line
+ *   golds   #c6a04a deep, #e3c271 gold, #f1d690 light
+ *   creams  #f8f4ec bright, #e7dcc6 text, #c4b49a dim; #96a39b muted; #f07850 rust
+ *
  * This is the ONLY place colour values live. src/styles.css maps these names
  * to Tailwind utilities and shadcn variables and contains no hex. A brand
- * replaces this file (and BrandMark.tsx, brand.ts, public/, and fonts/ if it
- * ships one) and nothing else. Keep every token name; components depend on
- * them.
+ * replaces this file (and BrandMark.tsx, brand.ts, fonts/, public/) and
+ * nothing else. Keep every token name; components depend on them.
  *
- * Brand colours (same value in both themes):
- *   --brand-navy   dark slate: sidebar, the "next event" card, the solid IBO chip
- *   --brand-teal   primary action (indigo): buttons, links, selected state
- *   --brand-sky    highlight (light indigo): progress bars, rings, focus ring,
- *                  solid accents. It is a light colour: NEVER put white text
- *                  on it (use --brand-on-sky, which must reach 4.5:1 on it).
- *   --brand-amber  customer stage and warnings; text on it is --brand-on-amber
- *   --brand-stone  light cool grey: chart and swatch fills
+ * Brand colours (same value in both themes unless noted):
+ *   --brand-navy   dark neutral, here the base deep green: sidebar, the "next
+ *                  event" card, the solid IBO chip
+ *   --brand-teal   a mid green for dots and accents that sit on both light and
+ *                  dark surfaces (the "has a ticket" dot). The primary action
+ *                  colour is --primary-base, which differs per theme.
+ *   --brand-sky    highlight: progress bars, rings, focus ring, solid accents.
+ *                  Here it is gold. It is a light colour: NEVER put white text
+ *                  on it (use --brand-on-sky, dark green, which must reach 4.5:1).
+ *   --brand-amber  customer stage and warnings. Because gold is the highlight,
+ *                  amber is a rust orange (the site's #f07850 family) so the two
+ *                  read apart at a glance; text on it is --brand-on-amber.
+ *   --brand-stone  light neutral (warm grey): chart and swatch fills
+ *
+ * Primary action (--primary-base): a deep green with cream text in the light
+ * theme; gold with dark-green text (--on-primary) in the dark theme.
+ *
+ * Status colours are kept apart on purpose: amber/warn is orange (--amber-*),
+ * danger is a crimson-to-rose red (--danger), good is green (--ok; mint in the
+ * dark theme so it shows on the green surfaces), info is a calm blue.
  *
  * Surfaces: --app-bg is the page, --surface cards/inputs/sheets, --surface-2
  * subtle fills (KPI tiles, hover rows), --line hairlines, --track the empty
- * part of progress bars.
+ * part of progress bars. Light theme: parchment (page) with lighter cream
+ * cards. Dark theme: --app-bg #0e1c1a, --surface #142423, --surface-2 #1e3531.
  *
  * Contrast rules (WCAG AA, checked in BOTH themes):
  *   - --fg and --muted-text pass 4.5:1 on --surface and --app-bg.
@@ -28,140 +46,175 @@
  *   - --primary-base with --on-primary, --primary-ink on --primary-soft,
  *     --amber-ink on --amber-soft, --info-ink on --info-soft, --prospect-ink
  *     on --prospect-soft and --danger on --danger-soft each pass 4.5:1.
- *   - --stage-ibo-fg is white on --stage-ibo; --event-fg is white on --event-bg.
- *   - Dark theme: the lighter primary / apprentice indigo carries dark text
- *     (--on-primary).
+ *   - --stage-ibo-fg is cream on --stage-ibo; --event-fg is cream on --event-bg
+ *     (and --event-muted passes on it too); --side-fg and --on-side pass on --side.
+ *   - --brand-on-sky passes on --brand-sky, --brand-on-amber on --brand-amber.
+ *   - Dark theme: the gold primary carries dark text (--on-primary).
  * Raw values live on :root (light) and .dark (dark; the class is toggled on
- * <html> by src/lib/theme.ts).
+ * <html> by src/lib/theme.ts). The sidebar and the event card are dark green
+ * in both themes.
  *
- * The wordmark font (--font-wordmark, utility font-wordmark) is the body font:
- * this brand ships no custom font. A brand that wants one adds a fonts/
- * folder (font files plus their licence) and an @font-face rule here.
+ * The logo mark (BrandMark.tsx) is one gold shape. --brand-mark-accent is the
+ * gold on the dark sidebar and sign-in panel; in the light theme it is the
+ * deeper #c6a04a so the mark still reads on the occasional parchment surface.
+ *
+ * The wordmark font (--font-wordmark, utility font-wordmark) is Cinzel,
+ * vendored in ./fonts with its licence (SIL OFL) next to it.
  */
 
-@theme {
-  --font-wordmark:
-    "Plus Jakarta Sans Variable", "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system,
-    "Segoe UI", sans-serif;
+@font-face {
+  font-family: "Cinzel Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400 900;
+  src: url(./fonts/cinzel-latin-ext-wght-normal.woff2) format("woff2-variations");
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
+    U+A720-A7FF;
 }
 
+@font-face {
+  font-family: "Cinzel Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400 900;
+  src: url(./fonts/cinzel-latin-wght-normal.woff2) format("woff2-variations");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@theme {
+  --font-wordmark: "Cinzel Variable", "Cinzel", "Trajan Pro", Georgia, "Times New Roman", serif;
+}
+
+/*
+ * Cinzel is a caps-first face: the site sets it uppercase with wide tracking.
+ * This unlayered rule outranks the utilities Logo.tsx puts on the wordmark.
+ */
 .font-wordmark {
-  font-weight: 700;
-  letter-spacing: -0.01em;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 :root {
   /* Brand constants (same value in both themes) */
-  --brand-navy: #1b2230;
-  --brand-teal: #4f46e5;
-  --brand-sky: #8f98f7;
-  --brand-amber: #f2a93b;
-  --brand-stone: #d7dce5;
+  --brand-navy: #142423;
+  --brand-teal: #2a7a63;
+  --brand-sky: #e3c271;
+  --brand-amber: #f07850;
+  --brand-stone: #d8d1bd;
   /* Text on solid amber / solid sky fills (text-on-amber, text-on-sky). */
-  --brand-on-amber: #3a2200;
-  --brand-on-sky: #14173d;
-  /* The logo mark (src/brand/BrandMark.tsx). */
-  --brand-mark-ring: #c5cbd8;
-  --brand-mark-accent: var(--brand-sky);
+  --brand-on-amber: #2e1305;
+  --brand-on-sky: #142423;
+  /* The logo mark (src/brand/BrandMark.tsx). Ring is unused (the mark is one shape). */
+  --brand-mark-ring: var(--brand-mark-accent);
+  --brand-mark-accent: #c6a04a;
 
-  /* Mockup tokens (light) */
-  --app-bg: #f5f6fa;
-  --surface: #ffffff;
-  --surface-2: #eef0f6;
-  --line: #dfe3ec;
-  --track: #e2e5ee;
-  --fg: #141824;
-  --muted-text: #545c6e;
-  --faint: #626a7c;
-  --primary-base: #4f46e5;
-  --on-primary: #ffffff;
-  --primary-soft: #e8eafe;
-  --primary-ink: #3730a3;
-  --prospect-soft: #e8eaf0;
-  --prospect-ink: #3a4254;
-  --info: #0e7490;
-  --info-soft: #dff3f8;
-  --info-ink: #0f5568;
-  --amber-soft: #fcebd0;
-  --amber-ink: #6b3f00;
-  --amber-strong: #c77a0a;
-  --danger: #b42318;
-  --danger-soft: #fbe6e3;
+  /* Surfaces (light: parchment) */
+  --app-bg: #f4efe3;
+  --surface: #fbf8f1;
+  --surface-2: #ece6d6;
+  --line: #ddd5c0;
+  --track: #ddd5c0;
+  --fg: #142423;
+  --muted-text: #4a5a54;
+  --faint: #5b6862;
+  --primary-base: #1d5546;
+  --on-primary: #f8f4ec;
+  --primary-soft: #dde8dc;
+  --primary-ink: #174236;
+  --prospect-soft: #e8e4d8;
+  --prospect-ink: #44504a;
+  --info: #2f6f9a;
+  --info-soft: #dfeaf0;
+  --info-ink: #1d4e72;
+  --amber-soft: #fbe2d1;
+  --amber-ink: #7a2f0a;
+  --amber-strong: #b84f0a;
+  --danger: #b3122e;
+  --danger-soft: #fbe1e5;
   --on-danger: #ffffff;
-  --ok: #2f7a3e;
-  --ok-soft: #e1f1e3;
-  --side: #181e2b;
-  --side-fg: #b4bccb;
-  --side-active-bg: rgba(255, 255, 255, 0.1);
-  --side-line: rgba(255, 255, 255, 0.08);
-  --event-bg: #1b2230;
-  --event-fg: #ffffff;
-  --event-muted: #b6bfce;
+  --ok: #256f40;
+  --ok-soft: #dcebdc;
+  --side: #142423;
+  --side-fg: #c4b49a;
+  --side-active-bg: rgba(248, 244, 236, 0.1);
+  --side-line: rgba(227, 194, 113, 0.14);
+  --event-bg: #142423;
+  --event-fg: #f8f4ec;
+  --event-muted: #b6c4bc;
 
   /* Stage solids */
-  --stage-ibo: #1b2230;
-  --stage-ibo-fg: #ffffff;
-  --stage-apprentice: #4f46e5;
-  --stage-prospect: #8b93a5;
-  --stage-customer: #f2a93b;
+  --stage-ibo: #142423;
+  --stage-ibo-fg: #f8f4ec;
+  --stage-apprentice: #1d5546;
+  --stage-prospect: #8b958e;
+  --stage-customer: #f07850;
 
-  /* White on the sidebar's primary / active items (both themes). */
-  --on-side: #ffffff;
+  /* Cream on the sidebar's primary / active items (both themes). */
+  --on-side: #f8f4ec;
 
   /* Chat: outline of a win card (src/modules/chat/chat.css). */
-  --win-line: #1b2230;
+  --win-line: #1d5546;
 
   /*
    * Tinted drop shadows (both themes): -soft under team map cards, -primary
    * the glow under the round "log" button (a translucent --primary-base),
    * -strong under the floating bulk-actions bar.
    */
-  --shadow-tint-soft: rgba(27, 34, 48, 0.06);
-  --shadow-tint-primary: rgba(79, 70, 229, 0.35);
-  --shadow-tint-strong: rgba(14, 18, 30, 0.18);
+  --shadow-tint-soft: rgba(20, 36, 35, 0.06);
+  --shadow-tint-primary: rgba(29, 85, 70, 0.35);
+  --shadow-tint-strong: rgba(9, 18, 17, 0.2);
 }
 
 .dark {
-  --app-bg: #0e1118;
-  --surface: #161a23;
-  --surface-2: #1e232f;
-  --line: #2a303d;
-  --track: #2a303d;
-  --fg: #eceef4;
-  --muted-text: #a5adbd;
-  --faint: #8b94a6;
-  --primary-base: #818cf8;
-  --on-primary: #13123f;
-  --primary-soft: #23265a;
-  --primary-ink: #c7cbff;
-  --prospect-soft: #262c38;
-  --prospect-ink: #ccd1dc;
-  --info: #5cc3e0;
-  --info-soft: #102a35;
-  --info-ink: #a5e1f2;
-  --amber-soft: #3a2b12;
-  --amber-ink: #f6cc86;
-  --amber-strong: #f2a93b;
-  --danger: #f29185;
-  --danger-soft: #3b1c1c;
-  --on-danger: #2a0b08;
-  --ok: #7bcb88;
-  --ok-soft: #173523;
-  --side: #090b11;
-  --side-fg: #99a2b3;
-  --side-active-bg: rgba(255, 255, 255, 0.08);
-  --side-line: rgba(255, 255, 255, 0.07);
-  --event-bg: #1f2533;
-  --event-fg: #ffffff;
-  --event-muted: #b6bfce;
+  /* Surfaces (dark: the green scale) */
+  --app-bg: #0e1c1a;
+  --surface: #142423;
+  --surface-2: #1e3531;
+  --line: #2c4a44;
+  --track: #2c4a44;
+  --fg: #e7dcc6;
+  --muted-text: #a3afa8;
+  --faint: #8d9a93;
+  --primary-base: #e3c271;
+  --on-primary: #142423;
+  --primary-soft: #2c3b2d;
+  --primary-ink: #f1d690;
+  --prospect-soft: #2b3330;
+  --prospect-ink: #c4cdc6;
+  --info: #7db3dc;
+  --info-soft: #16303f;
+  --info-ink: #b0d3ee;
+  --amber-soft: #3b2319;
+  --amber-ink: #f7b595;
+  --amber-strong: #f07850;
+  --danger: #ff7f97;
+  --danger-soft: #3d1a25;
+  --on-danger: #2a0612;
+  --ok: #6fd49b;
+  --ok-soft: #17382c;
+  --side: #091211;
+  --side-fg: #c4b49a;
+  --side-active-bg: rgba(248, 244, 236, 0.08);
+  --side-line: rgba(227, 194, 113, 0.12);
+  --event-bg: #1e3531;
+  --event-fg: #f8f4ec;
+  --event-muted: #b6c4bc;
 
-  --stage-ibo: #3a4256;
-  --stage-ibo-fg: #ffffff;
-  --stage-apprentice: #818cf8;
-  --stage-prospect: #8b93a5;
-  --stage-customer: #f2a93b;
+  --stage-ibo: #3a6b5a;
+  --stage-ibo-fg: #f8f4ec;
+  --stage-apprentice: #e3c271;
+  --stage-prospect: #7f8d86;
+  --stage-customer: #f07850;
 
-  --win-line: #c7cbff;
+  /* The mark sits on the dark sidebar and sign-in panel: full gold. */
+  --brand-mark-accent: #e3c271;
+
+  --win-line: #e3c271;
 
   color-scheme: dark;
 }
