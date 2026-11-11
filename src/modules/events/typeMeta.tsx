@@ -15,7 +15,7 @@ import {
 import { cn } from "@/lib/utils";
 import { EVENT_TYPE_ICON } from "./typeIcons";
 
-/** Neutral chip with the type's icon and name. `onNavy` for the charcoal event cards. */
+/** Neutral chip with the type's icon and name. `onNavy` for the dark event cards. */
 export function EventTypeChip({
   type,
   onNavy,

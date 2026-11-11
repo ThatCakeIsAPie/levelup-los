@@ -412,7 +412,7 @@ function LogFab() {
         type="button"
         onClick={() => openLog()}
         aria-label="Log learning, a check-in, a contact or a sale"
-        className="-mt-7 grid size-[50px] place-items-center rounded-full bg-primary text-primary-foreground shadow-[0_6px_16px_rgba(6,119,129,.35)] transition-transform active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        className="-mt-7 grid size-[50px] place-items-center rounded-full bg-primary text-primary-foreground shadow-[0_6px_16px_var(--shadow-tint-primary)] transition-transform active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
       >
         <Plus className="size-6" aria-hidden="true" />
       </button>

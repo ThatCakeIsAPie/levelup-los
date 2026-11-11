@@ -64,7 +64,7 @@ export function BulkBar({
     <div
       role="region"
       aria-label="Bulk actions"
-      className="sticky bottom-3 z-20 mt-3 flex items-center gap-1.5 rounded-card border border-line bg-surface px-2.5 py-2 shadow-[0_10px_30px_rgba(10,21,37,.18)] sm:gap-2 sm:px-3"
+      className="sticky bottom-3 z-20 mt-3 flex items-center gap-1.5 rounded-card border border-line bg-surface px-2.5 py-2 shadow-[0_10px_30px_var(--shadow-tint-strong)] sm:gap-2 sm:px-3"
     >
       <span className="mr-auto whitespace-nowrap pl-1 text-[13px] font-bold tabular-nums">
         {n} selected

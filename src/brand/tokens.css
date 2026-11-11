@@ -123,6 +123,15 @@
 
   /* Chat: outline of a win card (src/modules/chat/chat.css). */
   --win-line: #1e2421;
+
+  /*
+   * Tinted drop shadows (both themes): -soft under team map cards, -primary
+   * the glow under the round "log" button (a translucent --primary-base),
+   * -strong under the floating bulk-actions bar.
+   */
+  --shadow-tint-soft: rgba(19, 36, 61, 0.06);
+  --shadow-tint-primary: rgba(6, 119, 129, 0.35);
+  --shadow-tint-strong: rgba(10, 21, 37, 0.18);
 }
 
 .dark {
