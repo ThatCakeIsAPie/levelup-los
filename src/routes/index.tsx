@@ -1,3 +1,4 @@
+import { pageTitle } from "@/lib/brand";
 import { useMemo } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { format } from "date-fns";
@@ -24,7 +25,7 @@ import { FirstSponsorCelebration, NextMilestoneCard } from "@/modules/growth/Hom
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Dashboard — LevelUp LOS" },
+      { title: pageTitle("Dashboard") },
       {
         name: "description",
         content: "Your learning streak, next event, and the people who need you today.",

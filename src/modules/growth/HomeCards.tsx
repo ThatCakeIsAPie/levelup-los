@@ -1,3 +1,4 @@
+import { storageKey } from "@/lib/brand";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
@@ -197,7 +198,7 @@ export function NextMilestoneCard() {
   );
 }
 
-const SEEN_KEY = (personId: string) => `levelup.growth.firstSponsorSeen.${personId}`;
+const SEEN_KEY = (personId: string) => storageKey(`growth.firstSponsorSeen.${personId}`);
 const readSeen = (key: string): boolean => {
   try {
     return localStorage.getItem(key) === "1";

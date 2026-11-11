@@ -1,14 +1,8 @@
 /*
- * Chat-only tokens (kept out of src/styles.css on purpose).
- * --win-line: win card outline, the blue of the text (navy in light mode,
- * light blue in dark mode). Used as border-[var(--win-line)].
+ * Chat-only styles (kept out of src/styles.css on purpose).
+ * --win-line (win card outline, used as border-[var(--win-line)]) is a brand
+ * colour and lives in src/brand/tokens.css.
  */
-:root {
-  --win-line: #1e2421;
-}
-.dark {
-  --win-line: #9ae6b6;
-}
 
 /* Brief highlight when jumping to a message (reply quote, pinned bar, links). */
 @keyframes chat-flash {

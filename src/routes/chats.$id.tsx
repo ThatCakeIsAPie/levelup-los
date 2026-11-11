@@ -1,3 +1,4 @@
+import { pageTitle } from "@/lib/brand";
 import { createFileRoute } from "@tanstack/react-router";
 import { getConversationTitle } from "@/data";
 import { ChatsScreen } from "@/modules/chat/ChatsScreen";
@@ -9,7 +10,7 @@ export const Route = createFileRoute("/chats/$id")({
     typeof s.m === "string" && s.m ? { m: s.m } : {},
   loader: ({ params }) => ({ title: getConversationTitle(params.id) }),
   head: ({ loaderData }) => ({
-    meta: [{ title: `${loaderData?.title ?? "Chat"} — LevelUp LOS` }],
+    meta: [{ title: pageTitle(loaderData?.title ?? "Chat") }],
   }),
   component: ChatPage,
 });

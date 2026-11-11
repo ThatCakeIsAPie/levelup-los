@@ -1,3 +1,5 @@
+import { pageTitle } from "@/lib/brand";
+import { brand } from "@/brand/brand";
 import type { QueryClient } from "@tanstack/react-query";
 import {
   Outlet,
@@ -85,10 +87,10 @@ function ErrorComponent({ error, reset }: { error: unknown; reset: () => void })
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   head: () => ({
     meta: [
-      { title: "LevelUp LOS" },
+      { title: pageTitle() },
       {
         name: "description",
-        content: "Team, customer, and event management for direct sales leaders.",
+        content: brand.description,
       },
     ],
   }),

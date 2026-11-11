@@ -1,6 +1,6 @@
 # Backend (Supabase)
 
-The database for LevelUp LOS: Postgres with row-level security (RLS), auth, storage and realtime, run locally with the Supabase CLI in Docker. It holds all the app's data: the CRM (people, events, attendance, travel, shared costs, contacts, sales, learning, activity, campaigns) and chat. The agreed plan is [`plans/messaging-and-backend-plan-2026-10-12.md`](plans/messaging-and-backend-plan-2026-10-12.md); its "Chat data contract" is implemented field for field.
+The database for the app: Postgres with row-level security (RLS), auth, storage and realtime, run locally with the Supabase CLI in Docker. It holds all the app's data: the CRM (people, events, attendance, travel, shared costs, contacts, sales, learning, activity, campaigns) and chat. The agreed plan is [`plans/messaging-and-backend-plan-2026-10-12.md`](plans/messaging-and-backend-plan-2026-10-12.md); its "Chat data contract" is implemented field for field.
 
 The GitHub Pages demo does not use any of this: it keeps running on browser storage (`VITE_DATA_SOURCE=local`). With `VITE_DATA_SOURCE=supabase` the app loads everything from here after sign-in and writes every change back (see [Run the app against the local database](#run-the-app-against-the-local-database) and the frontend guide's "Two data sources").
 
@@ -53,24 +53,24 @@ Auth config: email sign-in with magic link and with password, and no email confi
    VITE_DATA_SOURCE=supabase npm run dev -- --port 5180 --strictPort --host localhost
    ```
    (PowerShell: `$env:VITE_DATA_SOURCE="supabase"; npm run dev -- --port 5180 --strictPort --host localhost`.)
-3. Open http://localhost:5180/login and pick a demo account (development builds list them; password `levelup-local`), or use a magic link from Mailpit. "Loading your team…" shows while the person's data loads.
+3. Open http://localhost:5180/login and pick a demo account (development builds list them; password `demo-local`), or use a magic link from Mailpit. "Loading your team…" shows while the person's data loads.
 4. To see live chat, sign in as a second person in another browser profile (or a private window): the two can't share one browser profile, because the session is kept in `localStorage`.
 
-Nothing is written to the demo's `levelup.*` storage keys in this mode, so switching `VITE_DATA_SOURCE` back and forth never mixes demo and real data.
+Nothing is written to the demo's `<prefix>.*` storage keys in this mode, so switching `VITE_DATA_SOURCE` back and forth never mixes demo and real data.
 
 ## Demo logins (local only)
 
-The seed creates an auth user for each demo user, linked to their CRM person. **Password for all of them: `levelup-local`** (local development only; the seed is never pushed to a hosted project). Magic links also work: open the email in Mailpit.
+The seed creates an auth user for each demo user, linked to their CRM person. **Password for all of them: `demo-local`** (local development only; the seed is never pushed to a hosted project). Magic links also work: open the email in Mailpit.
 
-| Email                 | Person             | Team role | App role (`get_session().app_role`)                    |
-| --------------------- | ------------------ | --------- | ------------------------------------------------------ |
-| `maria@levelup.test`  | Maria Reyes (1)    | leader    | leader                                                 |
-| `anita@levelup.test`  | Anita Patel (2)    | moderator | ibo                                                    |
-| `jamal@levelup.test`  | Jamal Brown (4)    | member    | apprentice                                             |
-| `tasha@levelup.test`  | Tasha Greene (700) | member    | apprentice (new, under Jamal)                          |
-| `beau@levelup.test`   | Beau Foster (20)   | member    | candidate (no chat)                                    |
-| `marcus@levelup.test` | Marcus Hill (6)    | member    | ibo; Maria's deputy                                    |
-| `admin@levelup.test`  | Admin Tester (800) | member    | ibo; Maria's deputy; `app_admins` (sees every feature) |
+| Email              | Person             | Team role | App role (`get_session().app_role`)                    |
+| ------------------ | ------------------ | --------- | ------------------------------------------------------ |
+| `maria@demo.test`  | Maria Reyes (1)    | leader    | leader                                                 |
+| `anita@demo.test`  | Anita Patel (2)    | moderator | ibo                                                    |
+| `jamal@demo.test`  | Jamal Brown (4)    | member    | apprentice                                             |
+| `tasha@demo.test`  | Tasha Greene (700) | member    | apprentice (new, under Jamal)                          |
+| `beau@demo.test`   | Beau Foster (20)   | member    | candidate (no chat)                                    |
+| `marcus@demo.test` | Marcus Hill (6)    | member    | ibo; Maria's deputy                                    |
+| `admin@demo.test`  | Admin Tester (800) | member    | ibo; Maria's deputy; `app_admins` (sees every feature) |
 
 Every other apprentice and IBO has a `members` row without a login (`user_id` null), so they appear in chats. Invites (`accept_invite`) are how new people get an account.
 
@@ -380,7 +380,7 @@ The same script generates `supabase/tests/001_visibility_parity.test.sql`. It ru
 3. Auth settings (Authentication → URL configuration): set the site URL to the deployed app and add its `/auth/callback` redirect. Configure SMTP (Authentication → Emails) for magic links and invites; the built-in sender is heavily rate-limited.
 4. Create the first workspace and leader in the SQL editor. Sign up the leader first, then:
    ```sql
-   insert into public.workspaces (id, name) values ('w1', 'LevelUp');
+   insert into public.workspaces (id, name) values ('w1', 'Demo Team');
    insert into public.people (id, workspace_id, name, email, biz_class, pipeline_stage, business_start_date)
    values ('1', 'w1', 'Leader Name', 'leader@example.com', 'ibo', 'ibo', current_date);
    insert into public.members (workspace_id, person_id, user_id, role)

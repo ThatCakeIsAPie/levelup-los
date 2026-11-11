@@ -1,3 +1,4 @@
+import { brand } from "@/brand/brand";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
@@ -93,7 +94,7 @@ function RemoteInvite({ token }: { token: string }) {
   return (
     <AuthLayout
       headline={`Welcome to ${preview.workspace_name}.`}
-      blurb="LevelUp LOS is where the team keeps track of people, customers and events, and talks it all through."
+      blurb={`${brand.name} is where the team keeps track of people, customers and events, and talks it all through.`}
     >
       <InviteHeader preview={preview} />
       {status === "signedOut" && <JoinForm token={token} preview={preview} />}

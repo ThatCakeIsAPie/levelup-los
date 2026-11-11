@@ -7,7 +7,7 @@
  *
  * Two implementations behind the same calls:
  *  - Browser-storage demo: blobs live in IndexedDB (database
- *    "levelup-library-media", store "files"; paths look like "idb:<uuid>"),
+ *    "<prefix>-library-media", store "files"; paths look like "idb:<uuid>"),
  *    separate from chat media.
  *  - Real accounts ("supabase" mode): files are uploaded to the private
  *    `library` bucket as "<workspace_id>/<item_id>/<uuid>.<ext>" (before the
@@ -19,6 +19,8 @@
  *   seed:video:<seconds>:<n>                 the same audio (played in a <video>)
  *   seed:pdf:<pages>:<p|l>:<encoded title>   a small PDF (portrait doc / landscape slides)
  */
+import { brand } from "@/brand/brand";
+import { dbName } from "@/lib/brand";
 import { useCallback, useEffect, useSyncExternalStore } from "react";
 import { IS_SUPABASE } from "@/lib/config";
 import { supabase } from "@/lib/supabase";
@@ -40,7 +42,7 @@ const isStoragePath = (path: string) => IS_SUPABASE && !!path && !/^(seed|idb):/
 /** Files uploaded in this tab (shown from memory, no download). */
 const localBlobs = new Map<string, Blob>();
 
-const DB_NAME = "levelup-library-media";
+const DB_NAME = dbName("library-media");
 const STORE = "files";
 
 // ---------------------------------------------------------------------------
@@ -282,6 +284,10 @@ export function synthTalkWav(durationSec: number, seed: number): Blob {
   return new Blob([buf], { type: "audio/wav" });
 }
 
+/** PDF fill-colour operator for a "#rrggbb" colour ("0.024 0.467 0.506 rg"). */
+const pdfFill = (hex: string) =>
+  `${[1, 3, 5].map((i) => +(parseInt(hex.slice(i, i + 2), 16) / 255).toFixed(3)).join(" ")} rg`;
+
 /** PDF text: ASCII only, with (, ) and \ escaped. */
 const pdfText = (s: string) => s.replace(/[^\x20-\x7e]/g, "-").replace(/[\\()]/g, (c) => `\\${c}`);
 
@@ -302,28 +308,33 @@ export function makePdf(title: string, pages: number, landscape: boolean): Blob 
   for (let p = 0; p < pages; p++) {
     const lines: string[] = [];
     // Teal band along the top, navy footer text.
-    lines.push("0.024 0.467 0.506 rg", `0 ${H - 18} ${W} 18 re f`);
+    lines.push(pdfFill(brand.art.primary), `0 ${H - 18} ${W} 18 re f`);
     if (p === 0) {
       lines.push(
-        "0.102 0.212 0.365 rg",
+        pdfFill(brand.art.ink),
         `BT /F2 ${landscape ? 40 : 28} Tf 60 ${H / 2 + 30} Td (${t}) Tj ET`,
-        "0.36 0.41 0.48 rg",
-        `BT /F1 16 Tf 60 ${H / 2 - 10} Td (LevelUp LOS library - demo ${landscape ? "slides" : "document"}) Tj ET`,
+        pdfFill(brand.art.pdfMuted),
+        `BT /F1 16 Tf 60 ${H / 2 - 10} Td (${pdfText(brand.name)} library - demo ${landscape ? "slides" : "document"}) Tj ET`,
       );
     } else {
       lines.push(
-        "0.102 0.212 0.365 rg",
+        pdfFill(brand.art.ink),
         `BT /F2 ${landscape ? 30 : 20} Tf 60 ${H - 90} Td (${landscape ? "Slide" : "Page"} ${p + 1}) Tj ET`,
-        "0.36 0.41 0.48 rg",
+        pdfFill(brand.art.pdfMuted),
       );
       const rows = landscape ? 5 : 14;
       for (let r = 0; r < rows; r++) {
         const y = H - 150 - r * (landscape ? 56 : 40);
         const w = (W - 160) * (0.55 + 0.4 * Math.abs(Math.sin(p * 3 + r)));
-        lines.push(`0.89 0.87 0.84 rg 60 ${y} ${Math.round(w)} ${landscape ? 18 : 12} re f`);
+        lines.push(
+          `${pdfFill(brand.art.pdfLine)} 60 ${y} ${Math.round(w)} ${landscape ? 18 : 12} re f`,
+        );
       }
     }
-    lines.push("0.53 0.57 0.63 rg", `BT /F1 10 Tf 60 30 Td (${t} - ${p + 1} of ${pages}) Tj ET`);
+    lines.push(
+      pdfFill(brand.art.pdfFaint),
+      `BT /F1 10 Tf 60 30 Td (${t} - ${p + 1} of ${pages}) Tj ET`,
+    );
     const stream = lines.join("\n");
     objs[pageIds[p]] =
       `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W} ${H}] ` +
@@ -351,6 +362,7 @@ export function makePdf(title: string, pages: number, landscape: boolean): Blob 
 export function demoVideoPoster(path: string | null, title: string): string | null {
   if (!path?.startsWith("seed:video:")) return null;
   const esc = (s: string) => s.replace(/[<>&"]/g, (c) => `&#${c.charCodeAt(0)};`);
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1A365D"/><stop offset="1" stop-color="#067781"/></linearGradient></defs><rect width="1280" height="720" fill="url(#g)"/><circle cx="1080" cy="150" r="260" fill="#199BD7" opacity=".18"/><rect x="96" y="96" width="14" height="72" rx="4" fill="#F2A93B"/><rect x="122" y="120" width="14" height="48" rx="4" fill="#199BD7"/><rect x="148" y="140" width="14" height="28" rx="4" fill="#fff"/><text x="96" y="420" font-family="system-ui,sans-serif" font-size="64" font-weight="800" fill="#fff">${esc(title.slice(0, 34))}</text><text x="96" y="480" font-family="system-ui,sans-serif" font-size="30" fill="#BFCDE0">LevelUp LOS library · demo video</text></svg>`;
+  const { art } = brand;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${art.ink}"/><stop offset="1" stop-color="${art.primary}"/></linearGradient></defs><rect width="1280" height="720" fill="url(#g)"/><circle cx="1080" cy="150" r="260" fill="${art.highlight}" opacity=".18"/><rect x="96" y="96" width="14" height="72" rx="4" fill="${art.accent}"/><rect x="122" y="120" width="14" height="48" rx="4" fill="${art.highlight}"/><rect x="148" y="140" width="14" height="28" rx="4" fill="#fff"/><text x="96" y="420" font-family="system-ui,sans-serif" font-size="64" font-weight="800" fill="#fff">${esc(title.slice(0, 34))}</text><text x="96" y="480" font-family="system-ui,sans-serif" font-size="30" fill="${art.onDark}">${esc(brand.name)} library · demo video</text></svg>`;
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }

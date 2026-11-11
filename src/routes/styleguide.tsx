@@ -1,3 +1,4 @@
+import { pageTitle } from "@/lib/brand";
 import { createFileRoute } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import {
@@ -40,7 +41,7 @@ import {
 import { daysFromToday, openLog, type BizClass, type LogTab } from "@/data";
 
 export const Route = createFileRoute("/styleguide")({
-  head: () => ({ meta: [{ title: "Styleguide — LevelUp LOS" }] }),
+  head: () => ({ meta: [{ title: pageTitle("Styleguide") }] }),
   component: StyleguidePage,
 });
 

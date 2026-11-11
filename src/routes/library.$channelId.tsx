@@ -1,3 +1,4 @@
+import { pageTitle } from "@/lib/brand";
 import { createFileRoute } from "@tanstack/react-router";
 import { getLibraryChannelTitle } from "@/data";
 import { LibraryPage } from "@/modules/library/LibraryPage";
@@ -19,7 +20,7 @@ export const Route = createFileRoute("/library/$channelId")({
   }),
   loader: ({ params }) => ({ title: getLibraryChannelTitle(params.channelId) }),
   head: ({ loaderData }) => ({
-    meta: [{ title: `${loaderData?.title ?? "Channel"} — LevelUp LOS` }],
+    meta: [{ title: pageTitle(loaderData?.title ?? "Channel") }],
   }),
   component: ChannelRoute,
 });

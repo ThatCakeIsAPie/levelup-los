@@ -1,3 +1,4 @@
+import { pageTitle } from "@/lib/brand";
 import { useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { quickCheckIn } from "@/components/log/quickLog";
@@ -62,7 +63,7 @@ export const Route = createFileRoute("/people/$id")({
   // The name for the tab title; a person you can't see stays "Person".
   loader: ({ params }) => ({ name: getPerson(params.id)?.name }),
   head: ({ loaderData }) => ({
-    meta: [{ title: `${loaderData?.name ?? "Person"} — LevelUp LOS` }],
+    meta: [{ title: pageTitle(loaderData?.name ?? "Person") }],
   }),
   component: PersonPage,
 });

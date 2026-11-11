@@ -1,18 +1,48 @@
 /// <reference types="vitest/config" />
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
+import { brand } from "./src/brand/brand";
+
+const escapeHtml = (s: string) =>
+  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+// Inside a JS string literal in index.html's inline script.
+const escapeJs = (s: string) => JSON.stringify(s).slice(1, -1);
+
+/** Fills the %BRAND_*% placeholders in index.html from src/brand/brand.ts. */
+function brandHtml(): Plugin {
+  const values: Record<string, string> = {
+    "%BRAND_NAME%": escapeHtml(brand.name),
+    "%BRAND_DESCRIPTION%": escapeHtml(brand.description),
+    "%BRAND_THEME_COLOR%": escapeHtml(brand.themeColor.initial),
+    "%BRAND_STORAGE_PREFIX%": escapeJs(brand.storagePrefix),
+  };
+  return {
+    name: "brand-html",
+    transformIndexHtml: {
+      order: "pre",
+      handler: (html) =>
+        html.replace(/%BRAND_[A-Z_]+%/g, (token) => {
+          if (!(token in values)) throw new Error(`Unknown index.html placeholder ${token}`);
+          return values[token];
+        }),
+    },
+  };
+}
 
 // Plain browser-only SPA. File-based routes live in src/routes; the router
 // plugin regenerates src/routeTree.gen.ts on dev/build (it must run before
 // the React plugin).
 export default defineConfig({
   // Served from the domain root locally; GitHub Pages builds set BASE_PATH to
-  // "/levelup-los/" (see .github/workflows/pages.yml).
+  // "/<repo name>/" (see .github/workflows/pages.yml).
   base: process.env.BASE_PATH ?? "/",
+  // Brand-owned static files (favicon.svg); see src/brand/README.md.
+  publicDir: "src/brand/public",
   plugins: [
+    brandHtml(),
     tanstackRouter({ target: "react", autoCodeSplitting: true }),
     react(),
     tailwindcss(),

@@ -1,50 +1,49 @@
 @import "tailwindcss" source(none);
 @source "../src";
 @import "tw-animate-css";
+@import "./brand/tokens.css";
 
 @custom-variant dark (&:is(.dark *));
 
 /*
- * LevelUp LOS design tokens
- * =========================
- * Palette: LevelUp Leadership (docs/design/mvp-mockup.html, approved
- * 2026-10-13), replacing the earlier LTD navy/teal/sky. The brand token NAMES
- * were kept so components didn't change: "navy" is now charcoal, "teal" the
- * deep green, "sky" the logo green. Hexes were matched by eye from the logo;
- * swap in exact codes when the logo file arrives.
- * Raw values live on :root (light) and .dark (dark; the class is toggled on
+ * Design tokens: reference
+ * ========================
+ * This file holds structure only: the Tailwind mapping, the shadcn mapping,
+ * radii and the body font. Every raw colour value and the wordmark font live
+ * in src/brand/tokens.css (read its header for what each brand colour is for
+ * and the contrast rules). Token NAMES are the contract with components.
+ * Raw values sit on :root (light) and .dark (dark; the class is toggled on
  * <html> by src/lib/theme.ts). @theme inline below exposes them to Tailwind.
  * Never hard-code hex colors in components; use these utilities.
  *
  * Brand (same value in both themes; use for bars, dots, logo, accents)
- *   bg-navy  #1E2421 (charcoal)    bg-teal #16803F (deep green)
- *   bg-sky   #2DB862 (logo green)  bg-amber #F2A93B   bg-stone #D9DCD9 (grey)
+ *   bg-navy (dark neutral)   bg-teal (primary action)   bg-sky (highlight)
+ *   bg-amber                 bg-stone (light neutral)
  *   (also text-*, border-*, fill-*)
  *   Sky is a highlight/progress color only: never put white text on it.
- *   bg-logo-ring: the grey ring and down-arrow of the logo (use <Logo>).
+ *   The logo mark is <BrandMark> (src/brand); use <Logo> for mark + wordmark.
  *   text-amber-strong: streak flame / win accents. text-on-amber: text on bg-amber.
- *   text-on-sky: text on a solid bg-sky button or chip (dark green, 7:1).
+ *   text-on-sky: text on a solid bg-sky button or chip.
  *
  * Surfaces and lines
- *   bg-app          page background (warm off-white / deep navy)
- *   bg-surface      cards, sheets, inputs (white / navy)
+ *   bg-app          page background
+ *   bg-surface      cards, sheets, inputs
  *   bg-surface-2    subtle fills: KPI tiles, segmented controls, hover rows
- *   border-line     1px warm hairline used by cards, tables, inputs
+ *   border-line     1px hairline used by cards, tables, inputs
  *   bg-track        empty part of progress bars / rings
  *   text-foreground body text      text-muted-foreground secondary text
- *   text-faint      tertiary text (timestamps, hints). Darker/lighter than the
- *                   mockup (#8791A0 / #7487A0) so it passes WCAG AA (4.5:1) on
- *                   bg-surface and bg-app in both themes. On tinted fills
+ *   text-faint      tertiary text (timestamps, hints); passes WCAG AA (4.5:1)
+ *                   on bg-surface and bg-app in both themes. On tinted fills
  *                   (primary-soft, surface-2) prefer text-muted-foreground.
- *   bg-event        the charcoal "next event" card (white text on it)
+ *   bg-event        the dark "next event" card (white text on it)
  *
- * Primary action (deep green; dark mode uses a lighter green with dark text)
+ * Primary action (dark mode uses a lighter shade with dark text)
  *   bg-primary text-primary-foreground       solid primary button
  *   bg-primary-soft text-primary-ink         "soft" button / selected state
- *   ring-ring / outline-ring                 focus ring (logo green)
+ *   ring-ring / outline-ring                 focus ring
  *
  * Stages (BizClass) - use <StageChip>/<PersonAvatar> where possible
- *   IBO         bg-stage-ibo text-stage-ibo-fg                 (solid charcoal chip)
+ *   IBO         bg-stage-ibo text-stage-ibo-fg                 (solid dark chip)
  *   Apprentice  bg-stage-apprentice-soft text-stage-apprentice-ink
  *   Prospect    bg-stage-prospect-soft text-stage-prospect-ink   (grey: not in yet)
  *   Customer    bg-stage-customer-soft text-stage-customer-ink
@@ -58,19 +57,19 @@
  *   info  bg-info-soft text-info-ink    (solid: bg-info; a calm blue, kept
  *         apart from the greens so it doesn't read as "good")
  *
- * Sidebar (charcoal in BOTH themes)
+ * Sidebar (dark in BOTH themes)
  *   bg-sidebar text-sidebar-fg, active item bg-sidebar-active text-white,
  *   border-sidebar-line. (shadcn's sidebar-* vars are mapped too.)
  *
  * Radii: rounded-card (14px, cards/sheets), rounded-lg (9px, controls),
  *   rounded-md (7px), rounded-sm (5px), rounded-full for chips/avatars.
- * Font: Plus Jakarta Sans Variable (font-sans, default on body).
- * Charts: --chart-1..5 = IBO charcoal, deep green, prospect grey, amber,
- *   logo green (fill-chart-1...).
+ * Font: Plus Jakarta Sans Variable (font-sans, default on body). The wordmark
+ *   face (font-wordmark) is brand-owned.
+ * Charts: --chart-1..5 = IBO, apprentice, prospect, customer, highlight
+ *   (fill-chart-1...).
  */
 
 @theme {
-  --font-wordmark: "Special Elite", "Courier New", ui-monospace, monospace;
   --font-sans:
     "Plus Jakarta Sans Variable", "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system,
     "Segoe UI", sans-serif;
@@ -128,9 +127,8 @@
   --color-amber: var(--brand-amber);
   --color-stone: var(--brand-stone);
   --color-amber-strong: var(--amber-strong);
-  --color-logo-ring: #c9ccc9;
-  --color-on-amber: #3a2200;
-  --color-on-sky: #06210f;
+  --color-on-amber: var(--brand-on-amber);
+  --color-on-sky: var(--brand-on-sky);
 
   /* Surfaces */
   --color-app: var(--app-bg);
@@ -182,54 +180,6 @@
   --radius: 9px;
   --radius-card-value: 14px;
 
-  /* Brand constants */
-  --brand-navy: #1e2421;
-  --brand-teal: #16803f;
-  --brand-sky: #2db862;
-  --brand-amber: #f2a93b;
-  --brand-stone: #d9dcd9;
-
-  /* Mockup tokens (light) */
-  --app-bg: #f4f5f3;
-  --surface: #ffffff;
-  --surface-2: #eff0ed;
-  --line: #e0e2de;
-  --track: #e3e5e1;
-  --fg: #141615;
-  --muted-text: #575e5a;
-  --faint: #667069;
-  --primary-base: #16803f;
-  --on-primary: #ffffff;
-  --primary-soft: #dcf2e4;
-  --primary-ink: #0e5a2b;
-  --prospect-soft: #e8eae8;
-  --prospect-ink: #3d4641;
-  --info: #2f6f9a;
-  --info-soft: #e2edf5;
-  --info-ink: #1d4e72;
-  --amber-soft: #fcebd0;
-  --amber-ink: #6b3f00;
-  --amber-strong: #c77a0a;
-  --danger: #b42318;
-  --danger-soft: #fbe6e3;
-  --on-danger: #ffffff;
-  --ok: #2f7a3e;
-  --ok-soft: #e1f1e3;
-  --side: #1a1e1c;
-  --side-fg: #b8bfba;
-  --side-active-bg: rgba(255, 255, 255, 0.1);
-  --side-line: rgba(255, 255, 255, 0.08);
-  --event-bg: #1e2421;
-  --event-fg: #ffffff;
-  --event-muted: #b8c2bc;
-
-  /* Stage solids */
-  --stage-ibo: #1e2421;
-  --stage-ibo-fg: #ffffff;
-  --stage-apprentice: #16803f;
-  --stage-prospect: #8e9691;
-  --stage-customer: #f2a93b;
-
   /* shadcn mapping */
   --background: var(--app-bg);
   --foreground: var(--fg);
@@ -258,54 +208,11 @@
   --sidebar: var(--side);
   --sidebar-foreground: var(--side-fg);
   --sidebar-primary: var(--brand-teal);
-  --sidebar-primary-foreground: #ffffff;
+  --sidebar-primary-foreground: var(--on-side);
   --sidebar-accent: var(--side-active-bg);
-  --sidebar-accent-foreground: #ffffff;
+  --sidebar-accent-foreground: var(--on-side);
   --sidebar-border: var(--side-line);
   --sidebar-ring: var(--brand-sky);
-}
-
-.dark {
-  --app-bg: #101411;
-  --surface: #181d1a;
-  --surface-2: #202722;
-  --line: #2a322d;
-  --track: #2a322d;
-  --fg: #eceeec;
-  --muted-text: #a6afa9;
-  --faint: #8c968f;
-  --primary-base: #3ccb73;
-  --on-primary: #06210f;
-  --primary-soft: #163824;
-  --primary-ink: #9ae6b6;
-  --prospect-soft: #262d29;
-  --prospect-ink: #c9d0cb;
-  --info: #6fa8d6;
-  --info-soft: #15283a;
-  --info-ink: #a9cdea;
-  --amber-soft: #3a2b12;
-  --amber-ink: #f6cc86;
-  --amber-strong: #f2a93b;
-  --danger: #f29185;
-  --danger-soft: #3b1c1c;
-  --on-danger: #2a0b08;
-  --ok: #7bcb88;
-  --ok-soft: #173523;
-  --side: #0b0d0c;
-  --side-fg: #9aa39d;
-  --side-active-bg: rgba(255, 255, 255, 0.08);
-  --side-line: rgba(255, 255, 255, 0.07);
-  --event-bg: #222a25;
-  --event-fg: #ffffff;
-  --event-muted: #b8c2bc;
-
-  --stage-ibo: #3a453e;
-  --stage-ibo-fg: #ffffff;
-  --stage-apprentice: #3ccb73;
-  --stage-prospect: #8e9691;
-  --stage-customer: #f2a93b;
-
-  color-scheme: dark;
 }
 
 @layer base {

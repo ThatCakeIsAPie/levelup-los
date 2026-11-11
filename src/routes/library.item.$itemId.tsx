@@ -1,3 +1,4 @@
+import { pageTitle } from "@/lib/brand";
 import { createFileRoute } from "@tanstack/react-router";
 import { getCatalogItemTitle } from "@/data";
 import { ItemPage } from "@/modules/library/ItemPage";
@@ -13,7 +14,7 @@ export const Route = createFileRoute("/library/item/$itemId")({
   }),
   loader: ({ params }) => ({ title: getCatalogItemTitle(params.itemId) }),
   head: ({ loaderData }) => ({
-    meta: [{ title: `${loaderData?.title ?? "Talk"} — LevelUp LOS` }],
+    meta: [{ title: pageTitle(loaderData?.title ?? "Talk") }],
   }),
   component: ItemRoute,
 });

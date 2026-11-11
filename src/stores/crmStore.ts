@@ -1,3 +1,4 @@
+import { storageKey } from "@/lib/brand";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { dataStorage, seedOr } from "./storage";
@@ -218,7 +219,7 @@ export const useCrmStore = create<CrmState>()(
       },
     }),
     {
-      name: "levelup.crm",
+      name: storageKey("crm"),
       storage: dataStorage(),
       partialize: (s) => ({
         sales: s.sales,

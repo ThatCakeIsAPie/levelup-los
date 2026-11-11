@@ -1,5 +1,5 @@
 /**
- * LevelUp LOS brand components. Styled only with design tokens (see the
+ * Brand-neutral components (the brand itself lives in src/brand). Styled only with design tokens (see the
  * reference at the top of src/styles.css). Live examples: /styleguide.
  */
 export { Logo, LogoMark } from "./Logo";

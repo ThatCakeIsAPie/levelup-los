@@ -1,3 +1,4 @@
+import { pageTitle } from "@/lib/brand";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { CustomersPage, type CustomersTab } from "@/modules/customers/CustomersPage";
 
@@ -22,12 +23,12 @@ export const Route = createFileRoute("/customers")({
   }),
   head: () => ({
     meta: [
-      { title: "Customers — LevelUp LOS" },
+      { title: pageTitle("Customers") },
       {
         name: "description",
         content: "Your customer pipeline, your list and your private customer list.",
       },
-      { property: "og:title", content: "Customers — LevelUp LOS" },
+      { property: "og:title", content: pageTitle("Customers") },
       {
         property: "og:description",
         content: "Your customer pipeline, your list and your private customer list.",

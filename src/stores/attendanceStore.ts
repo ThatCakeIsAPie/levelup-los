@@ -1,3 +1,4 @@
+import { storageKey } from "@/lib/brand";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { dataStorage, seedOr } from "./storage";
@@ -154,7 +155,7 @@ export const useAttendanceStore = create<AttendanceState>()(
       removeNotesWhere: (pred) => set({ missedNotes: get().missedNotes.filter((n) => !pred(n)) }),
     }),
     {
-      name: "levelup.attendance",
+      name: storageKey("attendance"),
       storage: dataStorage(),
       partialize: (s) => ({ attendances: s.attendances, missedNotes: s.missedNotes }),
       version: SEED_VERSION,

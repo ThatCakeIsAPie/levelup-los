@@ -182,7 +182,7 @@ interface SharedState {
   suppressDepth: number;
   stopPrevious: (() => void) | null;
 }
-const shared: SharedState = ((globalThis as { __levelupSync?: SharedState }).__levelupSync ??= {
+const shared: SharedState = ((globalThis as { __crmSync?: SharedState }).__crmSync ??= {
   suppressDepth: 0,
   stopPrevious: null,
 });

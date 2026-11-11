@@ -1,3 +1,4 @@
+import { storageKey } from "@/lib/brand";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { dataStorage, seedOr } from "./storage";
@@ -179,7 +180,7 @@ export const useOpsStore = create<OpsState>()(
         })),
     }),
     {
-      name: "levelup.ops",
+      name: storageKey("ops"),
       storage: dataStorage(),
       // Payments gained `amount` + `costName` in seed version 3; older saved
       // data is replaced by the fresh seed (like every other store).

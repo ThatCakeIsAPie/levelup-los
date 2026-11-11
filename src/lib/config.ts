@@ -63,7 +63,7 @@ export const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim() 
 
 /**
  * Pure: absolute URL of an in-app path, respecting the deploy base
- * (e.g. "/levelup-los/" on GitHub Pages). `path` is relative to the app root;
+ * (e.g. "/crm/" on GitHub Pages). `path` is relative to the app root;
  * a leading "/" is ignored.
  */
 export function absoluteAppUrl(origin: string, base: string, path: string): string {

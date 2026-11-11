@@ -1,10 +1,11 @@
-# Builds the app and publishes it to GitHub Pages on every push to main.
-# Live at https://thatcakeisapie.github.io/levelup-los/
+# Builds the app and publishes it to GitHub Pages on every push to the
+# `levelup` branch (or by hand with "Run workflow").
+# Live at https://coleholistics.us/levelup-los/
 name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [main]
+    branches: [levelup]
   workflow_dispatch:
 
 permissions:
@@ -20,7 +21,14 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      # This repo has a single GitHub Pages site and it serves the LevelUp demo,
+      # so the build always checks out the `levelup` branch, whichever branch
+      # triggered it. To publish another brand's demo instead (for example
+      # `heroes`), change `ref` here and `branches` under `on.push` above to
+      # that branch name.
       - uses: actions/checkout@v4
+        with:
+          ref: levelup
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -29,7 +37,7 @@ jobs:
       - run: npm test
       - run: npm run build
         env:
-          BASE_PATH: /levelup-los/
+          BASE_PATH: /${{ github.event.repository.name }}/
           # The public demo runs on browser storage with the demo-user picker
           # and never contacts a database (see src/lib/config.ts).
           VITE_DATA_SOURCE: local

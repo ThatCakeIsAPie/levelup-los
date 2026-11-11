@@ -1,15 +1,16 @@
+import { pageTitle } from "@/lib/brand";
 import { createFileRoute } from "@tanstack/react-router";
 import { ReportsPage } from "@/modules/reports/ReportsPage";
 
 export const Route = createFileRoute("/reports")({
   head: () => ({
     meta: [
-      { title: "Reports — LevelUp LOS" },
+      { title: pageTitle("Reports") },
       {
         name: "description",
         content: "Download activity, contact, attendance, and payment reports as CSV.",
       },
-      { property: "og:title", content: "Reports — LevelUp LOS" },
+      { property: "og:title", content: pageTitle("Reports") },
       {
         property: "og:description",
         content: "Download activity, contact, attendance, and payment reports as CSV.",

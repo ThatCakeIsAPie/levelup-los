@@ -6,7 +6,7 @@
  *
  * Two implementations behind the same calls:
  *  - Browser-storage demo: blobs live in IndexedDB (database
- *    "levelup-chat-media", store "blobs"; paths look like "idb:<uuid>").
+ *    "<prefix>-chat-media", store "blobs"; paths look like "idb:<uuid>").
  *  - Real accounts ("supabase" mode): saveAttachment keeps the blob in memory
  *    under a "pending:<uuid>" path (shown at once from a local object URL);
  *    sendMessage uploads it to the private `chat-media` bucket as
@@ -20,6 +20,8 @@
  * voice recording (MediaRecorder with iOS/Safari-compatible MIME types) and
  * waveform peaks decoded from the audio itself.
  */
+import { brand } from "@/brand/brand";
+import { dbName } from "@/lib/brand";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { IS_SUPABASE } from "@/lib/config";
 import { supabase } from "@/lib/supabase";
@@ -31,7 +33,7 @@ import {
   uploadMedia,
 } from "@/data/remote/storage";
 
-const DB_NAME = "levelup-chat-media";
+const DB_NAME = dbName("chat-media");
 const STORE = "blobs";
 
 // ---------------------------------------------------------------------------
@@ -578,13 +580,13 @@ function synthVoiceWav(durationMs: number, seed: number): Blob {
 }
 
 const ROUTE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" width="1200" height="800">
-<rect width="1200" height="800" fill="#EAF3EE"/>
-<g stroke="#FFFFFF" stroke-width="26" fill="none" stroke-linecap="round">
+<rect width="1200" height="800" fill="${brand.art.map.land}"/>
+<g stroke="${brand.art.map.road}" stroke-width="26" fill="none" stroke-linecap="round">
 <path d="M-20 210 H1220"/><path d="M-20 560 H1220"/><path d="M300 -20 V820"/><path d="M860 -20 V820"/>
 <path d="M-20 760 L1220 60"/></g>
-<rect x="420" y="300" width="280" height="160" rx="18" fill="#D6EBDD"/>
-<path d="M220 140 C 420 160, 520 330, 640 420 S 900 640, 980 690" stroke="#067781" stroke-width="14" fill="none" stroke-linecap="round" stroke-dasharray="2 26"/>
-<circle cx="220" cy="140" r="26" fill="#1A365D"/><circle cx="980" cy="690" r="26" fill="#F2A93B"/>
-<g font-family="system-ui, sans-serif" font-weight="700" font-size="44" fill="#13243D">
+<rect x="420" y="300" width="280" height="160" rx="18" fill="${brand.art.map.block}"/>
+<path d="M220 140 C 420 160, 520 330, 640 420 S 900 640, 980 690" stroke="${brand.art.primary}" stroke-width="14" fill="none" stroke-linecap="round" stroke-dasharray="2 26"/>
+<circle cx="220" cy="140" r="26" fill="${brand.art.ink}"/><circle cx="980" cy="690" r="26" fill="${brand.art.accent}"/>
+<g font-family="system-ui, sans-serif" font-weight="700" font-size="44" fill="${brand.art.map.label}">
 <text x="262" y="126">Plano</text><text x="690" y="740">Dallas · Fall Weekend</text></g>
 </svg>`;

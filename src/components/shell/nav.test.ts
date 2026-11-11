@@ -54,8 +54,8 @@ describe("activeCategory", () => {
 
 describe("appPath", () => {
   it("strips the deploy base", () => {
-    expect(appPath("/levelup-los/pipeline", "/levelup-los/")).toBe("/pipeline");
+    expect(appPath("/crm/pipeline", "/crm/")).toBe("/pipeline");
     expect(appPath("/pipeline", "/")).toBe("/pipeline");
-    expect(appPath("/levelup-los-x/a", "/levelup-los/")).toBe("/levelup-los-x/a");
+    expect(appPath("/crm-x/a", "/crm/")).toBe("/crm-x/a");
   });
 });

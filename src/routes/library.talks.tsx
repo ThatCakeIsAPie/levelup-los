@@ -1,3 +1,4 @@
+import { pageTitle } from "@/lib/brand";
 import { createFileRoute } from "@tanstack/react-router";
 import {
   CATALOG_FORMATS,
@@ -27,7 +28,7 @@ export const Route = createFileRoute("/library/talks")({
   }),
   head: () => ({
     meta: [
-      { title: "All talks — LevelUp LOS" },
+      { title: pageTitle("All talks") },
       {
         name: "description",
         content:

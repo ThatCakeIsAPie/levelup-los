@@ -12,7 +12,7 @@ begin
   perform set_config('role', 'postgres', true);
   insert into auth.users (instance_id, id, aud, role, email)
   values ('00000000-0000-0000-0000-000000000000', v_uid, 'authenticated', 'authenticated',
-          'person' || p_person || '@levelup.test')
+          'person' || p_person || '@demo.test')
   on conflict (id) do nothing;
   update public.members set user_id = v_uid where person_id = p_person and user_id is null;
   perform set_config('role', 'authenticated', true);
@@ -49,7 +49,7 @@ select pg_temp.logout();
 -- A prospect with an account and a stray membership row still reads nothing --
 insert into auth.users (instance_id, id, aud, role, email)
 values ('00000000-0000-0000-0000-000000000000', '00000000-0000-4000-8000-000000000009',
-        'authenticated', 'authenticated', 'carlos@levelup.test');
+        'authenticated', 'authenticated', 'carlos@demo.test');
 insert into public.members (workspace_id, person_id, user_id)
 values ('w1', '9', '00000000-0000-4000-8000-000000000009');
 insert into public.conversation_members (conversation_id, person_id) values ('main', '9');

@@ -1,3 +1,4 @@
+import { STORAGE_KEY_PREFIX } from "@/lib/brand";
 import { useMemo } from "react";
 import { useSessionStore, type DemoUser } from "@/stores/sessionStore";
 import { usePeopleStore, type CrmPerson } from "@/stores/peopleStore";
@@ -75,7 +76,7 @@ export function logout(): void {
 }
 
 /**
- * Wipe every `levelup.*` localStorage key (all stores, session and theme) and
+ * Wipe every `<prefix>.*` localStorage key (all stores, session and theme) and
  * reload at /login, which re-seeds everything relative to today.
  *
  * Demo only: with real accounts ("supabase" mode) this does nothing; check
@@ -90,7 +91,7 @@ export function resetDemo(): void {
     const keys: string[] = [];
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
-      if (k?.startsWith("levelup.")) keys.push(k);
+      if (k?.startsWith(STORAGE_KEY_PREFIX)) keys.push(k);
     }
     keys.forEach((k) => localStorage.removeItem(k));
   } catch {

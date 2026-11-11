@@ -1,12 +1,13 @@
 /**
  * Team settings on the client (deputies, feature switches). In the
- * browser-storage demo they persist to localStorage key `levelup.team`,
+ * browser-storage demo they persist to localStorage key `<prefix>.team`,
  * versioned with the CRM seed; with real accounts the store lives in memory
  * and is filled from the database after sign-in (src/data/remote).
  *
  * Pages never import this: they use the hooks and writes re-exported from
  * "@/data".
  */
+import { storageKey } from "@/lib/brand";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { IS_SUPABASE } from "@/lib/config";
@@ -15,7 +16,7 @@ import { dataStorage } from "@/stores/storage";
 import { seedDeputies, seedFeatureSwitches } from "./seed";
 import type { TeamData } from "./types";
 
-export const TEAM_STORAGE_KEY = "levelup.team";
+export const TEAM_STORAGE_KEY = storageKey("team");
 /** Bump when the stored shape changes. */
 const SCHEMA_VERSION = 1;
 

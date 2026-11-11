@@ -1,7 +1,7 @@
 /**
  * Light / dark / auto theme.
  *
- * - The preference is stored in localStorage under "levelup.theme".
+ * - The preference is stored in localStorage under "<prefix>.theme".
  * - The `dark` class on <html> switches every token in src/styles.css.
  * - "auto" follows `prefers-color-scheme` live.
  * - index.html runs an inline copy of `resolve()` before first paint so the
@@ -10,11 +10,13 @@
  * Usage in components: `const { preference, resolved, setPreference } = useTheme();`
  */
 import { useSyncExternalStore } from "react";
+import { brand } from "@/brand/brand";
+import { storageKey } from "./brand";
 
 export type ThemePreference = "light" | "dark" | "auto";
 export type ResolvedTheme = "light" | "dark";
 
-export const THEME_STORAGE_KEY = "levelup.theme";
+export const THEME_STORAGE_KEY = storageKey("theme");
 export const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
   { value: "light", label: "Light" },
   { value: "dark", label: "Dark" },
@@ -22,7 +24,10 @@ export const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
 ];
 
 /** Browser chrome color per theme (matches --app-bg). */
-const THEME_COLOR: Record<ResolvedTheme, string> = { light: "#F4F5F3", dark: "#101411" };
+const THEME_COLOR: Record<ResolvedTheme, string> = {
+  light: brand.themeColor.light,
+  dark: brand.themeColor.dark,
+};
 
 const isPref = (v: unknown): v is ThemePreference => v === "light" || v === "dark" || v === "auto";
 

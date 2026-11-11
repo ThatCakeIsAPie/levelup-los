@@ -3,6 +3,7 @@
  * and a Google Calendar link. Events are all-day ("YYYY-MM-DD" dates), so
  * there are no time zones to get wrong. Pure (download helper aside).
  */
+import { brand } from "@/brand/brand";
 import { addDays, format } from "date-fns";
 import { parseDate } from "@/lib/dates";
 import type { CrmEvent } from "@/stores/eventsStore";
@@ -42,11 +43,11 @@ export function eventIcs(
   const lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//LevelUp LOS//Chats//EN",
+    `PRODID:-//${brand.name}//Chats//EN`,
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
     "BEGIN:VEVENT",
-    `UID:${e.id}@levelup-los`,
+    `UID:${e.id}@${brand.slug}`,
     `DTSTAMP:${stamp}`,
     `DTSTART;VALUE=DATE:${compact(e.date)}`,
     `DTEND;VALUE=DATE:${endExclusive(e)}`,

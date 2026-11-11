@@ -36,7 +36,7 @@ import { subscribeChanges, type LiveChange } from "@/data/remote/realtime";
 import { signedUrl } from "@/data/remote/storage";
 import { adminClient, must } from "./admin";
 
-const PASSWORD = "levelup-local";
+const PASSWORD = "demo-local";
 const URL_ = import.meta.env.VITE_SUPABASE_URL as string;
 const KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 const stamp = Date.now().toString(36);
@@ -53,7 +53,7 @@ async function login(name: "maria" | "anita" | "jamal" | "beau"): Promise<Supaba
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
   });
   const { error } = await c.auth.signInWithPassword({
-    email: `${name}@levelup.test`,
+    email: `${name}@demo.test`,
     password: PASSWORD,
   });
   if (error) throw error;
@@ -65,7 +65,7 @@ async function login(name: "maria" | "anita" | "jamal" | "beau"): Promise<Supaba
 async function signInApp(name: "maria" | "anita" | "jamal" | "beau"): Promise<void> {
   await signOut();
   const { error } = await getSupabase().auth.signInWithPassword({
-    email: `${name}@levelup.test`,
+    email: `${name}@demo.test`,
     password: PASSWORD,
   });
   if (error) throw error;

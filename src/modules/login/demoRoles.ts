@@ -22,16 +22,16 @@ export const ROLE_SEES: Record<Role, string> = {
  * production builds get an empty list and no password.
  */
 const DEV_EMAIL: Record<string, string> = {
-  "1": "maria@levelup.test",
-  "2": "anita@levelup.test",
-  "4": "jamal@levelup.test",
-  "20": "beau@levelup.test",
-  "700": "tasha@levelup.test",
-  "6": "marcus@levelup.test",
-  "800": "admin@levelup.test",
+  "1": "maria@demo.test",
+  "2": "anita@demo.test",
+  "4": "jamal@demo.test",
+  "20": "beau@demo.test",
+  "700": "tasha@demo.test",
+  "6": "marcus@demo.test",
+  "800": "admin@demo.test",
 };
 
-export const DEV_PASSWORD: string = import.meta.env.DEV ? "levelup-local" : "";
+export const DEV_PASSWORD: string = import.meta.env.DEV ? "demo-local" : "";
 
 export const DEV_ACCOUNTS: (DemoUser & { email: string })[] = import.meta.env.DEV
   ? DEMO_USERS.filter((u) => DEV_EMAIL[u.personId]).map((u) => ({

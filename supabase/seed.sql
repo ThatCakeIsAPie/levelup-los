@@ -12,7 +12,7 @@ create or replace function seed_tmp.ts(n bigint) returns timestamptz language sq
 
 -- Workspace ---------------------------------------------------------------
 insert into public.workspaces (id, name, colors, timezone) values
-  ('w1', 'LevelUp', '{"navy":"#1a365d","teal":"#067781","sky":"#199bd7","amber":"#f2a93b"}'::jsonb, 'America/Chicago');
+  ('w1', 'Demo Team', '{"navy":"#1a365d","teal":"#067781","sky":"#199bd7","amber":"#f2a93b"}'::jsonb, 'America/Chicago');
 
 -- People (seedPeople) -----------------------------------------------------
 insert into public.people (id, workspace_id, name, email, phone, biz_class, ibo_number, ltd_number, location, sponsor_id, business_start_date, joined_date, owner_id, monthly_volume, notes, pipeline_stage, stage_history, tags, los_uid, ditto_since) values
@@ -154,89 +154,89 @@ insert into auth.users (instance_id, id, aud, role, email, encrypted_password,
   email_change_token_current, phone_change, phone_change_token, reauthentication_token,
   is_sso_user, is_anonymous)
 values ('00000000-0000-0000-0000-000000000000', '00000000-0000-4000-8000-000000000001', 'authenticated', 'authenticated',
-  'maria@levelup.test', extensions.crypt('levelup-local', extensions.gen_salt('bf')), now(),
+  'maria@demo.test', extensions.crypt('demo-local', extensions.gen_salt('bf')), now(),
   '{"provider":"email","providers":["email"]}'::jsonb, '{"name":"Maria Reyes"}'::jsonb,
   now(), now(), '', '', '', '', '', '', '', '', false, false);
 insert into auth.identities (id, user_id, provider_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
 values ('00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000001',
-  '{"sub":"00000000-0000-4000-8000-000000000001","email":"maria@levelup.test","email_verified":true}'::jsonb, 'email', now(), now(), now());
+  '{"sub":"00000000-0000-4000-8000-000000000001","email":"maria@demo.test","email_verified":true}'::jsonb, 'email', now(), now(), now());
 insert into auth.users (instance_id, id, aud, role, email, encrypted_password,
   email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
   confirmation_token, recovery_token, email_change_token_new, email_change,
   email_change_token_current, phone_change, phone_change_token, reauthentication_token,
   is_sso_user, is_anonymous)
 values ('00000000-0000-0000-0000-000000000000', '00000000-0000-4000-8000-000000000002', 'authenticated', 'authenticated',
-  'anita@levelup.test', extensions.crypt('levelup-local', extensions.gen_salt('bf')), now(),
+  'anita@demo.test', extensions.crypt('demo-local', extensions.gen_salt('bf')), now(),
   '{"provider":"email","providers":["email"]}'::jsonb, '{"name":"Anita Patel"}'::jsonb,
   now(), now(), '', '', '', '', '', '', '', '', false, false);
 insert into auth.identities (id, user_id, provider_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
 values ('00000000-0000-4000-8000-000000000002', '00000000-0000-4000-8000-000000000002', '00000000-0000-4000-8000-000000000002',
-  '{"sub":"00000000-0000-4000-8000-000000000002","email":"anita@levelup.test","email_verified":true}'::jsonb, 'email', now(), now(), now());
+  '{"sub":"00000000-0000-4000-8000-000000000002","email":"anita@demo.test","email_verified":true}'::jsonb, 'email', now(), now(), now());
 insert into auth.users (instance_id, id, aud, role, email, encrypted_password,
   email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
   confirmation_token, recovery_token, email_change_token_new, email_change,
   email_change_token_current, phone_change, phone_change_token, reauthentication_token,
   is_sso_user, is_anonymous)
 values ('00000000-0000-0000-0000-000000000000', '00000000-0000-4000-8000-000000000004', 'authenticated', 'authenticated',
-  'jamal@levelup.test', extensions.crypt('levelup-local', extensions.gen_salt('bf')), now(),
+  'jamal@demo.test', extensions.crypt('demo-local', extensions.gen_salt('bf')), now(),
   '{"provider":"email","providers":["email"]}'::jsonb, '{"name":"Jamal Brown"}'::jsonb,
   now(), now(), '', '', '', '', '', '', '', '', false, false);
 insert into auth.identities (id, user_id, provider_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
 values ('00000000-0000-4000-8000-000000000004', '00000000-0000-4000-8000-000000000004', '00000000-0000-4000-8000-000000000004',
-  '{"sub":"00000000-0000-4000-8000-000000000004","email":"jamal@levelup.test","email_verified":true}'::jsonb, 'email', now(), now(), now());
+  '{"sub":"00000000-0000-4000-8000-000000000004","email":"jamal@demo.test","email_verified":true}'::jsonb, 'email', now(), now(), now());
 insert into auth.users (instance_id, id, aud, role, email, encrypted_password,
   email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
   confirmation_token, recovery_token, email_change_token_new, email_change,
   email_change_token_current, phone_change, phone_change_token, reauthentication_token,
   is_sso_user, is_anonymous)
 values ('00000000-0000-0000-0000-000000000000', '00000000-0000-4000-8000-000000000020', 'authenticated', 'authenticated',
-  'beau@levelup.test', extensions.crypt('levelup-local', extensions.gen_salt('bf')), now(),
+  'beau@demo.test', extensions.crypt('demo-local', extensions.gen_salt('bf')), now(),
   '{"provider":"email","providers":["email"]}'::jsonb, '{"name":"Beau Foster"}'::jsonb,
   now(), now(), '', '', '', '', '', '', '', '', false, false);
 insert into auth.identities (id, user_id, provider_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
 values ('00000000-0000-4000-8000-000000000020', '00000000-0000-4000-8000-000000000020', '00000000-0000-4000-8000-000000000020',
-  '{"sub":"00000000-0000-4000-8000-000000000020","email":"beau@levelup.test","email_verified":true}'::jsonb, 'email', now(), now(), now());
+  '{"sub":"00000000-0000-4000-8000-000000000020","email":"beau@demo.test","email_verified":true}'::jsonb, 'email', now(), now(), now());
 insert into auth.users (instance_id, id, aud, role, email, encrypted_password,
   email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
   confirmation_token, recovery_token, email_change_token_new, email_change,
   email_change_token_current, phone_change, phone_change_token, reauthentication_token,
   is_sso_user, is_anonymous)
 values ('00000000-0000-0000-0000-000000000000', '00000000-0000-4000-8000-000000000700', 'authenticated', 'authenticated',
-  'tasha@levelup.test', extensions.crypt('levelup-local', extensions.gen_salt('bf')), now(),
+  'tasha@demo.test', extensions.crypt('demo-local', extensions.gen_salt('bf')), now(),
   '{"provider":"email","providers":["email"]}'::jsonb, '{"name":"Tasha Greene"}'::jsonb,
   now(), now(), '', '', '', '', '', '', '', '', false, false);
 insert into auth.identities (id, user_id, provider_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
 values ('00000000-0000-4000-8000-000000000700', '00000000-0000-4000-8000-000000000700', '00000000-0000-4000-8000-000000000700',
-  '{"sub":"00000000-0000-4000-8000-000000000700","email":"tasha@levelup.test","email_verified":true}'::jsonb, 'email', now(), now(), now());
+  '{"sub":"00000000-0000-4000-8000-000000000700","email":"tasha@demo.test","email_verified":true}'::jsonb, 'email', now(), now(), now());
 insert into auth.users (instance_id, id, aud, role, email, encrypted_password,
   email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
   confirmation_token, recovery_token, email_change_token_new, email_change,
   email_change_token_current, phone_change, phone_change_token, reauthentication_token,
   is_sso_user, is_anonymous)
 values ('00000000-0000-0000-0000-000000000000', '00000000-0000-4000-8000-000000000006', 'authenticated', 'authenticated',
-  'marcus@levelup.test', extensions.crypt('levelup-local', extensions.gen_salt('bf')), now(),
+  'marcus@demo.test', extensions.crypt('demo-local', extensions.gen_salt('bf')), now(),
   '{"provider":"email","providers":["email"]}'::jsonb, '{"name":"Marcus Hill"}'::jsonb,
   now(), now(), '', '', '', '', '', '', '', '', false, false);
 insert into auth.identities (id, user_id, provider_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
 values ('00000000-0000-4000-8000-000000000006', '00000000-0000-4000-8000-000000000006', '00000000-0000-4000-8000-000000000006',
-  '{"sub":"00000000-0000-4000-8000-000000000006","email":"marcus@levelup.test","email_verified":true}'::jsonb, 'email', now(), now(), now());
+  '{"sub":"00000000-0000-4000-8000-000000000006","email":"marcus@demo.test","email_verified":true}'::jsonb, 'email', now(), now(), now());
 insert into auth.users (instance_id, id, aud, role, email, encrypted_password,
   email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
   confirmation_token, recovery_token, email_change_token_new, email_change,
   email_change_token_current, phone_change, phone_change_token, reauthentication_token,
   is_sso_user, is_anonymous)
 values ('00000000-0000-0000-0000-000000000000', '00000000-0000-4000-8000-000000000800', 'authenticated', 'authenticated',
-  'admin@levelup.test', extensions.crypt('levelup-local', extensions.gen_salt('bf')), now(),
+  'admin@demo.test', extensions.crypt('demo-local', extensions.gen_salt('bf')), now(),
   '{"provider":"email","providers":["email"]}'::jsonb, '{"name":"Admin Tester"}'::jsonb,
   now(), now(), '', '', '', '', '', '', '', '', false, false);
 insert into auth.identities (id, user_id, provider_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
 values ('00000000-0000-4000-8000-000000000800', '00000000-0000-4000-8000-000000000800', '00000000-0000-4000-8000-000000000800',
-  '{"sub":"00000000-0000-4000-8000-000000000800","email":"admin@levelup.test","email_verified":true}'::jsonb, 'email', now(), now(), now());
+  '{"sub":"00000000-0000-4000-8000-000000000800","email":"admin@demo.test","email_verified":true}'::jsonb, 'email', now(), now(), now());
 
 -- Events, attendance, travel, shared costs --------------------------------
 insert into public.events (id, workspace_id, name, type, date, end_date, location, notes, format, ticket_url, created_by) values
   ('e1', 'w1', 'Fall Leadership Weekend', 'conference', seed_tmp.d(26), seed_tmp.d(27), 'Dallas, TX', 'Two-day leadership conference. Team van leaves Friday 7am.', 'both', 'https://tickets.example.com/fall-leadership-weekend', '1'),
-  ('e5', 'w1', 'Monthly Team Meeting', 'monthly_meeting', seed_tmp.d(10), null, 'Dallas, TX and Zoom', 'Recognition, new apprentices, Fall Weekend ticket push.', 'both', 'https://venmo.com/u/levelup-team', '1'),
+  ('e5', 'w1', 'Monthly Team Meeting', 'monthly_meeting', seed_tmp.d(10), null, 'Dallas, TX and Zoom', 'Recognition, new apprentices, Fall Weekend ticket push.', 'both', 'https://venmo.com/u/demo-team', '1'),
   ('e2', 'w1', 'Fall Leadership Weekend 2025', 'conference', seed_tmp.d(-338), seed_tmp.d(-337), 'Dallas, TX', null, 'both', null, '1'),
   ('e3', 'w1', 'Summer Conference', 'conference', seed_tmp.d(-91), seed_tmp.d(-90), 'Orlando, FL', null, 'both', null, '1'),
   ('e4', 'w1', 'September Team Meeting', 'monthly_meeting', seed_tmp.d(-20), null, 'Zoom', null, 'virtual', null, '1'),
@@ -992,7 +992,7 @@ insert into public.library_items (id, workspace_id, title, description, kind, so
   ('lib-4', 'w1', 'How our team works', null, 'audio', 'upload', 'seed:audio:720:2', 'audio/wav', 11520000, 'how-our-team-works.m4a', null, null, 720, null, 'talk', null, seed_tmp.d(-202), '1', true, 'team', seed_tmp.ts(-17238390), seed_tmp.ts(-17238390)),
   ('lib-5', 'w1', 'Your first week checklist', null, 'document', 'upload', 'seed:pdf:3:p:Your%20first%20week%20checklist', 'application/pdf', 120000, 'your-first-week-checklist.pdf', null, null, null, 3, 'workshop', null, seed_tmp.d(-192), '2', true, 'team', seed_tmp.ts(-16374390), seed_tmp.ts(-16374390)),
   ('lib-6', 'w1', 'Setting your why', null, 'audio', 'upload', 'seed:audio:960:4', 'audio/wav', 15360000, 'setting-your-why.m4a', null, null, 960, null, 'talk', 'e2', seed_tmp.d(-338), '1', true, 'team', seed_tmp.ts(-15510390), seed_tmp.ts(-15510390)),
-  ('lib-8', 'w1', 'Using LevelUp LOS', null, 'slides', 'upload', 'seed:pdf:12:l:Using%20LevelUp%20LOS', 'application/pdf', 480000, 'using-levelup-los.pdf', null, null, null, 12, 'workshop', null, seed_tmp.d(-162), '2', true, 'team', seed_tmp.ts(-13782390), seed_tmp.ts(-13782390)),
+  ('lib-8', 'w1', 'Using Network Marketing CRM', null, 'slides', 'upload', 'seed:pdf:12:l:Using%20Network%20Marketing%20CRM', 'application/pdf', 480000, 'using-network-marketing-crm.pdf', null, null, null, 12, 'workshop', null, seed_tmp.d(-162), '2', true, 'team', seed_tmp.ts(-13782390), seed_tmp.ts(-13782390)),
   ('lib-9', 'w1', 'Why we build a business', null, 'audio', 'upload', 'seed:audio:840:6', 'audio/wav', 13440000, 'why-we-build-a-business.m4a', null, null, 840, null, 'talk', 'e2', seed_tmp.d(-338), '1', true, 'team', seed_tmp.ts(-12918390), seed_tmp.ts(-12918390)),
   ('lib-10', 'w1', 'Making your contact list', null, 'video', 'upload', 'seed:video:540:7', 'video/mp4', 8640000, 'making-your-contact-list.mp4', null, null, 540, null, 'workshop', null, seed_tmp.d(-152), '2', true, 'team', seed_tmp.ts(-12918390), seed_tmp.ts(-12918390)),
   ('lib-11', 'w1', 'Contact list worksheet', null, 'document', 'upload', 'seed:pdf:2:p:Contact%20list%20worksheet', 'application/pdf', 80000, 'contact-list-worksheet.pdf', null, null, null, 2, 'workshop', null, seed_tmp.d(-152), '2', true, 'team', seed_tmp.ts(-12918390), seed_tmp.ts(-12918390)),
@@ -1009,7 +1009,7 @@ insert into public.library_items (id, workspace_id, title, description, kind, so
   ('lib-20', 'w1', 'Customer follow-up that feels natural', null, 'video', 'upload', 'seed:video:1320:19', 'video/mp4', 21120000, 'customer-followup-that-feels-natural.mp4', null, null, 1320, null, 'workshop', null, seed_tmp.d(-5), '1', true, 'team', seed_tmp.ts(-217590), seed_tmp.ts(-217590)),
   ('lib-21', 'w1', 'Your first five customers', null, 'audio', 'upload', 'seed:audio:1140:20', 'audio/wav', 18240000, 'your-first-five-customers.m4a', null, null, 1140, null, 'talk', null, seed_tmp.d(-72), '1', true, 'team', seed_tmp.ts(-6006390), seed_tmp.ts(-6006390)),
   ('lib-22', 'w1', 'Product demo night highlights', 'Unlisted YouTube video (demo link).', 'video', 'link', null, null, null, null, 'https://youtu.be/LvlUpDemo01', 'youtube', 1500, null, 'workshop', null, seed_tmp.d(-67), '1', true, 'team', seed_tmp.ts(-5574390), seed_tmp.ts(-5574390)),
-  ('lib-23', 'w1', 'Customer care checklist', 'Google Slides deck (demo link).', 'slides', 'link', null, null, null, null, 'https://docs.google.com/presentation/d/levelup-demo-customer-care/edit', 'google_slides', null, 15, 'workshop', null, seed_tmp.d(-66), '1', true, 'team', seed_tmp.ts(-5487990), seed_tmp.ts(-5487990)),
+  ('lib-23', 'w1', 'Customer care checklist', 'Google Slides deck (demo link).', 'slides', 'link', null, null, null, null, 'https://docs.google.com/presentation/d/demo-customer-care/edit', 'google_slides', null, 15, 'workshop', null, seed_tmp.d(-66), '1', true, 'team', seed_tmp.ts(-5487990), seed_tmp.ts(-5487990)),
   ('lib-24', 'w1', 'Q&A: pricing and value', null, 'audio', 'upload', 'seed:audio:1680:23', 'audio/wav', 26880000, 'qa-pricing-and-value.m4a', null, null, 1680, null, 'q_and_a', 'e4', seed_tmp.d(-20), '1', true, 'team', seed_tmp.ts(-1599990), seed_tmp.ts(-1599990)),
   ('lib-26', 'w1', 'Why consistency wins', 'Guest speaker at the Summer Conference.', 'audio', 'upload', 'seed:audio:2220:24', 'audio/wav', 35520000, 'why-consistency-wins.m4a', null, null, 2220, null, 'talk', 'e3', seed_tmp.d(-91), '1', true, 'team', seed_tmp.ts(-7561590), seed_tmp.ts(-7561590)),
   ('lib-27', 'w1', 'Leaders panel: your first 90 days', null, 'video', 'upload', 'seed:video:3480:25', 'video/mp4', 55680000, 'leaders-panel-your-first-90-days.mp4', null, null, 3480, null, 'panel', 'e4', seed_tmp.d(-20), '1', true, 'team', seed_tmp.ts(-822390), seed_tmp.ts(-822390)),
@@ -5956,7 +5956,7 @@ insert into public.messages (id, conversation_id, author_id, body, reply_to_id, 
   ('hs0', 'high-signal', '1', 'How to set up your first home meeting: the checklist we use. Read it before your first one.', null, '{"type":"link","target":{"kind":"material","id":"lib-2"}}'::jsonb, seed_tmp.ts(-2528790), null, null),
   ('hs1', 'high-signal', '1', 'Bring two guests to every open meeting, even if they say maybe. Half of the maybes end up coming.', null, null, seed_tmp.ts(-1661190), null, null),
   ('d13a', 'dm-1-3', '3', '', null, null, seed_tmp.ts(-271590), null, null),
-  ('an1', 'announcements', '1', 'Welcome to LevelUp chats! Announcements, Main chat, Daily wins and High signal are pinned at the top of Groups, and direct messages have their own tab. Pin any chat you use a lot.', null, null, seed_tmp.ts(-228390), null, null),
+  ('an1', 'announcements', '1', 'Welcome to Demo Team chats! Announcements, Main chat, Daily wins and High signal are pinned at the top of Groups, and direct messages have their own tab. Pin any chat you use a lot.', null, null, seed_tmp.ts(-228390), null, null),
   ('d17a', 'dm-1-7', '1', 'Did you grab your ticket yet?', null, null, seed_tmp.ts(-217590), null, null),
   ('d12a', 'dm-1-2', '1', 'Can we go over your Fall Weekend list this week?', null, null, seed_tmp.ts(-26790), null, null),
   ('d12b', 'dm-1-2', '2', 'Sounds good, talk tomorrow', null, null, seed_tmp.ts(-24990), null, null),

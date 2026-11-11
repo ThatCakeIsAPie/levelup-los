@@ -14,6 +14,7 @@
  * Pure: no stores, safe in unit tests. Seed media ("seed:" storage paths) is
  * synthesised on demand by ./attachments.
  */
+import { brand } from "@/brand/brand";
 import { addDays, format } from "date-fns";
 import { parseDate } from "@/lib/dates";
 import { seedEvents, seedLearning, seedPeople, seedSales } from "@/data/seed";
@@ -169,7 +170,7 @@ export function seedChat(people: CrmPerson[] = seedPeople(), nowMs: number = Dat
     "an1",
     CHAT_IDS.announcements,
     "1",
-    "Welcome to LevelUp chats! Announcements, Main chat, Daily wins and High signal are pinned at the top of Groups, and direct messages have their own tab. Pin any chat you use a lot.",
+    `Welcome to ${brand.teamName} chats! Announcements, Main chat, Daily wins and High signal are pinned at the top of Groups, and direct messages have their own tab. Pin any chat you use a lot.`,
     daysAgoAt(3, 9),
   );
   msg(

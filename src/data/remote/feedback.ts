@@ -17,6 +17,6 @@ export function setReconcile(fn: () => void): void {
 /** A write or RPC failed: tell the person and re-sync. */
 export function saveFailed(error?: unknown): void {
   if (error) console.warn("[sync]", error);
-  toast.error(SAVE_FAILED, { id: "levelup-save-failed" });
+  toast.error(SAVE_FAILED, { id: "crm-save-failed" });
   reconcile();
 }

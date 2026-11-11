@@ -1,12 +1,13 @@
 /**
  * The library tables on the client. In the browser-storage demo they persist
- * to localStorage key `levelup.library`, versioned with the CRM seed so
- * resetDemo and SEED_VERSION bumps re-seed it like every other `levelup.*`
+ * to localStorage key `<prefix>.library`, versioned with the CRM seed so
+ * resetDemo and SEED_VERSION bumps re-seed it like every other `<prefix>.*`
  * store. With real accounts ("supabase" mode) the store lives in memory only
  * (src/stores/storage.ts) and starts empty.
  *
  * Pages never import this: they use the hooks and mutations from "@/data".
  */
+import { storageKey } from "@/lib/brand";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { IS_SUPABASE } from "@/lib/config";
@@ -16,7 +17,7 @@ import { clearLibraryFiles } from "./files";
 import { seedLibrary } from "./seed";
 import type { LibraryData } from "./types";
 
-export const LIBRARY_STORAGE_KEY = "levelup.library";
+export const LIBRARY_STORAGE_KEY = storageKey("library");
 /** Bump when the stored shape changes (resets everyone's library demo data). */
 const LIBRARY_SCHEMA_VERSION = 1;
 

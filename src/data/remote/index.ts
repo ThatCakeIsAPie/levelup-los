@@ -107,7 +107,7 @@ async function open(person: { personId: string; name: string }, token: number): 
   startEngine({ client, me: person.personId, myName: person.name }, ALL_BINDINGS);
   applySnapshot(snapshot);
 
-  const stopLive = subscribeChanges(client, `levelup-sync:${person.personId}`, {
+  const stopLive = subscribeChanges(client, `crm-sync:${person.personId}`, {
     onChange: onLiveChange,
     // After a reconnect, changes may have been missed: catch up.
     onSubscribed: (resumed) =>

@@ -9,7 +9,7 @@ export const MAX_TICKET_URL = 2000;
 
 /**
  * The link to store for what someone typed, or null when it isn't a usable
- * web link. A bare "venmo.com/u/levelup" gets https:// in front.
+ * web link. A bare "venmo.com/u/demo" gets https:// in front.
  */
 export function cleanTicketUrl(input: string | undefined | null): string | null {
   const raw = (input ?? "").trim();

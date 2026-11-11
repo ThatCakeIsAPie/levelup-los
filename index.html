@@ -3,19 +3,18 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta
-      name="description"
-      content="Team, customer, and event management for direct sales leaders."
-    />
-    <meta name="theme-color" content="#1A1E1C" />
-    <title>LevelUp LOS</title>
+    <meta name="description" content="%BRAND_DESCRIPTION%" />
+    <meta name="theme-color" content="%BRAND_THEME_COLOR%" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>%BRAND_NAME%</title>
     <script>
       // Apply the saved theme before first paint so there is no light flash.
-      // Keep in sync with src/lib/theme.ts (key "levelup.theme").
+      // Keep in sync with src/lib/theme.ts (key "<prefix>.theme"; the placeholders
+      // are filled from src/brand/brand.ts by the plugin in vite.config.ts).
       (function () {
         var pref = "auto";
         try {
-          var v = localStorage.getItem("levelup.theme");
+          var v = localStorage.getItem("%BRAND_STORAGE_PREFIX%.theme");
           if (v === "light" || v === "dark" || v === "auto") pref = v;
         } catch (e) {}
         var dark =

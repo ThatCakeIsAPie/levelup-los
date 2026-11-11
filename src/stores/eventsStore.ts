@@ -1,3 +1,4 @@
+import { storageKey } from "@/lib/brand";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { dataStorage, seedOr } from "./storage";
@@ -59,7 +60,7 @@ export const useEventsStore = create<EventsState>()(
       getById: (id) => get().events.find((e) => e.id === id),
     }),
     {
-      name: "levelup.events",
+      name: storageKey("events"),
       storage: dataStorage(),
       partialize: (s) => ({ events: s.events }),
       version: SEED_VERSION,

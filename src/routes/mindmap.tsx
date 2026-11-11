@@ -1,3 +1,4 @@
+import { pageTitle } from "@/lib/brand";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useId, useMemo } from "react";
 import {
@@ -41,7 +42,7 @@ import {
 export const Route = createFileRoute("/mindmap")({
   head: () => ({
     meta: [
-      { title: "Mindmap — LevelUp LOS" },
+      { title: pageTitle("Mindmap") },
       {
         name: "description",
         content: "See your team as a tree, expand branches and add people from one map.",

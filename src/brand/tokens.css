@@ -1,0 +1,171 @@
+/*
+ * Brand tokens: every raw colour value and the wordmark font.
+ * ===========================================================
+ * This is the ONLY place colour values live. src/styles.css maps these names
+ * to Tailwind utilities and shadcn variables and contains no hex. A brand
+ * replaces this file (and BrandMark.tsx, brand.ts, fonts/, public/) and
+ * nothing else. Keep every token name; components depend on them.
+ *
+ * Brand colours (same value in both themes):
+ *   --brand-navy   dark neutral: sidebar, the "next event" card, the solid IBO chip
+ *   --brand-teal   primary action: buttons, links, selected state
+ *   --brand-sky    highlight: progress bars, rings, focus ring, solid accents.
+ *                  It is a light colour: NEVER put white text on it (use
+ *                  --brand-on-sky, which must reach 4.5:1 on it).
+ *   --brand-amber  customer stage and warnings; text on it is --brand-on-amber
+ *   --brand-stone  light neutral (grey): chart and swatch fills
+ *
+ * Surfaces: --app-bg is the page, --surface cards/inputs/sheets, --surface-2
+ * subtle fills (KPI tiles, hover rows), --line hairlines, --track the empty
+ * part of progress bars.
+ *
+ * Contrast rules (WCAG AA, checked in BOTH themes):
+ *   - --fg and --muted-text pass 4.5:1 on --surface and --app-bg.
+ *   - --faint (text-faint: timestamps, hints) passes 4.5:1 on --surface and
+ *     --app-bg. On tinted fills (--primary-soft, --surface-2) text uses
+ *     --muted-text instead.
+ *   - --primary-base with --on-primary, --primary-ink on --primary-soft,
+ *     --amber-ink on --amber-soft, --info-ink on --info-soft, --prospect-ink
+ *     on --prospect-soft and --danger on --danger-soft each pass 4.5:1.
+ *   - --stage-ibo-fg is white on --stage-ibo; --event-fg is white on --event-bg.
+ *   - Dark theme: lighter primary/stage greens carry dark text (--on-primary).
+ * Raw values live on :root (light) and .dark (dark; the class is toggled on
+ * <html> by src/lib/theme.ts).
+ *
+ * The wordmark font (--font-wordmark, utility font-wordmark) is vendored in
+ * ./fonts with its licence next to it.
+ */
+
+@font-face {
+  font-family: "Special Elite";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url(./fonts/special-elite-latin-ext-400-normal.woff2) format("woff2");
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
+    U+A720-A7FF;
+}
+
+@font-face {
+  font-family: "Special Elite";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url(./fonts/special-elite-latin-400-normal.woff2) format("woff2");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@theme {
+  --font-wordmark: "Special Elite", "Courier New", ui-monospace, monospace;
+}
+
+:root {
+  /* Brand constants (same value in both themes) */
+  --brand-navy: #1e2421;
+  --brand-teal: #16803f;
+  --brand-sky: #2db862;
+  --brand-amber: #f2a93b;
+  --brand-stone: #d9dcd9;
+  /* Text on solid amber / solid sky fills (text-on-amber, text-on-sky). */
+  --brand-on-amber: #3a2200;
+  --brand-on-sky: #06210f;
+  /* The logo mark (src/brand/BrandMark.tsx). */
+  --brand-mark-ring: #c9ccc9;
+  --brand-mark-accent: var(--brand-sky);
+
+  /* Mockup tokens (light) */
+  --app-bg: #f4f5f3;
+  --surface: #ffffff;
+  --surface-2: #eff0ed;
+  --line: #e0e2de;
+  --track: #e3e5e1;
+  --fg: #141615;
+  --muted-text: #575e5a;
+  --faint: #667069;
+  --primary-base: #16803f;
+  --on-primary: #ffffff;
+  --primary-soft: #dcf2e4;
+  --primary-ink: #0e5a2b;
+  --prospect-soft: #e8eae8;
+  --prospect-ink: #3d4641;
+  --info: #2f6f9a;
+  --info-soft: #e2edf5;
+  --info-ink: #1d4e72;
+  --amber-soft: #fcebd0;
+  --amber-ink: #6b3f00;
+  --amber-strong: #c77a0a;
+  --danger: #b42318;
+  --danger-soft: #fbe6e3;
+  --on-danger: #ffffff;
+  --ok: #2f7a3e;
+  --ok-soft: #e1f1e3;
+  --side: #1a1e1c;
+  --side-fg: #b8bfba;
+  --side-active-bg: rgba(255, 255, 255, 0.1);
+  --side-line: rgba(255, 255, 255, 0.08);
+  --event-bg: #1e2421;
+  --event-fg: #ffffff;
+  --event-muted: #b8c2bc;
+
+  /* Stage solids */
+  --stage-ibo: #1e2421;
+  --stage-ibo-fg: #ffffff;
+  --stage-apprentice: #16803f;
+  --stage-prospect: #8e9691;
+  --stage-customer: #f2a93b;
+
+  /* White on the sidebar's primary / active items (both themes). */
+  --on-side: #ffffff;
+
+  /* Chat: outline of a win card (src/modules/chat/chat.css). */
+  --win-line: #1e2421;
+}
+
+.dark {
+  --app-bg: #101411;
+  --surface: #181d1a;
+  --surface-2: #202722;
+  --line: #2a322d;
+  --track: #2a322d;
+  --fg: #eceeec;
+  --muted-text: #a6afa9;
+  --faint: #8c968f;
+  --primary-base: #3ccb73;
+  --on-primary: #06210f;
+  --primary-soft: #163824;
+  --primary-ink: #9ae6b6;
+  --prospect-soft: #262d29;
+  --prospect-ink: #c9d0cb;
+  --info: #6fa8d6;
+  --info-soft: #15283a;
+  --info-ink: #a9cdea;
+  --amber-soft: #3a2b12;
+  --amber-ink: #f6cc86;
+  --amber-strong: #f2a93b;
+  --danger: #f29185;
+  --danger-soft: #3b1c1c;
+  --on-danger: #2a0b08;
+  --ok: #7bcb88;
+  --ok-soft: #173523;
+  --side: #0b0d0c;
+  --side-fg: #9aa39d;
+  --side-active-bg: rgba(255, 255, 255, 0.08);
+  --side-line: rgba(255, 255, 255, 0.07);
+  --event-bg: #222a25;
+  --event-fg: #ffffff;
+  --event-muted: #b8c2bc;
+
+  --stage-ibo: #3a453e;
+  --stage-ibo-fg: #ffffff;
+  --stage-apprentice: #3ccb73;
+  --stage-prospect: #8e9691;
+  --stage-customer: #f2a93b;
+
+  --win-line: #9ae6b6;
+
+  color-scheme: dark;
+}

@@ -16,6 +16,7 @@
  * `seed:video:` paths are synthesised WAV at the item's real length, and
  * `seed:pdf:` paths are small generated PDFs, so the repo holds no binaries.
  */
+import { brand } from "@/brand/brand";
 import { addDays } from "date-fns";
 import { seedEvents } from "@/data/seed";
 import { WORKSPACE_ID } from "@/data/chat/types";
@@ -128,7 +129,7 @@ const SPECS: Spec[] = [
   },
   {
     id: "lib-8",
-    title: "Using LevelUp LOS",
+    title: `Using ${brand.name}`,
     kind: "slides",
     format: "workshop",
     speakers: [P("2")],
@@ -320,7 +321,7 @@ const SPECS: Spec[] = [
     topics: [T.customers],
     size: 15,
     createdDaysAgo: 64,
-    link: "https://docs.google.com/presentation/d/levelup-demo-customer-care/edit",
+    link: "https://docs.google.com/presentation/d/demo-customer-care/edit",
     description: "Google Slides deck (demo link).",
   },
   {

@@ -6,10 +6,11 @@
  * The media element itself lives in LibraryPlayer; the functions below drive
  * it through `controller`, which LibraryPlayer registers on mount.
  */
+import { storageKey } from "@/lib/brand";
 import { create } from "zustand";
 
 export const SPEEDS = [1, 1.25, 1.5, 2] as const;
-const RATE_KEY = "levelup.libraryRate";
+const RATE_KEY = storageKey("libraryRate");
 
 function savedRate(): number {
   try {

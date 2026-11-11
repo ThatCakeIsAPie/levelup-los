@@ -18,7 +18,7 @@ import { bookNextStep, cancelBookedStep, moveCustomerCard, movePipelineCard } fr
 import { useRemoteStore, whenIdle } from "@/data/remote";
 import { adminClient, must } from "./admin";
 
-const PASSWORD = "levelup-local";
+const PASSWORD = "demo-local";
 const URL_ = import.meta.env.VITE_SUPABASE_URL as string;
 const KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 const clients: SupabaseClient[] = [];
@@ -30,7 +30,7 @@ async function login(): Promise<SupabaseClient> {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
   });
   const { error } = await c.auth.signInWithPassword({
-    email: "jamal@levelup.test",
+    email: "jamal@demo.test",
     password: PASSWORD,
   });
   if (error) throw error;
@@ -41,7 +41,7 @@ async function login(): Promise<SupabaseClient> {
 async function signInApp(): Promise<void> {
   await signOut();
   const { error } = await getSupabase().auth.signInWithPassword({
-    email: "jamal@levelup.test",
+    email: "jamal@demo.test",
     password: PASSWORD,
   });
   if (error) throw error;

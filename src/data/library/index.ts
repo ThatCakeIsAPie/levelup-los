@@ -8,9 +8,9 @@
  * - Progress per person per item; finishing an item (≥ 90% played, or "Mark as
  *   done") logs it to learning once (rules.learningFor picks the kind).
  *
- * Tables live in ./store (localStorage `levelup.library` in the demo; in
+ * Tables live in ./store (localStorage `<prefix>.library` in the demo; in
  * memory with real accounts), files in ./files (IndexedDB
- * `levelup-library-media` in the demo).
+ * `<prefix>-library-media` in the demo).
  */
 export * from "./types";
 export {

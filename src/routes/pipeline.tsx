@@ -1,3 +1,4 @@
+import { pageTitle } from "@/lib/brand";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { PipelinePage, type PipelineTab } from "@/modules/pipeline/PipelinePage";
 
@@ -10,7 +11,7 @@ export const Route = createFileRoute("/pipeline")({
   validateSearch: (search: Record<string, unknown>): PipelineSearch => ({
     tab: search.tab === "conversions" ? "conversions" : undefined,
   }),
-  head: () => ({ meta: [{ title: "Pipeline — LevelUp LOS" }] }),
+  head: () => ({ meta: [{ title: pageTitle("Pipeline") }] }),
   component: PipelineRoute,
 });
 

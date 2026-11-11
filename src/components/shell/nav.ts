@@ -188,7 +188,7 @@ export const STARTER_NAV: NavItem[] = [
   { to: "/wallet", label: "Wallet", icon: Wallet, area: "wallet" },
 ];
 
-/** The app path without the deployment's base path (GitHub Pages serves under /levelup-los/). */
+/** The app path without the deployment's base path (GitHub Pages serves under /crm/). */
 export function appPath(pathname: string, base: string = import.meta.env.BASE_URL): string {
   const b = base.replace(/\/+$/, "");
   return b && pathname.startsWith(`${b}/`) ? pathname.slice(b.length) : pathname;

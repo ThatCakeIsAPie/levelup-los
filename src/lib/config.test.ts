@@ -54,8 +54,8 @@ describe("absoluteAppUrl", () => {
     expect(absoluteAppUrl("http://localhost:5176", "/", "/auth/callback")).toBe(
       "http://localhost:5176/auth/callback",
     );
-    expect(absoluteAppUrl("https://thatcakeisapie.github.io", "/levelup-los/", "invite/abc")).toBe(
-      "https://thatcakeisapie.github.io/levelup-los/invite/abc",
+    expect(absoluteAppUrl("https://thatcakeisapie.github.io", "/crm/", "invite/abc")).toBe(
+      "https://thatcakeisapie.github.io/crm/invite/abc",
     );
     expect(absoluteAppUrl("https://x.dev", "/app", "auth/callback?invite=t")).toBe(
       "https://x.dev/app/auth/callback?invite=t",

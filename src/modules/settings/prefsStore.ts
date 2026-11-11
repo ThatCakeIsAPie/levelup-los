@@ -1,8 +1,9 @@
 /**
- * Notification preferences, saved in this browser under `levelup.prefs`.
+ * Notification preferences, saved in this browser under `<prefix>.prefs`.
  * Module-local on purpose: nothing reads them until push notifications launch,
  * when they move to the user's server-side settings behind @/data.
  */
+import { storageKey } from "@/lib/brand";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
@@ -65,7 +66,7 @@ export const usePrefsStore = create<PrefsState>()(
       setNotify: (key, on) => set((s) => ({ notify: { ...s.notify, [key]: on } })),
     }),
     {
-      name: "levelup.prefs",
+      name: storageKey("prefs"),
       version: 1,
       storage: createJSONStorage(() => localStorage),
       // Keep new keys' defaults when an older saved object lacks them.

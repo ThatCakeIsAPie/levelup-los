@@ -15,6 +15,7 @@
  * `seed_tmp.d(N)` (today in the workspace's time zone at reset time) and an
  * ISO timestamp becomes `seed_tmp.ts(seconds from now)`.
  */
+import "./neutralBrand";
 import { writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -49,7 +50,7 @@ import { goalToRow } from "@/data/remote/rows";
 /**
  * The demo users (DEMO_USERS in src/stores/sessionStore.ts, not imported
  * because that module reads Vite's import.meta.env). Each gets a local login
- * <first name>@levelup.test with DEMO_PASSWORD.
+ * <first name>@demo.test with DEMO_PASSWORD.
  */
 const DEMO_USERS = [
   { personId: "1", name: "Maria Reyes", role: "leader" },
@@ -59,12 +60,12 @@ const DEMO_USERS = [
   { personId: "700", name: "Tasha Greene", role: "apprentice" },
   // Maria's deputy (src/data/team/seed.ts).
   { personId: "6", name: "Marcus Hill", role: "ibo" },
-  // The admin login (admin@levelup.test): an app_admins row, and Maria's deputy.
+  // The admin login (admin@demo.test): an app_admins row, and Maria's deputy.
   { personId: "800", name: "Admin Tester", role: "ibo", admin: true },
 ] as const;
-const loginEmail = (name: string) => `${name.split(" ")[0].toLowerCase()}@levelup.test`;
+const loginEmail = (name: string) => `${name.split(" ")[0].toLowerCase()}@demo.test`;
 /** Local development only. Documented in docs/backend.md. */
-const DEMO_PASSWORD = "levelup-local";
+const DEMO_PASSWORD = "demo-local";
 const TIMEZONE = "America/Chicago";
 
 const NOW = Date.now();
@@ -81,7 +82,7 @@ begin
   perform set_config('role', 'postgres', true);
   insert into auth.users (instance_id, id, aud, role, email)
   values ('00000000-0000-0000-0000-000000000000', v_uid, 'authenticated', 'authenticated',
-          'person' || p_person || '@levelup.test')
+          'person' || p_person || '@demo.test')
   on conflict (id) do nothing;
   update public.members set user_id = v_uid where person_id = p_person and user_id is null;
   perform set_config('role', 'authenticated', true);
@@ -230,7 +231,7 @@ emit(
     [
       [
         WORKSPACE_ID,
-        "LevelUp",
+        "Demo Team",
         { navy: "#1a365d", teal: "#067781", sky: "#199bd7", amber: "#f2a93b" },
         TIMEZONE,
       ],

@@ -1,3 +1,4 @@
+import { brand } from "@/brand/brand";
 import { useState, type FormEvent } from "react";
 import { Check, Copy, Database, Link2, Loader2, Send, Share2 } from "lucide-react";
 import { toast } from "sonner";
@@ -270,7 +271,7 @@ function InviteCreated({
             variant="outline"
             onClick={() =>
               navigator
-                .share({ title: "Join the team on LevelUp LOS", url: invite.link })
+                .share({ title: `Join the team on ${brand.name}`, url: invite.link })
                 .catch(() => undefined)
             }
           >

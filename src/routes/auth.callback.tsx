@@ -1,3 +1,4 @@
+import { pageTitle } from "@/lib/brand";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { IS_SUPABASE } from "@/lib/config";
 import { AuthCallback, type CallbackSearch } from "@/modules/login/AuthCallback";
@@ -5,7 +6,7 @@ import { AuthCallback, type CallbackSearch } from "@/modules/login/AuthCallback"
 const str = (v: unknown) => (typeof v === "string" && v ? v : undefined);
 
 export const Route = createFileRoute("/auth/callback")({
-  head: () => ({ meta: [{ title: "Signing in — LevelUp LOS" }] }),
+  head: () => ({ meta: [{ title: pageTitle("Signing in") }] }),
   // Supabase adds code / error params; invite and next are ours.
   validateSearch: (s: Record<string, unknown>): CallbackSearch => ({
     code: str(s.code),

@@ -10,7 +10,7 @@ describe("cleanTicketUrl", () => {
   });
 
   it("adds https:// to a bare link", () => {
-    expect(cleanTicketUrl("venmo.com/u/levelup")).toBe("https://venmo.com/u/levelup");
+    expect(cleanTicketUrl("venmo.com/u/demo")).toBe("https://venmo.com/u/demo");
   });
 
   it("rejects other schemes, spaces and non-links", () => {

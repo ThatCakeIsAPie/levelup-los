@@ -1,3 +1,4 @@
+import { storageKey } from "@/lib/brand";
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { IS_SUPABASE } from "@/lib/config";
@@ -122,7 +123,7 @@ export const useSessionStore = create<SessionState>()(
       // In "supabase" mode the auth client keeps its own session and the user
       // is rebuilt from the database on every start, so nothing is stored here
       // (and a demo user saved by the local build is never picked up).
-      name: IS_SUPABASE ? "levelup.session.remote" : "levelup.session",
+      name: IS_SUPABASE ? storageKey("session.remote") : storageKey("session"),
       storage: createJSONStorage(() => localStorage),
       partialize: (s) => (IS_SUPABASE ? {} : { user: s.user }),
     },

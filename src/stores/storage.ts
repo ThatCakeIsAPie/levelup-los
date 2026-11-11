@@ -4,7 +4,7 @@ import { IS_SUPABASE } from "@/lib/config";
 /**
  * Where the data stores persist.
  *
- *  - "local" mode (browser-storage demo): localStorage, under the `levelup.*`
+ *  - "local" mode (browser-storage demo): localStorage, under the `<prefix>.*`
  *    keys, exactly as before.
  *  - "supabase" mode: nowhere. The stores start empty, are filled from the
  *    database after sign-in (src/data/remote) and live in memory only, so

@@ -4,7 +4,7 @@ Status: draft for Lyle and his partner to agree on before any code is written. W
 
 ## Why
 
-The team already relies on LTD's own messaging app, and it's widely known to be clunky and unreliable. LevelUp LOS can replace it for our team, and that solves the CRM's biggest problem at the same time: **data collection works best when it happens as a side effect of what people already do.** If the conversations, event announcements, wins and training happen in the app, most of the tracking fills itself in.
+The team already relies on LTD's own messaging app, and it's widely known to be clunky and unreliable. The app can replace it for our team, and that solves the CRM's biggest problem at the same time: **data collection works best when it happens as a side effect of what people already do.** If the conversations, event announcements, wins and training happen in the app, most of the tracking fills itself in.
 
 Principles:
 

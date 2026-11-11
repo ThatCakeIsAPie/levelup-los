@@ -1,10 +1,11 @@
+import { pageTitle } from "@/lib/brand";
 import { createFileRoute } from "@tanstack/react-router";
 import { ChatsScreen } from "@/modules/chat/ChatsScreen";
 
 export const Route = createFileRoute("/chats/")({
   head: () => ({
     meta: [
-      { title: "Chats — LevelUp LOS" },
+      { title: pageTitle("Chats") },
       {
         name: "description",
         content: "Team announcements, the main chat, daily wins, groups and direct messages.",

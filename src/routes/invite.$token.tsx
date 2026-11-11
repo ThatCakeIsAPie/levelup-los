@@ -1,13 +1,15 @@
+import { brand } from "@/brand/brand";
+import { pageTitle } from "@/lib/brand";
 import { createFileRoute } from "@tanstack/react-router";
 import { InvitePage } from "@/modules/invites/InvitePage";
 
 export const Route = createFileRoute("/invite/$token")({
   head: () => ({
     meta: [
-      { title: "You're invited — LevelUp LOS" },
-      { name: "description", content: "Join your team on LevelUp LOS." },
-      { property: "og:title", content: "You're invited to LevelUp LOS" },
-      { property: "og:description", content: "Join your team on LevelUp LOS." },
+      { title: pageTitle("You're invited") },
+      { name: "description", content: `Join your team on ${brand.name}.` },
+      { property: "og:title", content: `You're invited to ${brand.name}` },
+      { property: "og:description", content: `Join your team on ${brand.name}.` },
     ],
   }),
   component: InviteRoute,

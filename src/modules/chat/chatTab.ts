@@ -1,3 +1,4 @@
+import { storageKey } from "@/lib/brand";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -13,7 +14,7 @@ export const TAB_LABEL: Record<ChatTab, string> = {
   direct: "Direct messages",
 };
 
-const tabKey = (personId: string) => `levelup.chatTab.${personId}`;
+const tabKey = (personId: string) => storageKey(`chatTab.${personId}`);
 
 function readTab(personId: string): ChatTab {
   try {

@@ -1,3 +1,4 @@
+import { pageTitle } from "@/lib/brand";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { CalendarX2, ChevronLeft, MapPin, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
@@ -69,7 +70,7 @@ export const Route = createFileRoute("/events/$id")({
     tab: TABS.includes(search.tab as TabKey) ? (search.tab as TabKey) : undefined,
     filter: search.filter === "no-ticket" ? "no-ticket" : undefined,
   }),
-  head: () => ({ meta: [{ title: "Event — LevelUp LOS" }] }),
+  head: () => ({ meta: [{ title: pageTitle("Event") }] }),
   component: EventDetail,
 });
 

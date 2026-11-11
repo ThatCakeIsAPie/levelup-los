@@ -1,13 +1,14 @@
 /**
  * The chat tables on the client. In the browser-storage demo they persist to
- * localStorage key `levelup.chat`, versioned with the CRM seed so resetDemo and
- * SEED_VERSION bumps re-seed it like every other `levelup.*` store.
+ * localStorage key `<prefix>.chat`, versioned with the CRM seed so resetDemo and
+ * SEED_VERSION bumps re-seed it like every other `<prefix>.*` store.
  *
  * Pages never import this: they use the hooks and mutations re-exported from
  * "@/data". With real accounts ("supabase" mode) the same store is kept in
  * memory only: src/data/remote fills it from the database after sign-in,
  * writes every change back and merges realtime changes from other people.
  */
+import { storageKey } from "@/lib/brand";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { IS_SUPABASE } from "@/lib/config";
@@ -18,7 +19,7 @@ import { purgeExpired } from "./rules";
 import { seedChat } from "./seed";
 import type { ChatData } from "./types";
 
-export const CHAT_STORAGE_KEY = "levelup.chat";
+export const CHAT_STORAGE_KEY = storageKey("chat");
 /** Bump when the stored shape changes (resets everyone's chat demo data). */
 const CHAT_SCHEMA_VERSION = 4;
 

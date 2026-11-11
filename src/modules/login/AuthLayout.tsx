@@ -1,7 +1,9 @@
+import { brand } from "@/brand/brand";
 import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import { Loader2 } from "lucide-react";
-import { Logo, LogoMark } from "@/components/brand";
+import { Logo } from "@/components/brand";
+import { BrandMark } from "@/brand";
 import { IS_LOCAL_DEMO } from "@/lib/config";
 import { cn } from "@/lib/utils";
 
@@ -90,6 +92,10 @@ export function AuthLoading({ label = "Signing you in…" }: { label?: string })
 }
 
 function BrandPanel({ headline, blurb }: { headline?: ReactNode; blurb?: ReactNode }) {
+  // "Sandbox demo · <org line>"; either part is dropped when empty.
+  const footerLine = (IS_LOCAL_DEMO ? ["Sandbox demo", brand.orgLine] : [brand.orgLine])
+    .filter(Boolean)
+    .join(" · ");
   return (
     <aside className="relative isolate overflow-hidden bg-sidebar px-5 pb-6 pt-[calc(1.5rem+env(safe-area-inset-top))] text-white lg:flex lg:flex-col lg:px-12 lg:py-12">
       <LogoMotif />
@@ -103,13 +109,11 @@ function BrandPanel({ headline, blurb }: { headline?: ReactNode; blurb?: ReactNo
         </h1>
         <p className="text-[13px] text-sidebar-fg lg:text-[15px]">
           {blurb ??
-            "LevelUp LOS helps the LevelUp team track people on the business path, look after customers, and get everyone to the next event."}
+            `${brand.name} helps the ${brand.teamName} team track people on the business path, look after customers, and get everyone to the next event.`}
         </p>
       </div>
 
-      <p className="mt-10 hidden text-xs text-sidebar-fg lg:block">
-        {IS_LOCAL_DEMO ? "Sandbox demo · LevelUp Leadership · LTD" : "LevelUp Leadership · LTD"}
-      </p>
+      {footerLine && <p className="mt-10 hidden text-xs text-sidebar-fg lg:block">{footerLine}</p>}
     </aside>
   );
 }
@@ -121,7 +125,7 @@ function LogoMotif() {
       className="pointer-events-none absolute -bottom-10 -right-10 -z-10 opacity-[0.14] lg:-bottom-24 lg:-right-16 lg:opacity-[0.16]"
       aria-hidden="true"
     >
-      <LogoMark className="size-48 lg:size-[30rem]" />
+      <BrandMark className="size-48 lg:size-[30rem]" />
     </div>
   );
 }

@@ -1,3 +1,4 @@
+import { pageTitle } from "@/lib/brand";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { AlertTriangle, CalendarDays, CalendarPlus, MapPin, Plus, Ticket } from "lucide-react";
@@ -53,7 +54,7 @@ export const Route = createFileRoute("/events/")({
   validateSearch: (search: Record<string, unknown>): EventsSearch => ({
     type: isEventType(search.type) ? search.type : undefined,
   }),
-  head: () => ({ meta: [{ title: "Events — LevelUp LOS" }] }),
+  head: () => ({ meta: [{ title: pageTitle("Events") }] }),
   component: EventsPage,
 });
 

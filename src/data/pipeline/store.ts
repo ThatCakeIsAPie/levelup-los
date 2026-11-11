@@ -1,13 +1,14 @@
 /**
  * The pipeline tables on the client. In the browser-storage demo they persist
- * to localStorage key `levelup.pipeline`, versioned with the CRM seed so
- * resetDemo and SEED_VERSION bumps re-seed it like every other `levelup.*`
+ * to localStorage key `<prefix>.pipeline`, versioned with the CRM seed so
+ * resetDemo and SEED_VERSION bumps re-seed it like every other `<prefix>.*`
  * store. With real accounts ("supabase" mode) the store lives in memory only
  * (src/stores/storage.ts) and starts empty.
  *
  * Pages never import this: they use the hooks and mutations re-exported from
  * "@/data".
  */
+import { storageKey } from "@/lib/brand";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { IS_SUPABASE } from "@/lib/config";
@@ -19,7 +20,7 @@ import { convertLegacyCards } from "./booking";
 import { chainOf, columnsFor, recruitingBand } from "./rules";
 import type { PipelineColumn, PipelineData } from "./types";
 
-export const PIPELINE_STORAGE_KEY = "levelup.pipeline";
+export const PIPELINE_STORAGE_KEY = storageKey("pipeline");
 /** Bump when the stored shape changes (resets everyone's pipeline demo data). */
 const PIPELINE_SCHEMA_VERSION = 2; // 2: booked next steps, notes, cancellations
 

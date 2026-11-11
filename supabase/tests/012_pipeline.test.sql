@@ -22,7 +22,7 @@ begin
   perform set_config('role', 'postgres', true);
   insert into auth.users (instance_id, id, aud, role, email)
   values ('00000000-0000-0000-0000-000000000000', v_uid, 'authenticated', 'authenticated',
-          'person' || p_person || '@levelup.test')
+          'person' || p_person || '@demo.test')
   on conflict (id) do nothing;
   update public.members set user_id = v_uid where person_id = p_person and user_id is null;
   perform set_config('role', 'authenticated', true);

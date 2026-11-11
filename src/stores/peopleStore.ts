@@ -1,3 +1,4 @@
+import { storageKey } from "@/lib/brand";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { dataStorage, seedOr } from "./storage";
@@ -221,7 +222,7 @@ export const usePeopleStore = create<PeopleState>()(
       },
     }),
     {
-      name: "levelup.people",
+      name: storageKey("people"),
       storage: dataStorage(),
       partialize: (s) => ({ people: s.people }),
       version: SEED_VERSION,

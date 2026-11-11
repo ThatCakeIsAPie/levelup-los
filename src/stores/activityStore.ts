@@ -1,3 +1,4 @@
+import { storageKey } from "@/lib/brand";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { dataStorage, seedOr } from "./storage";
@@ -64,7 +65,7 @@ export const useActivityStore = create<ActivityState>()(
         ),
     }),
     {
-      name: "levelup.activity",
+      name: storageKey("activity"),
       storage: dataStorage(),
       partialize: (s) => ({ events: s.events }),
       version: SEED_VERSION,

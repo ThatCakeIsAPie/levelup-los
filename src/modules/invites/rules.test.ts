@@ -10,7 +10,7 @@ import {
 const now = new Date("2026-10-12T12:00:00Z");
 const preview: InvitePreview = {
   workspace_id: "w1",
-  workspace_name: "LevelUp",
+  workspace_name: "Demo Team",
   sponsor_name: "Anita Patel",
   stage: "prospect",
   name: null,

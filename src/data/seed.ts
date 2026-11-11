@@ -343,7 +343,7 @@ export function seedEvents(): CrmEvent[] {
       location: "Dallas, TX and Zoom",
       notes: "Recognition, new apprentices, Fall Weekend ticket push.",
       format: "both",
-      ticketUrl: "https://venmo.com/u/levelup-team",
+      ticketUrl: "https://venmo.com/u/demo-team",
     },
     {
       id: "e2",
