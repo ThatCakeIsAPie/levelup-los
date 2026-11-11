@@ -32,7 +32,7 @@ export function Logo({
     <span className={cn("inline-flex items-center gap-2.5", className)}>
       {mark}
       <span className="leading-tight">
-        <span className="block font-wordmark text-[17px] tracking-[0.01em]">{brand.name}</span>
+        <span className="block font-wordmark text-[17px] tracking-[0.01em]">{brand.wordmark}</span>
         {tagline && brand.orgLine && (
           <span className="block text-[10.5px] font-medium tracking-wide opacity-75">
             {brand.orgLine}

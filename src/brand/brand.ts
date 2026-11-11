@@ -4,8 +4,10 @@
  * storage keys) lives in src/lib/brand.ts.
  */
 export const brand = {
-  /** App name: page titles, wordmark, aria-labels, share text. */
+  /** App name: page titles, aria-labels, share text. */
   name: "LevelUp LOS",
+  /** Text set next to the mark in the sidebar and on the sign-in page. Usually the name; shorten it if the name does not fit the sidebar. */
+  wordmark: "LevelUp LOS",
   /** Small line under the wordmark and in the sign-in footer. Empty string hides it. */
   orgLine: "LevelUp Leadership · LTD",
   /** The team the app is for: "the LevelUp team", "Welcome to LevelUp chats!". Empty string reads "your team" / "team chats". */
