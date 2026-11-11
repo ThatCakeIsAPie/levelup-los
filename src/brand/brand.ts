@@ -8,7 +8,7 @@ export const brand = {
   name: "LevelUp LOS",
   /** Small line under the wordmark and in the sign-in footer. Empty string hides it. */
   orgLine: "LevelUp Leadership · LTD",
-  /** The team the app is for: "the LevelUp team", "Welcome to LevelUp chats!". */
+  /** The team the app is for: "the LevelUp team", "Welcome to LevelUp chats!". Empty string reads "your team" / "team chats". */
   teamName: "LevelUp",
   /** <meta name=description>. */
   description: "Team, customer, and event management for direct sales leaders.",

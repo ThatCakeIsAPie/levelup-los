@@ -109,7 +109,7 @@ function BrandPanel({ headline, blurb }: { headline?: ReactNode; blurb?: ReactNo
         </h1>
         <p className="text-[13px] text-sidebar-fg lg:text-[15px]">
           {blurb ??
-            `${brand.name} helps the ${brand.teamName} team track people on the business path, look after customers, and get everyone to the next event.`}
+            `${brand.name} helps ${brand.teamName ? `the ${brand.teamName} team` : "your team"} track people on the business path, look after customers, and get everyone to the next event.`}
         </p>
       </div>
 

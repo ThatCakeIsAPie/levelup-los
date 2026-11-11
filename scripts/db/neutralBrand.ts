@@ -6,4 +6,4 @@
  */
 import { brand } from "@/brand/brand";
 
-Object.assign(brand, { name: "Network Marketing CRM", teamName: "Demo Team" });
+Object.assign(brand, { name: "Network Marketing CRM", teamName: "" });

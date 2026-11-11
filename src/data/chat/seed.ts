@@ -170,7 +170,7 @@ export function seedChat(people: CrmPerson[] = seedPeople(), nowMs: number = Dat
     "an1",
     CHAT_IDS.announcements,
     "1",
-    `Welcome to ${brand.teamName} chats! Announcements, Main chat, Daily wins and High signal are pinned at the top of Groups, and direct messages have their own tab. Pin any chat you use a lot.`,
+    `Welcome to ${brand.teamName ? `${brand.teamName} chats` : "team chats"}! Announcements, Main chat, Daily wins and High signal are pinned at the top of Groups, and direct messages have their own tab. Pin any chat you use a lot.`,
     daysAgoAt(3, 9),
   );
   msg(
