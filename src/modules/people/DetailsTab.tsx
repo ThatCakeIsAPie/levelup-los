@@ -18,7 +18,7 @@ import {
   type CrmPerson,
   type PipelineStage,
 } from "@/data";
-import { SectionCard, StageChip } from "@/components/brand";
+import { PhoneInput, SectionCard, StageChip } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -39,9 +39,9 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
+import { displayPhone } from "@/lib/phone";
 import { fmtDate, fmtMoney } from "./format";
 
 export interface DetailsPermissions {
@@ -54,19 +54,20 @@ export interface DetailsPermissions {
   canDelete: boolean;
 }
 
-/** Read-only details by default; "Edit" switches to a form. Danger zone at the bottom. */
+/**
+ * Read-only details by default; "Edit" switches to a form. Deleting the
+ * person is in the profile's ⋯ menu (DeletePersonDialog below).
+ */
 export function DetailsTab({
   person,
   perms,
   editing,
   setEditing,
-  onDeleted,
 }: {
   person: CrmPerson;
   perms: DetailsPermissions;
   editing: boolean;
   setEditing: (v: boolean) => void;
-  onDeleted: () => void;
 }) {
   return (
     <div className="grid gap-4">
@@ -75,7 +76,6 @@ export function DetailsTab({
       ) : (
         <DetailsView person={person} canEdit={perms.canEdit} onEdit={() => setEditing(true)} />
       )}
-      {perms.canDelete && !editing && <DangerZone person={person} onDeleted={onDeleted} />}
     </div>
   );
 }
@@ -108,7 +108,7 @@ function DetailsView({
           person.monthlyVolume ? `${fmtMoney(person.monthlyVolume)} a month` : undefined,
         ],
         ["Customer since", fmtDate(person.joinedDate, { year: true })],
-        ["Phone", person.phone],
+        ["Phone", displayPhone(person.phone)],
         ["Email", person.email],
         ["Location", person.location],
       ]
@@ -134,7 +134,7 @@ function DetailsView({
             ] as [string, React.ReactNode][])
           : []),
         ["Joined", fmtDate(person.joinedDate, { year: true })],
-        ["Phone", person.phone],
+        ["Phone", displayPhone(person.phone)],
         ["Email", person.email],
         ["Location", person.location],
       ];
@@ -382,7 +382,11 @@ function DetailsForm({
             </Field>
           )}
           <Field label="Phone" id="d-phone">
-            <Input id="d-phone" type="tel" value={f.phone} onChange={set("phone")} />
+            <PhoneInput
+              id="d-phone"
+              value={f.phone}
+              onValueChange={(phone) => setF((s) => ({ ...s, phone }))}
+            />
           </Field>
           <Field label="Email" id="d-email">
             <Input id="d-email" type="email" value={f.email} onChange={set("email")} />
@@ -536,7 +540,21 @@ function Field({
   );
 }
 
-function DangerZone({ person, onDeleted }: { person: CrmPerson; onDeleted: () => void }) {
+/**
+ * "Delete Anita Patel?" confirmation, opened from the profile's ⋯ menu. Says
+ * what moves where (their downline and customers go to their sponsor).
+ */
+export function DeletePersonDialog({
+  person,
+  open,
+  onOpenChange,
+  onDeleted,
+}: {
+  person: CrmPerson;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onDeleted: () => void;
+}) {
   const me = useCurrentUser();
   const downline = useDownline(person.id, { directOnly: true });
   const customers = useCustomerCounts()[person.id] ?? 0;
@@ -565,42 +583,29 @@ function DangerZone({ person, onDeleted }: { person: CrmPerson; onDeleted: () =>
         .filter(Boolean)
         .join(" ");
   return (
-    <section className="flex flex-wrap items-center justify-between gap-3 rounded-card border border-destructive/30 bg-bad-soft/40 px-4 py-4 sm:px-[18px]">
-      <div className="min-w-0">
-        <h2 className="text-sm font-bold">Delete {person.name}</h2>
-        <p className="text-[12.5px] text-muted-foreground">
-          Removes their profile from your {customer ? "customers" : "team list"} for good.
-        </p>
-      </div>
-      <AlertDialog>
-        <AlertDialogTrigger asChild>
-          <Button
-            variant="outline"
-            className="border-destructive/40 text-destructive hover:bg-bad-soft hover:text-destructive"
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent className="w-[calc(100%-2rem)] rounded-card">
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete {person.name}?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Removes their profile from your {customer ? "customers" : "team list"} for good.{" "}
+            {consequences} This can't be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Keep</AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            onClick={() => {
+              removePerson(person.id);
+              toast.success(`Deleted ${person.name}`);
+              onDeleted();
+            }}
           >
-            <Trash2 /> Delete person
-          </Button>
-        </AlertDialogTrigger>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete {person.name}?</AlertDialogTitle>
-            <AlertDialogDescription>{consequences} This can't be undone.</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Keep</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => {
-                removePerson(person.id);
-                toast.success(`Deleted ${person.name}`);
-                onDeleted();
-              }}
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </section>
+            <Trash2 /> Delete
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }

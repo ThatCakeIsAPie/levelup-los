@@ -19,7 +19,7 @@ import {
   Undo2,
 } from "lucide-react";
 import { toast } from "sonner";
-import { EmptyState, PersonAvatar, ToneChip } from "@/components/brand";
+import { Breadcrumbs, EmptyState, PersonAvatar, ToneChip, type Crumb } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -73,7 +73,7 @@ export function ItemPage({ itemId, channelId }: { itemId: string; channelId?: st
   if (!item) {
     return (
       <div className="mx-auto grid w-full max-w-4xl content-start gap-4 px-4 py-5 lg:px-[26px] lg:py-[22px]">
-        <BackLink to="/library/talks" label="All talks" />
+        <Breadcrumbs items={[LIBRARY, ALL_TALKS, { label: "Not found" }]} />
         <EmptyState
           title="Not found"
           body="This talk was removed from the library, or it isn't shared with you."
@@ -89,24 +89,8 @@ export function ItemPage({ itemId, channelId }: { itemId: string; channelId?: st
   return <Item item={item} channelId={channelId} />;
 }
 
-function BackLink(
-  props:
-    { to: "/library/talks" | "/library"; label: string } | { channelId: string; label: string },
-) {
-  const cls =
-    "inline-flex w-fit items-center gap-1 text-[12.5px] font-medium text-muted-foreground hover:text-foreground";
-  return "channelId" in props ? (
-    <Link {...channelHref(props.channelId)} className={cls}>
-      <ChevronLeft className="size-3.5" aria-hidden="true" />
-      {props.label}
-    </Link>
-  ) : (
-    <Link to={props.to} className={cls}>
-      <ChevronLeft className="size-3.5" aria-hidden="true" />
-      {props.label}
-    </Link>
-  );
-}
+const LIBRARY: Crumb = { label: "Library", link: { to: "/library" } };
+const ALL_TALKS: Crumb = { label: "All talks", link: { to: "/library/talks" } };
 
 function Item({ item, channelId }: { item: CatalogItem; channelId?: string }) {
   const navigate = useNavigate();
@@ -138,11 +122,18 @@ function Item({ item, channelId }: { item: CatalogItem; channelId?: string }) {
 
   return (
     <div className="mx-auto grid w-full max-w-4xl content-start gap-4 px-4 py-5 lg:px-[26px] lg:py-[22px]">
-      {ctx.channel ? (
-        <BackLink channelId={ctx.channel.channel.id} label={ctx.channel.channel.title} />
-      ) : (
-        <BackLink to="/library/talks" label="All talks" />
-      )}
+      <Breadcrumbs
+        items={[
+          LIBRARY,
+          ctx.channel
+            ? {
+                label: ctx.channel.channel.title,
+                link: channelHref(ctx.channel.channel.id),
+              }
+            : ALL_TALKS,
+          { label: item.title },
+        ]}
+      />
 
       <header className="grid gap-1">
         <span className="text-[10.5px] font-extrabold uppercase tracking-[.08em] text-faint">

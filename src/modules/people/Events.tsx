@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { CalendarCheck, CalendarPlus, Pencil } from "lucide-react";
+import { CalendarCheck, CalendarPlus, Pencil, Plus } from "lucide-react";
 import {
   assignToEvent,
   getPersonShowRate,
@@ -10,13 +10,17 @@ import {
   openLog,
   setEventAttendance,
   updateAttendance,
+  useCanManageEvents,
   usesTickets,
+  eventModes,
+  useCategoryOf,
   useAttendancesForPerson,
   useEvents,
   useVisibleAttendances,
   useVisiblePeople,
   useVisibleTeam,
   type Attendance,
+  type AttendMode,
   type CrmEvent,
   type CrmPerson,
 } from "@/data";
@@ -41,21 +45,26 @@ import { AttendanceDialog } from "./AttendanceDialog";
 import { Segmented } from "@/modules/events/Segmented";
 import { attendanceToast, cameOptions, cameValue } from "@/modules/events/attendance";
 import { PersonMissedCard } from "@/modules/events/MissedFollowUps";
+import { EventFormDialog } from "@/modules/events/EventFormDialog";
 import { attendanceChips, fmtDate, firstName, purchaseOverdue, TICKET_TYPE_LABEL } from "./format";
 
-type Row = { a: Attendance; ev: CrmEvent };
+/** An attendance row with its event and whether the event's category uses tickets. */
+type Row = { a: Attendance; ev: CrmEvent; tickets: boolean; modes: AttendMode[] };
 
 /** This person's attendance rows joined with their events, soonest upcoming first then most recent past. */
 function usePersonEventRows(personId: string) {
   const attendances = useAttendancesForPerson(personId);
   const events = useEvents();
+  const categoryOf = useCategoryOf();
   return useMemo(() => {
     const today = localDate();
     const byId = new Map(events.map((e) => [e.id, e]));
     const rows: Row[] = [];
     for (const a of attendances) {
       const ev = byId.get(a.eventId);
-      if (ev) rows.push({ a, ev });
+      if (!ev) continue;
+      const category = categoryOf(ev);
+      rows.push({ a, ev, tickets: usesTickets(category), modes: eventModes(ev, category) });
     }
     const upcoming = rows
       .filter((r) => isUpcoming(r.ev, today))
@@ -66,15 +75,15 @@ function usePersonEventRows(personId: string) {
     const assigned = new Set(rows.map((r) => r.ev.id));
     const unassigned = events.filter((e) => !assigned.has(e.id));
     return { upcoming, past, unassigned, attendances, events };
-  }, [attendances, events]);
+  }, [attendances, events, categoryOf]);
 }
 
 type NextStep =
   { label: string; patch: Partial<Attendance>; done: string } | { label: string; dialog: true };
 
-function nextStep({ a, ev }: Row, today = localDate()): NextStep | null {
+function nextStep({ a, ev, tickets }: Row, today = localDate()): NextStep | null {
   // Events without tickets get the one-tap attendance control instead.
-  if (!usesTickets(ev.type)) return null;
+  if (!tickets) return null;
   if (isUpcoming(ev, today)) {
     if (!a.hasTicket && a.desireToAttend !== "no")
       return { label: "Mark bought", patch: { hasTicket: true }, done: "Ticket marked as bought" };
@@ -136,7 +145,7 @@ function EventRow({
   action?: React.ReactNode;
   detailed?: boolean;
 }) {
-  const { a, ev } = row;
+  const { a, ev, tickets } = row;
   return (
     <div className="grid grid-cols-[44px_minmax(0,1fr)] items-center gap-x-3 gap-y-2 sm:grid-cols-[52px_minmax(0,1fr)_auto] sm:gap-x-3.5">
       <DateBadge date={ev.date} />
@@ -149,7 +158,7 @@ function EventRow({
           {ev.name}
         </Link>
         <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-          {attendanceChips(a, ev).map((c) => (
+          {attendanceChips(a, ev, tickets).map((c) => (
             <ToneChip key={c.label} tone={c.tone}>
               {c.label}
             </ToneChip>
@@ -175,7 +184,7 @@ function EventRow({
  * Events without tickets: "Coming?" before the day, then "Were they there?"
  * (in person / virtual / not there) from the day of the event.
  */
-function QuickAttend({ row: { a, ev }, name }: { row: Row; name: string }) {
+function QuickAttend({ row: { a, ev, modes }, name }: { row: Row; name: string }) {
   const started = ev.date <= localDate();
   if (!started)
     return (
@@ -208,7 +217,7 @@ function QuickAttend({ row: { a, ev }, name }: { row: Row; name: string }) {
         );
         attendanceToast(firstName(name), ev.name, v, undo);
       }}
-      options={cameOptions(ev)}
+      options={cameOptions(modes)}
     />
   );
 }
@@ -270,6 +279,8 @@ export function EventsCard({
   const helperOptions = useHelperOptions(person.id);
   const [editing, setEditing] = useState<Row | null>(null);
   const [assignOpen, setAssignOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const canCreate = useCanManageEvents() && canEdit;
   const rows = [...upcoming, ...past.slice(0, 2)];
   const hidden = upcoming.length + past.length - rows.length;
 
@@ -280,13 +291,24 @@ export function EventsCard({
         title="Events"
         action={
           canEdit ? (
-            <button
-              type="button"
-              onClick={() => setAssignOpen(true)}
-              className="rounded-sm text-primary hover:underline focus-visible:outline-2 focus-visible:outline-ring"
-            >
-              Assign to event
-            </button>
+            <span className="flex items-center gap-3">
+              {canCreate && (
+                <button
+                  type="button"
+                  onClick={() => setCreateOpen(true)}
+                  className="rounded-sm text-primary hover:underline focus-visible:outline-2 focus-visible:outline-ring"
+                >
+                  Create event
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setAssignOpen(true)}
+                className="rounded-sm text-primary hover:underline focus-visible:outline-2 focus-visible:outline-ring"
+              >
+                Assign to event
+              </button>
+            </span>
           ) : undefined
         }
       >
@@ -309,7 +331,7 @@ export function EventsCard({
                     row={row}
                     names={names}
                     action={
-                      canEdit && !usesTickets(row.ev.type) ? (
+                      canEdit && !row.tickets ? (
                         <QuickAttend row={row} name={person.name} />
                       ) : step ? (
                         <StepButton
@@ -351,6 +373,9 @@ export function EventsCard({
           person={person}
           events={unassigned}
         />
+        {canCreate && (
+          <CreateEventForPerson open={createOpen} onOpenChange={setCreateOpen} person={person} />
+        )}
       </SectionCard>
     </>
   );
@@ -371,9 +396,7 @@ export function NextEventCard({ person, canEdit }: { person: CrmPerson; canEdit:
           row={row}
           names={names}
           action={
-            canEdit && !usesTickets(row.ev.type) ? (
-              <QuickAttend row={row} name={person.name} />
-            ) : undefined
+            canEdit && !row.tickets ? <QuickAttend row={row} name={person.name} /> : undefined
           }
         />
         {step && !("dialog" in step) && (
@@ -399,6 +422,8 @@ export function EventsTab({ person, canEdit }: { person: CrmPerson; canEdit: boo
   const helperOptions = useHelperOptions(person.id);
   const [editing, setEditing] = useState<Row | null>(null);
   const [assignOpen, setAssignOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const canCreate = useCanManageEvents() && canEdit;
   const rate = getPersonShowRate(person.id, attendances, events);
   const noShows = attendances.filter((a) => a.hasTicket && a.attended === false).length;
   const today = localDate();
@@ -418,7 +443,7 @@ export function EventsTab({ person, canEdit }: { person: CrmPerson; canEdit: boo
           action={
             canEdit ? (
               <>
-                {!usesTickets(row.ev.type) && <QuickAttend row={row} name={person.name} />}
+                {!row.tickets && <QuickAttend row={row} name={person.name} />}
                 {step && (
                   <StepButton
                     row={row}
@@ -467,6 +492,11 @@ export function EventsTab({ person, canEdit }: { person: CrmPerson; canEdit: boo
               onClick={() => openLog({ tab: "attendance", personId: person.id })}
             >
               <CalendarCheck /> Log attendance
+            </Button>
+          )}
+          {canCreate && (
+            <Button size="sm" variant="outline" onClick={() => setCreateOpen(true)}>
+              <Plus /> Create event
             </Button>
           )}
           {canEdit && unassigned.length > 0 && (
@@ -530,7 +560,41 @@ export function EventsTab({ person, canEdit }: { person: CrmPerson; canEdit: boo
         person={person}
         events={unassigned}
       />
+      {canCreate && (
+        <CreateEventForPerson open={createOpen} onOpenChange={setCreateOpen} person={person} />
+      )}
     </div>
+  );
+}
+
+/**
+ * "Create event" from a profile: the usual event form, then this person is
+ * added to the new event (the first one when it repeats weekly).
+ */
+function CreateEventForPerson({
+  open,
+  onOpenChange,
+  person,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  person: CrmPerson;
+}) {
+  const navigate = useNavigate();
+  return (
+    <EventFormDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      onCreated={(e) => {
+        assignToEvent(e.id, person.id);
+        toast.success(`Added ${firstName(person.name)} to ${e.name}`, {
+          action: {
+            label: "Open event",
+            onClick: () => void navigate({ to: "/events/$id", params: { id: e.id } }),
+          },
+        });
+      }}
+    />
   );
 }
 
@@ -656,6 +720,7 @@ function HelpingFor({ person }: { person: CrmPerson }) {
   const all = useVisibleAttendances();
   const events = useEvents();
   const people = useVisiblePeople();
+  const categoryOf = useCategoryOf();
   const rows = useMemo(() => {
     const evs = new Map(events.map((e) => [e.id, e]));
     const ppl = new Map(people.map((p) => [p.id, p]));
@@ -671,7 +736,7 @@ function HelpingFor({ person }: { person: CrmPerson }) {
     <EventGroup title={`Helping ${rows.length} ${rows.length === 1 ? "person" : "people"}`}>
       <div className="rounded-card border border-line bg-card px-4 sm:px-[18px]">
         {rows.map(({ a, ev, p }) => {
-          const chip = attendanceChips(a, ev).at(-1);
+          const chip = attendanceChips(a, ev, usesTickets(categoryOf(ev))).at(-1);
           return (
             <div
               key={a.id}

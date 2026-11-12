@@ -17,6 +17,7 @@
 import { getSupabase } from "@/lib/supabase";
 import { usePeopleStore } from "@/stores/peopleStore";
 import { useEventsStore } from "@/stores/eventsStore";
+import { useEventCategoriesStore } from "@/data/eventCategories/store";
 import { useAttendanceStore } from "@/stores/attendanceStore";
 import { useCrmStore, DEFAULT_SETTINGS } from "@/stores/crmStore";
 import { useOpsStore } from "@/stores/opsStore";
@@ -27,6 +28,7 @@ import { useLibraryExtras } from "@/data/library/extras";
 import { emptyPipeline, usePipelineStore } from "@/data/pipeline/store";
 import { emptyCustomerPipeline, useCustomerPipelineStore } from "@/data/customerPipeline/store";
 import { emptyTeam, useTeamStore } from "@/data/team/store";
+import { useHomeLayoutStore } from "@/data/homeLayoutStore";
 import { ALL_BINDINGS } from "./bindings";
 import {
   applyRemote,
@@ -170,6 +172,7 @@ export function closeRemoteSession(cancelLoading = true): void {
   suppressed(() => {
     usePeopleStore.setState({ people: [] });
     useEventsStore.setState({ events: [] });
+    useEventCategoriesStore.setState({ categories: [] });
     useAttendanceStore.setState({ attendances: [], missedNotes: [] });
     useCrmStore.setState({
       sales: [],
@@ -188,6 +191,7 @@ export function closeRemoteSession(cancelLoading = true): void {
     usePipelineStore.setState(emptyPipeline());
     useCustomerPipelineStore.setState(emptyCustomerPipeline());
     useTeamStore.setState(emptyTeam());
+    useHomeLayoutStore.setState({ layouts: {} });
   });
   useLibraryExtras.setState({ teasers: [], names: {} });
   useRemoteStore.setState({ directory: [], rsvpCounts: null, chain: [], phase: "idle" });

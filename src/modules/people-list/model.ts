@@ -6,6 +6,7 @@ import { addYears, differenceInCalendarDays } from "date-fns";
 import {
   apprenticeAlertLevel,
   daysSince,
+  downlineIds,
   effectiveBizClass,
   getPersonShowRate,
   lastSale,
@@ -25,6 +26,7 @@ import {
   type Sale,
 } from "@/data";
 import type { Tone } from "@/components/brand";
+import { listParam, parseListParam, toggleInList } from "@/lib/searchList";
 
 export type Segment = "business" | "customers";
 export type StageFilter = "all" | "prospect" | "apprentice" | "ibo";
@@ -180,21 +182,98 @@ export function usePeopleRows(): PersonRow[] {
   }, [people, user.personId, attendances, events, lastContact, settings, sales]);
 }
 
+/** Business stages the People list filters by (customers have their own segment). */
+export type StageKey = Exclude<StageFilter, "all">;
+export const STAGE_KEYS: readonly StageKey[] = ["prospect", "apprentice", "ibo"];
+export type AttentionReason = Exclude<AttentionFilter, "any">;
+export const ATTENTION_KEYS: readonly AttentionFilter[] = ATTENTION_OPTIONS.map((o) => o.value);
+const SORT_KEYS = new Set<string>(
+  [...SORT_OPTIONS.business, ...SORT_OPTIONS.customers].map((o) => o.value),
+);
+
 export interface Filters {
   q: string;
-  stage: StageFilter;
-  attention: AttentionFilter | null;
-  location: string;
+  /** Stages shown together (business only); empty = everyone. */
+  stages: StageKey[];
+  /** Needs attention: empty = off, ["any"] = any reason, else any of these reasons. */
+  attention: AttentionFilter[];
+  /** Locations shown together; empty = all. */
+  locations: string[];
   sort: SortKey;
 }
 
 export const DEFAULT_FILTERS: Filters = {
   q: "",
-  stage: "all",
-  attention: null,
-  location: "all",
+  stages: [],
+  attention: [],
+  locations: [],
   sort: "name",
 };
+
+// ---------------------------------------------------------------------------
+// URL search params (`/people?seg=customers&stage=apprentice,ibo&attn=contact`)
+// ---------------------------------------------------------------------------
+
+export interface PeopleSearch {
+  seg?: "customers";
+  q?: string;
+  /** Comma-separated stages. */
+  stage?: string;
+  /** Comma-separated attention reasons ("any" for any reason). */
+  attn?: string;
+  /** Locations (they may contain commas, so a list). */
+  loc?: string[];
+  sort?: SortKey;
+}
+
+/** validateSearch for /people: drops anything unknown. */
+export function validatePeopleSearch(s: Record<string, unknown>): PeopleSearch {
+  const loc = (Array.isArray(s.loc) ? s.loc : typeof s.loc === "string" ? [s.loc] : []).filter(
+    (v): v is string => typeof v === "string" && v.trim() !== "",
+  );
+  return {
+    seg: s.seg === "customers" ? "customers" : undefined,
+    q: typeof s.q === "string" && s.q !== "" ? s.q : undefined,
+    stage: listParam(parseListParam(s.stage, STAGE_KEYS)),
+    attn: listParam(parseListParam(s.attn, ATTENTION_KEYS)),
+    loc: loc.length ? [...new Set(loc)] : undefined,
+    sort: typeof s.sort === "string" && SORT_KEYS.has(s.sort) ? (s.sort as SortKey) : undefined,
+  };
+}
+
+/** The segment and filters a search describes. */
+export function filtersFromSearch(s: PeopleSearch): { segment: Segment; filters: Filters } {
+  const segment: Segment = s.seg === "customers" ? "customers" : "business";
+  const attention = parseListParam(s.attn, ATTENTION_KEYS) ?? [];
+  const sort = s.sort && SORT_OPTIONS[segment].some((o) => o.value === s.sort) ? s.sort : "name";
+  return {
+    segment,
+    filters: {
+      q: s.q ?? "",
+      stages: segment === "business" ? (parseListParam(s.stage, STAGE_KEYS) ?? []) : [],
+      // "Any reason" covers every reason, so it never sits next to one.
+      attention: attention.includes("any") ? ["any"] : attention,
+      locations: s.loc ?? [],
+      sort,
+    },
+  };
+}
+
+/** The search for a segment and filters (defaults left out, so a plain /people stays plain). */
+export function searchFromFilters(segment: Segment, f: Filters): PeopleSearch {
+  return {
+    seg: segment === "customers" ? "customers" : undefined,
+    q: f.q || undefined,
+    stage: segment === "business" ? listParam(f.stages) : undefined,
+    attn: listParam(f.attention),
+    loc: f.locations.length ? f.locations : undefined,
+    sort: f.sort === DEFAULT_FILTERS.sort ? undefined : f.sort,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Filtering
+// ---------------------------------------------------------------------------
 
 export function inSegment(r: PersonRow, segment: Segment): boolean {
   return segment === "customers"
@@ -209,31 +288,260 @@ function matchesQuery(p: CrmPerson, needle: string): boolean {
     .some((v) => v!.toLowerCase().includes(needle));
 }
 
-export function matchesAttention(r: PersonRow, a: AttentionFilter | null): boolean {
-  if (!a) return true;
-  if (a === "any") return r.attention.size > 0;
-  return r.attention.has(a);
+/** One attention option, or a list of them (any may match); null or [] = off. */
+export function matchesAttention(
+  r: PersonRow,
+  a: AttentionFilter | readonly AttentionFilter[] | null,
+): boolean {
+  const list = a === null ? [] : typeof a === "string" ? [a] : a;
+  if (!list.length) return true;
+  return list.some((x) => (x === "any" ? r.attention.size > 0 : r.attention.has(x)));
+}
+
+/** Business rows whose stage is one of `stages` (empty = all). */
+export function matchesStages(r: PersonRow, stages: readonly StageKey[]): boolean {
+  return !stages.length || (r.stage !== "customer" && stages.includes(r.stage));
 }
 
 /** Rows for a segment that match everything except the stage filter (for chip counts). */
 export function baseFilter(rows: PersonRow[], segment: Segment, f: Filters): PersonRow[] {
   const needle = f.q.trim().toLowerCase();
+  const locations = new Set(f.locations);
   return rows.filter(
     (r) =>
       inSegment(r, segment) &&
       matchesQuery(r.person, needle) &&
       matchesAttention(r, f.attention) &&
-      (f.location === "all" || (r.person.location ?? "") === f.location),
+      (!locations.size || locations.has(r.person.location ?? "")),
+  );
+}
+
+/** The rows the list shows: every filter applied, sorted. */
+export function filterRows(rows: PersonRow[], segment: Segment, f: Filters): PersonRow[] {
+  const base = baseFilter(rows, segment, f);
+  return sortRows(
+    segment === "business" ? base.filter((r) => matchesStages(r, f.stages)) : base,
+    f.sort,
+  );
+}
+
+/** Chip counts per stage, from rows that match every other filter. */
+export function stageCounts(base: PersonRow[]): Record<StageFilter, number> {
+  const c: Record<StageFilter, number> = { all: base.length, prospect: 0, apprentice: 0, ibo: 0 };
+  for (const r of base) if (r.stage !== "customer") c[r.stage]++;
+  return c;
+}
+
+/** Counts per attention option, from rows that match every other filter (stages included). */
+export function attentionCounts(
+  rows: PersonRow[],
+  segment: Segment,
+  f: Filters,
+): Record<AttentionFilter, number> {
+  const pool = baseFilter(rows, segment, { ...f, attention: [] }).filter(
+    (r) => segment === "customers" || matchesStages(r, f.stages),
+  );
+  const c = {} as Record<AttentionFilter, number>;
+  for (const o of ATTENTION_OPTIONS)
+    c[o.value] = pool.filter((r) => matchesAttention(r, o.value)).length;
+  return c;
+}
+
+/**
+ * Pick an attention option: "any" replaces the reasons (or turns it off), a
+ * reason replaces "any" and toggles among the other reasons.
+ */
+export function toggleAttention(
+  list: readonly AttentionFilter[],
+  v: AttentionFilter,
+): AttentionFilter[] {
+  if (v === "any") return list.includes("any") ? [] : ["any"];
+  return toggleInList(
+    list.filter((x) => x !== "any"),
+    v,
+    ATTENTION_KEYS,
   );
 }
 
 export function activeFilterCount(f: Filters, segment: Segment): number {
   return (
-    Number(segment === "business" && f.stage !== "all") +
-    Number(f.attention !== null) +
-    Number(f.location !== "all") +
+    Number(segment === "business" && f.stages.length > 0) +
+    Number(f.attention.length > 0) +
+    Number(f.locations.length > 0) +
     Number(f.sort !== DEFAULT_FILTERS.sort)
   );
+}
+
+// ---------------------------------------------------------------------------
+// Selection
+// ---------------------------------------------------------------------------
+
+/** Rows that can be selected (never yourself). */
+export function selectableRows(rows: PersonRow[]): PersonRow[] {
+  return rows.filter((r) => !r.isSelf);
+}
+
+export function toggleSelected(selected: ReadonlySet<string>, id: string): Set<string> {
+  const next = new Set(selected);
+  if (next.has(id)) next.delete(id);
+  else next.add(id);
+  return next;
+}
+
+/** "all" when every selectable shown row is selected, "some", or "none". */
+export function shownSelection(
+  selected: ReadonlySet<string>,
+  shown: PersonRow[],
+): "all" | "some" | "none" {
+  const sel = selectableRows(shown);
+  const n = sel.filter((r) => selected.has(r.person.id)).length;
+  return n === 0 ? "none" : n === sel.length ? "all" : "some";
+}
+
+/**
+ * "Select all shown": selects every selectable row on screen, or, when they
+ * all already are, clears them. Only what's shown is touched.
+ */
+export function toggleAllShown(selected: ReadonlySet<string>, shown: PersonRow[]): Set<string> {
+  const ids = selectableRows(shown).map((r) => r.person.id);
+  const next = new Set(selected);
+  if (shownSelection(selected, shown) === "all") ids.forEach((id) => next.delete(id));
+  else ids.forEach((id) => next.add(id));
+  return next;
+}
+
+/** The selected rows that are still shown, in list order. */
+export function selectedShown(selected: ReadonlySet<string>, shown: PersonRow[]): PersonRow[] {
+  return shown.filter((r) => !r.isSelf && selected.has(r.person.id));
+}
+
+// ---------------------------------------------------------------------------
+// Bulk actions: who each one applies to
+// ---------------------------------------------------------------------------
+
+export interface Plan {
+  /** Rows the action changes. */
+  apply: PersonRow[];
+  /** Rows left alone, with a short reason ("already an IBO"). */
+  skipped: { row: PersonRow; reason: string }[];
+}
+
+function plan(rows: PersonRow[], why: (r: PersonRow) => string | null): Plan {
+  const out: Plan = { apply: [], skipped: [] };
+  for (const r of rows) {
+    const reason = r.isSelf ? "that's you" : why(r);
+    if (reason) out.skipped.push({ row: r, reason });
+    else out.apply.push(r);
+  }
+  return out;
+}
+
+/** Ids of people someone sits under (they sponsor someone or own a customer). */
+export function leadsSomeone(people: CrmPerson[]): Set<string> {
+  const out = new Set<string>();
+  for (const p of people) {
+    const up = p.bizClass === "customer" ? p.ownerId : p.sponsorId;
+    if (up) out.add(up);
+  }
+  return out;
+}
+
+/**
+ * Change stage: business people only. Skips anyone already at that stage,
+ * and won't make a prospect of someone who sponsors people or has customers.
+ */
+export function stageChangePlan(rows: PersonRow[], to: StageKey, people: CrmPerson[]): Plan {
+  const leads = leadsSomeone(people);
+  return plan(rows, (r) => {
+    if (r.person.bizClass === "customer") return "a customer";
+    if (r.stage === to) return to === "ibo" ? "already an IBO" : `already a ${to}`;
+    if (to === "prospect" && leads.has(r.person.id)) return "has people under them";
+    return null;
+  });
+}
+
+/** What a stage change writes (a new apprentice starts their business today unless a date is set). */
+export function stagePatch(p: CrmPerson, to: StageKey, today: string): Partial<CrmPerson> {
+  return {
+    bizClass: to,
+    pipelineStage: to,
+    ...(to === "apprentice" && !p.businessStartDate ? { businessStartDate: today } : {}),
+  };
+}
+
+/**
+ * Who the selected people can move under: apprentices and IBOs, never one of
+ * the selected people or anyone in their downline (nobody can be sponsored
+ * by their own downline).
+ */
+export function sponsorChoices(people: CrmPerson[], selectedIds: Iterable<string>): CrmPerson[] {
+  const blocked = new Set<string>();
+  for (const id of selectedIds) downlineIds(people, id).forEach((d) => blocked.add(d));
+  return people
+    .filter((p) => (p.bizClass === "apprentice" || p.bizClass === "ibo") && !blocked.has(p.id))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** Change sponsor: business people only, not those already under them, never into their own downline. */
+export function sponsorChangePlan(rows: PersonRow[], sponsorId: string, people: CrmPerson[]): Plan {
+  return plan(rows, (r) => {
+    if (r.person.bizClass === "customer") return "a customer";
+    if (r.person.sponsorId === sponsorId) return "already under them";
+    if (downlineIds(people, r.person.id).has(sponsorId)) return "would be under their own team";
+    return null;
+  });
+}
+
+/** Tidy a typed tag: trimmed, inner spaces collapsed, at most 40 characters. */
+export function cleanTag(raw: string): string {
+  return raw.trim().replace(/\s+/g, " ").slice(0, 40).trim();
+}
+
+/** Add a tag: skips people who already have it (any capitalisation). */
+export function tagPlan(rows: PersonRow[], tag: string): Plan {
+  const t = cleanTag(tag).toLowerCase();
+  return plan(rows, (r) =>
+    (r.person.tags ?? []).some((x) => x.toLowerCase() === t) ? "already tagged" : null,
+  );
+}
+
+/** Every tag in use, most used first (capitalisation folded: the first spelling seen wins). */
+export function tagsInUse(people: CrmPerson[]): string[] {
+  const n = new Map<string, { tag: string; count: number }>();
+  for (const p of people)
+    for (const t of p.tags ?? []) {
+      const k = t.toLowerCase();
+      const hit = n.get(k);
+      if (hit) hit.count++;
+      else n.set(k, { tag: t, count: 1 });
+    }
+  return [...n.values()]
+    .sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag))
+    .map((x) => x.tag);
+}
+
+/** Ids up the viewer's own sponsor line (a deputy sees their leader). */
+export function uplineIdsOf(people: CrmPerson[], viewerId: string): Set<string> {
+  const byId = new Map(people.map((p) => [p.id, p]));
+  const out = new Set<string>();
+  let cur = byId.get(viewerId);
+  while (cur?.sponsorId && !out.has(cur.sponsorId)) {
+    out.add(cur.sponsorId);
+    cur = byId.get(cur.sponsorId);
+  }
+  return out;
+}
+
+/** Delete: never yourself or anyone above you (a deputy can't remove their leader). */
+export function deletePlan(rows: PersonRow[], uplineIds: ReadonlySet<string>): Plan {
+  return plan(rows, (r) => (uplineIds.has(r.person.id) ? "above you" : null));
+}
+
+/** "Changed for 4 people · 2 skipped (already an IBO)". */
+export function skippedNote(p: Plan): string | undefined {
+  if (!p.skipped.length) return undefined;
+  const reasons = [...new Set(p.skipped.map((s) => s.reason))];
+  return `${p.skipped.length} skipped (${reasons.join(", ")})`;
 }
 
 const STAGE_ORDER: Record<BizClass, number> = { ibo: 0, apprentice: 1, prospect: 2, customer: 3 };

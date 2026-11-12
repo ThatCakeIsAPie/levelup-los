@@ -165,7 +165,7 @@ describe("write-through", () => {
 
     const ev = addEvent({
       name: `IT meeting ${stamp}`,
-      type: "monthly_meeting",
+      categoryId: "w1-monthly_meeting",
       date: "2026-12-01",
     });
     // The timeline is append-only for people; only the service role clears it.

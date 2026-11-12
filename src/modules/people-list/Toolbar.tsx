@@ -1,7 +1,14 @@
 import { useState } from "react";
-import { AlertTriangle, Search, SlidersHorizontal, X } from "lucide-react";
-import { STAGE_CHIP_CLASS, STAGE_SOLID_CLASS } from "@/components/brand";
+import { AlertTriangle, ChevronDown, Search, SlidersHorizontal, X } from "lucide-react";
+import { StageFilterChips } from "@/components/filters/StageFilterChips";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -18,17 +25,20 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { toggleInList } from "@/lib/searchList";
 import { cn } from "@/lib/utils";
 import {
   ATTENTION_OPTIONS,
   DEFAULT_FILTERS,
   activeFilterCount,
   SORT_OPTIONS,
+  toggleAttention,
   type AttentionFilter,
   type Filters,
   type Segment,
   type SortKey,
   type StageFilter,
+  type StageKey,
 } from "./model";
 
 export interface ToolbarProps {
@@ -93,78 +103,23 @@ function SegmentedControl({
   );
 }
 
-const STAGES: { value: StageFilter; label: string }[] = [
-  { value: "all", label: "All" },
-  { value: "prospect", label: "Prospect" },
-  { value: "apprentice", label: "Apprentice" },
-  { value: "ibo", label: "IBO" },
-];
-
-function StageChips({
-  value,
-  onChange,
-  counts,
-}: {
-  value: StageFilter;
-  onChange: (s: StageFilter) => void;
-  counts: Record<StageFilter, number>;
-}) {
-  return (
-    <div role="group" aria-label="Stage" className="flex flex-wrap gap-1.5">
-      {STAGES.map((s) => {
-        const on = value === s.value;
-        return (
-          <button
-            key={s.value}
-            type="button"
-            aria-pressed={on}
-            onClick={() => onChange(s.value)}
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11.5px] font-semibold transition-colors",
-              on
-                ? s.value === "all"
-                  ? "border-foreground bg-foreground text-background"
-                  : cn("border-transparent", STAGE_CHIP_CLASS[s.value])
-                : "border-line text-muted-foreground hover:border-foreground/30 hover:text-foreground",
-              FOCUS,
-            )}
-          >
-            {s.value !== "all" && (
-              <span
-                className={cn(
-                  "size-2 rounded-full",
-                  STAGE_SOLID_CLASS[s.value],
-                  on && "ring-1 ring-current/40",
-                )}
-                aria-hidden="true"
-              />
-            )}
-            {s.label}
-            <span className={cn("tabular-nums", on ? "opacity-80" : "text-faint")}>
-              {counts[s.value]}
-            </span>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
+const STAGES: readonly StageKey[] = ["prospect", "apprentice", "ibo"];
 
 function AttentionToggle({
   value,
   onChange,
   count,
 }: {
-  value: AttentionFilter | null;
-  onChange: (v: AttentionFilter | null) => void;
+  value: AttentionFilter[];
+  onChange: (v: AttentionFilter[]) => void;
   count: number;
 }) {
-  const on = value !== null;
+  const on = value.length > 0;
   return (
     <button
       type="button"
       aria-pressed={on}
-      onClick={() => onChange(on ? null : "any")}
+      onClick={() => onChange(on ? [] : ["any"])}
       className={cn(
         "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11.5px] font-semibold transition-colors",
         on
@@ -180,31 +135,56 @@ function AttentionToggle({
   );
 }
 
+/** "Any reason", "Contact overdue" or "2 reasons". */
+function reasonsLabel(value: AttentionFilter[]): string {
+  if (!value.length || value.includes("any")) return "Any reason";
+  if (value.length === 1) return ATTENTION_OPTIONS.find((o) => o.value === value[0])!.label;
+  return `${value.length} reasons`;
+}
+
+/** Which reasons count (several at once; "Any reason" covers them all). */
 function AttentionReasons({
   value,
   onChange,
   counts,
 }: {
-  value: AttentionFilter;
-  onChange: (v: AttentionFilter) => void;
+  value: AttentionFilter[];
+  onChange: (v: AttentionFilter[]) => void;
   counts: Record<AttentionFilter, number>;
 }) {
   return (
-    <Select value={value} onValueChange={(v) => onChange(v as AttentionFilter)}>
-      <SelectTrigger className="h-8 w-auto min-w-[170px] text-xs" aria-label="Attention reason">
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 min-w-[170px] justify-between text-xs font-normal"
+          aria-label={`Attention reasons: ${reasonsLabel(value)}`}
+        >
+          {reasonsLabel(value)}
+          <ChevronDown className="opacity-50" aria-hidden="true" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-56">
         {ATTENTION_OPTIONS.map((o) => (
-          <SelectItem key={o.value} value={o.value}>
-            {o.label} · {counts[o.value]}
-          </SelectItem>
+          <DropdownMenuCheckboxItem
+            key={o.value}
+            checked={value.includes(o.value)}
+            onCheckedChange={() => {
+              const next = toggleAttention(value, o.value);
+              // Unticking the last reason goes back to "any" (the toggle chip turns it off).
+              onChange(next.length ? next : ["any"]);
+            }}
+            onSelect={(e) => e.preventDefault()}
+          >
+            <span className="flex-1">{o.label}</span>
+            <span className="tabular-nums text-faint">{counts[o.value]}</span>
+          </DropdownMenuCheckboxItem>
         ))}
-      </SelectContent>
-    </Select>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
-
 function SortSelect({
   segment,
   value,
@@ -235,31 +215,93 @@ function SortSelect({
   );
 }
 
-function LocationSelect({
+/** "All locations", "Austin, TX" or "2 locations". */
+function locationsLabel(value: string[]): string {
+  if (!value.length) return "All locations";
+  return value.length === 1 ? value[0] : `${value.length} locations`;
+}
+
+/** Desktop: several locations at once from a menu of checkboxes. */
+function LocationPicker({
   value,
   onChange,
   locations,
   className,
 }: {
-  value: string;
-  onChange: (v: string) => void;
+  value: string[];
+  onChange: (v: string[]) => void;
   locations: string[];
   className?: string;
 }) {
   return (
-    <Select value={value} onValueChange={onChange}>
-      <SelectTrigger className={cn("h-9 text-[12.5px]", className)} aria-label="Location">
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="all">All locations</SelectItem>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="outline"
+          className={cn("h-9 justify-between text-[12.5px] font-normal", className)}
+          aria-label={`Location: ${locationsLabel(value)}`}
+        >
+          <span className="truncate">{locationsLabel(value)}</span>
+          <ChevronDown className="opacity-50" aria-hidden="true" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="max-h-80 w-60 overflow-y-auto">
+        <DropdownMenuCheckboxItem
+          checked={value.length === 0}
+          onCheckedChange={() => onChange([])}
+          onSelect={(e) => e.preventDefault()}
+        >
+          All locations
+        </DropdownMenuCheckboxItem>
+        <DropdownMenuSeparator />
         {locations.map((l) => (
-          <SelectItem key={l} value={l}>
+          <DropdownMenuCheckboxItem
+            key={l}
+            checked={value.includes(l)}
+            onCheckedChange={() => onChange(toggleInList(value, l, locations))}
+            onSelect={(e) => e.preventDefault()}
+          >
             {l}
-          </SelectItem>
+          </DropdownMenuCheckboxItem>
         ))}
-      </SelectContent>
-    </Select>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+/** Phone: the same choice as chips. */
+function LocationChips({
+  value,
+  onChange,
+  locations,
+}: {
+  value: string[];
+  onChange: (v: string[]) => void;
+  locations: string[];
+}) {
+  return (
+    <div role="group" aria-label="Location" className="flex flex-wrap gap-1.5">
+      {[null, ...locations].map((l) => {
+        const on = l === null ? value.length === 0 : value.includes(l);
+        return (
+          <button
+            key={l ?? "all"}
+            type="button"
+            aria-pressed={on}
+            onClick={() => onChange(l === null ? [] : toggleInList(value, l, locations))}
+            className={cn(
+              "inline-flex items-center rounded-full border px-2.5 py-1 text-[11.5px] font-semibold",
+              on
+                ? "border-foreground bg-foreground text-background"
+                : "border-line text-muted-foreground",
+              FOCUS,
+            )}
+          >
+            {l ?? "All"}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -331,9 +373,9 @@ export function DesktopToolbar(p: ToolbarProps) {
         />
         <div className="ml-auto flex items-center gap-2">
           {p.locations.length > 1 && (
-            <LocationSelect
-              value={filters.location}
-              onChange={(location) => setFilters({ location })}
+            <LocationPicker
+              value={filters.locations}
+              onChange={(locations) => setFilters({ locations })}
               locations={p.locations}
               className="w-[170px]"
             />
@@ -349,10 +391,12 @@ export function DesktopToolbar(p: ToolbarProps) {
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         {segment === "business" && (
           <>
-            <StageChips
-              value={filters.stage}
-              onChange={(stage) => setFilters({ stage })}
+            <StageFilterChips
+              stages={STAGES}
+              value={filters.stages}
+              onChange={(stages) => setFilters({ stages })}
               counts={p.stageCounts}
+              total={p.stageCounts.all}
             />
             <span className="h-5 w-px bg-line" aria-hidden="true" />
           </>
@@ -362,7 +406,7 @@ export function DesktopToolbar(p: ToolbarProps) {
           onChange={(attention) => setFilters({ attention })}
           count={p.attentionCounts.any}
         />
-        {filters.attention && (
+        {filters.attention.length > 0 && (
           <AttentionReasons
             value={filters.attention}
             onChange={(attention) => setFilters({ attention })}
@@ -408,6 +452,15 @@ export function PhoneToolbar(p: ToolbarProps) {
           )}
         </Button>
       </div>
+      {segment === "business" && (
+        <StageFilterChips
+          stages={STAGES}
+          value={filters.stages}
+          onChange={(stages) => setFilters({ stages })}
+          counts={p.stageCounts}
+          total={p.stageCounts.all}
+        />
+      )}
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent
           side="bottom"
@@ -416,29 +469,41 @@ export function PhoneToolbar(p: ToolbarProps) {
           <SheetHeader className="border-b border-line px-5 py-4 text-left">
             <SheetTitle className="text-base font-extrabold">Filter and sort</SheetTitle>
             <SheetDescription className="text-[12.5px]">
-              {segment === "customers" ? "Your customers" : "Your business team"}
+              {segment === "customers"
+                ? "Your customers"
+                : "Your business team. Pick as many groups as you like."}
             </SheetDescription>
           </SheetHeader>
           <div className="grid min-h-0 flex-1 content-start gap-5 overflow-y-auto px-5 py-4">
             {segment === "business" && (
               <FieldBlock label="Stage">
-                <StageChips
-                  value={filters.stage}
-                  onChange={(stage) => setFilters({ stage })}
+                <StageFilterChips
+                  stages={STAGES}
+                  value={filters.stages}
+                  onChange={(stages) => setFilters({ stages })}
                   counts={p.stageCounts}
+                  total={p.stageCounts.all}
                 />
               </FieldBlock>
             )}
             <FieldBlock label="Needs attention">
               <div role="group" aria-label="Needs attention" className="flex flex-wrap gap-1.5">
                 {[{ value: null, label: "Off" } as const, ...ATTENTION_OPTIONS].map((o) => {
-                  const on = filters.attention === o.value;
+                  const on =
+                    o.value === null
+                      ? filters.attention.length === 0
+                      : filters.attention.includes(o.value);
                   return (
                     <button
                       key={o.value ?? "off"}
                       type="button"
                       aria-pressed={on}
-                      onClick={() => setFilters({ attention: o.value })}
+                      onClick={() =>
+                        setFilters({
+                          attention:
+                            o.value === null ? [] : toggleAttention(filters.attention, o.value),
+                        })
+                      }
                       className={cn(
                         "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11.5px] font-semibold",
                         on
@@ -462,9 +527,9 @@ export function PhoneToolbar(p: ToolbarProps) {
             </FieldBlock>
             {p.locations.length > 1 && (
               <FieldBlock label="Location">
-                <LocationSelect
-                  value={filters.location}
-                  onChange={(location) => setFilters({ location })}
+                <LocationChips
+                  value={filters.locations}
+                  onChange={(locations) => setFilters({ locations })}
                   locations={p.locations}
                 />
               </FieldBlock>
@@ -483,9 +548,9 @@ export function PhoneToolbar(p: ToolbarProps) {
               disabled={active === 0}
               onClick={() =>
                 setFilters({
-                  stage: "all",
-                  attention: null,
-                  location: "all",
+                  stages: [],
+                  attention: [],
+                  locations: [],
                   sort: DEFAULT_FILTERS.sort,
                 })
               }

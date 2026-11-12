@@ -31,9 +31,13 @@ import {
   usePipelineColumns,
   useVisibleTeam,
   type Booking,
+  type ContactRating,
   type PipelineColumn,
+  type Ref,
 } from "@/data";
+import { PhoneInput, RatingPicker } from "@/components/brand";
 import { BookingFields, NoteField } from "./BookingFields";
+import { ReferrerPicker } from "./Referrals";
 
 /** Add a prospect straight onto the board (a new person, a "New contact" and a card). */
 export function AddProspectDialog({
@@ -82,6 +86,8 @@ function AddForm({ columns, onDone }: { columns: PipelineColumn[]; onDone: () =>
   const [sponsorId, setSponsorId] = useState(me.personId);
   const [booking, setBooking] = useState<Booking>(NO_BOOKING);
   const [note, setNote] = useState("");
+  const [rating, setRating] = useState<ContactRating | null>(null);
+  const [referredBy, setReferredBy] = useState<Ref | null>(null);
   const [error, setError] = useState<string | null>(null);
   const choices = columns.filter((c) => c.id !== "registered" && c.band !== "out");
   // The booking lives on the owner's board, after the column they start in.
@@ -103,6 +109,8 @@ function AddForm({ columns, onDone }: { columns: PipelineColumn[]; onDone: () =>
       sponsorId,
       booking: booked,
       note,
+      rating,
+      referredBy,
     });
     if (!r) return;
     toastWithUndo(`${r.person.name} added to the board`, r.undo, {
@@ -133,12 +141,7 @@ function AddForm({ columns, onDone }: { columns: PipelineColumn[]; onDone: () =>
       <div className="grid grid-cols-2 gap-3">
         <div className="grid gap-1.5">
           <Label htmlFor="ap-phone">Phone (optional)</Label>
-          <Input
-            id="ap-phone"
-            type="tel"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-          />
+          <PhoneInput id="ap-phone" value={phone} onValueChange={setPhone} />
         </div>
         <div className="grid gap-1.5">
           <Label htmlFor="ap-source">Where you met</Label>
@@ -151,6 +154,11 @@ function AddForm({ columns, onDone }: { columns: PipelineColumn[]; onDone: () =>
           />
         </div>
       </div>
+      <div className="grid gap-1.5">
+        <span className="text-sm font-medium">How warm are they? (optional)</span>
+        <RatingPicker value={rating} onChange={setRating} />
+      </div>
+      <ReferrerPicker id="ap-referred" value={referredBy} onChange={setReferredBy} />
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="grid gap-1.5">
           <Label htmlFor="ap-column">Start in</Label>

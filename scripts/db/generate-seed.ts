@@ -264,6 +264,7 @@ emit(
       ["tags", "textarr"],
       ["los_uid", "text"],
       ["ditto_since", "date"],
+      ["referred_by", "text"],
     ],
     people.map((p) => [
       p.id,
@@ -286,6 +287,8 @@ emit(
       p.tags ?? [],
       p.losUid,
       p.dittoSince,
+      // A name on a list as the referrer would come after the lists; the seed has none.
+      p.referredBy,
     ]),
   ),
 );
@@ -310,6 +313,8 @@ values (${str(id)}, ${str(id)}, ${str(id)},
 }
 
 section("Events, attendance, travel, shared costs");
+// The workspace's six starting event categories ('w1-<old type>') come from
+// the workspaces trigger (migration 20261016002000_event_categories).
 emit(
   insert(
     "public.events",
@@ -317,7 +322,7 @@ emit(
       ["id", "text"],
       ["workspace_id", "text"],
       ["name", "text"],
-      ["type", "text"],
+      ["category_id", "text"],
       ["date", "date"],
       ["end_date", "date"],
       ["location", "text"],
@@ -330,7 +335,7 @@ emit(
       e.id,
       WORKSPACE_ID,
       e.name,
-      e.type,
+      e.categoryId,
       e.date,
       e.endDate,
       e.location,
@@ -874,6 +879,7 @@ emit(
       ["next_step_time", "text"],
       ["note", "text"],
       ["hot", "bool"],
+      ["rating", "text"],
       ["source", "text"],
       ["dropped_at", "ts"],
       ["updated_at", "ts"],
@@ -887,7 +893,8 @@ emit(
       c.nextStepDate,
       timeLit(c.nextStepTime),
       c.note,
-      c.hot,
+      c.rating === "hot",
+      c.rating,
       c.source,
       c.droppedAt,
       c.updatedAt,
@@ -1003,6 +1010,8 @@ emit(
       ["rating", "text"],
       ["customer_id", "text"],
       ["prospect_id", "text"],
+      ["referred_by", "text"],
+      ["referred_by_entry", "text"],
       ["added_by", "text"],
       ["created_at", "ts"],
       ["updated_at", "ts"],
@@ -1019,6 +1028,8 @@ emit(
       e.rating,
       e.customerId,
       e.prospectId,
+      e.referredBy,
+      e.referredByEntry,
       e.addedBy,
       e.createdAt,
       e.updatedAt,

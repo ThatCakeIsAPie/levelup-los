@@ -1,17 +1,19 @@
 /**
  * Missed-event follow-ups (pure; docs/plans/mvp-plan-2026-10-13.md "Events").
  *
- * Someone who came to the last event of a type and didn't come to the next
- * one gets a follow-up in the Today list of everyone above them. One rule for
- * every type, worked out per type in one pass:
+ * Someone who came to the last event of a category and didn't come to the
+ * next one gets a follow-up in the Today list of everyone above them. One
+ * rule for every category whose "Remind uplines when someone misses one?" is
+ * on (`countsForMissed`), worked out per category in one pass:
  *
  *  - Only finished events count (the day after their last day), and only once
  *    attendance was taken for them: at least one row of the event has
  *    attendance recorded (attended or no-show). A Night Owls nobody has
  *    logged yet doesn't make everyone a "miss".
- *  - A streak is the run of counted events of one type since the person last
- *    came to one. Missing several in a row is one follow-up, about the latest.
- *    People who never came to that type have no streak.
+ *  - A streak is the run of counted events of one category since the person
+ *    last came to one. Missing several in a row is one follow-up, about the
+ *    latest. People who never came to that category have no streak. Merging
+ *    two categories joins their events into one run.
  *  - A streak is handled once anyone else logs a contact with the person on or
  *    after the first missed event's day (a check-in, a call, a chat check-in),
  *    or an upline leaves an "already handled" note on one of the missed
@@ -20,13 +22,19 @@
  *    `MISSED_WINDOW_DAYS` days. Coming again ends the streak.
  *
  * Who sees a follow-up is the caller's business (the Today list: people the
- * viewer can see, registered team members only, never the viewer themself).
+ * viewer can see who are registered team members, or customers of the viewer
+ * or of someone on their team (`missedAudience`), never the viewer themself).
+ * Customers on an event's list count like everyone else: they're part of the
+ * business. A customer's uplines are their owner and the owner's uplines.
  */
 import { differenceInCalendarDays } from "date-fns";
 import { parseDate } from "@/lib/dates";
-import type { CrmEvent, EventType } from "@/stores/eventsStore";
+import type { CrmEvent } from "@/stores/eventsStore";
 import type { Attendance, MissedEventNote } from "@/stores/attendanceStore";
 import type { Contact } from "@/stores/crmStore";
+import { effectiveBizClass, type CrmPerson } from "@/stores/peopleStore";
+import { countsForMissed } from "../eventCategories/rules";
+import type { EventCategory } from "../eventCategories/types";
 
 /** Misses older than this (by the latest missed event's last day) are left alone. */
 export const MISSED_WINDOW_DAYS = 30;
@@ -36,13 +44,13 @@ export type MissedHandled =
   | { kind: "note"; note: MissedEventNote };
 
 export interface MissedStreak {
-  /** `${personId}:${type}` (one streak per person and type). */
+  /** `${personId}:${categoryId}` (one streak per person and category). */
   key: string;
   personId: string;
-  type: EventType;
-  /** The last event of this type they came to. */
+  categoryId: string;
+  /** The last event of this category they came to. */
   lastAttended: CrmEvent;
-  /** Counted events of this type since then that they missed, oldest first. */
+  /** Counted events of this category since then that they missed, oldest first. */
   missed: CrmEvent[];
   /** The latest missed event (the one the follow-up is about). */
   latest: CrmEvent;
@@ -61,6 +69,11 @@ export interface MissedInput {
   /** "YYYY-MM-DD". */
   today: string;
   windowDays?: number;
+  /**
+   * The team's categories (archived ones too): events of a category with
+   * `countsForMissed` off are left out. Events of a category not listed count.
+   */
+  categories?: readonly Pick<EventCategory, "id" | "countsForMissed">[];
 }
 
 const lastDay = (e: CrmEvent) => e.endDate ?? e.date;
@@ -69,7 +82,7 @@ const byDate = (a: CrmEvent, b: CrmEvent) =>
 
 /**
  * Every current missed streak (handled or not) within the window, per person
- * and type. Linear in events + rows + contacts + notes.
+ * and category. Linear in events + rows + contacts + notes.
  */
 export function missedEventStreaks(input: MissedInput): MissedStreak[] {
   const { today } = input;
@@ -82,14 +95,17 @@ export function missedEventStreaks(input: MissedInput): MissedStreak[] {
     if (list) list.push(a);
     else rowsByEvent.set(a.eventId, [a]);
   }
-  const counted = new Map<EventType, CrmEvent[]>();
+  const skipped = new Set(
+    (input.categories ?? []).filter((c) => !countsForMissed(c)).map((c) => c.id),
+  );
+  const counted = new Map<string, CrmEvent[]>();
   for (const e of input.events) {
-    if (lastDay(e) >= today) continue;
+    if (lastDay(e) >= today || skipped.has(e.categoryId)) continue;
     const rows = rowsByEvent.get(e.id);
     if (!rows?.some((a) => a.attended !== undefined)) continue;
-    const list = counted.get(e.type);
+    const list = counted.get(e.categoryId);
     if (list) list.push(e);
-    else counted.set(e.type, [e]);
+    else counted.set(e.categoryId, [e]);
   }
 
   // Latest contact with each person logged by someone else.
@@ -109,7 +125,7 @@ export function missedEventStreaks(input: MissedInput): MissedStreak[] {
   }
 
   const out: MissedStreak[] = [];
-  for (const [type, list] of counted) {
+  for (const [categoryId, list] of counted) {
     list.sort(byDate);
     const latest = list[list.length - 1];
     if (differenceInCalendarDays(parseDate(today), parseDate(lastDay(latest))) > windowDays)
@@ -133,9 +149,9 @@ export function missedEventStreaks(input: MissedInput): MissedStreak[] {
           ? { kind: "contact", date: c.date, byId: c.byId, contactId: c.id }
           : undefined;
       out.push({
-        key: `${personId}:${type}`,
+        key: `${personId}:${categoryId}`,
         personId,
-        type,
+        categoryId,
         lastAttended: list[i],
         missed,
         latest,
@@ -148,8 +164,34 @@ export function missedEventStreaks(input: MissedInput): MissedStreak[] {
 }
 
 /**
+ * Whose misses the viewer follows up (the uplines' side of the rule), from
+ * the people the viewer can see: registered team members (apprentices and
+ * IBOs), and customers owned by the viewer or by someone on their team. A
+ * customer's uplines are their owner and the owner's uplines. Customers in
+ * "Do not contact" (`skip`) are left out; prospects never count.
+ */
+export function missedAudience(
+  people: readonly CrmPerson[],
+  viewerId: string,
+  now = new Date(),
+  skip?: ReadonlySet<string>,
+): Set<string> {
+  const team = new Set<string>();
+  for (const p of people) {
+    const c = effectiveBizClass(p, now);
+    if (c === "apprentice" || c === "ibo") team.add(p.id);
+  }
+  const out = new Set(team);
+  for (const p of people) {
+    if (effectiveBizClass(p, now) !== "customer" || skip?.has(p.id) || !p.ownerId) continue;
+    if (p.ownerId === viewerId || team.has(p.ownerId)) out.add(p.id);
+  }
+  return out;
+}
+
+/**
  * The open follow-ups the viewer should see: unhandled streaks of the people
- * passed in `people` (the viewer's registered team), never the viewer's own.
+ * passed in `people` (`missedAudience`), never the viewer's own.
  */
 export function openMissedFollowUps(
   streaks: MissedStreak[],

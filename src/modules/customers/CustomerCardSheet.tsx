@@ -11,7 +11,7 @@ import {
   ShoppingBag,
 } from "lucide-react";
 import { toast } from "sonner";
-import { PersonAvatar, ToneChip, useIsDesktop } from "@/components/brand";
+import { PersonAvatar, RatingPicker, ToneChip, useIsDesktop } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -22,9 +22,11 @@ import {
 } from "@/components/ui/sheet";
 import { toastWithUndo } from "@/components/log/quickLog";
 import { cn } from "@/lib/utils";
+import { displayPhone, phoneHref } from "@/lib/phone";
 import {
   CUSTOMER_BAND_LABEL,
   CUSTOMER_BOARD,
+  REFERRAL_SOURCE,
   addEntryToRecruiting,
   bookNextStep,
   bookableColumns,
@@ -45,7 +47,7 @@ import { MoveMenu } from "@/modules/pipeline/moveCard";
 import { ageLong, bookingState } from "@/modules/pipeline/format";
 import { BookingFields, NoteField } from "@/modules/pipeline/BookingFields";
 import { BookedStep } from "@/modules/pipeline/BookedStep";
-import { RatingPicker } from "./ListEntryDialog";
+import { ReferralsBlock } from "@/modules/pipeline/Referrals";
 
 /** A customer card's details: where it is, move it, next step, warm/hot, the people it became. */
 export function CustomerCardSheet({
@@ -189,10 +191,10 @@ function Details({
               <div className="flex flex-wrap gap-x-4 gap-y-1">
                 {entry.phone && (
                   <a
-                    href={`tel:${entry.phone}`}
+                    href={`tel:${phoneHref(entry.phone)}`}
                     className="inline-flex items-center gap-1.5 rounded-sm font-semibold text-primary hover:underline focus-visible:outline-2 focus-visible:outline-ring"
                   >
-                    <Phone className="size-3.5" aria-hidden="true" /> {entry.phone}
+                    <Phone className="size-3.5" aria-hidden="true" /> {displayPhone(entry.phone)}
                   </a>
                 )}
                 {entry.email && (
@@ -214,6 +216,13 @@ function Details({
           </div>
         )}
 
+        <ReferralsBlock
+          target={{ kind: "entry", id: card.personId }}
+          name={card.name}
+          ownerId={card.ownerId}
+          board="customer"
+          source={card.cardColumn === REFERRAL_SOURCE}
+        />
         <BookedStep
           board="customer"
           cardId={card.personId}

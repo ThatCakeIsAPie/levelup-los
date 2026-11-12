@@ -18,6 +18,7 @@ import {
   registeredOn,
   useAttendancesForEvent,
   useAttendancesForPerson,
+  useCategoryOf,
   useContactSettings,
   useCurrentUser,
   useEvents,
@@ -28,6 +29,7 @@ import {
   useVisibleAttendances,
   useVisibleCustomers,
   useVisibleTeam,
+  usesTravel,
   type Attendance,
   type CrmEvent,
 } from "@/data";
@@ -114,21 +116,22 @@ export function useCustomerSummary() {
 
 /**
  * The event the hub features: for candidates the next event they're on the
- * list for; otherwise the next conference, else the next event of any kind
+ * list for; otherwise the next event with travel (a conference), else the next event of any kind
  * (same choice as the Dashboard's event card).
  */
 export function useFeaturedEvent(): CrmEvent | undefined {
   const user = useCurrentUser();
   const upcoming = useUpcomingEvents();
   const mine = useAttendancesForPerson(user.personId);
+  const categoryOf = useCategoryOf();
   return useMemo(() => {
     if (user.role === "candidate") {
       const onList = new Set(mine.map((a) => a.eventId));
       const own = upcoming.find((e) => onList.has(e.id));
       if (own) return own;
     }
-    return upcoming.find((e) => e.type === "conference") ?? upcoming[0];
-  }, [user.role, upcoming, mine]);
+    return upcoming.find((e) => usesTravel(categoryOf(e))) ?? upcoming[0];
+  }, [user.role, upcoming, mine, categoryOf]);
 }
 
 /** Ticket numbers for one event from the visible roster. */
