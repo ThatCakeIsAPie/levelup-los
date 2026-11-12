@@ -1424,6 +1424,69 @@ export type Database = {
           },
         ];
       };
+      feedback: {
+        Row: {
+          context: NonNullable<Json>;
+          created_at: string;
+          id: string;
+          message: string;
+          person_id: string | null;
+          screenshot_path: string | null;
+          status: string;
+          workspace_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          context?: NonNullable<Json>;
+          created_at?: string;
+          id?: string;
+          message: string;
+          person_id?: string | null;
+          screenshot_path?: string | null;
+          status?: string;
+          workspace_id?: string;
+        };
+        Update: {
+          context?: NonNullable<Json>;
+          created_at?: string;
+          id?: string;
+          message?: string;
+          person_id?: string | null;
+          screenshot_path?: string | null;
+          status?: string;
+          workspace_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "feedback_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: false;
+            referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "feedback_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "feedback_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "feedback_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       invites: {
         Row: {
           created_at: string;

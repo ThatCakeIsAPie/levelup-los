@@ -16,6 +16,7 @@ import {
   LogOut,
   Megaphone,
   MessageCircle,
+  MessageSquarePlus,
   Monitor,
   Moon,
   Plus,
@@ -48,6 +49,8 @@ import {
 } from "@/components/ui/sheet";
 import { Logo, PersonAvatar } from "@/components/brand";
 import { LogButton, LogSheet } from "@/components/log/LogSheet";
+import { FeedbackDialog } from "@/components/feedback/FeedbackDialog";
+import { startFeedback, useFeedbackFlow } from "@/components/feedback/feedbackFlow";
 import { cn } from "@/lib/utils";
 import { THEME_OPTIONS, useTheme, type ThemePreference } from "@/lib/theme";
 import {
@@ -136,6 +139,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         }}
       />
       <LogSheet />
+      <FeedbackDialog />
       <ResetDemoDialog open={resetOpen} onOpenChange={setResetOpen} />
       <MilestoneHistoryRecorder />
     </div>
@@ -250,6 +254,7 @@ function Sidebar({ onReset }: { onReset: () => void }) {
   const counts = useBadgeCounts();
   const { unlocks, starter } = useNavAccess();
   const loc = useNavLocation();
+  const feedbackBusy = useFeedbackFlow().phase !== "idle";
   const shown = (i: NavItem) => unlocks.can[i.area];
   const sections: NavSection[] = starter ? [{ items: STARTER_NAV }] : NAV_SECTIONS;
   const base =
@@ -305,6 +310,16 @@ function Sidebar({ onReset }: { onReset: () => void }) {
           <span>{unlocks.next.text}</span>
         </p>
       )}
+      <button
+        type="button"
+        className={cn(base, "mt-1 w-full disabled:cursor-wait disabled:opacity-60")}
+        disabled={feedbackBusy}
+        aria-busy={feedbackBusy}
+        onClick={() => void startFeedback()}
+      >
+        <MessageSquarePlus className="size-4 shrink-0" aria-hidden="true" />
+        Feedback
+      </button>
       <UserMenu onReset={onReset} />
     </nav>
   );
@@ -625,6 +640,7 @@ function MoreSheet({
   // Everyone else has Chats and the Inbox in the top bar, and Learning and the
   // Library under the Growth tab; the new apprentice finds them here.
   const inboxHere = unlocks.can.inbox && starter;
+  const feedbackBusy = useFeedbackFlow().phase !== "idle";
   const close = () => onOpenChange(false);
   const row =
     "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-semibold hover:bg-surface-2";
@@ -722,6 +738,15 @@ function MoreSheet({
             <UserCircle className={icon} aria-hidden="true" />
             My profile
           </Link>
+          <button
+            type="button"
+            className={cn(row, "disabled:cursor-wait disabled:opacity-60")}
+            disabled={feedbackBusy}
+            onClick={() => void startFeedback(close)}
+          >
+            <MessageSquarePlus className={icon} aria-hidden="true" />
+            Feedback
+          </button>
         </div>
         {unlocks.next && (
           <p className="mx-1 mt-3 flex items-start gap-2 rounded-[10px] bg-primary-soft px-3 py-2.5 text-[12.5px] text-primary-ink">
