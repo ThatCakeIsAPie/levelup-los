@@ -6,6 +6,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getSupabase } from "@/lib/supabase";
+import { sessionFromLinkHash } from "@/modules/invites/emailLink";
 import { exchangeCode, takePendingInvite, updatePassword } from "./auth";
 import { friendlyAuthError } from "./authErrors";
 import { AuthHeading, AuthLayout, AuthLoading, FormError, StatusIcon } from "./AuthLayout";
@@ -62,7 +63,14 @@ export function AuthCallback({ search }: { search: CallbackSearch }) {
         setState({ kind: "error", message: fromLink });
         return;
       }
-      if (search.code) {
+      // An invite email sent by someone else carries its session in the URL fragment.
+      const fromHash = await sessionFromLinkHash(window.location.hash);
+      if (cancelled) return;
+      if (fromHash) {
+        setState({ kind: "error", message: fromHash });
+        return;
+      }
+      if (search.code && fromHash === null) {
         const err = await exchangeOnce(search.code);
         if (cancelled) return;
         if (err) {

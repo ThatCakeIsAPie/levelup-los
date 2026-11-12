@@ -19,6 +19,8 @@ import {
   type MoveFailure,
   type PipelineColumn,
 } from "@/data";
+import { closeInviteDialog, openInviteDialog } from "@/modules/invites/inviteDialogStore";
+import { forgetPersonInvite } from "@/modules/invites/personInvites";
 
 import { Sensitive } from "@/components/brand";
 const FAILURE: Record<MoveFailure, string> = {
@@ -48,13 +50,22 @@ export function useMoveCard(columns: PipelineColumn[]) {
       columns.find((c) => c.id === to)?.label ?? getStageNames("recruiting").band(r.move.milestone);
     toastWithUndo(
       r.registered ? `${name} moved to ${label}: now an apprentice` : `${name} moved to ${label}`,
-      r.undo,
+      r.registered
+        ? () => {
+            // Undoing a registration also withdraws a sign-in invite sent since.
+            r.undo();
+            closeInviteDialog(personId);
+            forgetPersonInvite(personId);
+          }
+        : r.undo,
       {
         undoneMessage: "Move undone",
         description:
           to === REFERRAL_SOURCE ? "Open their card to add the names they pass on." : undefined,
       },
     );
+    // Offer a sign-in once the person is registered (the dialog lives in the app shell).
+    if (r.registered) openInviteDialog(personId, "congrats");
   };
 
   const move = (personId: string, name: string, to: string) => {

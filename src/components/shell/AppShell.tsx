@@ -49,6 +49,7 @@ import {
 } from "@/components/ui/sheet";
 import { Logo, PersonAvatar, Sensitive } from "@/components/brand";
 import { LogButton, LogSheet } from "@/components/log/LogSheet";
+import { InviteHost } from "@/modules/invites/InviteHost";
 import { FeedbackDialog } from "@/components/feedback/FeedbackDialog";
 import { startFeedback, useFeedbackFlow } from "@/components/feedback/feedbackFlow";
 import { cn } from "@/lib/utils";
@@ -139,6 +140,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         }}
       />
       <LogSheet />
+      <InviteHost />
       <FeedbackDialog />
       <ResetDemoDialog open={resetOpen} onOpenChange={setResetOpen} />
       <MilestoneHistoryRecorder />

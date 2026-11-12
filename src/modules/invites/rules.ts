@@ -1,7 +1,5 @@
 /** Pure invite rules (unit-tested). */
 
-export type InviteStage = "prospect" | "apprentice";
-
 /** Invites last 14 days. */
 export const INVITE_DAYS = 14;
 
@@ -15,6 +13,8 @@ export interface InvitePreview {
   email: string | null;
   expires_at: string;
   is_valid: boolean;
+  /** The invite is for someone already on the roster; `name` is theirs and `email` a masked hint. */
+  for_person: boolean;
 }
 
 export type InviteState = "valid" | "expired" | "used" | "notFound";
@@ -39,7 +39,14 @@ export function inviteExpiry(now = new Date(), days = INVITE_DAYS): string {
 
 /** What went wrong accepting an invite, from the `accept_invite` error. */
 export type AcceptFailure =
-  "used" | "expired" | "notFound" | "alreadyMember" | "signedOut" | "other";
+  | "used"
+  | "expired"
+  | "notFound"
+  | "alreadyMember"
+  | "alreadyHasSignIn"
+  | "wrongEmail"
+  | "signedOut"
+  | "other";
 
 export function acceptFailure(
   error: { message?: string; code?: string } | null | undefined,
@@ -47,6 +54,8 @@ export function acceptFailure(
   const msg = (error?.message ?? "").toLowerCase();
   if (msg.includes("already been used")) return "used";
   if (msg.includes("expired")) return "expired";
+  if (msg.includes("already has a sign-in")) return "alreadyHasSignIn";
+  if (msg.includes("different email") || msg.includes("confirm your email")) return "wrongEmail";
   if (msg.includes("already a member") || error?.code === "23505") return "alreadyMember";
   if (msg.includes("not found") || error?.code === "P0002") return "notFound";
   if (msg.includes("sign in") || error?.code === "28000") return "signedOut";

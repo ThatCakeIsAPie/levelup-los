@@ -108,6 +108,19 @@ function RemoteInvite({ token }: { token: string }) {
 
 function InviteHeader({ preview }: { preview: InvitePreview }) {
   const sponsor = preview.sponsor_name ?? "Someone on the team";
+  if (preview.for_person) {
+    const who = preview.name ?? "You";
+    return (
+      <div className="flex items-center gap-3 rounded-card border border-line bg-surface px-4 py-3.5">
+        <PersonAvatar name={who} stage="ibo" size="lg" />
+        <p className="min-w-0 text-[13px] text-muted-foreground">
+          <span className="block text-sm font-bold text-foreground">{who}</span>
+          {sponsor} invited you to sign in to your profile on{" "}
+          <span className="font-semibold text-foreground">{preview.workspace_name}</span>.
+        </p>
+      </div>
+    );
+  }
   return (
     <div className="flex items-center gap-3 rounded-card border border-line bg-surface px-4 py-3.5">
       <PersonAvatar name={sponsor} stage="ibo" size="lg" />
@@ -128,7 +141,8 @@ type JoinMode = "link" | "new" | "existing";
 function JoinForm({ token, preview }: { token: string; preview: InvitePreview }) {
   const [mode, setMode] = useState<JoinMode>("link");
   const [name, setName] = useState(preview.name ?? "");
-  const [email, setEmail] = useState(preview.email ?? "");
+  // For someone already on the roster the preview only has a masked hint of the address.
+  const [email, setEmail] = useState(preview.for_person ? "" : (preview.email ?? ""));
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -181,10 +195,17 @@ function JoinForm({ token, preview }: { token: string; preview: InvitePreview })
           )
         }
       >
-        <p>
-          You'll join right under {preview.sponsor_name?.split(" ")[0] ?? "your sponsor"}. Use your
-          email; we'll send a link that signs you in, or you can pick a password.
-        </p>
+        {preview.for_person ? (
+          <p>
+            Use the email this invite was sent to{preview.email ? ` (${preview.email})` : ""}; we'll
+            send a link that signs you in, or you can pick a password.
+          </p>
+        ) : (
+          <p>
+            You'll join right under {preview.sponsor_name?.split(" ")[0] ?? "your sponsor"}. Use
+            your email; we'll send a link that signs you in, or you can pick a password.
+          </p>
+        )}
       </AuthHeading>
 
       <div
@@ -304,7 +325,11 @@ function Accepting({ token, preview }: { token: string; preview: InvitePreview }
             ? "This invite was already used. Ask for a new link."
             : r.failure === "expired"
               ? "This invite has expired. Ask for a new link."
-              : r.error,
+              : r.failure === "wrongEmail"
+                ? "This invite was sent to a different email address. Sign out and use the address it was sent to."
+                : r.failure === "alreadyHasSignIn"
+                  ? "This profile already has a sign-in. Ask for a new link if that wasn't you."
+                  : r.error,
         );
         return;
       }

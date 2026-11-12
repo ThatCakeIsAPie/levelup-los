@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ArrowDown, ArrowUp, Check, Flag, Lock, Pencil, Plus, Trash2, X } from "lucide-react";
 import {
@@ -29,15 +29,21 @@ import {
   hidePipelineStep,
   movePipelineStep,
   renamePipelineStep,
+  saveStageNames,
   showPipelineStep,
+  stageSourceHint,
   useCustomerStepsEditor,
+  useStageNameEditor,
   useStageNames,
   useStepsEditor,
   type BoardKind,
   type CustomerStepBand,
+  type StageNameEditor,
+  type StageNameRow,
   type StepBand,
 } from "@/data";
 import { plural } from "./format";
+import { nextOwnName, stageEditError } from "./stageNameEdit";
 
 import { Sensitive } from "@/components/brand";
 /** A band of the steps editor (the same shape on both boards). */
@@ -59,15 +65,16 @@ function useMilestoneNames(kind: BoardKind) {
   const names = useStageNames(kind);
   return {
     label: (band: string) => names.name(band),
-    column: (band: string) => names.column(band),
-    last: names.column(kind === "customer" ? "on_ditto" : "registered"),
   };
 }
 
 /**
- * Customize steps: milestones are locked; inherited steps can be hidden for
- * your team; your own steps can be added, renamed, reordered and deleted.
- * `kind` picks the board (recruiting by default, or the customer board).
+ * Customize steps: the four stages keep their order and meaning, but their
+ * names are yours to change (click one to edit it in place); inherited steps
+ * can be hidden for your team; your own steps can be added, renamed,
+ * reordered and deleted. `kind` picks the board (recruiting by default, or
+ * the customer board). Everyone with the pipeline can open it and rename;
+ * steps are only ever edited by the person who made them.
  */
 export function CustomizeStepsDialog({
   open,
@@ -80,15 +87,22 @@ export function CustomizeStepsDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
+      <DialogContent
+        className="max-h-[90dvh] grid-cols-[minmax(0,1fr)] overflow-y-auto sm:max-w-lg"
+        // Escape in a stage name's field cancels that edit; it doesn't close the dialog.
+        onEscapeKeyDown={(e) => {
+          if ((e.target as HTMLElement | null)?.closest?.("[data-stage-name-input]"))
+            e.preventDefault();
+        }}
+      >
         <DialogHeader>
           <DialogTitle>
             {kind === "customer" ? "Customize customer steps" : "Customize steps"}
           </DialogTitle>
           <DialogDescription>
-            The four milestones are the same for everyone, so every team&rsquo;s numbers add up; use
-            Rename stages to call them something else. Steps between them are yours: your team sees
-            them too. Hide your upline&rsquo;s steps your team doesn&rsquo;t use.
+            Click a stage name to rename it. Stages keep their order and meaning, so every
+            team&rsquo;s numbers add up. Steps between them are yours: your team sees them too. Hide
+            your upline&rsquo;s steps your team doesn&rsquo;t use.
           </DialogDescription>
         </DialogHeader>
         {kind === "customer" ? <CustomerBands /> : <RecruitingBands />}
@@ -106,35 +120,206 @@ function CustomerBands() {
 }
 
 function Bands({ bands, kind }: { bands: EditorBand[]; kind: BoardKind }) {
-  const names = useMilestoneNames(kind);
+  const editor = useStageNameEditor(kind);
+  const last = editor.rows[bands.length];
   return (
-    <ol className="grid gap-4">
-      {bands.map((b, i) => (
-        <BandEditor key={b.band} band={b} index={i} kind={kind} />
-      ))}
-      <li className="grid gap-1.5">
-        <MilestoneRow index={bands.length + 1} label={names.last} />
-      </li>
-    </ol>
-  );
-}
-
-function MilestoneRow({ index, label }: { index: number; label: string }) {
-  return (
-    <div className="flex items-center gap-2 rounded-lg bg-surface-2 px-3 py-2 text-[13px]">
-      <span className="grid size-5 place-items-center rounded-md bg-foreground text-[11px] font-extrabold text-background">
-        {index}
-      </span>
-      <Flag className="size-3.5 text-amber-strong" aria-hidden="true" />
-      <b className="min-w-0 truncate">{label}</b>
-      <span className="ml-auto inline-flex items-center gap-1 text-[11px] font-semibold text-muted-foreground">
-        <Lock className="size-3" aria-hidden="true" /> Milestone
-      </span>
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
+      <p className="text-[12px] text-muted-foreground">
+        People below you see your stage names unless they set their own.
+      </p>
+      <ol className="grid grid-cols-[minmax(0,1fr)] gap-4">
+        {bands.map((b, i) => (
+          <BandEditor key={b.band} band={b} index={i} kind={kind} editor={editor} />
+        ))}
+        <li className="grid gap-1.5">
+          {last && <StageRow kind={kind} index={bands.length + 1} row={last} editor={editor} />}
+        </li>
+      </ol>
     </div>
   );
 }
 
-function BandEditor({ band, index, kind }: { band: EditorBand; index: number; kind: BoardKind }) {
+/**
+ * One stage: its name edits in place (tap or click it, or Tab to it and press
+ * Enter; the name is selected so typing replaces it; Enter or leaving the field
+ * saves, Escape cancels, an emptied field goes back to the inherited or
+ * built-in name). Below it, where the name comes from, or Reset for your own.
+ */
+function StageRow({
+  kind,
+  index,
+  row,
+  editor,
+}: {
+  kind: BoardKind;
+  index: number;
+  row: StageNameRow;
+  editor: StageNameEditor;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState("");
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const input = useRef<HTMLInputElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  /** Set once an edit has ended, so the blur that follows doesn't save again. */
+  const finished = useRef(false);
+  /** Hand focus back to the name after Enter or Escape, not after tabbing away. */
+  const refocus = useRef(false);
+  const name = row.effective.name;
+  const own = row.own !== "";
+  const liveError = editing
+    ? stageEditError(kind, editor.rows, editor.reserved, row.key, value)
+    : null;
+  const error = liveError ?? saveError;
+
+  useLayoutEffect(() => {
+    if (editing) {
+      input.current?.focus();
+      input.current?.select();
+    } else if (refocus.current) {
+      refocus.current = false;
+      trigger.current?.focus();
+    }
+  }, [editing]);
+
+  const start = () => {
+    finished.current = false;
+    setValue(name);
+    setSaveError(null);
+    setEditing(true);
+  };
+  const stop = (focusName: boolean) => {
+    finished.current = true;
+    refocus.current = focusName;
+    setSaveError(null);
+    setEditing(false);
+  };
+  /** Save what was typed; false when it was refused (the message stays under the field). */
+  const commit = (): boolean => {
+    const next = nextOwnName(row, value);
+    if (next === null) return true;
+    const message = stageEditError(kind, editor.rows, editor.reserved, row.key, next);
+    if (message) {
+      setSaveError(message);
+      return false;
+    }
+    const draft = Object.fromEntries(editor.rows.map((r) => [r.key, r.own]));
+    draft[row.key] = next;
+    const r = saveStageNames(kind, draft);
+    if (!r.ok) {
+      setSaveError(r.errors[row.key] ?? Object.values(r.errors)[0] ?? "Couldn’t save that name.");
+      return false;
+    }
+    return true;
+  };
+  const reset = () => {
+    const draft = Object.fromEntries(editor.rows.map((r) => [r.key, r.own]));
+    draft[row.key] = "";
+    const r = saveStageNames(kind, draft);
+    setSaveError(
+      r.ok
+        ? null
+        : (r.errors[row.key] ?? Object.values(r.errors)[0] ?? "Couldn’t reset that name."),
+    );
+  };
+
+  const hint = stageSourceHint(row.inherited);
+  const inheritedHint =
+    row.inherited.source === "default" ? hint : `${hint} · default is ${row.inherited.defaultName}`;
+  const hintId = `stage-${kind}-${row.key}-note`;
+
+  return (
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-1 rounded-lg bg-surface-2 px-3 py-2 text-[13px]">
+      <div className="flex items-center gap-2">
+        <span className="grid size-5 shrink-0 place-items-center rounded-md bg-foreground text-[11px] font-extrabold text-background">
+          {index}
+        </span>
+        <Flag className="size-3.5 shrink-0 text-amber-strong" aria-hidden="true" />
+        {editing ? (
+          <Input
+            ref={input}
+            data-stage-name-input=""
+            value={value}
+            onChange={(e) => {
+              setValue(e.target.value);
+              setSaveError(null);
+            }}
+            onKeyDown={(e) => {
+              if (e.nativeEvent.isComposing) return;
+              if (e.key === "Enter") {
+                e.preventDefault();
+                if (commit()) stop(true);
+              } else if (e.key === "Escape") {
+                e.preventDefault();
+                stop(true);
+              }
+            }}
+            onBlur={() => {
+              if (finished.current) return;
+              if (commit()) stop(false);
+            }}
+            placeholder={row.inherited.name}
+            aria-label={`Name of stage ${index}`}
+            aria-invalid={!!error}
+            aria-describedby={hintId}
+            enterKeyHint="done"
+            autoComplete="off"
+            className="h-7 min-w-0 flex-1 text-[13px] font-bold"
+          />
+        ) : (
+          <button
+            ref={trigger}
+            type="button"
+            onClick={start}
+            aria-label={`Rename stage ${name}`}
+            title="Rename this stage"
+            className="-mx-1.5 flex min-w-0 items-center gap-1.5 rounded-md px-1.5 py-1 text-left font-bold outline-none transition-colors hover:bg-surface focus-visible:bg-surface focus-visible:ring-2 focus-visible:ring-ring/50"
+          >
+            <span className="min-w-0 truncate">{name}</span>
+            <Pencil className="size-3 shrink-0 text-muted-foreground" aria-hidden="true" />
+          </button>
+        )}
+        <span className="ml-auto inline-flex shrink-0 items-center gap-1 text-[11px] font-semibold text-muted-foreground">
+          <Lock className="size-3" aria-hidden="true" /> Milestone
+        </span>
+      </div>
+      <p
+        id={hintId}
+        role={error ? "alert" : undefined}
+        className={cn("pl-[34px] text-[11.5px]", error ? "text-bad" : "text-muted-foreground")}
+      >
+        {error ??
+          (own ? (
+            <>
+              Your name ·{" "}
+              <button
+                type="button"
+                onClick={reset}
+                aria-label={`Reset ${name} to ${row.inherited.name}`}
+                className="rounded font-semibold text-foreground underline underline-offset-2 outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+              >
+                Reset
+              </button>
+            </>
+          ) : (
+            inheritedHint
+          ))}
+      </p>
+    </div>
+  );
+}
+
+function BandEditor({
+  band,
+  index,
+  kind,
+  editor,
+}: {
+  band: EditorBand;
+  index: number;
+  kind: BoardKind;
+  editor: StageNameEditor;
+}) {
   const [label, setLabel] = useState("");
   const [error, setError] = useState<string | null>(null);
   const own = band.steps.filter((s) => s.own);
@@ -150,8 +335,8 @@ function BandEditor({ band, index, kind }: { band: EditorBand; index: number; ki
     setError(null);
   };
   return (
-    <li className="grid gap-1.5" aria-label={`${name} band`}>
-      <MilestoneRow index={index + 1} label={names.column(band.band)} />
+    <li className="grid grid-cols-[minmax(0,1fr)] gap-1.5" aria-label={`${name} band`}>
+      <StageRow kind={kind} index={index + 1} row={editor.rows[index]} editor={editor} />
       <ul className="grid gap-1 pl-3">
         {band.steps.map((s) => (
           <StepRow

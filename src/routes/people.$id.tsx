@@ -51,6 +51,7 @@ import {
 } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SignInCard } from "@/modules/invites/SignInCard";
 import { ProfilePathCard } from "@/modules/growth/GrowthPath";
 import { PipelineCard } from "@/modules/people/PipelineCard";
 import { ReferralsCard } from "@/modules/people/ReferralsCard";
@@ -479,6 +480,7 @@ function BusinessProfile({ person }: { person: CrmPerson }) {
                 />
               </div>
               <div className="grid min-w-0 content-start gap-4">
+                <SignInCard person={person} />
                 <TeamCard person={person} />
                 {isSelf && <StatsAccessCard />}
                 <CustomersCard person={person} onOpenTab={openCustomers} />
@@ -492,6 +494,7 @@ function BusinessProfile({ person }: { person: CrmPerson }) {
             </div>
           ) : (
             <div className="grid gap-3">
+              <SignInCard person={person} />
               <ProfilePathCard person={person} canEdit={perms.canEditStage} compact />
               <PipelineCard person={person} />
               <ReferralsCard person={person} />

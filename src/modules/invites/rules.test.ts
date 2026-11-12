@@ -17,6 +17,7 @@ const preview: InvitePreview = {
   email: null,
   expires_at: "2026-10-20T12:00:00Z",
   is_valid: true,
+  for_person: false,
 };
 
 describe("inviteState", () => {
@@ -46,6 +47,21 @@ describe("acceptFailure", () => {
     expect(acceptFailure({ message: "Invite not found", code: "P0002" })).toBe("notFound");
     expect(acceptFailure({ message: "Sign in before accepting an invite", code: "28000" })).toBe(
       "signedOut",
+    );
+    expect(acceptFailure({ message: "This person already has a sign-in", code: "22023" })).toBe(
+      "alreadyHasSignIn",
+    );
+    expect(
+      acceptFailure({
+        message: "This invite was sent to a different email address",
+        code: "42501",
+      }),
+    ).toBe("wrongEmail");
+    expect(acceptFailure({ message: "Confirm your email address first", code: "42501" })).toBe(
+      "wrongEmail",
+    );
+    expect(acceptFailure({ message: "Person not found: they are no longer on the team" })).toBe(
+      "notFound",
     );
     expect(acceptFailure({ message: "boom" })).toBe("other");
   });

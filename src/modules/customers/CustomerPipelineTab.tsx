@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from "react";
-import { ArrowRight, Columns3, Pencil, Plus, Users } from "lucide-react";
+import { ArrowRight, Columns3, Plus, Users } from "lucide-react";
 import { PageHeader, SectionCard } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,7 +23,6 @@ import {
 import { BoardView } from "@/modules/pipeline/Board";
 import { Kpis } from "@/modules/pipeline/BoardTab";
 import { CustomizeStepsDialog } from "@/modules/pipeline/CustomizeStepsDialog";
-import { RenameStagesDialog } from "@/modules/pipeline/RenameStagesDialog";
 import { pct, plural } from "@/modules/pipeline/format";
 import { InPipelineCard } from "@/modules/pipeline/InPipelineCard";
 import { ScopeToggle } from "@/modules/pipeline/ScopeToggle";
@@ -50,7 +49,6 @@ export function CustomerPipelineTab({ tabs }: { tabs: ReactNode }) {
   const summary = useCustomerSummary(scope);
   const funnel = useCustomerFunnel(scope, 90);
   const [stepsOpen, setStepsOpen] = useState(false);
-  const [renameOpen, setRenameOpen] = useState(false);
   const [entryDialog, setEntryDialog] = useState<EntryDialogMode | null>(null);
   const names = useStageNames("customer");
   const bands = useMemo(() => IN_PIPELINE.map((id) => ({ id, label: names.name(id) })), [names]);
@@ -68,10 +66,6 @@ export function CustomerPipelineTab({ tabs }: { tabs: ReactNode }) {
               onScope={setScope}
               label="Whose customer pipeline"
             />
-            <Button variant="outline" size="sm" className="h-9" onClick={() => setRenameOpen(true)}>
-              <Pencil /> <span className="hidden sm:inline">Rename stages</span>
-              <span className="sm:hidden">Rename</span>
-            </Button>
             <Button variant="outline" size="sm" className="h-9" onClick={() => setStepsOpen(true)}>
               <Columns3 /> <span className="hidden sm:inline">Customize steps</span>
               <span className="sm:hidden">Steps</span>
@@ -116,7 +110,6 @@ export function CustomerPipelineTab({ tabs }: { tabs: ReactNode }) {
         />
       )}
       <CustomizeStepsDialog open={stepsOpen} onOpenChange={setStepsOpen} kind="customer" />
-      <RenameStagesDialog open={renameOpen} onOpenChange={setRenameOpen} pipeline="customer" />
       <ListEntryDialog mode={entryDialog} onOpenChange={(o) => !o && setEntryDialog(null)} />
     </div>
   );
