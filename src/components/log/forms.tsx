@@ -176,6 +176,9 @@ const KIND_OPTIONS: { value: LearningKind; label: string }[] = [
 ];
 
 /** The amount the field starts at for each unit. */
+/** Title that reading and listening logged without one go under. */
+const UNNAMED_TITLE = "Unnamed";
+
 const UNIT_DEFAULT: Record<LearningUnit, string> = {
   minutes: "30",
   pages: "20",
@@ -209,12 +212,13 @@ export function LearningForm() {
   const unit: LearningUnit | undefined =
     kind === "pages" ? readingUnit : kind === "podcast" ? podcastUnit : undefined;
   const amount = unit ? Number(amounts[unit]) : 1;
-  const valid = !!title.trim() && (!unit || (Number.isInteger(amount) && amount > 0));
+  const valid = !unit || (Number.isInteger(amount) && amount > 0);
 
   const save = () => {
     if (!valid) return;
     // Typed an old title in different case? Log it under the existing spelling.
-    const name = matchTitle(titles, title)?.title ?? title.trim();
+    // No title: it goes under "Unnamed".
+    const name = matchTitle(titles, title)?.title ?? (title.trim() || UNNAMED_TITLE);
     logLearning({ kind, title: name, amount, ...(unit ? { unit } : {}), date });
     const id = latestLearningId();
     finish({
@@ -304,7 +308,7 @@ export function LearningForm() {
         value={win}
         onChange={setWin}
         winKind="other"
-        learningTitle={title.trim()}
+        learningTitle={title.trim() || UNNAMED_TITLE}
       />
       <SubmitButton disabled={!valid} sharing={win.on} label="Log learning" />
     </form>
