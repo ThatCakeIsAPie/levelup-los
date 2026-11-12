@@ -38,4 +38,4 @@ More detail: `docs/frontend-guide.md` (code layout, page conventions, design tok
 - Feature work goes to `main`. A brand branch picks it up with `git merge main`, which stays conflict-free as long as nobody edits other files on the brand branch.
 - To start a new brand, branch from `main` and replace the files in `src/brand/` (name, colours, logo mark, wordmark font, favicon, storage prefix). `src/brand/README.md` describes each file.
 
-The GitHub Pages workflow (`.github/workflows/pages.yml`) publishes one brand's demo; its comments say which and how to change it.
+The deploy workflow (`.github/workflows/pages.yml`) publishes each brand's demo when its branch is pushed; its comments list where each one goes and how to add another.
