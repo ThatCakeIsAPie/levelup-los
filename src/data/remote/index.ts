@@ -29,6 +29,8 @@ import { emptyPipeline, usePipelineStore } from "@/data/pipeline/store";
 import { emptyCustomerPipeline, useCustomerPipelineStore } from "@/data/customerPipeline/store";
 import { emptyTeam, useTeamStore } from "@/data/team/store";
 import { useHomeLayoutStore } from "@/data/homeLayoutStore";
+import { useStageNamesStore } from "@/data/stageNames/store";
+import { useInheritedStageNames } from "@/data/stageNames/inherited";
 import { ALL_BINDINGS } from "./bindings";
 import {
   applyRemote,
@@ -192,7 +194,9 @@ export function closeRemoteSession(cancelLoading = true): void {
     useCustomerPipelineStore.setState(emptyCustomerPipeline());
     useTeamStore.setState(emptyTeam());
     useHomeLayoutStore.setState({ layouts: {} });
+    useStageNamesStore.setState({ entries: [] });
   });
+  useInheritedStageNames.setState({ rows: [] });
   useLibraryExtras.setState({ teasers: [], names: {} });
   useRemoteStore.setState({ directory: [], rsvpCounts: null, chain: [], phase: "idle" });
 }

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { CalendarDays, Columns3, Kanban, Plus, Target } from "lucide-react";
+import { CalendarDays, Columns3, Kanban, Pencil, Plus, Target } from "lucide-react";
 import { EmptyState, PageHeader } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,6 +24,7 @@ import {
   usePipelineMonths,
   usePipelineScope,
   usePipelineScopes,
+  useStageNames,
   useTeamSettings,
   type PeriodDays,
   type PipelineScope,
@@ -33,6 +34,7 @@ import { ownCards } from "./format";
 import { ConversionsTab } from "./ConversionsTab";
 import { ScopeToggle } from "./ScopeToggle";
 import { CustomizeStepsDialog } from "./CustomizeStepsDialog";
+import { RenameStagesDialog } from "./RenameStagesDialog";
 import { AddProspectDialog } from "./AddProspectDialog";
 import { StatRequestsPanel } from "./StatsSharing";
 import { TeamGoalsDialog } from "./TeamGoalsDialog";
@@ -73,6 +75,7 @@ function Pipeline({ tab, onTab }: { tab: PipelineTab; onTab: (tab: PipelineTab) 
   const [month, setMonth] = useState(current);
   const [period, setPeriod] = useState<PeriodDays>(90);
   const [stepsOpen, setStepsOpen] = useState(false);
+  const [renameOpen, setRenameOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [goalsOpen, setGoalsOpen] = useState(false);
   const months = usePipelineMonths();
@@ -152,6 +155,10 @@ function Pipeline({ tab, onTab }: { tab: PipelineTab; onTab: (tab: PipelineTab) 
                 </SelectContent>
               </Select>
             )}
+            <Button variant="outline" size="sm" className="h-9" onClick={() => setRenameOpen(true)}>
+              <Pencil /> <span className="hidden sm:inline">Rename stages</span>
+              <span className="sm:hidden">Rename</span>
+            </Button>
             {tab === "board" && (
               <>
                 {settings?.canEdit && (
@@ -214,6 +221,7 @@ function Pipeline({ tab, onTab }: { tab: PipelineTab; onTab: (tab: PipelineTab) 
         : conv && settings && <ConversionsTab conv={conv} settings={settings} />}
 
       <CustomizeStepsDialog open={stepsOpen} onOpenChange={setStepsOpen} />
+      <RenameStagesDialog open={renameOpen} onOpenChange={setRenameOpen} pipeline="recruiting" />
       <AddProspectDialog open={addOpen} onOpenChange={setAddOpen} columns={myColumns} />
       {settings?.canEdit && (
         <TeamGoalsDialog open={goalsOpen} onOpenChange={setGoalsOpen} settings={settings} />
@@ -224,13 +232,14 @@ function Pipeline({ tab, onTab }: { tab: PipelineTab; onTab: (tab: PipelineTab) 
 
 /** Candidates: no pipeline yet, with what it is and where to go instead. */
 function NoPipeline() {
+  const names = useStageNames("recruiting");
   return (
     <div className={cn(PAGE, "mx-auto max-w-2xl")}>
       <PageHeader title="Pipeline" />
       <EmptyState
         icon={<Kanban />}
         title="Your pipeline starts when you register"
-        body="Once you're an apprentice, the people you invite show up here as cards: from the first contact to their first meeting, the plan and registering. Until then, your sponsor keeps track with you."
+        body={`Once you're an apprentice, the people you invite show up here as cards and move through ${names.name("contact")}, ${names.name("first_meeting")}, ${names.name("first_plan")} and ${names.name("registered")}. Until then, your sponsor keeps track with you.`}
         action={
           <Button asChild variant="soft">
             <Link to="/business">Back to My business</Link>

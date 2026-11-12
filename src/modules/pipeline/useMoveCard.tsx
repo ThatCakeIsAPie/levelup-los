@@ -12,9 +12,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toastWithUndo } from "@/components/log/quickLog";
 import {
-  RECRUITING_BAND_LABEL,
   REFERRAL_SOURCE,
+  getStageNames,
   movePipelineCard,
+  useStageNames,
   type MoveFailure,
   type PipelineColumn,
 } from "@/data";
@@ -34,6 +35,7 @@ const FAILURE: Record<MoveFailure, string> = {
  */
 export function useMoveCard(columns: PipelineColumn[]) {
   const [confirm, setConfirm] = useState<{ personId: string; name: string } | null>(null);
+  const stages = useStageNames("recruiting");
 
   const doMove = (personId: string, name: string, to: string) => {
     const r = movePipelineCard(personId, to);
@@ -42,9 +44,9 @@ export function useMoveCard(columns: PipelineColumn[]) {
       return;
     }
     const label =
-      columns.find((c) => c.id === to)?.label ?? RECRUITING_BAND_LABEL[r.move.milestone];
+      columns.find((c) => c.id === to)?.label ?? getStageNames("recruiting").band(r.move.milestone);
     toastWithUndo(
-      r.registered ? `${name} registered — now an apprentice` : `${name} moved to ${label}`,
+      r.registered ? `${name} moved to ${label}: now an apprentice` : `${name} moved to ${label}`,
       r.undo,
       {
         undoneMessage: "Move undone",
@@ -63,10 +65,12 @@ export function useMoveCard(columns: PipelineColumn[]) {
     <AlertDialog open={!!confirm} onOpenChange={(o) => !o && setConfirm(null)}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Register {confirm?.name}?</AlertDialogTitle>
+          <AlertDialogTitle>
+            Move {confirm?.name} to {stages.name("registered")}?
+          </AlertDialogTitle>
           <AlertDialogDescription>
-            They become an apprentice from today and leave the board. Their IBO and LTD numbers can
-            be added on their profile.
+            Reaching {stages.name("registered")} registers them: they become an apprentice from
+            today and leave the board. Their IBO and LTD numbers can be added on their profile.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -77,7 +81,7 @@ export function useMoveCard(columns: PipelineColumn[]) {
               setConfirm(null);
             }}
           >
-            Register
+            Move
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

@@ -23,6 +23,7 @@ import {
   useCurrentUser,
   useLastContactMap,
   useSales,
+  useStageNames,
   useVisibleCustomers,
   type CrmPerson,
   type Sale,
@@ -326,6 +327,7 @@ function LastContactChip({ row, customerDays }: { row: Row; customerDays: number
 }
 
 function NameLink({ person }: { person: CrmPerson }) {
+  const names = useStageNames("customer");
   return (
     <span className="flex min-w-0 items-center gap-1.5">
       <Link
@@ -337,7 +339,7 @@ function NameLink({ person }: { person: CrmPerson }) {
       </Link>
       {person.dittoSince && (
         <ToneChip tone="good" className="shrink-0">
-          On Ditto
+          {names.name("on_ditto")}
         </ToneChip>
       )}
     </span>

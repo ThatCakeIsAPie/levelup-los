@@ -1,13 +1,14 @@
+import { useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { ToneChip } from "@/components/brand";
 import {
-  MILESTONE_LABEL,
   monthName,
   percentChange,
   shiftMonth,
-  type MilestoneCode,
+  useStageNames,
   type PipelineActivity,
   type PipelineBoard,
+  type StageNames,
 } from "@/data";
 import { Board } from "./Board";
 import { InPipelineCard } from "./InPipelineCard";
@@ -28,16 +29,25 @@ export function BoardTab({
   month: string;
   isThisMonth: boolean;
 }) {
+  const names = useStageNames("recruiting");
+  const bands = useMemo(() => IN_PIPELINE.map((id) => ({ id, label: names.name(id) })), [names]);
   return (
     <div className="grid gap-4">
       <div className="grid gap-3 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1.6fr)] lg:gap-4">
-        <GoalCard activity={activity} month={month} isThisMonth={isThisMonth} />
+        <GoalCard activity={activity} month={month} isThisMonth={isThisMonth} names={names} />
         <div className="grid content-start gap-3 lg:gap-4">
-          <Kpis activity={activity} month={month} />
+          <Kpis
+            activity={activity}
+            month={month}
+            names={names}
+            keys={KPI_KEYS}
+            highlight="first_meeting"
+          />
           <InPipelineCard
             board={board as unknown as PipelineBoard<string>}
-            bands={IN_PIPELINE}
-            until="they register"
+            bands={bands}
+            from={names.name("first_meeting")}
+            until={names.name("registered")}
           />
         </div>
       </div>
@@ -46,11 +56,10 @@ export function BoardTab({
   );
 }
 
-/** In the pipeline: First meeting and First plan (with their steps). */
-const IN_PIPELINE = (["first_meeting", "first_plan"] as const).map((id) => ({
-  id,
-  label: MILESTONE_LABEL[id],
-}));
+/** In the pipeline: the second and third stages (with their steps). */
+const IN_PIPELINE = ["first_meeting", "first_plan"] as const;
+
+const KPI_KEYS = ["contact", "first_meeting", "first_plan", "registered"] as const;
 
 function perDayText(perDay: number): string {
   if (perDay <= 0) return "";
@@ -62,10 +71,12 @@ function GoalCard({
   activity,
   month,
   isThisMonth,
+  names,
 }: {
   activity: PipelineActivity;
   month: string;
   isThisMonth: boolean;
+  names: StageNames;
 }) {
   const count = activity.counts.first_meeting;
   const goal = activity.goal;
@@ -85,7 +96,10 @@ function GoalCard({
     <section className="grid content-start gap-3 rounded-card border border-line bg-card px-4 py-4 sm:px-[18px]">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-sm font-bold">
-          First meetings <span className="hidden sm:inline">(MG1) </span>
+          {names.plural("first_meeting")}{" "}
+          {names.alias("first_meeting") && (
+            <span className="hidden sm:inline">({names.alias("first_meeting")}) </span>
+          )}
           {isThisMonth ? "this month" : `in ${monthName(month)}`}
         </h2>
         {goal !== null && (
@@ -110,13 +124,13 @@ function GoalCard({
             </p>
           )}
         </div>
-        <Trend series={activity.series} goal={goal} top={top} />
+        <Trend series={activity.series} goal={goal} top={top} names={names} />
       </div>
       {goal !== null && (
         <div
           className="h-2 overflow-hidden rounded-full bg-track"
           role="progressbar"
-          aria-label="First meetings against the goal"
+          aria-label={`${names.plural("first_meeting")} against the goal`}
           aria-valuemin={0}
           aria-valuemax={goal}
           aria-valuenow={Math.min(count, goal)}
@@ -135,17 +149,19 @@ function Trend({
   series,
   goal,
   top,
+  names,
 }: {
   series: { key: string; count: number }[];
   goal: number | null;
   top: number;
+  names: StageNames;
 }) {
   const label = series.map((s) => `${monthName(s.key, "short")} ${s.count}`).join(", ");
   return (
     <div
       className="relative hidden h-[76px] grid-cols-6 items-end gap-1.5 pt-1 sm:grid lg:gap-2"
       role="img"
-      aria-label={`First meetings per month: ${label}${goal ? `; goal ${goal}` : ""}`}
+      aria-label={`${names.plural("first_meeting")} per month: ${label}${goal ? `; goal ${goal}` : ""}`}
     >
       {series.map((s, i) => (
         <div
@@ -185,30 +201,13 @@ function Trend({
   );
 }
 
-export interface KpiItem {
-  m: string;
-  label: string;
-  short: string;
-  /** Read out after the label ("First meeting reached"). */
-  milestone: string;
-  /** The number the goal is about (outlined). */
-  highlight?: boolean;
-}
-
-const KPI: KpiItem[] = (
-  [
-    { m: "contact", label: "Contacts made", short: "Contacts" },
-    { m: "first_meeting", label: "First meetings", short: "MG1s", highlight: true },
-    { m: "first_plan", label: "First plans", short: "Plans" },
-    { m: "registered", label: "Registered", short: "Registered" },
-  ] as const
-).map((k) => ({ ...k, milestone: MILESTONE_LABEL[k.m as MilestoneCode] }));
-
 /** This month's milestones reached, each against the previous month (both boards). */
 export function Kpis({
   activity,
   month,
-  items = KPI,
+  names,
+  keys,
+  highlight,
 }: {
   activity:
     | Pick<PipelineActivity, "counts" | "previous">
@@ -217,14 +216,18 @@ export function Kpis({
         previous: Record<string, number>;
       };
   month: string;
-  items?: KpiItem[];
+  names: StageNames;
+  /** The stages to show, in order. */
+  keys: readonly string[];
+  /** The one the goal is about (outlined). */
+  highlight?: string;
 }) {
   const prev = monthName(shiftMonth(month, -1), "short");
   const counts = activity.counts as Record<string, number>;
   const previous = activity.previous as Record<string, number>;
   return (
     <div className="grid grid-cols-4 gap-1.5 sm:gap-2.5">
-      {items.map(({ m, label, short, milestone, highlight }) => {
+      {keys.map((m) => {
         const now = counts[m] ?? 0;
         const change = percentChange(now, previous[m] ?? 0);
         return (
@@ -232,16 +235,18 @@ export function Kpis({
             key={m}
             className={cn(
               "grid min-w-0 content-start gap-0.5 rounded-xl border bg-card px-2 py-2 sm:rounded-card sm:px-3.5 sm:py-3",
-              highlight ? "border-sky shadow-[inset_0_0_0_1px_var(--color-sky)]" : "border-line",
+              m === highlight
+                ? "border-sky shadow-[inset_0_0_0_1px_var(--color-sky)]"
+                : "border-line",
             )}
           >
             <b className="text-lg font-extrabold leading-tight tabular-nums sm:text-[22px] lg:text-2xl">
               {now}
             </b>
-            <span className="truncate text-[10.5px] text-muted-foreground sm:text-[12px]">
-              <span className="sm:hidden">{short}</span>
-              <span className="hidden sm:inline">{label}</span>
-              <span className="sr-only"> ({milestone} reached)</span>
+            <span className="line-clamp-2 break-words text-[10.5px] leading-tight text-muted-foreground sm:line-clamp-none sm:truncate sm:text-[12px]">
+              <span className="sm:hidden">{names.short(m)}</span>
+              <span className="hidden sm:inline">{names.plural(m)}</span>
+              <span className="sr-only"> ({names.name(m)} reached)</span>
             </span>
             <em
               className={cn(

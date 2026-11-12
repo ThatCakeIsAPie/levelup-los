@@ -53,6 +53,7 @@ import {
   useListOwners,
   useListUpline,
   usePipelineAccess,
+  useStageNames,
   useYourList,
   type ListRow,
 } from "@/data";
@@ -247,12 +248,14 @@ function ListItem({
   onRemove: () => void;
 }) {
   const recruiting = usePipelineAccess();
+  const names = useStageNames("customer");
+  const recruitingNames = useStageNames("recruiting");
   const e = row.entry;
   const sub = [e.howKnown, row.addedByName ? `added by ${row.addedByName}` : null].filter(Boolean);
   const start = () => {
     const r = startListEntry(e.id);
     if (r.ok)
-      toastWithUndo(`${e.name} moved to Contact`, r.undo, {
+      toastWithUndo(`${e.name} moved to ${names.name("contact")}`, r.undo, {
         description: "Good luck! Their card is on the Pipeline tab.",
         undoneMessage: "Back on the list",
       });
@@ -311,7 +314,7 @@ function ListItem({
                     const r = addEntryToRecruiting(e.id);
                     if (r)
                       toastWithUndo(`${e.name} is on the recruiting pipeline too`, r.undo, {
-                        description: "They start in Contact made.",
+                        description: `They start in ${recruitingNames.name("contact")}.`,
                         undoneMessage: "Taken off the recruiting pipeline",
                       });
                   }}

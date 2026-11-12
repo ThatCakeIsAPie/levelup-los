@@ -63,6 +63,8 @@ import type {
 import { useTeamStore } from "@/data/team/store";
 import { useHomeLayoutStore, type HomeLayoutState } from "@/data/homeLayoutStore";
 import type { HomeLayout } from "@/data/homeLayout";
+import { useStageNamesStore, type StageNamesState } from "@/data/stageNames/store";
+import type { StageNameEntry } from "@/data/stageNames/rules";
 import type { Deputy, FeatureSwitch, TeamData } from "@/data/team/types";
 import { applyRemote, keyOf, syncContext, type Binding, type Row, type TableSpec } from "./engine";
 import * as m from "./rows";
@@ -1223,6 +1225,27 @@ export const homeLayoutBinding: Binding<HomeLayoutState> = {
   ],
 };
 
+// ---------------------------------------------------------------------------
+// Pipeline stage names (src/data/stageNames): your own rows only; the names set
+// above you come from effective_stage_names() (hydrate.ts), not from this table
+// ---------------------------------------------------------------------------
+
+export const stageNamesBinding: Binding<StageNamesState> = {
+  name: "stageNames",
+  store: useStageNamesStore,
+  specs: [
+    listSpec<StageNamesState, StageNameEntry>({
+      table: "stage_names",
+      pk: ["person_id", "pipeline", "stage_key"],
+      get: (s) => s.entries,
+      set: (entries) => ({ entries }),
+      toRow: m.stageNameToRow,
+      fromRow: m.stageNameFromRow,
+      insert: "upsert",
+    }),
+  ],
+};
+
 export const ALL_BINDINGS = [
   peopleBinding,
   eventCategoriesBinding,
@@ -1237,4 +1260,5 @@ export const ALL_BINDINGS = [
   customerPipelineBinding,
   teamBinding,
   homeLayoutBinding,
+  stageNamesBinding,
 ] as unknown as Binding<unknown>[];

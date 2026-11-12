@@ -29,6 +29,7 @@ import {
   useCurrentUser,
   useMe,
   usePipelineSummary,
+  useStageNames,
   useUnlocks,
   type CrmEvent,
 } from "@/data";
@@ -189,49 +190,48 @@ const Meta = ({ children, event }: { children: ReactNode; event?: boolean }) => 
 // Tiles
 // ---------------------------------------------------------------------------
 
-const PIPE_BANDS = [
-  { key: "contact", label: "Contact" },
-  { key: "first_meeting", label: "First meeting" },
-  { key: "first_plan", label: "First plan" },
-  { key: "registered", label: "Registered" },
-] as const;
+const PIPE_BANDS = ["contact", "first_meeting", "first_plan", "registered"] as const;
 
 /** This month's first meetings against the team goal, and where everyone sits. */
 function PipelineTile() {
   const p = usePipelineSummary();
+  const names = useStageNames("recruiting");
   if (!p) return null;
-  const total = PIPE_BANDS.reduce((s, b) => s + p.bands[b.key], 0);
+  const total = PIPE_BANDS.reduce((s, b) => s + p.bands[b], 0);
   return (
     <Tile link={{ to: "/pipeline" }} icon={Kanban} tone="pipeline" title="Pipeline" wide>
       <Value
         value={p.mg1}
-        note={`first ${p.mg1 === 1 ? "meeting" : "meetings"} this month${p.goal ? ` · goal ${p.goal}` : ""}`}
+        note={`${names.count("first_meeting", p.mg1)} this month${p.goal ? ` · goal ${p.goal}` : ""}`}
       />
       {total === 0 ? (
-        <Meta>Add the people you invite to see them move from contact to registered.</Meta>
+        <Meta>
+          Add the people you invite to see them move from {names.name("contact")} to{" "}
+          {names.name("registered")}.
+        </Meta>
       ) : (
         <>
           <span className="flex h-5 gap-[3px]" aria-hidden="true">
             {PIPE_BANDS.map((b) => (
               <span
-                key={b.key}
+                key={b}
                 className={cn(
                   "grid min-w-[22px] place-items-center rounded-[4px] text-[10px] font-extrabold tabular-nums",
-                  b.key === "first_meeting"
+                  b === "first_meeting"
                     ? "bg-sky text-on-sky"
                     : "bg-surface-2 text-muted-foreground",
                 )}
-                style={{ flex: Math.max(p.bands[b.key], 1) }}
+                style={{ flex: Math.max(p.bands[b], 1) }}
               >
-                {p.bands[b.key]}
+                {p.bands[b]}
               </span>
             ))}
           </span>
           <span className="text-[11px] text-muted-foreground">
             <span className="sr-only">
-              {PIPE_BANDS.map((b) => `${b.label} ${p.bands[b.key]}`).join(", ")}.{" "}
+              {PIPE_BANDS.map((b) => `${names.name(b)} ${p.bands[b]}`).join(", ")}.{" "}
             </span>
-            <span aria-hidden="true">{PIPE_BANDS.map((b) => b.label).join(" · ")}</span>
+            <span aria-hidden="true">{PIPE_BANDS.map((b) => names.name(b)).join(" · ")}</span>
           </span>
         </>
       )}

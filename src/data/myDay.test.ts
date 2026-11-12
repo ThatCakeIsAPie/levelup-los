@@ -3,6 +3,8 @@ import type { ActivityEvent } from "@/stores/activityStore";
 import type { CrmPerson } from "@/stores/peopleStore";
 import { localDate } from "@/lib/dates";
 import { myDayItems, type MyDayInput } from "./myDay";
+import { makeStageNames } from "./stageNames/names";
+import { resolveStageNames } from "./stageNames/rules";
 
 const today = localDate();
 const at = (h: number, m = 0) => {
@@ -200,5 +202,49 @@ describe("myDayItems", () => {
       "Moved Lena Ortega to First meeting on the customer pipeline",
       "Logged your own order: Protein · 30 PV",
     ]);
+  });
+
+  it('says the viewer\'s stage names, and "registered" only for the built-in one', () => {
+    const stages = resolveStageNames(
+      ["me"],
+      [
+        { personId: "me", pipeline: "recruiting", stage: "first_meeting", name: "Intro call" },
+        { personId: "me", pipeline: "recruiting", stage: "registered", name: "Joined" },
+        { personId: "me", pipeline: "customer", stage: "first_meeting", name: "Intro chat" },
+      ],
+    );
+    const move = (to: string, from: string | null = "contact") => ({
+      id: `m-${to}`,
+      personId: "p1",
+      ownerId: "me",
+      from,
+      to,
+      milestone: to,
+      movedAt: at(12),
+      movedBy: "me", // prettier-ignore
+    });
+    const items = myDayItems(
+      base({
+        recruitingStages: makeStageNames("recruiting", stages.recruiting),
+        customerStages: makeStageNames("customer", stages.customer),
+        pipelineMoves: [move("first_meeting"), move("registered", "first_plan")] as never,
+        entries: [
+          { id: "le1", ownerId: "me", name: "Lena Ortega", howKnown: null, phone: null, email: null, notes: null, rating: null, customerId: null, prospectId: null, addedBy: "t1", createdAt: yesterday(), updatedAt: yesterday() } as never, // prettier-ignore
+        ],
+        customerMoves: [
+          { id: "cm1", entryId: "le1", ownerId: "me", from: "contact", to: "first_meeting", band: "first_meeting", movedAt: at(10), movedBy: "me", createdCustomerId: null, setDitto: false }, // prettier-ignore
+        ],
+      }),
+    );
+    expect(items.map((i) => i.text).sort()).toEqual(
+      [
+        "Moved Grace Kim to Intro call",
+        "Moved Grace Kim to Joined",
+        "Moved Lena Ortega to Intro chat on the customer pipeline",
+      ].sort(),
+    );
+    // With the built-in name the old sentence stays.
+    const plain = myDayItems(base({ pipelineMoves: [move("registered", "first_plan")] as never }));
+    expect(plain.map((i) => i.text)).toEqual(["Grace Kim registered"]);
   });
 });

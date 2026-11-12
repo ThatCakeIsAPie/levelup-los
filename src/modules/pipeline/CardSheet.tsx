@@ -16,7 +16,6 @@ import {
 import { toastWithUndo } from "@/components/log/quickLog";
 import { cn } from "@/lib/utils";
 import {
-  RECRUITING_BAND_LABEL,
   RECRUITING_BOARD,
   REFERRAL_SOURCE,
   bookNextStep,
@@ -25,7 +24,9 @@ import {
   sameBooking,
   dropPipelineCard,
   updatePipelineCard,
+  useBoardDef,
   usePipelineColumns,
+  useStageNames,
   type BoardCard,
   type PipelineColumn,
 } from "@/data";
@@ -85,6 +86,8 @@ function CardDetails({
   onClose: () => void;
 }) {
   const col = columns.find((c) => c.id === card.column);
+  const names = useStageNames("recruiting");
+  const def = useBoardDef("recruiting");
   const ownerColumns = usePipelineColumns(card.ownerId);
   const bookable = bookableColumns(ownerColumns, card.cardColumn, RECRUITING_BOARD, card.band);
   const initial = bookingState(card.booking);
@@ -121,9 +124,7 @@ function CardDetails({
             <SheetTitle className="truncate text-base font-extrabold">{card.name}</SheetTitle>
             <SheetDescription className="text-[12.5px]">
               {card.ownerName ? `${card.ownerName}'s prospect · ` : ""}
-              {col
-                ? `${RECRUITING_BAND_LABEL[col.band]}${col.kind === "fixed" ? "" : " band"}`
-                : ""}
+              {col ? `${names.band(col.band)}${col.kind === "fixed" ? "" : " band"}` : ""}
             </SheetDescription>
           </div>
         </div>
@@ -131,7 +132,7 @@ function CardDetails({
       <div className="grid min-h-0 flex-1 content-start gap-4 overflow-y-auto px-5 pb-5 pt-4">
         <div className="grid gap-2 rounded-card bg-surface-2 px-3.5 py-3 text-[13px]">
           <div className="flex flex-wrap items-center gap-2">
-            <b>{col?.label ?? "Contact made"}</b>
+            <b>{col?.label ?? names.name("contact")}</b>
             <RatingChip rating={card.rating} />
             {card.stale && (
               <ToneChip tone="warn" icon={ClockAlert}>
@@ -183,7 +184,7 @@ function CardDetails({
           <BookingFields
             id="card-booking"
             columns={bookable}
-            bands={RECRUITING_BOARD.bands}
+            bands={def.bands}
             value={booking}
             onChange={(b) => {
               setBooking(b);

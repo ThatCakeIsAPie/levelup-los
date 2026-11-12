@@ -7,6 +7,7 @@ import { signOut } from "@/modules/login/auth";
 import type { Viewer } from "./access";
 import { useTeamStore } from "./team/store";
 import { deputyOfIds } from "./team/rules";
+import { forgetLocalFeedback } from "./feedback/localStore";
 
 /** The logged-in demo user, or null on the login page. */
 export function useSession(): DemoUser | null {
@@ -94,6 +95,7 @@ export function resetDemo(): void {
       if (k?.startsWith(STORAGE_KEY_PREFIX)) keys.push(k);
     }
     keys.forEach((k) => localStorage.removeItem(k));
+    forgetLocalFeedback();
   } catch {
     // Storage unavailable: a reload still resets in-memory state.
   }

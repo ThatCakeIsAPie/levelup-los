@@ -31,17 +31,11 @@ import {
   addListEntry,
   updateListEntry,
   useListOwners,
+  useStageNames,
   useListEntry,
   type ListRating,
   type Ref,
 } from "@/data";
-
-/** Where "Add someone" can put a new name on the board. */
-const START_IN = [
-  { id: "contact", label: "Contact (met them or reached out)" },
-  { id: NOT_CONTACTED, label: "Not contacted yet (on your list)" },
-  { id: "first_meeting", label: "First meeting (already met)" },
-];
 
 export type EntryDialogMode =
   { kind: "list"; ownerId: string } | { kind: "board" } | { kind: "edit"; entryId: string };
@@ -57,11 +51,12 @@ export function ListEntryDialog({
   mode: EntryDialogMode | null;
   onOpenChange: (open: boolean) => void;
 }) {
+  const names = useStageNames("customer");
   const title =
     mode?.kind === "edit" ? "Edit name" : mode?.kind === "board" ? "Add someone" : "Add names";
   const description =
     mode?.kind === "board"
-      ? "They go on your list and onto the board, in Contact unless you pick another column."
+      ? `They go on your list and onto the board, in ${names.name("contact")} unless you pick another column.`
       : mode?.kind === "list"
         ? "Everyone you know is a name: friends, family, coworkers, neighbors. Only the name is needed."
         : "Changes show for everyone who can see this list.";
@@ -86,6 +81,13 @@ export function ListEntryDialog({
 
 function EntryForm({ mode, onDone }: { mode: EntryDialogMode; onDone: () => void }) {
   const owners = useListOwners();
+  const names = useStageNames("customer");
+  // Where "Add someone" can put a new name on the board.
+  const startIn = [
+    { id: "contact", label: `${names.name("contact")} (met them or reached out)` },
+    { id: NOT_CONTACTED, label: "Not contacted yet (on your list)" },
+    { id: "first_meeting", label: `${names.name("first_meeting")} (already met)` },
+  ];
   const existing = useListEntry(mode.kind === "edit" ? mode.entryId : null);
   const [name, setName] = useState(existing?.name ?? "");
   const [howKnown, setHowKnown] = useState(existing?.howKnown ?? "");
@@ -224,7 +226,7 @@ function EntryForm({ mode, onDone }: { mode: EntryDialogMode; onDone: () => void
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {START_IN.map((c) => (
+              {startIn.map((c) => (
                 <SelectItem key={c.id} value={c.id}>
                   {c.label}
                 </SelectItem>

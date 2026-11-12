@@ -43,6 +43,7 @@ import type {
 import type { Campaign, Logistics, Payment, ReportSchedule, SharedCost } from "@/stores/opsStore";
 import type { ActivityEvent } from "@/stores/activityStore";
 import { sanitizeLayout, type HomeLayout } from "@/data/homeLayout";
+import type { StageNameEntry, StagePipeline } from "@/data/stageNames/rules";
 import type {
   AnnouncementDraft,
   Attachment,
@@ -628,6 +629,24 @@ export function homeLayoutFromRow(r: R<"dashboard_layouts">): [string, HomeLayou
 
 export function homeLayoutToRow(personId: string, l: HomeLayout): Row {
   return { person_id: personId, layout: { order: [...l.order], side: [...l.side] } };
+}
+
+// ---------------------------------------------------------------------------
+// Pipeline stage names (stage_names)
+// ---------------------------------------------------------------------------
+
+/** A stage name row (the loader drops pipelines and stages the app doesn't know). */
+export function stageNameFromRow(r: R<"stage_names">): StageNameEntry {
+  return {
+    personId: r.person_id!,
+    pipeline: r.pipeline as StagePipeline,
+    stage: r.stage_key!,
+    name: r.name!,
+  };
+}
+
+export function stageNameToRow(e: StageNameEntry): Row {
+  return { person_id: e.personId, pipeline: e.pipeline, stage_key: e.stage, name: e.name };
 }
 
 // ---------------------------------------------------------------------------

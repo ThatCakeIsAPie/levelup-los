@@ -12,10 +12,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  MILESTONE_LABEL,
   TRANSITIONS,
   setConversionTargets,
   setTeamGoal,
+  useStageNames,
   validGoal,
   validTarget,
   type ConversionTargets,
@@ -52,6 +52,7 @@ export function TeamGoalsDialog({
 }
 
 function GoalsForm({ settings, onDone }: { settings: TeamSettingsView; onDone: () => void }) {
+  const names = useStageNames("recruiting");
   const [goal, setGoal] = useState(String(settings.mg1Goal));
   const [targets, setTargets] = useState<Record<TransitionKey, string>>({
     contactToMeeting: String(settings.targets.contactToMeeting),
@@ -94,7 +95,10 @@ function GoalsForm({ settings, onDone }: { settings: TeamSettingsView; onDone: (
       }}
     >
       <div className="grid gap-1.5">
-        <Label htmlFor="tg-goal">First meetings (MG1) a month</Label>
+        <Label htmlFor="tg-goal">
+          {names.plural("first_meeting")}
+          {names.alias("first_meeting") ? ` (${names.alias("first_meeting")})` : ""} a month
+        </Label>
         <Input
           id="tg-goal"
           type="number"
@@ -113,7 +117,7 @@ function GoalsForm({ settings, onDone }: { settings: TeamSettingsView; onDone: (
         {TRANSITIONS.map(({ key, from, to }) => (
           <div key={key} className="flex items-center justify-between gap-3">
             <Label htmlFor={`tg-${key}`} className="text-[13px] font-normal">
-              {MILESTONE_LABEL[from]} → {MILESTONE_LABEL[to]}
+              {names.name(from)} → {names.name(to)}
             </Label>
             <span className="flex items-center gap-1.5">
               <Input
