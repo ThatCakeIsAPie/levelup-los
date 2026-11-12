@@ -7,6 +7,7 @@ import { addMonths, differenceInCalendarDays, endOfMonth, format, startOfMonth }
 import { localDate, parseDate } from "@/lib/dates";
 import type { CrmPerson } from "@/stores/peopleStore";
 import { downlineIds, type Viewer } from "../access";
+import { defaultStageNames, type StageNames } from "../stageNames/names";
 import {
   DEFAULT_MG1_GOAL,
   DO_NOT_CONTACT,
@@ -562,22 +563,30 @@ export function bandBreakdown(
   return { band, cohort: cohort.size, items, next, worst };
 }
 
-/** A plain coaching tip for the biggest gap. */
-export function gapTip(gap: TransitionStat, stall: BandBreakdown | undefined): string {
+/**
+ * A plain coaching tip for the biggest gap. Stage names come from `names` (the
+ * viewer's), so the sentences read the same with a custom name.
+ */
+export function gapTip(
+  gap: TransitionStat,
+  stall: BandBreakdown | undefined,
+  names: StageNames = defaultStageNames("recruiting"),
+): string {
   const at = stall?.worst && stall.worst.column.kind === "step" ? stall.worst.column.label : null;
+  const [meeting, plan] = [names.name("first_meeting"), names.name("first_plan")];
   switch (gap.key) {
     case "contactToMeeting":
       return at
-        ? `Most contacts never get to a first meeting, and most of them stop at ${at}. Set the meeting date while you're still talking.`
-        : "Most contacts never get to a first meeting. Set the meeting date while you're still talking.";
+        ? `Most contacts never reach ${meeting}, and most of them stop at ${at}. Set the date while you're still talking.`
+        : `Most contacts never reach ${meeting}. Set the date while you're still talking.`;
     case "meetingToPlan":
       return at
-        ? `People stall after the first meeting, mostly at ${at}. Book the plan before you leave the first meeting.`
-        : "People stall after the first meeting. Book the plan before you leave the first meeting.";
+        ? `People stall after ${meeting}, mostly at ${at}. Book ${plan} before you leave ${meeting}.`
+        : `People stall after ${meeting}. Book ${plan} before you leave ${meeting}.`;
     case "planToRegistered":
       return at
-        ? `Most people stall at ${at}, right after the plan. Booking the next step before leaving the first plan would close much of this gap.`
-        : "People stall after the plan. Booking the next step before leaving the first plan would close much of this gap.";
+        ? `Most people stall at ${at}, right after ${plan}. Booking the next step before leaving ${plan} would close much of this gap.`
+        : `People stall after ${plan}. Booking the next step before leaving ${plan} would close much of this gap.`;
   }
 }
 

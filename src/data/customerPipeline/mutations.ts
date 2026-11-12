@@ -18,6 +18,7 @@ import { addPerson, removePerson } from "../people";
 import { removeContact, removeSale } from "../crm";
 import { useCrmStore } from "@/stores/crmStore";
 import { getViewer } from "../session";
+import { getBoardDef } from "../stageNames/hooks";
 import { chainOf, columnsFor, validateMove } from "../pipeline/rules";
 import { addPipelineProspect } from "../pipeline/mutations";
 import { linksFor, type Ref } from "../referrals/rules";
@@ -35,7 +36,6 @@ import {
   type EntryInput,
 } from "./rules";
 import {
-  CUSTOMER_BOARD,
   NOT_CONTACTED,
   type CustomerBand,
   type CustomerCard,
@@ -64,9 +64,10 @@ function visibleEntry(id: string): ListEntry | undefined {
 function columnsForMove(ownerId: string, me: string): PipelineColumn<CustomerBand>[] {
   const { steps, hides } = customerPipeline();
   const people = usePeopleStore.getState().people;
-  const mine = columnsFor(chainOf(people, me, uplines()), steps, hides, CUSTOMER_BOARD);
+  const def = getBoardDef("customer");
+  const mine = columnsFor(chainOf(people, me, uplines()), steps, hides, def);
   if (ownerId === me) return mine;
-  const theirs = columnsFor(chainOf(people, ownerId, uplines()), steps, hides, CUSTOMER_BOARD);
+  const theirs = columnsFor(chainOf(people, ownerId, uplines()), steps, hides, def);
   const ids = new Set(mine.map((c) => c.id));
   return [...mine, ...theirs.filter((c) => !ids.has(c.id))];
 }
@@ -75,7 +76,7 @@ function columnsForMove(ownerId: string, me: string): PipelineColumn<CustomerBan
 function ownerColumns(ownerId: string): PipelineColumn<CustomerBand>[] {
   const { steps, hides } = customerPipeline();
   const people = usePeopleStore.getState().people;
-  return columnsFor(chainOf(people, ownerId, uplines()), steps, hides, CUSTOMER_BOARD);
+  return columnsFor(chainOf(people, ownerId, uplines()), steps, hides, getBoardDef("customer"));
 }
 
 function cardOf(entry: ListEntry): { card: CustomerCard; stored: boolean } {

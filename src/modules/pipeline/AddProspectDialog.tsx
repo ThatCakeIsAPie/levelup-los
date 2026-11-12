@@ -25,6 +25,8 @@ import {
   NO_BOOKING,
   RECRUITING_BOARD,
   addPipelineProspect,
+  useBoardDef,
+  useStageNames,
   bookableColumns,
   bookingError,
   useCurrentUser,
@@ -49,6 +51,7 @@ export function AddProspectDialog({
   onOpenChange: (open: boolean) => void;
   columns: PipelineColumn[];
 }) {
+  const names = useStageNames("recruiting");
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-md">
@@ -56,7 +59,7 @@ export function AddProspectDialog({
           <DialogTitle>Add prospect</DialogTitle>
           <DialogDescription>
             They join your People list as a prospect and start on the board. Unless they start in
-            Not contacted yet, it counts as a contact made today.
+            Not contacted yet, it counts toward {names.plural("contact")} today.
           </DialogDescription>
         </DialogHeader>
         {open && <AddForm columns={columns} onDone={() => onOpenChange(false)} />}
@@ -89,6 +92,7 @@ function AddForm({ columns, onDone }: { columns: PipelineColumn[]; onDone: () =>
   const [rating, setRating] = useState<ContactRating | null>(null);
   const [referredBy, setReferredBy] = useState<Ref | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const def = useBoardDef("recruiting");
   const choices = columns.filter((c) => c.id !== "registered" && c.band !== "out");
   // The booking lives on the owner's board, after the column they start in.
   const ownerColumns = usePipelineColumns(sponsorId);
@@ -167,7 +171,7 @@ function AddForm({ columns, onDone }: { columns: PipelineColumn[]; onDone: () =>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {RECRUITING_BOARD.bands
+              {def.bands
                 .filter((b) => choices.some((c) => c.band === b.id))
                 .map(({ id: m, label }) => (
                   <SelectGroup key={m}>
@@ -207,7 +211,7 @@ function AddForm({ columns, onDone }: { columns: PipelineColumn[]; onDone: () =>
       <BookingFields
         id="ap-booking"
         columns={bookable}
-        bands={RECRUITING_BOARD.bands}
+        bands={def.bands}
         value={booked}
         onChange={(b) => {
           setBooking(b);

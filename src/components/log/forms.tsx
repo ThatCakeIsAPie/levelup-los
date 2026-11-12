@@ -53,6 +53,7 @@ import {
   useLearning,
   useLearningGoal,
   useProspectPipeline,
+  useStageNames,
   useVisibleCustomers,
   useVisibleTeam,
   type LearningKind,
@@ -696,6 +697,7 @@ export function RecruitTouchForm({ kind }: { kind: RecruitTouch }) {
   const [boardPick, setBoardPick] = useState("");
   const [note, setNote] = useState("");
   const [win, setWin] = useWin(t.share, t.win, "Recruiting");
+  const stages = useStageNames("recruiting");
 
   if (options.length === 0) {
     return <EmptyState title="Nobody on your team yet" body="Log a new contact first." />;
@@ -754,7 +756,7 @@ export function RecruitTouchForm({ kind }: { kind: RecruitTouch }) {
         />
       </Field>
       {kind === "plan" && movesToPlan(board) && (
-        <BoardNote>Moves them to First plan on the pipeline board.</BoardNote>
+        <BoardNote>Moves them to {stages.name("first_plan")} on the pipeline board.</BoardNote>
       )}
       <div className="grid grid-cols-2 gap-3">
         <DateField id={`log-${kind}-date`} value={date} onChange={setDate} />

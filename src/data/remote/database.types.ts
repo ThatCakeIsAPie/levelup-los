@@ -4063,6 +4063,63 @@ export type Database = {
           },
         ];
       };
+      stage_names: {
+        Row: {
+          name: string;
+          person_id: string;
+          pipeline: string;
+          stage_key: string;
+          updated_at: string;
+          workspace_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          name: string;
+          person_id?: string;
+          pipeline: string;
+          stage_key: string;
+          updated_at?: string;
+          workspace_id?: string;
+        };
+        Update: {
+          name?: string;
+          person_id?: string;
+          pipeline?: string;
+          stage_key?: string;
+          updated_at?: string;
+          workspace_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "stage_names_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: false;
+            referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "stage_names_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "stage_names_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "stage_names_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       stat_requests: {
         Row: {
           created_at: string;
@@ -4346,6 +4403,17 @@ export type Database = {
       effective_biz_class: {
         Args: { p_biz_class: string; p_business_start_date: string };
         Returns: string;
+      };
+      effective_stage_names: {
+        Args: { p_include_own?: boolean };
+        Returns: {
+          depth: number;
+          from_person_id: string;
+          from_person_name: string;
+          name: string;
+          pipeline: string;
+          stage_key: string;
+        }[];
       };
       event_rsvp_counts: {
         Args: Record<PropertyKey, never>;

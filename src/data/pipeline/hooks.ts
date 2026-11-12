@@ -72,6 +72,7 @@ import {
   type StepBand,
 } from "./types";
 import { columnsFor } from "./rules";
+import { useBoardDef, useStageNames } from "../stageNames/hooks";
 import { ratingRank, type ContactRating } from "../rating";
 import { bookingOf, bookingView, type BookingView } from "./booking";
 import { useReferralIndex } from "../referrals/hooks";
@@ -171,9 +172,10 @@ export function usePipelineColumns(personId: string | undefined): PipelineColumn
   const hides = usePipelineStore((s) => s.hides);
   const chatPeople = useChatPeople();
   const viewer = useViewer();
+  const def = useBoardDef("recruiting");
   return useMemo(() => {
     if (!personId) return [];
-    return columnsFor(chainOf(people, personId, uplines), steps, hides).map((c) =>
+    return columnsFor(chainOf(people, personId, uplines), steps, hides, def).map((c) =>
       c.ownerId
         ? {
             ...c,
@@ -184,7 +186,7 @@ export function usePipelineColumns(personId: string | undefined): PipelineColumn
           }
         : c,
     );
-  }, [people, personId, steps, hides, chatPeople, viewer, uplines]);
+  }, [people, personId, steps, hides, chatPeople, viewer, uplines, def]);
 }
 
 /** "Maria" or "You". */
@@ -280,6 +282,7 @@ export function usePipelineBoard(scope: PipelineScope, month: string): PipelineB
   const columns = usePipelineColumns(opt?.leaderId);
   const uplines = useUplines();
   const refs = useReferralIndex();
+  const def = useBoardDef("recruiting");
   const today = localDate();
   return useMemo(() => {
     if (!opt) return null;
@@ -292,7 +295,7 @@ export function usePipelineBoard(scope: PipelineScope, month: string): PipelineB
         c =
           ownerId === opt.leaderId
             ? columns
-            : columnsFor(chainOf(people, ownerId, uplines), data.steps, data.hides);
+            : columnsFor(chainOf(people, ownerId, uplines), data.steps, data.hides, def);
         ownerCols.set(ownerId, c);
       }
       return c;
@@ -386,7 +389,7 @@ export function usePipelineBoard(scope: PipelineScope, month: string): PipelineB
       registered: { cards: regCards, total: regReaches.length },
       inProgress,
     };
-  }, [opt, people, ids, data, lastContact, columns, month, today, uplines, refs]);
+  }, [opt, people, ids, data, lastContact, columns, month, today, uplines, refs, def]);
 }
 
 // ---------------------------------------------------------------------------
@@ -597,6 +600,7 @@ export function usePipelineConversions(
   const viewer = useViewer();
   const columns = usePipelineColumns(opt?.leaderId);
   const chatPeople = useChatPeople();
+  const names = useStageNames("recruiting");
   const today = localDate();
   const from = localDate(subDays(new Date(), periodDays - 1));
   const to = today;
@@ -657,7 +661,7 @@ export function usePipelineConversions(
       counts,
       stats,
       gap,
-      tip: gap ? gapTip(gap, stall) : null,
+      tip: gap ? gapTip(gap, stall, names) : null,
       breakdowns,
       targets,
       rows,
@@ -678,6 +682,7 @@ export function usePipelineConversions(
     remoteShared,
     chatPeople,
     uplines,
+    names,
   ]);
 }
 
@@ -722,6 +727,7 @@ export function useProspectPipeline(personId: string | undefined): ProspectPipel
   const columns = usePipelineColumns(viewer?.personId);
   const uplines = useUplines();
   const name = useNamer();
+  const def = useBoardDef("recruiting");
   const today = localDate();
   return useMemo(() => {
     if (!viewer || viewer.role === "candidate" || !personId || !ids.has(personId)) return null;
@@ -775,7 +781,7 @@ export function useProspectPipeline(personId: string | undefined): ProspectPipel
         const ownerColumns =
           !ownerId || ownerId === viewer.personId
             ? columns
-            : columnsFor(chainOf(people, ownerId, uplines), data.steps, data.hides);
+            : columnsFor(chainOf(people, ownerId, uplines), data.steps, data.hides, def);
         return {
           ownerId,
           ownerColumns,
@@ -783,7 +789,7 @@ export function useProspectPipeline(personId: string | undefined): ProspectPipel
         };
       })(),
     };
-  }, [viewer, personId, ids, people, data, columns, lastContact, today, name, uplines]);
+  }, [viewer, personId, ids, people, data, columns, lastContact, today, name, uplines, def]);
 }
 
 // ---------------------------------------------------------------------------

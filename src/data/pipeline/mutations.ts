@@ -19,6 +19,7 @@ import { getViewer } from "../session";
 import type { ContactRating } from "../rating";
 import { linksFor, type Ref } from "../referrals/rules";
 import { visibleIdSet } from "../access";
+import { getBoardDef } from "../stageNames/hooks";
 import { customerPipeline, updateCustomerPipeline } from "../customerPipeline/store";
 import {
   CUSTOMER_BOARD,
@@ -103,9 +104,10 @@ function visiblePerson(id: string): CrmPerson | undefined {
 function columnsForMove(person: CrmPerson, me: string): PipelineColumn[] {
   const { steps, hides } = pipeline();
   const people = usePeopleStore.getState().people;
-  const mine = columnsFor(chainOf(people, me, uplines()), steps, hides);
+  const def = getBoardDef("recruiting");
+  const mine = columnsFor(chainOf(people, me, uplines()), steps, hides, def);
   if (!person.sponsorId || person.sponsorId === me) return mine;
-  const theirs = columnsFor(chainOf(people, person.sponsorId, uplines()), steps, hides);
+  const theirs = columnsFor(chainOf(people, person.sponsorId, uplines()), steps, hides, def);
   const ids = new Set(mine.map((c) => c.id));
   return [...mine, ...theirs.filter((c) => !ids.has(c.id))];
 }
@@ -114,7 +116,12 @@ function columnsForMove(person: CrmPerson, me: string): PipelineColumn[] {
 function ownerColumns(person: CrmPerson, me: string): PipelineColumn[] {
   const { steps, hides } = pipeline();
   const people = usePeopleStore.getState().people;
-  return columnsFor(chainOf(people, person.sponsorId ?? me, uplines()), steps, hides);
+  return columnsFor(
+    chainOf(people, person.sponsorId ?? me, uplines()),
+    steps,
+    hides,
+    getBoardDef("recruiting"),
+  );
 }
 
 /** The card as stored, or the implicit Contact made card for a prospect without one. */
@@ -511,7 +518,12 @@ export function addPipelineStep(
   if (!me) return { ok: false, error: "Candidates don't have a pipeline yet." };
   const t = stepTables(kind);
   if (!t.def.stepBands.includes(band)) return { ok: false, error: "Steps can't go there." };
-  const error = stepLabelError(label, bandLabels(t, band, me), undefined, t.def.reserved);
+  const error = stepLabelError(
+    label,
+    bandLabels(t, band, me),
+    undefined,
+    getBoardDef(t.def.kind).reserved,
+  );
   if (error) return { ok: false, error };
   const step: PipelineStep<string> = {
     id: crypto.randomUUID(),
@@ -541,7 +553,7 @@ export function renamePipelineStep(
     label,
     bandLabels(t, step.band, me, stepId),
     undefined,
-    t.def.reserved,
+    getBoardDef(t.def.kind).reserved,
   );
   if (error) return { ok: false, error };
   t.setSteps((steps) => steps.map((x) => (x.id === stepId ? { ...x, label: label.trim() } : x)));

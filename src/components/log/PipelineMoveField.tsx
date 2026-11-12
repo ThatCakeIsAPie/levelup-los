@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { MILESTONES, MILESTONE_LABEL, type ProspectPipeline } from "@/data";
+import { MILESTONES, useStageNames, type ProspectPipeline } from "@/data";
 import { Field } from "./parts";
 import { boardOptions, boardTarget } from "./pipelineMove";
 
@@ -27,6 +27,7 @@ export function BoardMoveField({
   pick: string;
   onPick: (v: string) => void;
 }) {
+  const names = useStageNames("recruiting");
   const options = boardOptions(pipeline);
   if (!pipeline?.onBoard || options.length === 0) return null;
   const value = boardTarget(pipeline, pick) ?? "none";
@@ -44,7 +45,7 @@ export function BoardMoveField({
             return (
               <SelectGroup key={m}>
                 <SelectLabel className="text-[10px] uppercase tracking-[.08em] text-faint">
-                  {MILESTONE_LABEL[m]}
+                  {names.name(m)}
                 </SelectLabel>
                 {cols.map((c) => (
                   <SelectItem key={c.id} value={c.id}>

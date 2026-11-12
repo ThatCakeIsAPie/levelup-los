@@ -24,5 +24,35 @@ export default tseslint.config(
       "@typescript-eslint/no-unused-vars": "off",
     },
   },
+  {
+    // Stage names are renameable (src/data/stageNames): pages get them from
+    // useStageNames(), never from the built-in constants.
+    files: [
+      "src/modules/**/*.{ts,tsx}",
+      "src/components/**/*.{ts,tsx}",
+      "src/routes/**/*.{ts,tsx}",
+    ],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "@/data",
+              importNames: [
+                "MILESTONE_LABEL",
+                "MILESTONE_COLUMN_LABEL",
+                "RECRUITING_BAND_LABEL",
+                "CUSTOMER_MILESTONE_LABEL",
+                "CUSTOMER_BAND_LABEL",
+              ],
+              message:
+                "Stage names can be renamed per person: use useStageNames(pipeline) from @/data, never the built-in labels.",
+            },
+          ],
+        },
+      ],
+    },
+  },
   eslintPluginPrettier,
 );

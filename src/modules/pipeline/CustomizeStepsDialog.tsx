@@ -23,10 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import {
-  CUSTOMER_MILESTONE_LABEL,
   MAX_STEP_LABEL,
-  MILESTONE_COLUMN_LABEL,
-  MILESTONE_LABEL,
   addPipelineStep,
   deletePipelineStep,
   hidePipelineStep,
@@ -34,6 +31,7 @@ import {
   renamePipelineStep,
   showPipelineStep,
   useCustomerStepsEditor,
+  useStageNames,
   useStepsEditor,
   type BoardKind,
   type CustomerStepBand,
@@ -55,22 +53,15 @@ interface EditorStep {
   cards: number;
 }
 
-/** Milestone names per board. */
-const NAMES: Record<
-  BoardKind,
-  { label: (band: string) => string; column: (band: string) => string; last: string }
-> = {
-  recruiting: {
-    label: (b) => MILESTONE_LABEL[b as StepBand],
-    column: (b) => MILESTONE_COLUMN_LABEL[b as StepBand],
-    last: MILESTONE_COLUMN_LABEL.registered,
-  },
-  customer: {
-    label: (b) => CUSTOMER_MILESTONE_LABEL[b as CustomerStepBand],
-    column: (b) => CUSTOMER_MILESTONE_LABEL[b as CustomerStepBand],
-    last: CUSTOMER_MILESTONE_LABEL.on_ditto,
-  },
-};
+/** The viewer's milestone names for a board (their own, else inherited, else the defaults). */
+function useMilestoneNames(kind: BoardKind) {
+  const names = useStageNames(kind);
+  return {
+    label: (band: string) => names.name(band),
+    column: (band: string) => names.column(band),
+    last: names.column(kind === "customer" ? "on_ditto" : "registered"),
+  };
+}
 
 /**
  * Customize steps: milestones are locked; inherited steps can be hidden for
@@ -94,9 +85,9 @@ export function CustomizeStepsDialog({
             {kind === "customer" ? "Customize customer steps" : "Customize steps"}
           </DialogTitle>
           <DialogDescription>
-            The four milestones are the same for everyone, so every team&rsquo;s numbers add up.
-            Steps between them are yours: your team sees them too. Hide your upline&rsquo;s steps
-            your team doesn&rsquo;t use.
+            The four milestones are the same for everyone, so every team&rsquo;s numbers add up; use
+            Rename stages to call them something else. Steps between them are yours: your team sees
+            them too. Hide your upline&rsquo;s steps your team doesn&rsquo;t use.
           </DialogDescription>
         </DialogHeader>
         {kind === "customer" ? <CustomerBands /> : <RecruitingBands />}
@@ -114,13 +105,14 @@ function CustomerBands() {
 }
 
 function Bands({ bands, kind }: { bands: EditorBand[]; kind: BoardKind }) {
+  const names = useMilestoneNames(kind);
   return (
     <ol className="grid gap-4">
       {bands.map((b, i) => (
         <BandEditor key={b.band} band={b} index={i} kind={kind} />
       ))}
       <li className="grid gap-1.5">
-        <MilestoneRow index={bands.length + 1} label={NAMES[kind].last} />
+        <MilestoneRow index={bands.length + 1} label={names.last} />
       </li>
     </ol>
   );
@@ -133,7 +125,7 @@ function MilestoneRow({ index, label }: { index: number; label: string }) {
         {index}
       </span>
       <Flag className="size-3.5 text-amber-strong" aria-hidden="true" />
-      <b>{label}</b>
+      <b className="min-w-0 truncate">{label}</b>
       <span className="ml-auto inline-flex items-center gap-1 text-[11px] font-semibold text-muted-foreground">
         <Lock className="size-3" aria-hidden="true" /> Milestone
       </span>
@@ -145,7 +137,8 @@ function BandEditor({ band, index, kind }: { band: EditorBand; index: number; ki
   const [label, setLabel] = useState("");
   const [error, setError] = useState<string | null>(null);
   const own = band.steps.filter((s) => s.own);
-  const name = NAMES[kind].label(band.band);
+  const names = useMilestoneNames(kind);
+  const name = names.label(band.band);
   const add = () => {
     const r = addPipelineStep(band.band as StepBand | CustomerStepBand, label, kind);
     if (!r.ok) {
@@ -157,7 +150,7 @@ function BandEditor({ band, index, kind }: { band: EditorBand; index: number; ki
   };
   return (
     <li className="grid gap-1.5" aria-label={`${name} band`}>
-      <MilestoneRow index={index + 1} label={NAMES[kind].column(band.band)} />
+      <MilestoneRow index={index + 1} label={names.column(band.band)} />
       <ul className="grid gap-1 pl-3">
         {band.steps.map((s) => (
           <StepRow
@@ -214,6 +207,7 @@ function StepRow({
   kind: BoardKind;
 }) {
   const [editing, setEditing] = useState(false);
+  const names = useMilestoneNames(kind);
   const [name, setName] = useState(s.step.label);
   const [error, setError] = useState<string | null>(null);
   const [confirm, setConfirm] = useState(false);
@@ -354,8 +348,8 @@ function StepRow({
           <AlertDialogHeader>
             <AlertDialogTitle>Delete {s.step.label}?</AlertDialogTitle>
             <AlertDialogDescription>
-              {plural(s.cards, "card")} in it move back to {NAMES[kind].label(s.step.band)}. Past
-              moves still count toward the milestone. Your team loses this step too.
+              {plural(s.cards, "card")} in it move back to {names.label(s.step.band)}. Past moves
+              still count toward the milestone. Your team loses this step too.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
