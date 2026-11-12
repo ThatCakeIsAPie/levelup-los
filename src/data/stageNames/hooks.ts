@@ -1,7 +1,7 @@
 /**
  * Stage names for the signed-in person (rules in ./rules): the one place UI
- * and data code get a stage's displayed name, and the writes behind the rename
- * dialog. Same in both data sources; they differ only in where the names set
+ * and data code get a stage's displayed name, and the writes behind renaming
+ * them (the Customize steps dialog). Same in both data sources; they differ only in where the names set
  * above you come from:
  *  - demo: the sponsor tree in the people store, every person's own names in
  *    the stage names store;
@@ -170,7 +170,7 @@ export function getBoardDef(pipeline: StagePipeline): BoardDef<string> {
 }
 
 // ---------------------------------------------------------------------------
-// The rename dialog
+// The stage name editor
 // ---------------------------------------------------------------------------
 
 export interface StageNameRow {
@@ -189,7 +189,7 @@ export interface StageNameEditor {
   reserved: string[];
 }
 
-/** The signed-in person's names for one pipeline, as the rename dialog edits them. */
+/** The signed-in person's names for one pipeline, as the Customize steps dialog edits them. */
 export function useStageNameEditor(pipeline: StagePipeline): StageNameEditor {
   const ctx = useContext();
   return useMemo(() => editorOf(ctx, pipeline), [ctx, pipeline]);

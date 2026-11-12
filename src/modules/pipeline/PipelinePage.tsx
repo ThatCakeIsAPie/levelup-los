@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { CalendarDays, Columns3, Kanban, Pencil, Plus, Target } from "lucide-react";
+import { CalendarDays, Columns3, Kanban, Plus, Target } from "lucide-react";
 import { EmptyState, PageHeader } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import {
@@ -34,7 +34,6 @@ import { ownCards } from "./format";
 import { ConversionsTab } from "./ConversionsTab";
 import { ScopeToggle } from "./ScopeToggle";
 import { CustomizeStepsDialog } from "./CustomizeStepsDialog";
-import { RenameStagesDialog } from "./RenameStagesDialog";
 import { AddProspectDialog } from "./AddProspectDialog";
 import { StatRequestsPanel } from "./StatsSharing";
 import { TeamGoalsDialog } from "./TeamGoalsDialog";
@@ -75,7 +74,6 @@ function Pipeline({ tab, onTab }: { tab: PipelineTab; onTab: (tab: PipelineTab) 
   const [month, setMonth] = useState(current);
   const [period, setPeriod] = useState<PeriodDays>(90);
   const [stepsOpen, setStepsOpen] = useState(false);
-  const [renameOpen, setRenameOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [goalsOpen, setGoalsOpen] = useState(false);
   const months = usePipelineMonths();
@@ -155,37 +153,26 @@ function Pipeline({ tab, onTab }: { tab: PipelineTab; onTab: (tab: PipelineTab) 
                 </SelectContent>
               </Select>
             )}
-            <Button variant="outline" size="sm" className="h-9" onClick={() => setRenameOpen(true)}>
-              <Pencil /> <span className="hidden sm:inline">Rename stages</span>
-              <span className="sm:hidden">Rename</span>
+            {tab === "board" && settings?.canEdit && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9"
+                onClick={() => setGoalsOpen(true)}
+                aria-label="Team goals"
+              >
+                <Target /> <span className="hidden sm:inline">Goals</span>
+              </Button>
+            )}
+            <Button variant="outline" size="sm" className="h-9" onClick={() => setStepsOpen(true)}>
+              <Columns3 /> <span className="hidden sm:inline">Customize steps</span>
+              <span className="sm:hidden">Steps</span>
             </Button>
             {tab === "board" && (
-              <>
-                {settings?.canEdit && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-9"
-                    onClick={() => setGoalsOpen(true)}
-                    aria-label="Team goals"
-                  >
-                    <Target /> <span className="hidden sm:inline">Goals</span>
-                  </Button>
-                )}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-9"
-                  onClick={() => setStepsOpen(true)}
-                >
-                  <Columns3 /> <span className="hidden sm:inline">Customize steps</span>
-                  <span className="sm:hidden">Steps</span>
-                </Button>
-                <Button size="sm" className="h-9" variant="soft" onClick={() => setAddOpen(true)}>
-                  <Plus /> <span className="hidden sm:inline">Add prospect</span>
-                  <span className="sm:hidden">Add</span>
-                </Button>
-              </>
+              <Button size="sm" className="h-9" variant="soft" onClick={() => setAddOpen(true)}>
+                <Plus /> <span className="hidden sm:inline">Add prospect</span>
+                <span className="sm:hidden">Add</span>
+              </Button>
             )}
           </>
         }
@@ -221,7 +208,6 @@ function Pipeline({ tab, onTab }: { tab: PipelineTab; onTab: (tab: PipelineTab) 
         : conv && settings && <ConversionsTab conv={conv} settings={settings} />}
 
       <CustomizeStepsDialog open={stepsOpen} onOpenChange={setStepsOpen} />
-      <RenameStagesDialog open={renameOpen} onOpenChange={setRenameOpen} pipeline="recruiting" />
       <AddProspectDialog open={addOpen} onOpenChange={setAddOpen} columns={myColumns} />
       {settings?.canEdit && (
         <TeamGoalsDialog open={goalsOpen} onOpenChange={setGoalsOpen} settings={settings} />
