@@ -1,11 +1,20 @@
-# Builds the app and publishes it to GitHub Pages on every push to the
-# `levelup` branch (or by hand with "Run workflow").
-# Live at https://coleholistics.us/levelup-los/
-name: Deploy to GitHub Pages
+# Builds a brand's browser-storage demo and publishes it on every push to that
+# brand's branch (or by hand with "Run workflow" on that branch).
+#
+#   levelup -> this repo's GitHub Pages site: https://coleholistics.us/levelup-los/
+#   heroes  -> the gh-pages branch of ThatCakeIsAPie/heroes-crm, which serves
+#              https://coleholistics.us/heroes-crm/
+#
+# A repo has one Pages site and its path is the repo name, so a second brand's
+# demo lives in a second repo that holds only the built files. Pushing there
+# uses a deploy key: the private half is this repo's HEROES_CRM_DEPLOY_KEY
+# secret, the public half is a write deploy key on heroes-crm.
+# To add a brand, add a line to the `case` in the "target" step.
+name: Deploy demo
 
 on:
   push:
-    branches: [levelup]
+    branches: [levelup, heroes]
   workflow_dispatch:
 
 permissions:
@@ -14,21 +23,25 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
+  group: pages-${{ github.ref_name }}
   cancel-in-progress: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      external: ${{ steps.target.outputs.external }}
     steps:
-      # This repo has a single GitHub Pages site and it serves the LevelUp demo,
-      # so the build always checks out the `levelup` branch, whichever branch
-      # triggered it. To publish another brand's demo instead (for example
-      # `heroes`), change `ref` here and `branches` under `on.push` above to
-      # that branch name.
+      - id: target
+        run: |
+          case "$GITHUB_REF_NAME" in
+            levelup) base="/${{ github.event.repository.name }}/"; external="" ;;
+            heroes)  base="/heroes-crm/"; external="ThatCakeIsAPie/heroes-crm" ;;
+            *) echo "::error::No demo is published from branch '$GITHUB_REF_NAME'."; exit 1 ;;
+          esac
+          echo "base=$base" >> "$GITHUB_OUTPUT"
+          echo "external=$external" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
-        with:
-          ref: levelup
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -37,19 +50,40 @@ jobs:
       - run: npm test
       - run: npm run build
         env:
-          BASE_PATH: /${{ github.event.repository.name }}/
+          BASE_PATH: ${{ steps.target.outputs.base }}
           # The public demo runs on browser storage with the demo-user picker
           # and never contacts a database (see src/lib/config.ts).
           VITE_DATA_SOURCE: local
       # Pages has no SPA rewrites: serve the app for unknown paths so deep
       # links like /people/4 load on refresh.
       - run: cp dist/index.html dist/404.html
-      - uses: actions/upload-pages-artifact@v3
+      - if: steps.target.outputs.external == ''
+        uses: actions/upload-pages-artifact@v3
         with:
           path: dist
+      - name: Publish to the brand's demo repo
+        if: steps.target.outputs.external != ''
+        env:
+          DEPLOY_KEY: ${{ secrets.HEROES_CRM_DEPLOY_KEY }}
+          TARGET: ${{ steps.target.outputs.external }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/deploy
+          chmod 600 ~/.ssh/deploy
+          ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
+          cd dist
+          touch .nojekyll
+          git init -q -b gh-pages
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Deploy ${GITHUB_REPOSITORY}@${GITHUB_SHA}"
+          GIT_SSH_COMMAND="ssh -i ~/.ssh/deploy -o IdentitiesOnly=yes" \
+            git push -f "git@github.com:${TARGET}.git" gh-pages
 
   deploy:
     needs: build
+    if: needs.build.outputs.external == ''
     runs-on: ubuntu-latest
     environment:
       name: github-pages
