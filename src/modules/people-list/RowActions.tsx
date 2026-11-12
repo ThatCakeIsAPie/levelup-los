@@ -8,6 +8,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { openLog } from "@/data";
+import { RowInviteItem } from "@/modules/invites/RowInviteItem";
 import { quickCheckIn } from "@/components/log/quickLog";
 import { cn } from "@/lib/utils";
 import type { PersonRow } from "./model";
@@ -73,6 +74,7 @@ export function RowActions({ row, className }: { row: PersonRow; className?: str
               <ShoppingBag /> Log a sale
             </DropdownMenuItem>
           )}
+          <RowInviteItem person={row.person} />
         </DropdownMenuContent>
       </DropdownMenu>
     </div>

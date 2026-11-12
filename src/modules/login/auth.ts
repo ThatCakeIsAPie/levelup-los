@@ -198,7 +198,7 @@ export function clearPendingInvite(): void {
 // Auth calls. Each returns an error message in plain language, or null.
 // ---------------------------------------------------------------------------
 
-function callbackUrl(params: Record<string, string | undefined> = {}): string {
+export function callbackUrl(params: Record<string, string | undefined> = {}): string {
   const q = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) if (v) q.set(k, v);
   const qs = q.toString();
