@@ -99,7 +99,15 @@ function GrowthPathCard({
 
   return (
     <SectionCard
-      title={own ? "Your growth path" : `${name}'s growth path`}
+      title={
+        own ? (
+          "Your growth path"
+        ) : (
+          <>
+            <Sensitive kind="name">{name}</Sensitive>&rsquo;s growth path
+          </>
+        )
+      }
       action={
         coach ? (
           <Button size="sm" variant="soft" onClick={() => openSheet({ tab: "pv" })}>
@@ -435,13 +443,28 @@ export function KeepUpNote({
       <ul className="grid gap-0.5">
         {items.map((s) => (
           <li key={s.code}>
-            <b>{s.label}</b>: {own ? "hit" : `${name} needs`} {monthlyTarget(s.code)} again this
-            month to keep it <span className="opacity-85">({soFar(s)})</span>.
+            <b>{s.label}</b>:{" "}
+            {own ? (
+              "hit"
+            ) : (
+              <>
+                <Sensitive kind="name">{name}</Sensitive> needs
+              </>
+            )}{" "}
+            {monthlyTarget(s.code)} again this month to keep it{" "}
+            <span className="opacity-85">({soFar(s)})</span>.
           </li>
         ))}
       </ul>
       <p className="text-[11.5px] opacity-85">
-        {own ? "You met" : `${name} met`} {items.length > 1 ? "them" : "it"} in {last}, so{" "}
+        {own ? (
+          "You met"
+        ) : (
+          <>
+            <Sensitive kind="name">{name}</Sensitive> met
+          </>
+        )}{" "}
+        {items.length > 1 ? "them" : "it"} in {last}, so{" "}
         {items.length > 1 ? "they count" : "it counts"}
         {until ? ` through ${dayLong(until)}` : " this month"}.
       </p>
@@ -550,7 +573,15 @@ function MilestoneDetail({
           </p>
           {hold === "live" && (
             <p className="text-muted-foreground">
-              It counts while {own ? "you keep" : `${name} keeps`} {countTarget(status.code)}.
+              It counts while{" "}
+              {own ? (
+                "you keep"
+              ) : (
+                <>
+                  <Sensitive kind="name">{name}</Sensitive> keeps
+                </>
+              )}{" "}
+              {countTarget(status.code)}.
             </p>
           )}
           {hold === "monthly" && status.heldUntil && !keepUp && (
@@ -595,7 +626,14 @@ function MilestoneDetail({
           {keepUp && (
             <p className="text-[12.5px]">
               Met in {monthName(addMonths(path.thisMonth.month, -1))}, so it counts through{" "}
-              <b>{reachedLong(status.heldUntil!)}</b>. To keep it, {own ? "hit" : `${name} needs`}{" "}
+              <b>{reachedLong(status.heldUntil!)}</b>. To keep it,{" "}
+              {own ? (
+                "hit"
+              ) : (
+                <>
+                  <Sensitive kind="name">{name}</Sensitive> needs
+                </>
+              )}{" "}
               {monthlyTarget(status.code)} again this month.
             </p>
           )}
@@ -655,7 +693,7 @@ function MilestoneDetail({
         <div className="flex flex-wrap gap-2 border-t border-line pt-2.5">
           {isMonthly(status.code) && (
             <Button size="sm" variant="outline" onClick={() => onCoach({ tab: "pv" })}>
-              <PencilLine /> Set {name}'s PV for a month
+              <PencilLine /> Set <Sensitive kind="name">{name}</Sensitive>&rsquo;s PV for a month
             </Button>
           )}
           <Button

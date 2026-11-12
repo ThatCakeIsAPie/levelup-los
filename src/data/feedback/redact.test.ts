@@ -101,7 +101,13 @@ describe("buildMatcher", () => {
     expect(matcher.size).toBeGreaterThan(5);
   });
   it("copes with regex characters in values", () => {
-    const m = buildMatcher({ names: ["A.B. (Jr) Smith+"], phones: [], emails: [], places: [], ids: ["IBO.1+"] });
+    const m = buildMatcher({
+      names: ["A.B. (Jr) Smith+"],
+      phones: [],
+      emails: [],
+      places: [],
+      ids: ["IBO.1+"],
+    });
     expect(m.find("see A.B. (Jr) Smith+ here").length).toBe(1);
     expect(m.find("Smith")).toEqual([[0, 5]]);
   });

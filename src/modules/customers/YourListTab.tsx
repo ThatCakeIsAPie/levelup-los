@@ -298,7 +298,7 @@ function ListItem({
           <RatingChip rating={e.rating} size="xs" />
         </span>
         <small className="block truncate text-[11.5px] text-muted-foreground">
-          {sub.join(" · ") || " "}
+          <Sensitive kind="note">{sub.join(" · ") || " "}</Sensitive>
         </small>
       </button>
       <span className="flex items-center gap-1">

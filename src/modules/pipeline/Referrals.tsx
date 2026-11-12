@@ -88,7 +88,9 @@ export function CardReferralLines({ card }: { card: BoardCard }) {
       {card.referredBy && (
         <div className="flex min-w-0 items-center gap-1.5 text-[11px] text-muted-foreground">
           <UserPlus className="size-3.5 shrink-0" aria-hidden="true" />
-          <span className="truncate">Referred by {card.referredBy}</span>
+          <span className="truncate">
+            Referred by <Sensitive kind="name">{card.referredBy}</Sensitive>
+          </span>
         </div>
       )}
     </>
@@ -253,7 +255,9 @@ function ChoiceItem({
       <span className="min-w-0 flex-1 truncate">
         <Sensitive kind="name">{c.name}</Sensitive>
       </span>
-      <span className="shrink-0 text-[11px] text-muted-foreground">{c.hint}</span>
+      <span className="shrink-0 text-[11px] text-muted-foreground">
+        <Sensitive kind="note">{c.hint}</Sensitive>
+      </span>
     </CommandItem>
   );
 }
@@ -337,7 +341,9 @@ export function ReferralsBlock({
               Referred by <ContactName c={referrer} />
             </span>
           ) : (
-            <span className="text-muted-foreground">Who referred {first}?</span>
+            <span className="text-muted-foreground">
+              Who referred <Sensitive kind="name">{first}</Sensitive>?
+            </span>
           )}
           <button
             type="button"
@@ -360,8 +366,9 @@ export function ReferralsBlock({
           </div>
           {source && referrals.length === 0 && (
             <p className="text-[12.5px] text-muted-foreground">
-              Ask {first} who they know who&rsquo;d be a good fit. Add each name here and it shows
-              &ldquo;Referred by {first}&rdquo;.
+              Ask <Sensitive kind="name">{first}</Sensitive> who they know who&rsquo;d be a good
+              fit. Add each name here and it shows &ldquo;Referred by{" "}
+              <Sensitive kind="name">{first}</Sensitive>&rdquo;.
             </p>
           )}
           {referrals.length > 0 && (
@@ -393,7 +400,7 @@ export function ReferralsBlock({
               className="justify-self-start"
               onClick={() => setAdding(true)}
             >
-              <Plus /> Add someone {first} referred
+              <Plus /> Add someone <Sensitive kind="name">{first}</Sensitive> referred
             </Button>
           )}
         </div>
@@ -440,7 +447,9 @@ export function AddReferredDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Add someone {firstName(referrerName)} referred</DialogTitle>
+          <DialogTitle>
+            Add someone <Sensitive kind="name">{firstName(referrerName)}</Sensitive> referred
+          </DialogTitle>
           <DialogDescription>
             They start in Not contacted yet and show &ldquo;Referred by{" "}
             <Sensitive kind="name">{referrerName}</Sensitive>&rdquo;.

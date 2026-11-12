@@ -43,6 +43,7 @@ import { BookingFields, NoteField } from "./BookingFields";
 import { BookedStep } from "./BookedStep";
 import { ReferralsBlock } from "./Referrals";
 
+import { sensitive } from "@/lib/sensitive";
 /** A card's details: where it is, move it, next step, hot, where you met, take it off the board. */
 export function CardSheet({
   card,
@@ -223,6 +224,7 @@ function CardDetails({
             </Label>
             <Input
               id="card-source"
+              {...sensitive("note")}
               value={source}
               maxLength={30}
               placeholder="e.g. Gym, Referral"

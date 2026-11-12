@@ -153,6 +153,7 @@ function AddForm({ columns, onDone }: { columns: PipelineColumn[]; onDone: () =>
           <Label htmlFor="ap-source">Where you met</Label>
           <Input
             id="ap-source"
+            {...sensitive("note")}
             value={source}
             maxLength={30}
             onChange={(e) => setSource(e.target.value)}

@@ -201,9 +201,16 @@ export function CustomersTab({
       <EmptyState
         icon={<Lock />}
         title={
-          count === 0
-            ? `${name} has no customers yet`
-            : `${name} has ${count} ${count === 1 ? "customer" : "customers"}`
+          count === 0 ? (
+            <>
+              <Sensitive kind="name">{name}</Sensitive> has no customers yet
+            </>
+          ) : (
+            <>
+              <Sensitive kind="name">{name}</Sensitive> has {count}{" "}
+              {count === 1 ? "customer" : "customers"}
+            </>
+          )
         }
         body="Customer names and purchases are private to the person who owns them, so only the count is shown here."
       />

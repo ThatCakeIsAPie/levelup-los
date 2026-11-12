@@ -26,6 +26,7 @@ import { useBoardDrag, type DragInfo } from "./useBoardDrag";
 import { CardReferralLines } from "./Referrals";
 import { ageLong, ageShort, bookingText, bookingTone, ownCards, shortDate, stepBy } from "./format";
 
+import { sensitive } from "@/lib/sensitive";
 const SHOW = 5;
 
 /** Menus render in a portal, but React events still bubble to the card: stop them here. */
@@ -491,7 +492,11 @@ function DesktopCard({ card, ctx }: { card: BoardCard; ctx: CardCtx }) {
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
         <OwnerTag card={card} mine={mine} />
         <Heat card={card} />
-        {card.source && <span className="truncate">{card.source}</span>}
+        {card.source && (
+          <span className="truncate" {...sensitive("note")}>
+            {card.source}
+          </span>
+        )}
       </div>
       {card.elsewhere && (
         <div className="text-[10.5px] text-muted-foreground">

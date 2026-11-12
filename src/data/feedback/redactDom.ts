@@ -92,9 +92,21 @@ function blankReplaced(el: Element): void {
   }
 }
 
+/**
+ * A "text-overflow: ellipsis" parent draws its "…" in its own colour where a
+ * black bar is cut off. Cut the bar off cleanly instead.
+ */
+function clipEllipsis(el: Element): void {
+  for (let a: HTMLElement | null = el as HTMLElement, i = 0; a && i < 5; a = a.parentElement, i++) {
+    if (a.style?.textOverflow === "ellipsis")
+      a.style.setProperty("text-overflow", "clip", "important");
+  }
+}
+
 /** Paint one element (and everything inside it) black. */
 export function blackOut(el: Element): void {
   if (!(el instanceof HTMLElement || el instanceof SVGElement)) return;
+  clipEllipsis(el);
   blankReplaced(el);
   hideInside(el);
   paintBlack(el);
@@ -114,6 +126,15 @@ function redactTextNode(node: Text, matcher: SensitiveMatcher): number {
   const text = node.data;
   const ranges = matcher.find(text);
   if (!ranges.length) return 0;
+  // Inside a marked box it is hidden already.
+  if (parent.closest(`[${REDACTED_ATTR}]`)) return 0;
+  // Dev builds say where a sensitive value was found that nobody marked.
+  if (import.meta.env.DEV) {
+    console.debug("[feedback] unmarked sensitive text, mark it with sensitive()", {
+      text: text.trim().slice(0, 40),
+      element: `${parent.tagName.toLowerCase()}.${parent.getAttribute("class") ?? ""}`.slice(0, 80),
+    });
+  }
 
   // A select shows its chosen option's text, a textarea its value: black the control.
   const control = parent.closest("select, textarea");
@@ -140,6 +161,7 @@ function redactTextNode(node: Text, matcher: SensitiveMatcher): number {
     const span = doc.createElement("span");
     span.textContent = value;
     paintBlack(span);
+    clipEllipsis(parent);
     return span;
   };
   if (whole) {

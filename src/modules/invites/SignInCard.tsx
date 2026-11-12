@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Copy, KeyRound, Send } from "lucide-react";
 import { toast } from "sonner";
-import { SectionCard } from "@/components/brand";
+import { SectionCard, Sensitive } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import type { CrmPerson } from "@/data";
 import { inviteLink } from "./api";
@@ -51,13 +51,16 @@ export function SignInCard({ person }: { person: CrmPerson }) {
             <>
               <p className="text-[13px] font-semibold">Invited, not signed in yet</p>
               <p className="text-[12.5px] text-muted-foreground">{inviteStatusLine(invite)}</p>
-              <p className="truncate text-[12.5px] text-muted-foreground">{invite.email}</p>
+              <p className="truncate text-[12.5px] text-muted-foreground">
+                <Sensitive kind="email">{invite.email}</Sensitive>
+              </p>
             </>
           ) : (
             <>
               <p className="text-[13px] font-semibold">No sign-in yet</p>
               <p className="text-[12.5px] text-muted-foreground">
-                Invite {person.name.split(" ")[0]} to sign in to this record.
+                Invite <Sensitive kind="name">{person.name.split(" ")[0]}</Sensitive> to sign in to
+                this record.
               </p>
             </>
           )}
