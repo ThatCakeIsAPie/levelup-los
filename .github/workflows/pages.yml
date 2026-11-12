@@ -3,10 +3,10 @@
 #
 #   levelup -> this repo's GitHub Pages site: https://coleholistics.us/levelup-los/
 #   heroes  -> the gh-pages branch of ThatCakeIsAPie/heroes-crm, which serves
-#              https://coleholistics.us/heroes-crm/
+#              https://heroes.coleholistics.us/ (custom domain, so base "/")
 #
-# A repo has one Pages site and its path is the repo name, so a second brand's
-# demo lives in a second repo that holds only the built files. Pushing there
+# A repo has one Pages site, so a second brand's demo lives in a second repo
+# that holds only the built files. Pushing there
 # uses a deploy key: the private half is this repo's HEROES_CRM_DEPLOY_KEY
 # secret, the public half is a write deploy key on heroes-crm.
 # To add a brand, add a line to the `case` in the "target" step.
@@ -32,15 +32,19 @@ jobs:
     outputs:
       external: ${{ steps.target.outputs.external }}
     steps:
+      # base: URL path the app is served under. external: repo that hosts the
+      # built files (empty = this repo's Pages site). cname: custom domain of
+      # that external site (written as its CNAME file so each deploy keeps it).
       - id: target
         run: |
           case "$GITHUB_REF_NAME" in
-            levelup) base="/${{ github.event.repository.name }}/"; external="" ;;
-            heroes)  base="/heroes-crm/"; external="ThatCakeIsAPie/heroes-crm" ;;
+            levelup) base="/${{ github.event.repository.name }}/"; external=""; cname="" ;;
+            heroes)  base="/"; external="ThatCakeIsAPie/heroes-crm"; cname="heroes.coleholistics.us" ;;
             *) echo "::error::No demo is published from branch '$GITHUB_REF_NAME'."; exit 1 ;;
           esac
           echo "base=$base" >> "$GITHUB_OUTPUT"
           echo "external=$external" >> "$GITHUB_OUTPUT"
+          echo "cname=$cname" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
@@ -66,6 +70,7 @@ jobs:
         env:
           DEPLOY_KEY: ${{ secrets.HEROES_CRM_DEPLOY_KEY }}
           TARGET: ${{ steps.target.outputs.external }}
+          CNAME: ${{ steps.target.outputs.cname }}
         run: |
           mkdir -p ~/.ssh
           printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/deploy
@@ -73,6 +78,7 @@ jobs:
           ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
           cd dist
           touch .nojekyll
+          if [ -n "$CNAME" ]; then echo "$CNAME" > CNAME; fi
           git init -q -b gh-pages
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
