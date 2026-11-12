@@ -11,6 +11,7 @@ import {
   STAGE_SOLID_CLASS,
   StatTile,
   ToneChip,
+  Sensitive,
 } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import {
@@ -224,7 +225,7 @@ function PersonLink({ person }: { person: CrmPerson }) {
       params={{ id: person.id }}
       className="block truncate rounded-sm font-semibold hover:underline focus-visible:outline-2 focus-visible:outline-ring"
     >
-      {person.name}
+      <Sensitive kind="name">{person.name}</Sensitive>
     </Link>
   );
 }

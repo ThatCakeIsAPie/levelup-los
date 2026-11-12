@@ -10,6 +10,7 @@ import {
   StatStrip,
   ToneChip,
   useIsDesktop,
+  Sensitive,
 } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -208,7 +209,7 @@ export function AuditComparison({ event }: { event: CrmEvent }) {
                             params={{ id: r.personId }}
                             className="truncate rounded-sm font-semibold hover:underline focus-visible:outline-2 focus-visible:outline-ring"
                           >
-                            {r.personName}
+                            <Sensitive kind="name">{r.personName}</Sensitive>
                           </Link>
                         </div>
                       </TableCell>
@@ -257,7 +258,7 @@ export function AuditComparison({ event }: { event: CrmEvent }) {
                       params={{ id: r.personId }}
                       className="min-w-0 flex-1 truncate rounded-sm text-[13px] font-semibold hover:underline"
                     >
-                      {r.personName}
+                      <Sensitive kind="name">{r.personName}</Sensitive>
                     </Link>
                     {!r.byEvent[event.id] && (
                       <Button size="sm" variant="soft" onClick={() => invite(r)}>

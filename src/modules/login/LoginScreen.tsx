@@ -1,6 +1,6 @@
 import { useNavigate } from "@tanstack/react-router";
 import { ChevronRight, FlaskConical } from "lucide-react";
-import { PersonAvatar } from "@/components/brand";
+import { PersonAvatar, Sensitive } from "@/components/brand";
 import { DEMO_USERS, login, roleLabel } from "@/data";
 import { IS_LOCAL_DEMO } from "@/lib/config";
 import { AuthHeading, AuthLayout } from "./AuthLayout";
@@ -41,7 +41,9 @@ function DemoPicker() {
             >
               <PersonAvatar name={u.name} stage={ROLE_STAGE[u.role]} size="lg" />
               <span className="min-w-0">
-                <span className="block truncate text-sm font-bold">{u.name}</span>
+                <span className="block truncate text-sm font-bold">
+                  <Sensitive kind="name">{u.name}</Sensitive>
+                </span>
                 <span className="block text-[12.5px] text-muted-foreground">
                   <span className="font-semibold text-foreground">
                     {u.label ?? roleLabel[u.role]}

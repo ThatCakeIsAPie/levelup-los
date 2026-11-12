@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { format } from "date-fns";
 import { useNavigate } from "@tanstack/react-router";
 import { CalendarClock, ClockAlert, Flag, GripVertical, MoreHorizontal, X } from "lucide-react";
-import { PersonAvatar, RatingChip, useIsDesktop } from "@/components/brand";
+import { PersonAvatar, RatingChip, useIsDesktop, Sensitive } from "@/components/brand";
 import { cn } from "@/lib/utils";
 import {
   monthName,
@@ -26,6 +26,7 @@ import { useBoardDrag, type DragInfo } from "./useBoardDrag";
 import { CardReferralLines } from "./Referrals";
 import { ageLong, ageShort, bookingText, bookingTone, ownCards, shortDate, stepBy } from "./format";
 
+import { sensitive } from "@/lib/sensitive";
 const SHOW = 5;
 
 /** Menus render in a portal, but React events still bubble to the card: stop them here. */
@@ -442,7 +443,9 @@ function OwnerTag({
         size="sm"
         className="size-[18px] text-[8px]"
       />
-      <span className="truncate">{card.ownerName}</span>
+      <span className="truncate">
+        <Sensitive kind="name">{card.ownerName}</Sensitive>
+      </span>
     </span>
   );
 }
@@ -476,7 +479,7 @@ function DesktopCard({ card, ctx }: { card: BoardCard; ctx: CardCtx }) {
           }}
           className="min-w-0 truncate rounded-sm text-left text-[12.5px] font-bold focus-visible:outline-2 focus-visible:outline-ring"
         >
-          {card.name}
+          <Sensitive kind="name">{card.name}</Sensitive>
         </button>
         <span className="whitespace-nowrap text-[10.5px] text-faint">
           {card.listed
@@ -489,11 +492,16 @@ function DesktopCard({ card, ctx }: { card: BoardCard; ctx: CardCtx }) {
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
         <OwnerTag card={card} mine={mine} />
         <Heat card={card} />
-        {card.source && <span className="truncate">{card.source}</span>}
+        {card.source && (
+          <span className="truncate" {...sensitive("note")}>
+            {card.source}
+          </span>
+        )}
       </div>
       {card.elsewhere && (
         <div className="text-[10.5px] text-muted-foreground">
-          At {card.elsewhere.ownerName}&rsquo;s step: {card.elsewhere.label}
+          At <Sensitive kind="name">{card.elsewhere.ownerName}</Sensitive>&rsquo;s step:{" "}
+          {card.elsewhere.label}
         </div>
       )}
       <CardReferralLines card={card} />
@@ -509,7 +517,7 @@ function DesktopCard({ card, ctx }: { card: BoardCard; ctx: CardCtx }) {
       )}
       {card.note && (
         <div className="truncate text-[10.5px] text-muted-foreground" title={card.note}>
-          {card.note}
+          <Sensitive kind="note">{card.note}</Sensitive>
         </div>
       )}
       <span data-no-drag className="absolute right-1 top-1" onClick={stop} onPointerDown={stop}>
@@ -596,7 +604,9 @@ function RegisteredCardView({
       )}
     >
       <span className="flex items-baseline justify-between gap-1.5">
-        <b className="truncate text-[12.5px]">{r.name}</b>
+        <b className="truncate text-[12.5px]">
+          <Sensitive kind="name">{r.name}</Sensitive>
+        </b>
         <span className="whitespace-nowrap text-[10.5px] text-faint">{shortDate(r.day)}</span>
       </span>
       <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
@@ -680,7 +690,9 @@ function PhoneColumn({
           >
             <PersonAvatar name={r.name} stage="apprentice" />
             <span className="min-w-0">
-              <b className="block truncate">{r.name}</b>
+              <b className="block truncate">
+                <Sensitive kind="name">{r.name}</Sensitive>
+              </b>
               <span className="text-[11px] text-muted-foreground">
                 <Whose ownerName={r.ownerName} mine={ctx.isMine(r.ownerId)}>
                   {bandLabel(ctx.def, "registered")} {shortDate(r.day)}
@@ -737,7 +749,7 @@ function PhoneRow({ card, ctx }: { card: BoardCard; ctx: CardCtx }) {
             }}
             className="min-w-0 truncate rounded-sm text-left font-bold focus-visible:outline-2 focus-visible:outline-ring"
           >
-            {card.name}
+            <Sensitive kind="name">{card.name}</Sensitive>
           </button>
           <Heat card={card} />
         </div>
@@ -756,7 +768,9 @@ function PhoneRow({ card, ctx }: { card: BoardCard; ctx: CardCtx }) {
         <CardReferralLines card={card} />
         {card.booking && <BookingLine card={card} phone />}
         {card.note && (
-          <div className="truncate text-[10.5px] text-muted-foreground">{card.note}</div>
+          <div className="truncate text-[10.5px] text-muted-foreground">
+            <Sensitive kind="note">{card.note}</Sensitive>
+          </div>
         )}
       </div>
       <span data-no-drag onClick={stop} onPointerDown={stop}>
@@ -826,7 +840,9 @@ function Whose({
   const who = mine ? (
     <b className="font-bold text-primary-ink">Yours</b>
   ) : ownerName ? (
-    <>{ownerName}&rsquo;s</>
+    <>
+      <Sensitive kind="name">{ownerName}</Sensitive>&rsquo;s
+    </>
   ) : null;
   if (!who) return <>{children}</>;
   return (
@@ -845,7 +861,7 @@ function DragGhost({ drag }: { drag: DragInfo }) {
       className="pointer-events-none fixed z-[60] max-w-[200px] -translate-x-1/2 -translate-y-[120%] truncate rounded-[10px] border border-sky bg-surface px-3 py-2 text-[12.5px] font-bold shadow-lg"
       style={{ left: drag.x, top: drag.y }}
     >
-      {drag.name}
+      <Sensitive kind="name">{drag.name}</Sensitive>
     </div>,
     document.body,
   );

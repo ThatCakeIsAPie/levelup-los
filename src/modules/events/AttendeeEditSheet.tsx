@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { PersonAvatar, StageChip, ToneChip, useIsDesktop } from "@/components/brand";
+import { PersonAvatar, StageChip, ToneChip, useIsDesktop, Sensitive } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -46,6 +46,7 @@ import { riskReasons } from "./lib";
 import { Segmented } from "./Segmented";
 import { ClearableDate } from "./ClearableDate";
 
+import { sensitive } from "@/lib/sensitive";
 /**
  * Every per-attendee field in one place (desire, ticket, dates, helper,
  * qualifications, attendance, notes). Right-side sheet on desktop, bottom
@@ -82,7 +83,7 @@ export function AttendeeEditSheet({
             )}
             <div className="min-w-0">
               <SheetTitle className="truncate text-base font-extrabold">
-                {person?.name ?? "Attendee"}
+                <Sensitive kind="name">{person?.name ?? "Attendee"}</Sensitive>
               </SheetTitle>
               <SheetDescription asChild>
                 <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[12.5px]">
@@ -248,7 +249,7 @@ function EditFields({
                   .filter((p) => p.id !== a.personId && p.bizClass !== "customer")
                   .map((p) => (
                     <SelectItem key={p.id} value={p.id}>
-                      {p.name}
+                      <Sensitive kind="name">{p.name}</Sensitive>
                     </SelectItem>
                   ))}
               </SelectContent>
@@ -278,6 +279,7 @@ function EditFields({
           <Label htmlFor={fid("notes")}>Notes</Label>
           <Textarea
             id={fid("notes")}
+            {...sensitive("note")}
             value={a.notes ?? ""}
             onChange={(e) => up({ notes: e.target.value || undefined })}
             placeholder="Anything the team should know"
@@ -294,7 +296,9 @@ function EditFields({
           </AlertDialogTrigger>
           <AlertDialogContent className="w-[calc(100%-2rem)] rounded-card">
             <AlertDialogHeader>
-              <AlertDialogTitle>Remove {personName} from this event?</AlertDialogTitle>
+              <AlertDialogTitle>
+                Remove <Sensitive kind="name">{personName}</Sensitive> from this event?
+              </AlertDialogTitle>
               <AlertDialogDescription>
                 Their ticket, dates and notes for this event are deleted. They stay on your team.
               </AlertDialogDescription>

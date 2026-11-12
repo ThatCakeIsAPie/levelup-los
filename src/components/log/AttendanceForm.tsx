@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import { CalendarX2 } from "lucide-react";
-import { EmptyState } from "@/components/brand";
+import { EmptyState, Sensitive } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -129,7 +129,7 @@ export function AttendanceForm({ initialPersonId }: { initialPersonId?: string }
               <SelectItem value={user.personId}>You</SelectItem>
               {people.map((p) => (
                 <SelectItem key={p.id} value={p.id}>
-                  {p.name}
+                  <Sensitive kind="name">{p.name}</Sensitive>
                   {p.bizClass === "customer" && (
                     <span className="ml-2 text-xs text-muted-foreground">Customer</span>
                   )}

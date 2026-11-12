@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { AlertCircle, CalendarClock, TrendingUp } from "lucide-react";
-import { ToneChip, type Tone } from "@/components/brand";
+import { ToneChip, type Tone, Sensitive } from "@/components/brand";
 import { apprenticeAlertLabel } from "@/data";
 import { cn } from "@/lib/utils";
 import { contactLabel, MISSING_LABEL, plural, shortDate, type PersonRow } from "./model";
@@ -76,7 +76,7 @@ export function UplineLink({ row, viewerId }: { row: PersonRow; viewerId: string
       params={{ id: up.id }}
       className="rounded-sm font-medium hover:text-primary hover:underline focus-visible:outline-2 focus-visible:outline-ring"
     >
-      {up.name}
+      <Sensitive kind="name">{up.name}</Sensitive>
     </Link>
   );
 }

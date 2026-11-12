@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { useAttachmentUrl, useWaveform, type Attachment } from "@/data";
 import { duration } from "./format";
 
+import { sensitive } from "@/lib/sensitive";
 const BARS = 34;
 
 /**
@@ -152,7 +153,15 @@ export function ImageThumb({
         )}
         style={fill ? undefined : { aspectRatio: String(ratio) }}
       >
-        {url && <img src={url} alt="" className="size-full object-cover" loading="lazy" />}
+        {url && (
+          <img
+            {...sensitive("photo")}
+            src={url}
+            alt=""
+            className="size-full object-cover"
+            loading="lazy"
+          />
+        )}
       </button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="w-[calc(100%-1rem)] max-w-4xl gap-2 rounded-card p-2 sm:p-3">
@@ -160,6 +169,7 @@ export function ImageThumb({
           <DialogDescription className="sr-only">{alt}</DialogDescription>
           {url && (
             <img
+              {...sensitive("photo")}
               src={url}
               alt={alt}
               className="max-h-[80dvh] w-full rounded-[10px] object-contain"

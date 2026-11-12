@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { Search } from "lucide-react";
-import { PersonAvatar, StageChip } from "@/components/brand";
+import { PersonAvatar, StageChip, Sensitive } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -27,6 +27,7 @@ import {
 } from "@/data";
 import { CHAT_ICONS, GROUP_ICON_CHOICES } from "./avatars";
 
+import { sensitiveIf } from "@/lib/sensitive";
 export type NewChatMode = "group" | "dm";
 
 /** New group (name, icon, members) or new direct message (people you may DM). */
@@ -177,7 +178,9 @@ function NewDm({ onDone }: { onDone: () => void }) {
               className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-ring"
             >
               <PersonAvatar name={p.name} stage={p.stage} />
-              <span className="min-w-0 flex-1 truncate text-[13px] font-semibold">{p.name}</span>
+              <span className="min-w-0 flex-1 truncate text-[13px] font-semibold">
+                <Sensitive kind="name">{p.name}</Sensitive>
+              </span>
               <StageChip stage={p.stage} />
             </button>
           </li>
@@ -209,6 +212,7 @@ function SearchBox({
       />
       <Input
         type="search"
+        {...sensitiveIf(!!value, "name")}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={label}
@@ -256,7 +260,9 @@ export function MemberPicker({
             <label className="flex cursor-pointer items-center gap-2.5 px-2.5 py-1.5 hover:bg-surface-2">
               <Checkbox checked={picked.has(p.id)} onCheckedChange={() => toggle(p.id)} />
               <PersonAvatar name={p.name} stage={p.stage} size="sm" />
-              <span className="min-w-0 flex-1 truncate text-[13px]">{p.name}</span>
+              <span className="min-w-0 flex-1 truncate text-[13px]">
+                <Sensitive kind="name">{p.name}</Sensitive>
+              </span>
               <StageChip stage={p.stage} />
             </label>
           </li>

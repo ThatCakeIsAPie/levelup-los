@@ -6,7 +6,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { CheckCheck, Search, UserPlus, Users, X } from "lucide-react";
-import { EmptyState, PersonAvatar, SectionCard, StageChip } from "@/components/brand";
+import { EmptyState, PersonAvatar, SectionCard, StageChip, Sensitive } from "@/components/brand";
 import { toastWithUndo } from "@/components/log/quickLog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +32,7 @@ import { Segmented } from "./Segmented";
 import { cameOptions, cameValue, type Came } from "./attendance";
 import { countByStage, filterByStage, stageChips } from "./stageFilter";
 
+import { sensitiveIf } from "@/lib/sensitive";
 export function SimpleRoster({
   event,
   rows,
@@ -104,6 +105,7 @@ export function SimpleRoster({
           />
           <Input
             type="search"
+            {...sensitiveIf(!!query, "name")}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Find someone"
@@ -179,7 +181,7 @@ export function SimpleRoster({
                       params={{ id: p.id }}
                       className="block truncate rounded-sm text-[13.5px] font-semibold hover:underline focus-visible:outline-2 focus-visible:outline-ring"
                     >
-                      {p.name}
+                      <Sensitive kind="name">{p.name}</Sensitive>
                     </Link>
                     <StageChip stage={stage} className="mt-0.5" />
                   </div>

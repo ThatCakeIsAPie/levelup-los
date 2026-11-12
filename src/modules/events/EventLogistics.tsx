@@ -8,6 +8,7 @@ import {
   StatStrip,
   ToneChip,
   type Tone,
+  Sensitive,
 } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -132,7 +133,7 @@ export function EventLogistics({ event, rows }: { event: CrmEvent; rows: Attenda
                   <PersonAvatar name={name} stage={p ? effectiveBizClass(p) : undefined} />
                   <div className="min-w-0">
                     <p className="truncate text-[13px] font-semibold">
-                      {name}
+                      <Sensitive kind="name">{name}</Sensitive>
                       {a.personId === user.personId && (
                         <span className="ml-1.5 text-xs font-medium text-muted-foreground">
                           (you)
@@ -279,7 +280,9 @@ function TravelForm({
     >
       <DialogHeader className="text-left">
         <DialogTitle>Travel plan</DialogTitle>
-        <DialogDescription>{name}</DialogDescription>
+        <DialogDescription>
+          <Sensitive kind="name">{name}</Sensitive>
+        </DialogDescription>
       </DialogHeader>
 
       <div className="grid gap-1.5">

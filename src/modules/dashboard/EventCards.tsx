@@ -25,6 +25,7 @@ import {
 import { BuyTicketButton } from "@/modules/events/BuyTicketButton";
 import { attendanceStatus, dateRange, daysUntil, plural, ticketStats } from "./format";
 
+import { sensitive } from "@/lib/sensitive";
 function Countdown({ event, compact }: { event: CrmEvent; compact?: boolean }) {
   const n = daysUntil(event.date);
   const label = n <= 0 ? "NOW" : n === 1 ? "DAY" : "DAYS";
@@ -149,7 +150,9 @@ function TeamEvent({ event, compact }: { event: CrmEvent; compact?: boolean }) {
 
   return (
     <SectionCard variant="event" title={event.name} action={<Countdown event={event} />}>
-      <p className="-mt-1.5 text-[12.5px] text-muted-foreground">{meta}</p>
+      <p className="-mt-1.5 text-[12.5px] text-muted-foreground" {...sensitive("address")}>
+        {meta}
+      </p>
       {!tickets ? (
         <p className="text-[12.5px]">{comingLine}</p>
       ) : s.invited === 0 ? (
@@ -221,7 +224,9 @@ function CandidateEvent({
       action={<Countdown event={event} compact={compact} />}
       className={cn(compact && "rounded-xl p-3 sm:px-3")}
     >
-      <p className="-mt-1.5 text-[12.5px] text-muted-foreground">{meta}</p>
+      <p className="-mt-1.5 text-[12.5px] text-muted-foreground" {...sensitive("address")}>
+        {meta}
+      </p>
       <div className="flex flex-wrap items-center gap-2 text-[12.5px]">
         <ToneChip tone={status.tone}>{status.label}</ToneChip>
         {status.detail && <span className="text-muted-foreground">{status.detail}</span>}

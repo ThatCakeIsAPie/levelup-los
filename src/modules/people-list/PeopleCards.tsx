@@ -1,21 +1,35 @@
-import { useRef } from "react";
+import { useRef, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { Check, ChevronRight } from "lucide-react";
-import { PersonAvatar, StageChip } from "@/components/brand";
+import { PersonAvatar, StageChip, Sensitive } from "@/components/brand";
 import { cn } from "@/lib/utils";
 import { ContactText, FlagChips } from "./cells";
 import { shortDate, type PersonRow } from "./model";
 
-function metaLine(r: PersonRow, viewerId: string): string {
+function metaLine(r: PersonRow, viewerId: string): ReactNode {
   const p = r.person;
   if (p.bizClass === "customer") {
     const parts = [p.monthlyVolume ? `${p.monthlyVolume} PV a month` : "No volume yet"];
     if (r.lastSale) parts.push(`bought ${shortDate(r.lastSale.date)}`);
     return parts.join(" · ");
   }
-  if (r.isSelf) return [p.location, "This is you"].filter(Boolean).join(" · ");
-  const up = r.upline ? (r.upline.id === viewerId ? "you" : r.upline.name) : undefined;
-  return [up ? `Under ${up}` : undefined, p.location].filter(Boolean).join(" · ") || "No sponsor";
+  const place = p.location ? <Sensitive kind="address">{p.location}</Sensitive> : null;
+  if (r.isSelf) return place ? <>{place} · This is you</> : "This is you";
+  const up = r.upline ? (
+    r.upline.id === viewerId ? (
+      "you"
+    ) : (
+      <Sensitive kind="name">{r.upline.name}</Sensitive>
+    )
+  ) : null;
+  if (!up && !place) return "No sponsor";
+  return (
+    <>
+      {up && <>Under {up}</>}
+      {up && place && " · "}
+      {place}
+    </>
+  );
 }
 
 const LONG_PRESS_MS = 500;
@@ -119,7 +133,9 @@ export function PeopleCards({
             <PersonAvatar name={p.name} stage={r.stage} />
             <div className="min-w-0 flex-1">
               <div className="flex min-w-0 items-center gap-2">
-                <span className="truncate text-[13.5px] font-semibold">{p.name}</span>
+                <span className="truncate text-[13.5px] font-semibold">
+                  <Sensitive kind="name">{p.name}</Sensitive>
+                </span>
                 <StageChip stage={r.stage} />
               </div>
               <div className="truncate text-[12px] text-muted-foreground">

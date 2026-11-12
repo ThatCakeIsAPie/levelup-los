@@ -41,6 +41,9 @@ import {
   type StageKey,
 } from "./model";
 
+import { Sensitive } from "@/components/brand";
+
+import { sensitiveIf } from "@/lib/sensitive";
 export interface ToolbarProps {
   segment: Segment;
   onSegment: (s: Segment) => void;
@@ -241,7 +244,9 @@ function LocationPicker({
           className={cn("h-9 justify-between text-[12.5px] font-normal", className)}
           aria-label={`Location: ${locationsLabel(value)}`}
         >
-          <span className="truncate">{locationsLabel(value)}</span>
+          <span className="truncate" {...sensitiveIf(value.length > 0, "address")}>
+            {locationsLabel(value)}
+          </span>
           <ChevronDown className="opacity-50" aria-hidden="true" />
         </Button>
       </DropdownMenuTrigger>
@@ -261,7 +266,7 @@ function LocationPicker({
             onCheckedChange={() => onChange(toggleInList(value, l, locations))}
             onSelect={(e) => e.preventDefault()}
           >
-            {l}
+            <Sensitive kind="address">{l}</Sensitive>
           </DropdownMenuCheckboxItem>
         ))}
       </DropdownMenuContent>
@@ -297,7 +302,7 @@ function LocationChips({
               FOCUS,
             )}
           >
-            {l ?? "All"}
+            {l ? <Sensitive kind="address">{l}</Sensitive> : "All"}
           </button>
         );
       })}
@@ -326,6 +331,7 @@ function SearchBox({
       />
       <Input
         type="search"
+        {...sensitiveIf(!!value, "name")}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={

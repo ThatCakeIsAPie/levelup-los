@@ -42,9 +42,10 @@ import {
   type CrmPerson,
 } from "@/data";
 import { cn } from "@/lib/utils";
-import { PhoneInput, RatingPicker, STAGE_LABEL } from "@/components/brand";
+import { PhoneInput, RatingPicker, STAGE_LABEL, Sensitive } from "@/components/brand";
 import { anniversaryOf, fullDate } from "./model";
 
+import { sensitive, type SensitiveKind } from "@/lib/sensitive";
 const schema = z
   .object({
     path: z.enum(["business", "customer"]),
@@ -382,7 +383,7 @@ function AddPersonForm({
             <FormItem>
               <FormLabel>Notes</FormLabel>
               <FormControl>
-                <Textarea rows={3} {...field} />
+                <Textarea rows={3} {...field} {...sensitive("note")} />
               </FormControl>
             </FormItem>
           )}
@@ -433,7 +434,12 @@ function TextField({
             )}
           </FormLabel>
           <FormControl>
-            <Input {...input} {...field} aria-required={required || undefined} />
+            <Input
+              {...input}
+              {...field}
+              {...(FIELD_KIND[name] ? sensitive(FIELD_KIND[name]) : {})}
+              aria-required={required || undefined}
+            />
           </FormControl>
           {description && <FormDescription>{description}</FormDescription>}
           <FormMessage />
@@ -442,6 +448,15 @@ function TextField({
     />
   );
 }
+
+/** Fields whose value is sensitive (marked, so the feedback snapshot blacks them out). */
+const FIELD_KIND: Partial<Record<keyof Values, SensitiveKind>> = {
+  name: "name",
+  email: "email",
+  location: "address",
+  iboNumber: "id-number",
+  ltdNumber: "id-number",
+};
 
 function PersonSelect({
   form,
@@ -482,7 +497,7 @@ function PersonSelect({
             <SelectContent className="max-h-72">
               {people.map((p) => (
                 <SelectItem key={p.id} value={p.id}>
-                  {nameOf(p.id)}
+                  <Sensitive kind="name">{nameOf(p.id)}</Sensitive>
                   <span className="ml-2 text-xs text-muted-foreground">
                     {STAGE_LABEL[effectiveBizClass(p)]}
                   </span>

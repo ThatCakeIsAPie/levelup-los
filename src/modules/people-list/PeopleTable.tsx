@@ -1,11 +1,12 @@
 import { Link } from "@tanstack/react-router";
-import { PersonAvatar, StageChip } from "@/components/brand";
+import { PersonAvatar, StageChip, Sensitive } from "@/components/brand";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { ContactText, FlagChips, ShowRateText, UplineLink } from "./cells";
 import { shortDate, type PersonRow, type Segment } from "./model";
 import { RowActions } from "./RowActions";
 
+import { sensitive } from "@/lib/sensitive";
 const TH =
   "h-9 whitespace-nowrap px-3 text-left align-middle text-[11px] font-bold uppercase tracking-[.06em] text-muted-foreground first:pl-4 sm:first:pl-[18px]";
 const TD = "px-3 py-2.5 align-middle first:pl-4 sm:first:pl-[18px]";
@@ -90,7 +91,7 @@ export function PeopleTable({
                           params={{ id: p.id }}
                           className="truncate rounded-sm font-semibold hover:text-primary hover:underline focus-visible:outline-2 focus-visible:outline-ring"
                         >
-                          {p.name}
+                          <Sensitive kind="name">{p.name}</Sensitive>
                         </Link>
                         <StageChip stage={r.stage} />
                         {r.isSelf && (
@@ -100,7 +101,12 @@ export function PeopleTable({
                         )}
                       </div>
                       {sub && (
-                        <div className="truncate text-[11.5px] text-muted-foreground">{sub}</div>
+                        <div
+                          className="truncate text-[11.5px] text-muted-foreground"
+                          {...sensitive("address")}
+                        >
+                          {sub}
+                        </div>
                       )}
                     </div>
                   </div>

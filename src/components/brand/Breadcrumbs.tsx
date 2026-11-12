@@ -16,12 +16,25 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { Sensitive } from "./Sensitive";
+import { type SensitiveKind } from "@/lib/sensitive";
 import type { LinkTarget } from "./layout";
 
 /** One step of the trail: a page you can go back to (`link`), or the current page (no link). */
 export interface Crumb {
   label: string;
+  /** Set when the label is a name or other sensitive value (see src/lib/sensitive.ts). */
+  sensitive?: SensitiveKind;
   link?: LinkTarget & { search?: LinkProps["search"] };
+}
+
+/** The label, as a black-out-able span when the crumb is marked sensitive. */
+function labelOf(crumb: Crumb) {
+  return crumb.sensitive ? (
+    <Sensitive kind={crumb.sensitive}>{crumb.label}</Sensitive>
+  ) : (
+    crumb.label
+  );
 }
 
 const LINK =
@@ -32,7 +45,7 @@ function CrumbLink({ crumb, className }: { crumb: Crumb; className?: string }) {
   return (
     <BreadcrumbLink asChild>
       <Link to={link.to} params={link.params} search={link.search} className={cn(LINK, className)}>
-        {crumb.label}
+        {labelOf(crumb)}
       </Link>
     </BreadcrumbLink>
   );
@@ -67,7 +80,7 @@ export function Breadcrumbs({ items, className }: { items: Crumb[]; className?: 
                   {folded.map((c) => (
                     <DropdownMenuItem key={c.label} asChild>
                       <Link to={c.link!.to} params={c.link!.params} search={c.link!.search}>
-                        {c.label}
+                        {labelOf(c)}
                       </Link>
                     </DropdownMenuItem>
                   ))}
@@ -99,7 +112,7 @@ export function Breadcrumbs({ items, className }: { items: Crumb[]; className?: 
                     className={cn("block truncate", current ? "font-semibold" : "font-medium")}
                     aria-current={current ? "page" : undefined}
                   >
-                    {c.label}
+                    {labelOf(c)}
                   </BreadcrumbPage>
                 ) : (
                   <CrumbLink crumb={c} />

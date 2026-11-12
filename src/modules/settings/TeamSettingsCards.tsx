@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Search, ShieldCheck, UserMinus, UserPlus, UserRoundCog } from "lucide-react";
-import { PersonAvatar, SectionCard, ToneChip } from "@/components/brand";
+import { PersonAvatar, SectionCard, ToneChip, Sensitive } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -32,6 +32,7 @@ import {
   type CrmPerson,
 } from "@/data";
 
+import { sensitiveIf } from "@/lib/sensitive";
 const first = (name: string) => name.split(" ")[0];
 
 /**
@@ -43,7 +44,8 @@ export function ActingForBadge({ className }: { className?: string }) {
   if (!actingFor.length) return null;
   return (
     <ToneChip tone="info" icon={UserRoundCog} className={className}>
-      Acting for {actingFor.map((p) => first(p.name)).join(" & ")}
+      Acting for{" "}
+      <Sensitive kind="name">{actingFor.map((p) => first(p.name)).join(" & ")}</Sensitive>
     </ToneChip>
   );
 }
@@ -176,7 +178,9 @@ export function DeputiesCard() {
                   >
                     <PersonAvatar name={name} stage={person?.bizClass ?? "ibo"} />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-[13px] font-semibold">{name}</p>
+                      <p className="truncate text-[13px] font-semibold">
+                        <Sensitive kind="name">{name}</Sensitive>
+                      </p>
                       {deputy.addedAt && (
                         <p className="text-xs text-muted-foreground">
                           Deputy since {shortDay(deputy.addedAt)}
@@ -208,6 +212,7 @@ export function DeputiesCard() {
               />
               <Input
                 id="deputy-search"
+                {...sensitiveIf(!!query, "name")}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search apprentices and IBOs on your team"
@@ -233,7 +238,9 @@ export function DeputiesCard() {
                         )}
                       >
                         <PersonAvatar name={p.name} stage={p.bizClass} size="sm" />
-                        <span className="min-w-0 flex-1 truncate font-semibold">{p.name}</span>
+                        <span className="min-w-0 flex-1 truncate font-semibold">
+                          <Sensitive kind="name">{p.name}</Sensitive>
+                        </span>
                         <UserPlus className="size-4 text-primary" aria-hidden="true" />
                         <span className="sr-only">Make deputy</span>
                       </button>
@@ -252,8 +259,10 @@ export function DeputiesCard() {
         >
           <ShieldCheck className="size-4 shrink-0" aria-hidden="true" />
           <p className="min-w-0 flex-1 text-[12.5px]">
-            You're {first(leader.name)}'s deputy: you see what {first(leader.name)} sees and can
-            edit for {first(leader.name)}. Changes you make are recorded as yours.
+            You&rsquo;re <Sensitive kind="name">{first(leader.name)}</Sensitive>&rsquo;s deputy: you
+            see what <Sensitive kind="name">{first(leader.name)}</Sensitive> sees and can edit for{" "}
+            <Sensitive kind="name">{first(leader.name)}</Sensitive>. Changes you make are recorded
+            as yours.
           </p>
           <Button
             size="sm"

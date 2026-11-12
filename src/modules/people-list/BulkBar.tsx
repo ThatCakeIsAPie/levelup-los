@@ -12,7 +12,7 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
-import { STAGE_LABEL } from "@/components/brand";
+import { STAGE_LABEL, Sensitive } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -378,7 +378,7 @@ function SponsorDialog({
               <SelectContent className="max-h-72">
                 {choices.map((p) => (
                   <SelectItem key={p.id} value={p.id}>
-                    {p.name}
+                    <Sensitive kind="name">{p.name}</Sensitive>
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -518,7 +518,7 @@ function DeleteDialog({
           <ul className="grid gap-0.5 text-[13px]">
             {plan.apply.map((r) => (
               <li key={r.person.id} className="truncate">
-                {r.person.name}
+                <Sensitive kind="name">{r.person.name}</Sensitive>
               </li>
             ))}
           </ul>
