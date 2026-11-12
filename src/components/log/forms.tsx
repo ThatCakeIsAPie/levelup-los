@@ -31,6 +31,7 @@ import { localDate } from "@/lib/dates";
 import {
   addPerson,
   closeLog,
+  completeLibraryItemWithEntry,
   effectiveBizClass,
   goalUnit,
   latestLearningId,
@@ -48,7 +49,9 @@ import {
   removeSale,
   startPipelineCard,
   unpost,
+  useCatalog,
   useCurrentUser,
+  useFeature,
   useLastContactMap,
   useLearning,
   useLearningGoal,
@@ -77,7 +80,7 @@ import { ShareAsWin, type WinDraft } from "./ShareAsWin";
 import { useCanShareWins } from "./canShareWins";
 import { BoardMoveField, BoardNote } from "./PipelineMoveField";
 import { TitleCombobox } from "./TitleCombobox";
-import { matchTitle, pastTitles } from "./titleSuggestions";
+import { libraryTitles, mergeTitles, pastTitles, resolveTitle } from "./titleSuggestions";
 import { boardTarget, meetingBooking, movesToPlan } from "./pipelineMove";
 
 import { sensitive } from "@/lib/sensitive";
@@ -206,9 +209,15 @@ export function LearningForm() {
   const [amounts, setAmounts] = useState<Record<LearningUnit, string>>(UNIT_DEFAULT);
   const [date, setDate] = useState(localDate());
   const [win, setWin] = useWin(false, "");
-  // Books (or podcasts) you've logged before, for the title dropdown.
+  // The title dropdown: library items you may open (when the Library is on),
+  // then books (or podcasts) you've logged before.
   const history = useLearning(user.personId);
-  const titles = useMemo(() => pastTitles(history, kind), [history, kind]);
+  const inLibrary = useFeature("library");
+  const catalog = useCatalog();
+  const options = useMemo(
+    () => mergeTitles(inLibrary ? libraryTitles(catalog, kind) : [], pastTitles(history, kind)),
+    [inLibrary, catalog, history, kind],
+  );
   const unit: LearningUnit | undefined =
     kind === "pages" ? readingUnit : kind === "podcast" ? podcastUnit : undefined;
   const amount = unit ? Number(amounts[unit]) : 1;
@@ -216,15 +225,23 @@ export function LearningForm() {
 
   const save = () => {
     if (!valid) return;
-    // Typed an old title in different case? Log it under the existing spelling.
+    // Typed a library or old title in different case? Log it under that spelling.
     // No title: it goes under "Unnamed".
-    const name = matchTitle(titles, title)?.title ?? (title.trim() || UNNAMED_TITLE);
-    logLearning({ kind, title: name, amount, ...(unit ? { unit } : {}), date });
-    const id = latestLearningId();
+    const { title: name, itemId } = resolveTitle(options, title, UNNAMED_TITLE);
+    const entry = { amount, ...(unit ? { unit } : {}), date };
+    // A library item not finished yet: finish it in the library, which logs
+    // this one entry (with the form's values). Finished before: an ordinary entry.
+    const picked = itemId ? completeLibraryItemWithEntry(itemId, entry) : null;
+    let id: string | undefined;
+    if (picked) id = picked.learningId;
+    else {
+      logLearning({ kind, title: name, ...entry });
+      id = latestLearningId();
+    }
     finish({
       message: "Learning logged",
       undoneMessage: "Learning removed",
-      undo: () => id && removeLearning(id),
+      undo: () => (picked ? picked.undo() : id && removeLearning(id)),
       learning: win.on && id ? { learningId: id, title: name } : null,
     });
   };
@@ -262,7 +279,7 @@ export function LearningForm() {
           id="log-title"
           value={title}
           onChange={setTitle}
-          titles={titles}
+          options={options}
           noun={kind === "pages" ? "book" : kind}
           placeholder={kind === "pages" ? "e.g. Go-Givers Sell More" : "e.g. Leadership Hour #45"}
         />
