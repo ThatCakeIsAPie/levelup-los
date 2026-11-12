@@ -1,62 +1,41 @@
 import type { ReactNode } from "react";
-import { Link, type LinkProps } from "@tanstack/react-router";
-import { ChevronLeft, Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { openLog } from "@/stores/uiStore";
+import type { LinkProps } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
+import { Breadcrumbs, type Crumb } from "./Breadcrumbs";
 
 /** Typed in-app link target (same as TanStack Router's <Link to/params>). */
 export type LinkTarget = { to: LinkProps["to"]; params?: LinkProps["params"] };
 
 /**
  * Page title row. Title + optional subtitle on the left, actions on the right
- * (actions wrap under the title on phones). `back` renders a small breadcrumb
- * link above the title, e.g. `back={{ to: "/people", label: "People" }}`.
- * On desktop a teal "Log" button (opens the global Log sheet) is appended to
- * the actions; phones use the tab-bar FAB instead. Pass `logButton={false}` to hide it.
+ * (actions wrap under the title on phones). `crumbs` puts the breadcrumb trail
+ * above the title, ending with the current page, e.g.
+ * `crumbs={[{ label: "Settings", link: { to: "/settings" } }, { label: "Team settings" }]}`.
+ * The Log button lives in the app shell (top right on desktop, the tab bar on
+ * phones), never in page headers.
  */
 export function PageHeader({
   title,
   subtitle,
-  back,
+  crumbs,
   actions,
-  logButton = true,
   className,
 }: {
   title: ReactNode;
   subtitle?: ReactNode;
-  back?: LinkTarget & { label: string };
+  crumbs?: Crumb[];
   actions?: ReactNode;
-  logButton?: boolean;
   className?: string;
 }) {
   return (
     <header className={cn("grid gap-1", className)}>
-      {back && (
-        <Link
-          to={back.to}
-          params={back.params}
-          className="inline-flex w-fit items-center gap-1 text-[12.5px] font-medium text-muted-foreground hover:text-foreground"
-        >
-          <ChevronLeft className="size-3.5" aria-hidden="true" />
-          {back.label}
-        </Link>
-      )}
+      {crumbs && crumbs.length > 0 && <Breadcrumbs items={crumbs} />}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
         <div className="min-w-0 flex-[1_1_16rem]">
           <h1 className="text-[19px] font-extrabold leading-tight lg:text-[22px]">{title}</h1>
           {subtitle && <p className="mt-0.5 text-[13px] text-muted-foreground">{subtitle}</p>}
         </div>
-        {(actions || logButton) && (
-          <div className="flex flex-wrap items-center gap-2">
-            {actions}
-            {logButton && (
-              <Button className="hidden lg:inline-flex" onClick={() => openLog()}>
-                <Plus /> Log
-              </Button>
-            )}
-          </div>
-        )}
+        {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
       </div>
     </header>
   );

@@ -347,11 +347,18 @@ function LogFlow({
   );
 }
 
-/** Teal "Log" button for page headers (desktop). Opens the Log sheet. */
+/**
+ * Teal "Log" button (desktop). Opens the Log sheet. The app shell shows the
+ * one instance, at the far top right (AppShell's DesktopBar); pages don't add their own.
+ */
 export function LogButton({ className }: { className?: string }) {
   return (
-    <Button className={className} onClick={() => openLog()}>
-      <Plus /> Log
+    <Button
+      className={className}
+      onClick={() => openLog()}
+      aria-label="Log learning, a check-in, a contact or a sale"
+    >
+      <Plus aria-hidden="true" /> Log
     </Button>
   );
 }

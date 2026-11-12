@@ -148,7 +148,13 @@ function Funnel({ conv }: { conv: PipelineConversions }) {
         const tick = stat ? (stat.fromCount * stat.target) / 100 / top : null;
         return (
           <Fragment key={m}>
-            {stat && <FunnelStep stat={stat} hot={conv.gap?.key === stat.key} />}
+            {stat && (
+              <FunnelStep
+                stat={stat}
+                hot={conv.gap?.key === stat.key}
+                referrals={conv.referralSources[i - 1] ?? 0}
+              />
+            )}
             <div
               role="listitem"
               className="grid grid-cols-[84px_minmax(0,1fr)_44px] items-center gap-2.5 text-[12.5px] lg:grid-cols-[96px_minmax(0,1fr)_44px]"
@@ -179,7 +185,16 @@ function Funnel({ conv }: { conv: PipelineConversions }) {
   );
 }
 
-function FunnelStep({ stat, hot }: { stat: TransitionStat; hot: boolean }) {
+function FunnelStep({
+  stat,
+  hot,
+  referrals,
+}: {
+  stat: TransitionStat;
+  hot: boolean;
+  /** Of those who stopped here, how many passed on names (Referral source). */
+  referrals: number;
+}) {
   const v = VERB[stat.key];
   return (
     <div
@@ -197,6 +212,9 @@ function FunnelStep({ stat, hot }: { stat: TransitionStat; hot: boolean }) {
       {stat.lost > 0 && (
         <small className="text-[11px] text-muted-foreground">
           {stat.lost} {v.lost}
+          {referrals > 0 && (
+            <span className="font-semibold text-primary-ink"> · {referrals} passed on names</span>
+          )}
         </small>
       )}
     </div>

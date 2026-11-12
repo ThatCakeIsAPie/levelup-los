@@ -10,6 +10,8 @@ import {
   updateAttendance,
   useCurrentUser,
   useDoNotContactIds,
+  useEventCategory,
+  usesTickets,
   type Attendance,
   type CrmEvent,
 } from "@/data";
@@ -61,7 +63,8 @@ export function AttentionPanel({
   const people = usePeopleMap();
   const [showAll, setShowAll] = useState(false);
   const skip = useDoNotContactIds();
-  const items = attentionItems(event, rows, undefined, skip);
+  const tickets = usesTickets(useEventCategory(event));
+  const items = attentionItems({ ...event, tickets }, rows, undefined, skip);
   const finished = (event.endDate ?? event.date) < daysFromToday(0);
   const shown = showAll ? items : items.slice(0, 6);
 

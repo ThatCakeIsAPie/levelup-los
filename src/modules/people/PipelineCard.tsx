@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { format } from "date-fns";
-import { ClockAlert, Flame, MoveRight, StickyNote, Undo2 } from "lucide-react";
-import { SectionCard, ToneChip } from "@/components/brand";
+import { ClockAlert, MoveRight, StickyNote, Undo2 } from "lucide-react";
+import { RatingChip, SectionCard, ToneChip } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import {
   RECRUITING_BAND_LABEL,
@@ -47,11 +47,7 @@ export function PipelineCard({ person }: { person: CrmPerson }) {
           </span>
           <div className="flex flex-wrap items-center gap-2 text-[14px]">
             <b>{p.ownStep ?? p.column.label}</b>
-            {p.card?.hot && (
-              <ToneChip tone="bad" icon={Flame}>
-                Hot
-              </ToneChip>
-            )}
+            <RatingChip rating={p.card?.rating} />
             {p.stale && (
               <ToneChip tone="warn" icon={ClockAlert}>
                 No movement in {ageLong(p.days)}

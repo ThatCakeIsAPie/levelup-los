@@ -13,6 +13,7 @@ import {
 import { toastWithUndo } from "@/components/log/quickLog";
 import {
   RECRUITING_BAND_LABEL,
+  REFERRAL_SOURCE,
   movePipelineCard,
   type MoveFailure,
   type PipelineColumn,
@@ -45,7 +46,11 @@ export function useMoveCard(columns: PipelineColumn[]) {
     toastWithUndo(
       r.registered ? `${name} registered — now an apprentice` : `${name} moved to ${label}`,
       r.undo,
-      { undoneMessage: "Move undone" },
+      {
+        undoneMessage: "Move undone",
+        description:
+          to === REFERRAL_SOURCE ? "Open their card to add the names they pass on." : undefined,
+      },
     );
   };
 

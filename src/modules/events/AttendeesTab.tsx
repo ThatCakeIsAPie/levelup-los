@@ -51,6 +51,7 @@ import {
 import {
   bulkUpdateAttendances,
   effectiveBizClass,
+  type BizClass,
   needsTicket,
   updateAttendance,
   type Attendance,
@@ -59,12 +60,14 @@ import {
   type DesireLevel,
 } from "@/data";
 import { downloadCsv, toCsv } from "@/lib/csvExport";
+import { StageFilterChips } from "@/components/filters/StageFilterChips";
 import { AddAttendeeDialog } from "./AddAttendeeDialog";
 import { AttendeeKanban } from "./AttendeeKanban";
 import { usePeopleMap } from "./hooks";
 import { DESIRE_LABEL, DESIRE_TONE, shortDate, ticketStatus } from "./lib";
 import { RiskBadge } from "./RiskFlags";
 import { Segmented } from "./Segmented";
+import { countByStage, filterByStage, stageChips } from "./stageFilter";
 
 type View = "table" | "board";
 
@@ -78,6 +81,8 @@ export function AttendeesTab({
   onEdit,
   filter,
   onClearFilter,
+  stages = [],
+  onStages,
 }: {
   event: CrmEvent;
   rows: Attendance[];
@@ -86,6 +91,9 @@ export function AttendeesTab({
   /** "no-ticket": only people who still need a ticket (no ticket, haven't said no). */
   filter?: AttendeeFilter;
   onClearFilter?: () => void;
+  /** Stages shown together (`?stage=apprentice,ibo`); empty = everyone. */
+  stages?: BizClass[];
+  onStages?: (next: BizClass[]) => void;
 }) {
   const desktop = useIsDesktop();
   const people = usePeopleMap();
@@ -93,15 +101,21 @@ export function AttendeesTab({
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
-  const sorted = useMemo(() => {
+  // Everything but the stage filter (the stage chips count from these).
+  const matching = useMemo(() => {
     const q = query.trim().toLowerCase();
     return rows
       .filter((a) => filter !== "no-ticket" || needsTicket(a))
-      .filter((a) => !q || (people.get(a.personId)?.name ?? "").toLowerCase().includes(q))
-      .sort((a, b) =>
-        (people.get(a.personId)?.name ?? "").localeCompare(people.get(b.personId)?.name ?? ""),
-      );
+      .filter((a) => !q || (people.get(a.personId)?.name ?? "").toLowerCase().includes(q));
   }, [rows, people, query, filter]);
+  const stageCounts = useMemo(() => countByStage(matching, people), [matching, people]);
+  const sorted = useMemo(
+    () =>
+      [...filterByStage(matching, people, stages)].sort((a, b) =>
+        (people.get(a.personId)?.name ?? "").localeCompare(people.get(b.personId)?.name ?? ""),
+      ),
+    [matching, people, stages],
+  );
 
   // Drop selections that are no longer on the roster.
   const selectedIds = rows.filter((a) => selected.has(a.id)).map((a) => a.id);
@@ -247,6 +261,17 @@ export function AttendeesTab({
         </DropdownMenu>
       </div>
 
+      {onStages && rows.length > 0 && (
+        <StageFilterChips
+          label="Show"
+          stages={stageChips(stageCounts, stages)}
+          value={stages}
+          onChange={onStages}
+          counts={stageCounts}
+          total={matching.length}
+        />
+      )}
+
       {filter === "no-ticket" && (
         <div className="flex flex-wrap items-center gap-2 text-[12.5px] text-muted-foreground">
           <span>
@@ -306,7 +331,9 @@ export function AttendeesTab({
           body={
             query
               ? `Nobody${filter ? " who still needs a ticket" : " on the roster"} matches “${query}”.`
-              : "Everyone on the roster has a ticket or has said they're not going."
+              : stages.length && matching.length
+                ? "Nobody in the groups you picked. Tap All to see everyone."
+                : "Everyone on the roster has a ticket or has said they're not going."
           }
         />
       ) : desktop ? (
@@ -425,13 +452,18 @@ function AttendeeRow({
       </TableCell>
       <TableCell>
         <Select
-          value={a.desireToAttend ?? ""}
-          onValueChange={(v) => updateAttendance(a.id, { desireToAttend: v as DesireLevel })}
+          value={a.desireToAttend ?? "unset"}
+          onValueChange={(v) =>
+            updateAttendance(a.id, {
+              desireToAttend: v === "unset" ? undefined : (v as DesireLevel),
+            })
+          }
         >
           <SelectTrigger className="h-8 w-[128px] text-[12.5px]" aria-label={`${name} wants to go`}>
-            <SelectValue placeholder="Not asked" />
+            <SelectValue />
           </SelectTrigger>
           <SelectContent>
+            <SelectItem value="unset">Not asked</SelectItem>
             <SelectItem value="yes">Wants to go</SelectItem>
             <SelectItem value="maybe">Maybe</SelectItem>
             <SelectItem value="no">Not going</SelectItem>

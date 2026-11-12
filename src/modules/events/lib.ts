@@ -7,9 +7,6 @@ import { localDate, parseDate } from "@/data";
 import type { Attendance, CrmEvent } from "@/data";
 import type { Tone } from "@/components/brand";
 
-// Labels and the one "who may plan events" check live in @/data.
-export { EVENT_TYPE_LABEL } from "@/data";
-
 /** "Nov 7, 2026", "Nov 7–8, 2026", "Oct 31 – Nov 1, 2026" or across years. */
 export function formatEventRange(e: Pick<CrmEvent, "date" | "endDate">): string {
   const start = parseDate(e.date);

@@ -5,6 +5,7 @@ import {
   MODE_LABEL,
   assignToEvent,
   eventModes,
+  useEventCategory,
   setEventAttendance,
   updateAttendance,
   useCurrentUser,
@@ -16,7 +17,7 @@ import {
 import { BuyTicketButton } from "./BuyTicketButton";
 import { Segmented } from "./Segmented";
 import { attendanceToast, cameOptions, cameValue } from "./attendance";
-import { MODE_ICON } from "./typeIcons";
+import { MODE_ICON } from "./categoryIcons";
 
 /**
  * The viewer's own answer for an event without tickets: before it, "Are you
@@ -34,7 +35,7 @@ export function MyAttendanceCard({
 }) {
   const user = useCurrentUser();
   const mine = rows.find((a) => a.personId === user.personId);
-  const modes = eventModes(event);
+  const modes = eventModes(event, useEventCategory(event));
 
   if (started) {
     const value = cameValue(mine);
@@ -55,7 +56,7 @@ export function MyAttendanceCard({
             );
             attendanceToast("You", event.name, v, undo);
           }}
-          options={cameOptions(event, "Couldn't make it")}
+          options={cameOptions(modes, "Couldn't make it")}
         />
         <p className="text-xs text-muted-foreground">
           It counts toward your activity, and your upline sees it.

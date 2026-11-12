@@ -6,6 +6,8 @@ import { IS_SUPABASE } from "@/lib/config";
 import { serverSide } from "./remote";
 import { upcomingAttentionCount } from "./attention";
 import { useDoNotContactIds } from "./customerPipeline/hooks";
+import { useCategoryOf } from "./eventCategories/hooks";
+import { usesTickets } from "./eventCategories/rules";
 import { localDate } from "@/lib/dates";
 import { filterAttendances } from "./access";
 import { useVisibleIds } from "./people";
@@ -41,10 +43,13 @@ export function usePastEvents(): CrmEvent[] {
   }, [events]);
 }
 
-/** The next upcoming event, optionally of one type (e.g. "conference"). */
-export function useNextEvent(type?: CrmEvent["type"]): CrmEvent | undefined {
+/** The next upcoming event, optionally of one category. */
+export function useNextEvent(categoryId?: string): CrmEvent | undefined {
   const upcoming = useUpcomingEvents();
-  return useMemo(() => upcoming.find((e) => !type || e.type === type), [upcoming, type]);
+  return useMemo(
+    () => upcoming.find((e) => !categoryId || e.categoryId === categoryId),
+    [upcoming, categoryId],
+  );
 }
 
 /** One event by id, or undefined. */
@@ -89,9 +94,16 @@ export function useEventsAttentionCount(): number {
   const upcoming = useUpcomingEvents();
   const rows = useVisibleAttendances();
   const skip = useDoNotContactIds();
+  const categoryOf = useCategoryOf();
   return useMemo(
-    () => upcomingAttentionCount(upcoming, rows, undefined, skip),
-    [upcoming, rows, skip],
+    () =>
+      upcomingAttentionCount(
+        upcoming.map((e) => ({ ...e, tickets: usesTickets(categoryOf(e)) })),
+        rows,
+        undefined,
+        skip,
+      ),
+    [upcoming, rows, skip, categoryOf],
   );
 }
 

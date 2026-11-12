@@ -213,6 +213,8 @@ export interface BookingCandidate {
   ownerId: string;
   /** People behind the card, for "Do not contact" (prospect, customer). */
   personIds: string[];
+  /** Customer board: the customer this name already is (their first sale). */
+  customerId?: string | null;
   booking: Booking;
   /** The card's current column. */
   column: string;
@@ -233,6 +235,11 @@ export interface DueBooking {
   due: Exclude<DueState, "upcoming">;
   /** Whole days late (0 = today). */
   daysLate: number;
+  /**
+   * Customer board: the customer this name already is. Home's Today lists
+   * those under Customers (a reorder or Ditto step), the rest under Pipeline.
+   */
+  customerId?: string;
 }
 
 /**
@@ -265,6 +272,7 @@ export function dueBookings(
       time: view.time,
       due: view.due,
       daysLate: Math.max(0, -daysUntil(view.date, today)),
+      ...(c.customerId ? { customerId: c.customerId } : {}),
     });
   }
   return out.sort(

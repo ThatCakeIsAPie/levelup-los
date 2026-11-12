@@ -1,12 +1,11 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { ArrowUpRight, ClockAlert, Flame, MoveRight, UserMinus } from "lucide-react";
+import { ArrowUpRight, ClockAlert, MoveRight, UserMinus } from "lucide-react";
 import { toast } from "sonner";
-import { PersonAvatar, ToneChip, useIsDesktop } from "@/components/brand";
+import { PersonAvatar, RatingChip, RatingPicker, ToneChip, useIsDesktop } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import {
   Sheet,
   SheetContent,
@@ -19,6 +18,7 @@ import { cn } from "@/lib/utils";
 import {
   RECRUITING_BAND_LABEL,
   RECRUITING_BOARD,
+  REFERRAL_SOURCE,
   bookNextStep,
   bookableColumns,
   bookingError,
@@ -33,6 +33,7 @@ import { MoveMenu } from "./moveCard";
 import { ageLong, bookingState } from "./format";
 import { BookingFields, NoteField } from "./BookingFields";
 import { BookedStep } from "./BookedStep";
+import { ReferralsBlock } from "./Referrals";
 
 /** A card's details: where it is, move it, next step, hot, where you met, take it off the board. */
 export function CardSheet({
@@ -131,11 +132,7 @@ function CardDetails({
         <div className="grid gap-2 rounded-card bg-surface-2 px-3.5 py-3 text-[13px]">
           <div className="flex flex-wrap items-center gap-2">
             <b>{col?.label ?? "Contact made"}</b>
-            {card.hot && (
-              <ToneChip tone="bad" icon={Flame}>
-                Hot
-              </ToneChip>
-            )}
+            <RatingChip rating={card.rating} />
             {card.stale && (
               <ToneChip tone="warn" icon={ClockAlert}>
                 No movement in {ageLong(card.days)}
@@ -162,6 +159,13 @@ function CardDetails({
           </MoveMenu>
         </div>
 
+        <ReferralsBlock
+          target={{ kind: "person", id: card.personId }}
+          name={card.name}
+          ownerId={card.ownerId}
+          board="recruiting"
+          source={card.cardColumn === REFERRAL_SOURCE}
+        />
         <BookedStep
           board="recruiting"
           cardId={card.personId}
@@ -204,17 +208,15 @@ function CardDetails({
               onChange={(e) => setSource(e.target.value)}
             />
           </div>
-          <label className="flex items-center justify-between gap-3 rounded-lg border border-line px-3 py-2.5">
-            <span className="grid">
-              <span className="text-[13px] font-semibold">Hot prospect</span>
-              <span className="text-[11.5px] text-muted-foreground">Shows first in the column</span>
+          <div className="grid gap-1.5">
+            <span className="text-[12px] text-muted-foreground" id="card-rating">
+              How warm are they? <span className="text-faint">Hot shows first in the column</span>
             </span>
-            <Switch
-              checked={card.hot}
-              onCheckedChange={(v) => updatePipelineCard(card.personId, { hot: v })}
-              aria-label="Hot prospect"
+            <RatingPicker
+              value={card.rating}
+              onChange={(rating) => updatePipelineCard(card.personId, { rating })}
             />
-          </label>
+          </div>
           <Button type="submit" disabled={!dirty}>
             Save
           </Button>
