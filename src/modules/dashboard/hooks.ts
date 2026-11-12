@@ -18,12 +18,13 @@ import {
   useVisibleAttendances,
   useVisiblePeople,
 } from "@/data";
+import { storageKey } from "@/lib/brand";
 import { buildTodayItems, type TodayItem } from "./today";
 import { weekDays } from "./learning";
 
 // "Not now" on an "Invite your customers" suggestion: event ids put off, per
 // viewer and device (a convenience, so it lives in localStorage).
-const invitesKey = (personId: string) => `levelup.today.invitesOff.${personId}`;
+const invitesKey = (personId: string) => storageKey(`today.invitesOff.${personId}`);
 const inviteListeners = new Set<() => void>();
 const NO_IDS: ReadonlySet<string> = new Set();
 const inviteCache = new Map<string, { raw: string | null; ids: ReadonlySet<string> }>();

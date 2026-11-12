@@ -28,7 +28,7 @@ import { currentReferralIndex } from "@/data/referrals/hooks";
 import { useRemoteStore, whenIdle } from "@/data/remote";
 import { adminClient, must } from "./admin";
 
-const PASSWORD = "levelup-local";
+const PASSWORD = "demo-local";
 const URL_ = import.meta.env.VITE_SUPABASE_URL as string;
 const KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 const stamp = Date.now().toString(36);
@@ -43,7 +43,7 @@ async function login(name: Who): Promise<SupabaseClient> {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
   });
   const { error } = await c.auth.signInWithPassword({
-    email: `${name}@levelup.test`,
+    email: `${name}@demo.test`,
     password: PASSWORD,
   });
   if (error) throw error;
@@ -54,7 +54,7 @@ async function login(name: Who): Promise<SupabaseClient> {
 async function signInApp(name: Who): Promise<void> {
   await signOut();
   const { error } = await getSupabase().auth.signInWithPassword({
-    email: `${name}@levelup.test`,
+    email: `${name}@demo.test`,
     password: PASSWORD,
   });
   if (error) throw error;

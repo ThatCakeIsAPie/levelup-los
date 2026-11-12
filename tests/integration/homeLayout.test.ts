@@ -14,7 +14,7 @@ import { HOME_CARDS, moveHomeCard, resetHomeLayout, setHomeLayout } from "@/data
 import { whenIdle } from "@/data/remote";
 import { fetchSnapshot } from "@/data/remote/hydrate";
 
-const PASSWORD = "levelup-local";
+const PASSWORD = "demo-local";
 const URL_ = import.meta.env.VITE_SUPABASE_URL as string;
 const KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 
@@ -35,12 +35,12 @@ let anita: SupabaseClient;
 
 beforeAll(async () => {
   expect(IS_SUPABASE).toBe(true);
-  jamal = await login("jamal@levelup.test");
-  anita = await login("anita@levelup.test");
+  jamal = await login("jamal@demo.test");
+  anita = await login("anita@demo.test");
   await jamal.from("dashboard_layouts").delete().eq("person_id", "4");
   await signOut();
   const { error } = await getSupabase().auth.signInWithPassword({
-    email: "jamal@levelup.test",
+    email: "jamal@demo.test",
     password: PASSWORD,
   });
   if (error) throw error;

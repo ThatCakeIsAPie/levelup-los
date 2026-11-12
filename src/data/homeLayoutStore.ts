@@ -1,7 +1,7 @@
 /**
  * Home card layouts on the client, by person id (rules in ./homeLayout). In
  * the browser-storage demo they persist to localStorage key
- * `levelup.homeLayout` (each demo login keeps its own); with real accounts
+ * `<prefix>.homeLayout` (each demo login keeps its own); with real accounts
  * the store lives in memory and syncs with `dashboard_layouts` (only your own
  * row; src/data/remote, `homeLayoutBinding`).
  *
@@ -10,10 +10,11 @@
  */
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { storageKey } from "@/lib/brand";
 import { dataStorage } from "@/stores/storage";
 import { sanitizeLayout, type HomeLayout } from "./homeLayout";
 
-export const HOME_LAYOUT_STORAGE_KEY = "levelup.homeLayout";
+export const HOME_LAYOUT_STORAGE_KEY = storageKey("homeLayout");
 
 export interface HomeLayoutState {
   /** Person id -> their layout; missing = the default. */

@@ -1,4 +1,4 @@
-import { pageTitle } from "@/lib/brand";
+import { pageTitle, storageKey } from "@/lib/brand";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import {
@@ -69,7 +69,7 @@ function findByName(nodes: TreeNode[], name: string): TreeNode | null {
  * Off by default: the team is registered people, like Home.
  */
 function useIncludeProspects(personId: string): [boolean, (on: boolean) => void] {
-  const key = `levelup.mindmap.prospects.${personId}`;
+  const key = storageKey(`mindmap.prospects.${personId}`);
   const read = () => {
     try {
       return localStorage.getItem(key) === "1";
