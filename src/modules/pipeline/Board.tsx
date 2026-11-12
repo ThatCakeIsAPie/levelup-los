@@ -6,10 +6,10 @@ import { CalendarClock, ClockAlert, Flag, GripVertical, MoreHorizontal, X } from
 import { PersonAvatar, RatingChip, useIsDesktop } from "@/components/brand";
 import { cn } from "@/lib/utils";
 import {
-  RECRUITING_BOARD,
   monthName,
   monthOf,
   localDate,
+  useBoardDef,
   useCurrentUser,
   type BoardBand,
   type BoardCard,
@@ -34,11 +34,12 @@ const stop = (e: React.SyntheticEvent) => e.stopPropagation();
 /** The recruiting board (prospects, with the Register confirmation and the card sheet). */
 export function Board({ board, month }: { board: PipelineBoard; month: string }) {
   const { move, dialog } = useMoveCard(board.columns);
+  const def = useBoardDef("recruiting");
   return (
     <BoardView
       board={board as unknown as PipelineBoard<string>}
       month={month}
-      def={RECRUITING_BOARD as BoardDef<string>}
+      def={def as BoardDef<string>}
       move={move}
       sheet={({ card, open, onOpenChange }) => (
         <CardSheet
@@ -56,8 +57,8 @@ export function Board({ board, month }: { board: PipelineBoard; month: string })
 }
 
 /**
- * A board (the recruiting pipeline, or the customer pipeline with
- * CUSTOMER_BOARD): its bands side by side, each with its milestone column and
+ * A board (the recruiting pipeline, or the customer pipeline with the
+ * customer layout; `def` is the layout with the viewer's stage names): its bands side by side, each with its milestone column and
  * the leader steps after it (the customer board adds fixed start and outcome
  * columns). Desktop: bands side by side, scrolling sideways when wider than
  * the screen; drag a card (or use its "Move to…" menu). Phones: one full
@@ -682,7 +683,7 @@ function PhoneColumn({
               <b className="block truncate">{r.name}</b>
               <span className="text-[11px] text-muted-foreground">
                 <Whose ownerName={r.ownerName} mine={ctx.isMine(r.ownerId)}>
-                  registered {shortDate(r.day)}
+                  {bandLabel(ctx.def, "registered")} {shortDate(r.day)}
                 </Whose>
               </span>
             </span>

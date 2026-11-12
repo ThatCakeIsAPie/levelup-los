@@ -9,19 +9,22 @@ const FILLS = ["bg-sky", "bg-primary", "bg-amber"];
 /**
  * How many people are in the pipeline right now: every card from the first
  * meeting on (the milestone column and the steps after it) up to the last
- * milestone, which doesn't count ("Registered", "On Ditto"). Not contacted
- * yet, Contact made and the not-now columns don't count either.
+ * milestone, which doesn't count (the last stage). Not contacted yet, the
+ * first stage and the not-now columns don't count either.
  */
 export function InPipelineCard({
   board,
   bands,
+  from,
   until,
   className,
 }: {
   board: PipelineBoard<string>;
   /** The bands that count, in board order, with their labels. */
   bands: { id: string; label: string }[];
-  /** The milestone that ends it ("Registered"). */
+  /** The stage it starts at (its name, as this person sees it). */
+  from: string;
+  /** The stage that ends it (its name); that one doesn't count. */
   until: string;
   className?: string;
 }) {
@@ -46,7 +49,9 @@ export function InPipelineCard({
             In your pipeline now
             {now.mixed && <span className="font-bold text-primary-ink"> · {now.mine} yours</span>}
           </h2>
-          <p className="text-[12px] text-muted-foreground">From the first meeting until {until}</p>
+          <p className="text-[12px] text-muted-foreground">
+            From {from} until {until}
+          </p>
         </div>
       </div>
       <div className="grid gap-1.5">

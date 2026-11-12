@@ -31,9 +31,13 @@ import {
   boardCards,
   withUplines,
   comparisonPeriod,
+  gapTip,
 } from "./rules";
+import { makeStageNames } from "../stageNames/names";
+import { resolveStageNames } from "../stageNames/rules";
 import {
   DEFAULT_TARGETS,
+  RECRUITING_BOARD,
   type PipelineCard,
   type PipelineMove,
   type PipelineStep,
@@ -566,5 +570,40 @@ describe("team settings and stale cards", () => {
     expect(isStale(at("2026-09-29"), undefined, "2026-10-13")).toBe(true);
     expect(isStale(at("2026-09-30"), undefined, "2026-10-13")).toBe(false);
     expect(isStale(at("2026-09-01"), "2026-10-05", "2026-10-13")).toBe(false);
+  });
+});
+
+describe("stage names in columns and tips", () => {
+  const custom = makeStageNames(
+    "recruiting",
+    resolveStageNames(
+      ["4"],
+      [
+        { personId: "4", pipeline: "recruiting", stage: "first_meeting", name: "Intro call" },
+        { personId: "4", pipeline: "recruiting", stage: "first_plan", name: "Plan session" },
+      ],
+    ).recruiting,
+  );
+
+  it("columns carry the names of the board layout they are built with", () => {
+    const cols = columnsFor(chainOf(people, "4"), steps, [], custom.board(RECRUITING_BOARD));
+    const label = (id: string) => cols.find((c) => c.id === id)?.label;
+    expect(label("contact")).toBe("Contact made");
+    expect(label("first_meeting")).toBe("Intro call");
+    expect(label("first_plan")).toBe("Plan session");
+    // Steps and their order are untouched.
+    expect(cols.map((c) => c.id)).toEqual(
+      columnsFor(chainOf(people, "4"), steps, []).map((c) => c.id),
+    );
+  });
+
+  it("the biggest-gap tip reads right with a custom name", () => {
+    const gap = { key: "meetingToPlan" } as Parameters<typeof gapTip>[0];
+    expect(gapTip(gap, undefined, custom)).toBe(
+      "People stall after Intro call. Book Plan session before you leave Intro call.",
+    );
+    expect(gapTip(gap, undefined)).toBe(
+      "People stall after First meeting. Book First plan before you leave First meeting.",
+    );
   });
 });

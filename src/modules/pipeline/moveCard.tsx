@@ -9,19 +9,19 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { RECRUITING_BOARD, type PipelineColumn } from "@/data";
+import { useBoardDef, type PipelineColumn } from "@/data";
 
 /** "Move to…" menu: every column of the board, grouped by band. */
 export function MoveMenu({
   columns,
-  bands = RECRUITING_BOARD.bands,
+  bands,
   current,
   onMove,
   children,
   align = "end",
 }: {
   columns: PipelineColumn<string>[];
-  /** The board's bands in order (default: the recruiting board's). */
+  /** The board's bands in order, with the viewer's stage names (default: the recruiting board's). */
   bands?: readonly { id: string; label: string }[];
   current: string;
   onMove: (to: string) => void;
@@ -29,6 +29,7 @@ export function MoveMenu({
   children: ReactNode;
   align?: "start" | "end";
 }) {
+  const recruiting = useBoardDef("recruiting").bands;
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>{children}</DropdownMenuTrigger>
@@ -39,7 +40,7 @@ export function MoveMenu({
         <DropdownMenuLabel className="flex items-center gap-1.5 text-xs">
           <MoveRight className="size-3.5" aria-hidden="true" /> Move to…
         </DropdownMenuLabel>
-        {bands.map((b) => (
+        {(bands ?? recruiting).map((b) => (
           <DropdownMenuGroup key={b.id}>
             <DropdownMenuSeparator />
             <DropdownMenuLabel className="pb-0.5 text-[10px] font-bold uppercase tracking-[.08em] text-faint">

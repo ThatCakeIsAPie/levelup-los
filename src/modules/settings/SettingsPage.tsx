@@ -12,6 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { effectiveBizClass, logout, roleLabel, useCurrentUser, useMe } from "@/data";
 import { NOTIFY_OPTIONS, usePrefsStore } from "./prefsStore";
 import { AdminDebugCard } from "./AdminDebugCard";
+import { FeedbackInboxCard } from "@/modules/feedback/FeedbackInboxCard";
 
 const PAGE =
   "mx-auto grid w-full max-w-2xl content-start gap-4 px-4 py-5 lg:px-[26px] lg:py-[22px]";
@@ -23,6 +24,7 @@ export function SettingsPage() {
     <div className={PAGE}>
       <PageHeader title="Settings" subtitle="Your account and how the app looks and notifies you" />
       <AccountCard />
+      <FeedbackInboxCard />
       <SectionCard title="Appearance">
         <div className="grid gap-2">
           <ThemeSwitcher />

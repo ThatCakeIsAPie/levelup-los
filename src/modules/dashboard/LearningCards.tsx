@@ -29,6 +29,7 @@ import {
   newGoalItem,
   openLog,
   setLearningGoal,
+  useStageNames,
   useUnlocks,
   validTarget,
   type GoalItem,
@@ -187,6 +188,8 @@ function GoalEmpty({ onAdd }: { onAdd: () => void }) {
 
 /** One line per item: this week's total against its target. */
 function GoalRows({ learning, className }: { learning: MyLearning; className?: string }) {
+  // A goal row can be a pipeline stage ("First meetings"): follow the viewer's stage names.
+  useStageNames("recruiting");
   return (
     <dl className={cn("grid gap-1.5 text-[12.5px]", className)}>
       {learning.goalItems.map(({ item, category, done }) => (
@@ -309,6 +312,7 @@ function GoalForm({
   onSave: (g: LearningGoal) => void;
   onCancel: () => void;
 }) {
+  useStageNames("recruiting"); // goal categories named after a stage follow its name
   const unlocks = useUnlocks();
   const [draft, setDraft] = useState<DraftItem[]>(() =>
     goal.items.map((i) => ({ kind: i.kind, target: String(i.target), unit: i.unit })),
@@ -437,6 +441,7 @@ function GoalItemList({
   onRemove: (kind: GoalKind) => void;
   onReorder: (next: DraftItem[]) => void;
 }) {
+  useStageNames("recruiting"); // goal categories named after a stage follow its name
   const rows = useRef(new Map<GoalKind, HTMLLIElement>());
   const [dragging, setDragging] = useState<GoalKind | null>(null);
   const [announce, setAnnounce] = useState("");

@@ -5,10 +5,10 @@ import { ClockAlert, MoveRight, StickyNote, Undo2 } from "lucide-react";
 import { RatingChip, SectionCard, ToneChip } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import {
-  RECRUITING_BAND_LABEL,
   parseDate,
   restorePipelineCard,
   useProspectPipeline,
+  useStageNames,
   type CrmPerson,
 } from "@/data";
 import { MoveMenu } from "@/modules/pipeline/moveCard";
@@ -26,6 +26,7 @@ const LINK =
  */
 export function PipelineCard({ person }: { person: CrmPerson }) {
   const p = useProspectPipeline(person.id);
+  const names = useStageNames("recruiting");
   const { move, dialog } = useMoveCard(p?.columns ?? []);
   const [all, setAll] = useState(false);
   if (!p) return null;
@@ -43,7 +44,7 @@ export function PipelineCard({ person }: { person: CrmPerson }) {
       {p.onBoard && p.column && (
         <div className="grid gap-2 rounded-[10px] bg-surface-2 px-3.5 py-3">
           <span className="text-[10px] font-extrabold uppercase tracking-[.08em] text-faint">
-            {RECRUITING_BAND_LABEL[p.column.band]}
+            {names.band(p.column.band)}
           </span>
           <div className="flex flex-wrap items-center gap-2 text-[14px]">
             <b>{p.ownStep ?? p.column.label}</b>
@@ -115,7 +116,7 @@ export function PipelineCard({ person }: { person: CrmPerson }) {
         </ol>
       ) : (
         <p className="text-[12.5px] text-muted-foreground">
-          Not moved yet: they started in Contact made.
+          Not moved yet: they started in {names.name("contact")}.
         </p>
       )}
       {p.history.length > 4 && (

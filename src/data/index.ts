@@ -50,6 +50,9 @@ export * from "./customerPipeline";
 // Referral sources and "Referred by" on both pipelines (src/data/referrals)
 export * from "./referrals";
 
+// Renameable pipeline stages: the one place a stage's displayed name comes from (src/data/stageNames)
+export * from "./stageNames";
+
 // Library: All talks catalog, channels, progress (src/data/library)
 export * from "./library";
 
@@ -58,6 +61,9 @@ export * from "./growth";
 
 // How people join events, quick attendance, missed-event follow-ups (src/data/eventTypes)
 export * from "./eventTypes";
+
+// Feedback button: snapshot, reports and the admin list (src/data/feedback)
+export * from "./feedback";
 
 // Event categories: the team's own kinds of event (src/data/eventCategories)
 export * from "./eventCategories";
