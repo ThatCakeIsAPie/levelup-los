@@ -11,6 +11,7 @@ import { localDate } from "@/lib/dates";
 import { effectiveBizClass, usePeopleStore, type CrmPerson } from "@/stores/peopleStore";
 import { useVisibleIds } from "../people";
 import { useMe, useViewer } from "../session";
+import { useBoardDef } from "../stageNames/hooks";
 import { useChatPeople } from "../chat/hooks";
 import { useScope as usePipelineScope, usePipelineUplines } from "../pipeline/hooks";
 import type { BoardBand, BoardCard, PipelineBoard } from "../pipeline/hooks";
@@ -98,9 +99,10 @@ export function useCustomerColumns(personId: string | undefined): PipelineColumn
   const hides = useCustomerPipelineStore((s) => s.hides);
   const chatPeople = useChatPeople();
   const viewer = useViewer();
+  const def = useBoardDef("customer");
   return useMemo(() => {
     if (!personId) return [];
-    return columnsFor(chainOf(people, personId, uplines), steps, hides, CUSTOMER_BOARD).map((c) =>
+    return columnsFor(chainOf(people, personId, uplines), steps, hides, def).map((c) =>
       c.ownerId
         ? {
             ...c,
@@ -111,7 +113,7 @@ export function useCustomerColumns(personId: string | undefined): PipelineColumn
           }
         : c,
     );
-  }, [people, personId, steps, hides, chatPeople, viewer, uplines]);
+  }, [people, personId, steps, hides, chatPeople, viewer, uplines, def]);
 }
 
 // ---------------------------------------------------------------------------
@@ -262,6 +264,7 @@ export function useCustomerBoard(
   const columns = useCustomerColumns(opt?.leaderId);
   const uplines = usePipelineUplines();
   const refs = useReferralIndex();
+  const def = useBoardDef("customer");
   const today = localDate();
   return useMemo(() => {
     if (!opt) return null;
@@ -274,7 +277,7 @@ export function useCustomerBoard(
         c =
           ownerId === opt.leaderId
             ? columns
-            : columnsFor(chainOf(people, ownerId, uplines), data.steps, data.hides, CUSTOMER_BOARD);
+            : columnsFor(chainOf(people, ownerId, uplines), data.steps, data.hides, def);
         ownerCols.set(ownerId, c);
       }
       return c;
@@ -339,7 +342,7 @@ export function useCustomerBoard(
       return { milestone: b, columns: cols, count };
     });
     return { columns, bands, registered: { cards: [], total: 0 }, inProgress };
-  }, [opt, entries, data, people, columns, month, today, uplines, refs]);
+  }, [opt, entries, data, people, columns, month, today, uplines, refs, def]);
 }
 
 /**

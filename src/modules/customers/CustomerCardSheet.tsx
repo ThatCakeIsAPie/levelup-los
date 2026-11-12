@@ -24,7 +24,6 @@ import { toastWithUndo } from "@/components/log/quickLog";
 import { cn } from "@/lib/utils";
 import { displayPhone, phoneHref } from "@/lib/phone";
 import {
-  CUSTOMER_BAND_LABEL,
   CUSTOMER_BOARD,
   REFERRAL_SOURCE,
   addEntryToRecruiting,
@@ -34,7 +33,9 @@ import {
   sameBooking,
   openLog,
   updateCustomerCard,
+  useBoardDef,
   useCustomerColumns,
+  useStageNames,
   updateListEntry,
   useListEntry,
   usePerson,
@@ -108,6 +109,9 @@ function Details({
   const prospect = usePerson(entry?.prospectId ?? undefined);
   const recruiting = usePipelineAccess();
   const col = columns.find((c) => c.id === card.column);
+  const names = useStageNames("customer");
+  const recruitingNames = useStageNames("recruiting");
+  const def = useBoardDef("customer");
   const ownerColumns = useCustomerColumns(card.ownerId);
   const bookable = bookableColumns(ownerColumns, card.cardColumn, CUSTOMER_BOARD, card.band);
   const initial = bookingState(card.booking);
@@ -143,7 +147,7 @@ function Details({
             <SheetTitle className="truncate text-base font-extrabold">{card.name}</SheetTitle>
             <SheetDescription className="text-[12.5px]">
               {card.ownerName ? `On ${card.ownerName}'s list · ` : ""}
-              {col ? `${CUSTOMER_BAND_LABEL[col.band]}` : ""}
+              {col ? names.band(col.band) : ""}
             </SheetDescription>
           </div>
         </div>
@@ -152,7 +156,7 @@ function Details({
         <div className="grid gap-2 rounded-card bg-surface-2 px-3.5 py-3 text-[13px]">
           <div className="flex flex-wrap items-center gap-2">
             <b>{col?.label ?? "Not contacted yet"}</b>
-            {customer?.dittoSince && <ToneChip tone="good">On Ditto</ToneChip>}
+            {customer?.dittoSince && <ToneChip tone="good">{names.name("on_ditto")}</ToneChip>}
             {card.stale && (
               <ToneChip tone="warn" icon={ClockAlert}>
                 No movement in {ageLong(card.days)}
@@ -170,7 +174,7 @@ function Details({
           </span>
           <MoveMenu
             columns={columns}
-            bands={CUSTOMER_BOARD.bands}
+            bands={def.bands}
             current={card.column}
             align="start"
             onMove={(to) => {
@@ -240,7 +244,7 @@ function Details({
           <BookingFields
             id="cc-booking"
             columns={bookable}
-            bands={CUSTOMER_BOARD.bands}
+            bands={def.bands}
             value={booking}
             onChange={(b) => {
               setBooking(b);
@@ -300,7 +304,7 @@ function Details({
                   const r = addEntryToRecruiting(entry.id);
                   if (r)
                     toastWithUndo(`${entry.name} is on the recruiting pipeline too`, r.undo, {
-                      description: "They start in Contact made.",
+                      description: `They start in ${recruitingNames.name("contact")}.`,
                       undoneMessage: "Taken off the recruiting pipeline",
                     });
                 }}

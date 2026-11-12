@@ -6,16 +6,16 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import {
   MILESTONES,
-  MILESTONE_LABEL,
-  RECRUITING_BAND_LABEL,
   MIN_SAMPLE,
   TRANSITIONS,
+  useStageNames,
   type BandBreakdown,
   type HotspotRow,
   type PipelineConversions,
   type RateTone,
   type TeamSettingsView,
   type TransitionKey,
+  type StageNames,
   type TransitionStat,
   useCurrentUser,
 } from "@/data";
@@ -33,16 +33,16 @@ const TONE_CELL: Record<RateTone, string> = {
   bad: "bg-bad-soft text-bad",
 };
 
-const VERB: Record<TransitionKey, { did: string; lost: string }> = {
-  contactToMeeting: { did: "had a first meeting", lost: "never met" },
-  meetingToPlan: { did: "saw the plan", lost: "stopped after the first meeting" },
-  planToRegistered: { did: "registered", lost: "didn't register" },
+/** A transition as a short label ("Contact → First meeting"), with the viewer's stage names. */
+const transitionLabel = (names: StageNames, key: TransitionKey): string => {
+  const t = TRANSITIONS.find((x) => x.key === key)!;
+  return `${names.name(t.from)} → ${names.name(t.to)}`;
 };
 
-const SHORT: Record<TransitionKey, string> = {
-  contactToMeeting: "Contact → First meeting",
-  meetingToPlan: "First meeting → First plan",
-  planToRegistered: "First plan → Registered",
+/** What happened to people at a transition, in words that hold for any stage name. */
+const verbs = (names: StageNames, key: TransitionKey): { did: string; lost: string } => {
+  const to = names.name(TRANSITIONS.find((x) => x.key === key)!.to);
+  return { did: `reached ${to}`, lost: `stopped before ${to}` };
 };
 
 /** Conversions tab: where people drop off, inside your steps, and whose process needs help. */
@@ -138,6 +138,7 @@ function Legend({ tone, label }: { tone: RateTone; label: string }) {
 }
 
 function Funnel({ conv }: { conv: PipelineConversions }) {
+  const names = useStageNames("recruiting");
   const top = Math.max(1, conv.counts.contact);
   return (
     <div className="grid gap-1" role="list" aria-label="Funnel by milestone">
@@ -151,6 +152,7 @@ function Funnel({ conv }: { conv: PipelineConversions }) {
             {stat && (
               <FunnelStep
                 stat={stat}
+                names={names}
                 hot={conv.gap?.key === stat.key}
                 referrals={conv.referralSources[i - 1] ?? 0}
               />
@@ -159,7 +161,9 @@ function Funnel({ conv }: { conv: PipelineConversions }) {
               role="listitem"
               className="grid grid-cols-[84px_minmax(0,1fr)_44px] items-center gap-2.5 text-[12.5px] lg:grid-cols-[96px_minmax(0,1fr)_44px]"
             >
-              <span className="font-semibold">{MILESTONE_LABEL[m]}</span>
+              <span className="truncate font-semibold" title={names.name(m)}>
+                {names.name(m)}
+              </span>
               <div className="relative h-[22px] overflow-hidden rounded-md bg-surface-2">
                 <i
                   className={cn(
@@ -187,15 +191,17 @@ function Funnel({ conv }: { conv: PipelineConversions }) {
 
 function FunnelStep({
   stat,
+  names,
   hot,
   referrals,
 }: {
   stat: TransitionStat;
+  names: StageNames;
   hot: boolean;
   /** Of those who stopped here, how many passed on names (Referral source). */
   referrals: number;
 }) {
-  const v = VERB[stat.key];
+  const v = verbs(names, stat.key);
   return (
     <div
       className={cn(
@@ -222,6 +228,7 @@ function FunnelStep({
 }
 
 function Notice({ conv }: { conv: PipelineConversions }) {
+  const names = useStageNames("recruiting");
   if (!conv.gap) {
     const rated = conv.stats.some((s) => s.pct !== null);
     return (
@@ -240,7 +247,7 @@ function Notice({ conv }: { conv: PipelineConversions }) {
       <Lightbulb className="mt-0.5 size-4 shrink-0 text-warn" aria-hidden="true" />
       <div>
         <b>
-          Biggest gap: {MILESTONE_LABEL[conv.gap.from]} → {MILESTONE_LABEL[conv.gap.to]}.
+          Biggest gap: {names.name(conv.gap.from)} → {names.name(conv.gap.to)}.
         </b>{" "}
         {conv.tip}
       </div>
@@ -249,13 +256,14 @@ function Notice({ conv }: { conv: PipelineConversions }) {
 }
 
 function StepSplit({ b }: { b: BandBreakdown }) {
+  const names = useStageNames("recruiting");
   if (b.items.length < 2 && !b.cohort) return null;
   return (
     <div className="grid gap-1.5 rounded-lg border border-line px-3 py-2.5 text-[12px]">
-      <b>Inside your steps after {MILESTONE_LABEL[b.band]}</b>
+      <b>Inside your steps after {names.name(b.band)}</b>
       {b.cohort === 0 ? (
         <span className="text-muted-foreground">
-          Nobody reached {MILESTONE_LABEL[b.band]} in this period.
+          Nobody reached {names.name(b.band)} in this period.
         </span>
       ) : (
         <>
@@ -263,9 +271,7 @@ function StepSplit({ b }: { b: BandBreakdown }) {
             {b.items.map((it) => (
               <Fragment key={it.column.id}>
                 <span className="rounded-[7px] bg-surface-2 px-2 py-0.5 font-semibold">
-                  {it.column.kind === "milestone"
-                    ? RECRUITING_BAND_LABEL[it.column.band]
-                    : it.column.label}{" "}
+                  {it.column.kind === "milestone" ? names.name(it.column.band) : it.column.label}{" "}
                   <em className="ml-0.5 font-extrabold not-italic text-muted-foreground">
                     {it.count}
                   </em>
@@ -274,7 +280,7 @@ function StepSplit({ b }: { b: BandBreakdown }) {
               </Fragment>
             ))}
             <span className="rounded-[7px] bg-surface-2 px-2 py-0.5 font-semibold">
-              {MILESTONE_LABEL[b.next.milestone]}{" "}
+              {names.name(b.next.milestone)}{" "}
               <em className="ml-0.5 font-extrabold not-italic text-muted-foreground">
                 {b.next.count}
               </em>
@@ -284,7 +290,7 @@ function StepSplit({ b }: { b: BandBreakdown }) {
             <small className="text-[11.5px] text-muted-foreground">
               {b.worst.stalled} of {b.worst.of} stalled at{" "}
               {b.worst.column.kind === "milestone"
-                ? RECRUITING_BAND_LABEL[b.worst.column.band]
+                ? names.name(b.worst.column.band)
                 : b.worst.column.label}
               , the biggest drop inside this band.
             </small>
@@ -296,6 +302,7 @@ function StepSplit({ b }: { b: BandBreakdown }) {
 }
 
 function Hotspots({ conv }: { conv: PipelineConversions }) {
+  const names = useStageNames("recruiting");
   const me = useCurrentUser().personId;
   const [all, setAll] = useState(false);
   // People with too little activity for any rate fold away until asked for.
@@ -325,7 +332,7 @@ function Hotspots({ conv }: { conv: PipelineConversions }) {
               role="columnheader"
               className="pb-1 text-center text-[10.5px] font-bold leading-tight text-muted-foreground lg:text-[11px]"
             >
-              {SHORT[t.key]}
+              {transitionLabel(names, t.key)}
               <small className="block font-semibold text-faint">
                 target {conv.targets[t.key]}%
               </small>
@@ -333,7 +340,7 @@ function Hotspots({ conv }: { conv: PipelineConversions }) {
           ))}
         </div>
         {rows.map((r) => (
-          <HotRow key={r.personId} row={r} />
+          <HotRow key={r.personId} row={r} names={names} />
         ))}
         {quiet > 0 && (
           <button
@@ -347,14 +354,14 @@ function Hotspots({ conv }: { conv: PipelineConversions }) {
         {conv.rows.length === 0 && (
           <p className="col-span-4 py-2 text-[12px] text-faint">No activity in this period yet.</p>
         )}
-        <HotRow row={team} total />
+        <HotRow row={team} names={names} total />
         {conv.sharedRows.length > 0 && (
           <>
             <span className="col-span-4 pt-2 text-[11px] font-bold uppercase tracking-[.08em] text-faint">
               Shared with you
             </span>
             {conv.sharedRows.map((r) => (
-              <HotRow key={r.personId} row={r} />
+              <HotRow key={r.personId} row={r} names={names} />
             ))}
           </>
         )}
@@ -363,7 +370,7 @@ function Hotspots({ conv }: { conv: PipelineConversions }) {
   );
 }
 
-function HotRow({ row, total }: { row: HotspotRow; total?: boolean }) {
+function HotRow({ row, names, total }: { row: HotspotRow; names: StageNames; total?: boolean }) {
   return (
     <div role="row" className="contents">
       <span
@@ -384,14 +391,25 @@ function HotRow({ row, total }: { row: HotspotRow; total?: boolean }) {
         <span className="truncate">{row.name}</span>
       </span>
       {row.stats.map((s) => (
-        <Cell key={s.key} stat={s} name={row.name} total={total} />
+        <Cell key={s.key} stat={s} name={row.name} names={names} total={total} />
       ))}
     </div>
   );
 }
 
-function Cell({ stat, name, total }: { stat: TransitionStat; name: string; total?: boolean }) {
-  const v = VERB[stat.key];
+function Cell({
+  stat,
+  name,
+  names,
+  total,
+}: {
+  stat: TransitionStat;
+  name: string;
+  names: StageNames;
+  total?: boolean;
+}) {
+  const v = verbs(names, stat.key);
+  const short = transitionLabel(names, stat.key);
   return (
     <span role="cell" className={cn(total && "pt-1.5")}>
       <Popover>
@@ -403,22 +421,22 @@ function Cell({ stat, name, total }: { stat: TransitionStat; name: string; total
               stat.tone ? TONE_CELL[stat.tone] : "bg-surface-2 text-faint",
               total && "outline outline-[1.5px] -outline-offset-[1.5px] outline-current",
             )}
-            aria-label={`${name}, ${SHORT[stat.key]}: ${stat.pct === null ? "not enough people" : `${stat.pct}%, target ${stat.target}%`}`}
+            aria-label={`${name}, ${short}: ${stat.pct === null ? "not enough people" : `${stat.pct}%, target ${stat.target}%`}`}
           >
             {stat.pct === null ? "–" : `${stat.pct}%`}
           </button>
         </PopoverTrigger>
         <PopoverContent className="w-64 text-[12.5px]" align="center">
           <b className="block">{name}</b>
-          <span className="text-muted-foreground">{SHORT[stat.key]}</span>
+          <span className="text-muted-foreground">{short}</span>
           <p className="mt-1.5">
             {stat.toCount} of {stat.fromCount} {v.did}
             {stat.pct !== null ? ` (${stat.pct}%, target ${stat.target}%)` : ""}.
           </p>
           {stat.pct === null && (
             <p className="mt-1 text-muted-foreground">
-              Fewer than {MIN_SAMPLE} people reached {MILESTONE_LABEL[stat.from]}, so there&rsquo;s
-              no rate yet.
+              Fewer than {MIN_SAMPLE} people reached {names.name(stat.from)}, so there&rsquo;s no
+              rate yet.
             </p>
           )}
         </PopoverContent>

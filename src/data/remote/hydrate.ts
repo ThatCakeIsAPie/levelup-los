@@ -30,6 +30,9 @@ import type { CustomerPipelineData } from "@/data/customerPipeline/types";
 import type { TeamData } from "@/data/team/types";
 import type { EventCategory } from "@/data/eventCategories/types";
 import type { HomeLayout } from "@/data/homeLayout";
+import { sanitizeEntries, useStageNamesStore } from "@/data/stageNames/store";
+import { isStageKey, isStagePipeline, type StageNameEntry } from "@/data/stageNames/rules";
+import { useInheritedStageNames, type InheritedStageName } from "@/data/stageNames/inherited";
 import {
   activityBinding,
   attendanceBinding,
@@ -44,6 +47,7 @@ import {
   customerPipelineBinding,
   teamBinding,
   homeLayoutBinding,
+  stageNamesBinding,
 } from "./bindings";
 import { replaceStore } from "./engine";
 import { useRemoteStore, type ChainEntry, type DirectoryEntry, type RsvpCounts } from "./extras";
@@ -119,6 +123,8 @@ export interface PipelineSnapshot {
   customer: CustomerPipelineData;
   /** sponsor_chain(me): root first, the signed-in person last. */
   chain: ChainEntry[];
+  /** Pipeline stage names: your own rows, and the ones set above you (RLS: only your own rows). */
+  stageNames: { own: StageNameEntry[]; inherited: InheritedStageName[] };
 }
 
 export interface Snapshot {
@@ -482,38 +488,59 @@ export async function fetchLibrary(client: SupabaseClient): Promise<LibrarySnaps
  */
 export async function fetchPipeline(client: SupabaseClient, me: string): Promise<PipelineSnapshot> {
   const all = (t: string, order: Order[]) => fetchAll(client, t, order);
-  const [steps, hides, cards, moves, settings, shares, requests, cancellations, chain, customer] =
-    await Promise.all([
-      all("pipeline_steps", [
-        ["created_at", true],
-        ["id", true],
-      ]),
-      all("pipeline_step_hides", [
-        ["person_id", true],
-        ["step_id", true],
-      ]),
-      all("pipeline_cards", [["person_id", true]]),
-      all("pipeline_moves", [
-        ["moved_at", true],
-        ["id", true],
-      ]),
-      all("pipeline_team_settings", [["person_id", true]]),
-      all("stat_shares", [
-        ["owner_id", true],
-        ["viewer_id", true],
-      ]),
-      all("stat_requests", [
-        ["created_at", true],
-        ["id", true],
-      ]),
-      all("pipeline_step_cancellations", [
-        ["cancelled_at", true],
-        ["id", true],
-      ]),
-      client.rpc("sponsor_chain", { p_person_id: me }),
-      fetchCustomerPipeline(client),
-    ]);
+  const [
+    steps,
+    hides,
+    cards,
+    moves,
+    settings,
+    shares,
+    requests,
+    cancellations,
+    chain,
+    customer,
+    ownNames,
+    inheritedNames,
+  ] = await Promise.all([
+    all("pipeline_steps", [
+      ["created_at", true],
+      ["id", true],
+    ]),
+    all("pipeline_step_hides", [
+      ["person_id", true],
+      ["step_id", true],
+    ]),
+    all("pipeline_cards", [["person_id", true]]),
+    all("pipeline_moves", [
+      ["moved_at", true],
+      ["id", true],
+    ]),
+    all("pipeline_team_settings", [["person_id", true]]),
+    all("stat_shares", [
+      ["owner_id", true],
+      ["viewer_id", true],
+    ]),
+    all("stat_requests", [
+      ["created_at", true],
+      ["id", true],
+    ]),
+    all("pipeline_step_cancellations", [
+      ["cancelled_at", true],
+      ["id", true],
+    ]),
+    client.rpc("sponsor_chain", { p_person_id: me }),
+    fetchCustomerPipeline(client),
+    all("stage_names", [
+      ["person_id", true],
+      ["pipeline", true],
+      ["stage_key", true],
+    ]),
+    // The names set above you (their rows aren't yours to read).
+    client.rpc("effective_stage_names", { p_include_own: false }),
+  ]);
   if (chain.error) throw new Error(`sponsor_chain: ${chain.error.message}`);
+  if (inheritedNames.error)
+    throw new Error(`effective_stage_names: ${inheritedNames.error.message}`);
   return {
     data: {
       steps: steps.map((r) => m.stepFromRow(r)),
@@ -530,6 +557,18 @@ export async function fetchPipeline(client: SupabaseClient, me: string): Promise
       personId: String(r.person_id),
       name: String(r.name ?? ""),
     })),
+    stageNames: {
+      own: sanitizeEntries(ownNames.map((r) => m.stageNameFromRow(r))),
+      inherited: ((inheritedNames.data ?? []) as Row[])
+        .filter((r) => isStagePipeline(r.pipeline) && isStageKey(r.pipeline, String(r.stage_key)))
+        .map((r) => ({
+          pipeline: r.pipeline as InheritedStageName["pipeline"],
+          stage: String(r.stage_key),
+          name: String(r.name),
+          fromId: String(r.from_person_id),
+          fromName: String(r.from_person_name ?? ""),
+        })),
+    },
   };
 }
 
@@ -640,6 +679,8 @@ export function applyPipeline(s: PipelineSnapshot): void {
   useRemoteStore.setState({ chain: s.chain });
   replaceStore(pipelineBinding, s.data);
   replaceStore(customerPipelineBinding, s.customer);
+  replaceStore(stageNamesBinding, { entries: s.stageNames.own });
+  useInheritedStageNames.setState({ rows: s.stageNames.inherited });
 }
 
 export function applySnapshot(s: Snapshot): void {

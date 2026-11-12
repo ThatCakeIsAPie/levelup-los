@@ -32,16 +32,13 @@ import { localDate } from "@/lib/dates";
 import type { MissedEventNote } from "@/stores/attendanceStore";
 import { useCustomerPipelineStore } from "./customerPipeline/store";
 import { useCustomerColumns } from "./customerPipeline/hooks";
-import { CUSTOMER_BAND_LABEL, type CustomerMove, type ListEntry } from "./customerPipeline/types";
+import type { CustomerMove, ListEntry } from "./customerPipeline/types";
+import { useStageNames } from "./stageNames/hooks";
+import { defaultStageNames, type StageNames } from "./stageNames/names";
 import { usePipelineStore } from "./pipeline/store";
 import { usePipelineColumns } from "./pipeline/hooks";
 import { bookingLabel, cancelSummary } from "./pipeline/booking";
-import {
-  RECRUITING_BAND_LABEL,
-  type PipelineColumn,
-  type PipelineMove,
-  type StepCancellation,
-} from "./pipeline/types";
+import type { PipelineColumn, PipelineMove, StepCancellation } from "./pipeline/types";
 import { saleSellerId } from "./growth/engine";
 import { useViewer } from "./session";
 
@@ -89,6 +86,9 @@ export interface MyDayInput {
   /** The viewer's boards, for column names (others fall back to the band). */
   recruitingColumns?: readonly PipelineColumn<string>[];
   customerColumns?: readonly PipelineColumn<string>[];
+  /** The viewer's stage names, for the fallback and for "registered" (defaults when missing). */
+  recruitingStages?: StageNames;
+  customerStages?: StageNames;
 }
 
 /** The local day of an ISO time (or a "YYYY-MM-DD" day as is). */
@@ -161,16 +161,20 @@ export function myDayItems(input: MyDayInput): MyDayItem[] {
     if (!people.has(m.personId)) continue;
     const name = nameOf(m.personId);
     const col = recruitingCols.get(m.to);
-    const label = col?.label ?? RECRUITING_BAND_LABEL[m.milestone] ?? m.to;
+    const stages = input.recruitingStages ?? defaultStageNames("recruiting");
+    const label = col?.label ?? stages.band(m.milestone);
+    // "registered" reads as an event; with a name of your own for that stage, say where they went.
+    const plainRegistered =
+      m.to === "registered" &&
+      stages.stages.find((x) => x.key === "registered")?.source === "default";
     push({
       id: `move:${m.id}`,
       kind: "pipeline",
-      text:
-        m.to === "registered"
-          ? `${name} registered`
-          : m.from === null
-            ? `Put ${name} on the recruiting pipeline (${label})`
-            : `Moved ${name} to ${label}`,
+      text: plainRegistered
+        ? `${name} registered`
+        : m.from === null
+          ? `Put ${name} on the recruiting pipeline (${label})`
+          : `Moved ${name} to ${label}`,
       at: m.movedAt,
       personId: m.personId,
     });
@@ -182,7 +186,9 @@ export function myDayItems(input: MyDayInput): MyDayItem[] {
     const entry = entries.get(m.entryId);
     if (!entry) continue;
     const name = entry.name;
-    const label = customerCols.get(m.to)?.label ?? CUSTOMER_BAND_LABEL[m.band] ?? m.to;
+    const label =
+      customerCols.get(m.to)?.label ??
+      (input.customerStages ?? defaultStageNames("customer")).band(m.band);
     push({
       id: `cmove:${m.id}`,
       kind: "customer_pipeline",
@@ -349,6 +355,8 @@ export function useMyDay(): MyDayItem[] {
   const candidate = viewer?.role === "candidate";
   const recruitingColumns = usePipelineColumns(candidate ? undefined : me);
   const customerColumns = useCustomerColumns(candidate ? undefined : me);
+  const recruitingStages = useStageNames("recruiting");
+  const customerStages = useStageNames("customer");
   const today = localDate();
   return useMemo(
     () =>
@@ -369,6 +377,8 @@ export function useMyDay(): MyDayItem[] {
             missedNotes,
             recruitingColumns,
             customerColumns,
+            recruitingStages,
+            customerStages,
           })
         : [],
     [
@@ -387,6 +397,8 @@ export function useMyDay(): MyDayItem[] {
       missedNotes,
       recruitingColumns,
       customerColumns,
+      recruitingStages,
+      customerStages,
     ],
   );
 }

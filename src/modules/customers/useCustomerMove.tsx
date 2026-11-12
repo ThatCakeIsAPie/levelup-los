@@ -12,7 +12,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toastWithUndo } from "@/components/log/quickLog";
 import {
-  CUSTOMER_BAND_LABEL,
   DO_NOT_CONTACT,
   REFERRAL_SOURCE,
   closeLog,
@@ -21,7 +20,9 @@ import {
   isSaleBand,
   moveCustomerCard,
   openLog,
+  getStageNames,
   useCurrentUser,
+  useStageNames,
   type CustomerBand,
   type CustomerMoveFailure,
   type PipelineColumn,
@@ -44,6 +45,7 @@ const first = (name: string) => name.split(" ")[0] ?? name;
  */
 export function useCustomerMove(columns: PipelineColumn<CustomerBand>[]) {
   const me = useCurrentUser();
+  const names = useStageNames("customer");
   const [confirm, setConfirm] = useState<{ id: string; name: string; to: string } | null>(null);
 
   const doMove = (id: string, name: string, to: string) => {
@@ -52,7 +54,7 @@ export function useCustomerMove(columns: PipelineColumn<CustomerBand>[]) {
       if (r.reason !== "same-column") toast.error(FAILURE[r.reason]);
       return;
     }
-    const label = columns.find((c) => c.id === to)?.label ?? CUSTOMER_BAND_LABEL[r.band];
+    const label = columns.find((c) => c.id === to)?.label ?? getStageNames("customer").band(r.band);
     const opts = { undoneMessage: "Move undone" };
     if (r.becameCustomer && r.customerId) {
       // Customers are private to their owner: an upline moving a downline's
@@ -70,7 +72,7 @@ export function useCustomerMove(columns: PipelineColumn<CustomerBand>[]) {
         {
           ...opts,
           description: mine
-            ? `${r.setDitto ? "On Ditto too. " : ""}Log the sale in the form that just opened.`
+            ? `${r.setDitto ? `${getStageNames("customer").name("on_ditto")} too. ` : ""}Log the sale in the form that just opened.`
             : `${owner} logs the sale from their Customers.`,
         },
       );
@@ -78,7 +80,7 @@ export function useCustomerMove(columns: PipelineColumn<CustomerBand>[]) {
       return;
     }
     if (r.setDitto) {
-      toastWithUndo(`${name} is on Ditto`, r.undo, {
+      toastWithUndo(`${name} moved to ${label}`, r.undo, {
         ...opts,
         description: "Marked as a subscription customer.",
       });
@@ -109,7 +111,8 @@ export function useCustomerMove(columns: PipelineColumn<CustomerBand>[]) {
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>
-            Did {confirm ? first(confirm.name) : ""} make a first sale?
+            Move {confirm ? first(confirm.name) : ""} to{" "}
+            {columns.find((c) => c.id === confirm?.to)?.label ?? names.name("first_sale")}?
           </AlertDialogTitle>
           <AlertDialogDescription>
             {yours
@@ -125,7 +128,7 @@ export function useCustomerMove(columns: PipelineColumn<CustomerBand>[]) {
               setConfirm(null);
             }}
           >
-            Yes, first sale
+            Move
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

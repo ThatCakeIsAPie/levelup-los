@@ -50,6 +50,9 @@ export * from "./customerPipeline";
 // Referral sources and "Referred by" on both pipelines (src/data/referrals)
 export * from "./referrals";
 
+// Renameable pipeline stages: the one place a stage's displayed name comes from (src/data/stageNames)
+export * from "./stageNames";
+
 // Library: All talks catalog, channels, progress (src/data/library)
 export * from "./library";
 

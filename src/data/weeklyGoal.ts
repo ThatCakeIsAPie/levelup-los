@@ -27,6 +27,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { localDate, parseDate } from "@/lib/dates";
+import { getStageNames } from "./stageNames/hooks";
 import type { Attendance } from "@/stores/attendanceStore";
 import type {
   Contact,
@@ -253,13 +254,23 @@ export const GOAL_CATEGORIES = {
       ).length;
     },
   },
+  // This category is a stage of the recruiting pipeline, so its words follow the
+  // viewer's stage names (read when asked, not at load).
   first_meetings: {
-    label: "First meetings",
-    hint: "Prospects on your board reaching First meeting",
+    get label() {
+      return getStageNames("recruiting").plural("first_meeting");
+    },
+    get hint() {
+      return `Prospects on your board reaching ${getStageNames("recruiting").name("first_meeting")}`;
+    },
     icon: Handshake,
     defaultTarget: 3,
-    rowLabel: () => "First meetings",
-    words: () => "first meetings",
+    rowLabel: () => getStageNames("recruiting").plural("first_meeting"),
+    words: () => {
+      const names = getStageNames("recruiting");
+      const own = names.stages.find((s) => s.key === "first_meeting")?.source !== "default";
+      return own ? names.plural("first_meeting") : names.plural("first_meeting").toLowerCase();
+    },
     requires: "pipeline",
     count: (input) => {
       const w = goalWeek(input.today);
