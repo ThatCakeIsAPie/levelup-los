@@ -33,6 +33,7 @@ import { Route as LibraryTalksRouteImport } from './routes/library.talks'
 import { Route as PeopleIndexRouteImport } from './routes/people.index'
 import { Route as PeopleIdRouteImport } from './routes/people.$id'
 import { Route as SettingsIndexRouteImport } from './routes/settings.index'
+import { Route as SettingsFeedbackRouteImport } from './routes/settings.feedback'
 import { Route as SettingsTeamRouteImport } from './routes/settings.team'
 import { Route as LibraryItemItemIdRouteImport } from './routes/library.item.$itemId'
 
@@ -156,6 +157,11 @@ const SettingsIndexRoute = SettingsIndexRouteImport.update({
   path: '/settings/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsFeedbackRoute = SettingsFeedbackRouteImport.update({
+  id: '/settings/feedback',
+  path: '/settings/feedback',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsTeamRoute = SettingsTeamRouteImport.update({
   id: '/settings/team',
   path: '/settings/team',
@@ -187,6 +193,7 @@ export interface FileRoutesByFullPath {
   '/library/$channelId': typeof LibraryChannelIdRoute
   '/library/talks': typeof LibraryTalksRoute
   '/people/$id': typeof PeopleIdRoute
+  '/settings/feedback': typeof SettingsFeedbackRoute
   '/settings/team': typeof SettingsTeamRoute
   '/chats/': typeof ChatsIndexRoute
   '/events/': typeof EventsIndexRoute
@@ -215,6 +222,7 @@ export interface FileRoutesByTo {
   '/library/$channelId': typeof LibraryChannelIdRoute
   '/library/talks': typeof LibraryTalksRoute
   '/people/$id': typeof PeopleIdRoute
+  '/settings/feedback': typeof SettingsFeedbackRoute
   '/settings/team': typeof SettingsTeamRoute
   '/chats': typeof ChatsIndexRoute
   '/events': typeof EventsIndexRoute
@@ -244,6 +252,7 @@ export interface FileRoutesById {
   '/library/$channelId': typeof LibraryChannelIdRoute
   '/library/talks': typeof LibraryTalksRoute
   '/people/$id': typeof PeopleIdRoute
+  '/settings/feedback': typeof SettingsFeedbackRoute
   '/settings/team': typeof SettingsTeamRoute
   '/chats/': typeof ChatsIndexRoute
   '/events/': typeof EventsIndexRoute
@@ -274,6 +283,7 @@ export interface FileRouteTypes {
     | '/library/$channelId'
     | '/library/talks'
     | '/people/$id'
+    | '/settings/feedback'
     | '/settings/team'
     | '/chats/'
     | '/events/'
@@ -302,6 +312,7 @@ export interface FileRouteTypes {
     | '/library/$channelId'
     | '/library/talks'
     | '/people/$id'
+    | '/settings/feedback'
     | '/settings/team'
     | '/chats'
     | '/events'
@@ -330,6 +341,7 @@ export interface FileRouteTypes {
     | '/library/$channelId'
     | '/library/talks'
     | '/people/$id'
+    | '/settings/feedback'
     | '/settings/team'
     | '/chats/'
     | '/events/'
@@ -359,6 +371,7 @@ export interface RootRouteChildren {
   LibraryChannelIdRoute: typeof LibraryChannelIdRoute
   LibraryTalksRoute: typeof LibraryTalksRoute
   PeopleIdRoute: typeof PeopleIdRoute
+  SettingsFeedbackRoute: typeof SettingsFeedbackRoute
   SettingsTeamRoute: typeof SettingsTeamRoute
   ChatsIndexRoute: typeof ChatsIndexRoute
   EventsIndexRoute: typeof EventsIndexRoute
@@ -538,6 +551,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings/feedback': {
+      id: '/settings/feedback'
+      path: '/settings/feedback'
+      fullPath: '/settings/feedback'
+      preLoaderRoute: typeof SettingsFeedbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings/team': {
       id: '/settings/team'
       path: '/settings/team'
@@ -575,6 +595,7 @@ const rootRouteChildren: RootRouteChildren = {
   LibraryChannelIdRoute: LibraryChannelIdRoute,
   LibraryTalksRoute: LibraryTalksRoute,
   PeopleIdRoute: PeopleIdRoute,
+  SettingsFeedbackRoute: SettingsFeedbackRoute,
   SettingsTeamRoute: SettingsTeamRoute,
   ChatsIndexRoute: ChatsIndexRoute,
   EventsIndexRoute: EventsIndexRoute,

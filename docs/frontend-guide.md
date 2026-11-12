@@ -219,6 +219,17 @@ In the browser demo writes don't enforce visibility; only reads are filtered. Wi
 - Deputies: a leader names apprentices or IBOs on their team in Team settings (`/settings/team`, which also has the feature switches). A deputy sees what the leader sees and edits on the leader's behalf (coaching the leader's team, events, switches), never the leader's customers, and can't coach the leader themselves; "Acting for Maria" (`ActingForBadge` in `src/modules/settings/TeamSettingsCards.tsx`) shows in Team settings and the event form, and "Maria's deputy" under their name.
 - Learning: `/learning` (`src/modules/learning/LearningPage.tsx`) is the Learning item for everyone: streak, this week against the goal, recent entries and "Log learning"; with the Library on it also shows Continue learning and a link to `/library`.
 
+## Feedback button
+
+Every signed-in person, in every role, can tell the app's admins what they would like changed.
+
+- **Button**: "Feedback" in the desktop sidebar, directly above the profile block (`Sidebar` in `src/components/shell/AppShell.tsx`), and "Feedback" next to "My profile" in the phone More sheet (`MoreSheet`). Both call `startFeedback()` from `src/components/feedback/feedbackFlow.ts`, which takes the snapshot first and only then opens the dialog (`FeedbackDialog`, rendered once by the shell), so the dialog is never in the picture. The More sheet is closed and gone before the capture.
+- **Snapshot** (`src/data/feedback/capture.ts`): in-page DOM capture with `modern-screenshot` (MIT; maintained; loaded with a dynamic `import()`, so it is a separate chunk and not in the main bundle). Visible viewport only, device pixel ratio 1, JPEG kept under 400 KB (quality then scale are reduced). No picture, and no error, when the capture fails or takes more than 4 seconds. The person can press "Remove screenshot" in the dialog before sending, because the page may show names and phone numbers.
+- **Saved with each report** (`FeedbackContext`, `src/data/feedback/types.ts`): path and search, page title, viewport, light/dark theme, user agent, `brand.slug`, app version (the short git commit injected by `vite.config.ts` as `__APP_VERSION__`, from `GITHUB_SHA` or `git rev-parse --short HEAD`, else `dev`), the client time and the sender's name.
+- **Where it goes**: with real accounts, the `feedback` table and private `feedback` bucket (see `docs/backend.md`). In the browser demo, reports are one list in `localStorage` (`<prefix>.feedback`) and the pictures are in IndexedDB (`<prefix>-feedback`); the dialog and the confirmation say it is saved in this browser only, and "Reset demo data" clears both.
+- **Reading reports**: Settings > Feedback (`/settings/feedback`, `src/modules/feedback/FeedbackPage.tsx`), linked from Settings only for app admins (`user.admin`: `is_app_admin()` with real accounts, the `admin@demo.test` login in the demo). Newest first, latest 100: message, sender, page, date, a thumbnail that opens the full picture, and a Done / Reopen toggle. Anyone else who opens the URL sees a short notice, and the database would return nothing anyway.
+- Code: `src/data/feedback` (`rules.ts` pure and tested, `capture.ts`, `localStore.ts`, `remote.ts`, `index.ts` re-exported by `@/data`).
+
 ## Home
 
 `src/routes/index.tsx` builds every Home card by id (`HomeCards`, null = not shown to this person) and hands them to `HomeGrid` (`src/modules/dashboard/HomeGrid.tsx`).
