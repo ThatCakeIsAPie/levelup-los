@@ -10,6 +10,7 @@ import {
   SectionCard,
   StatStrip,
   ToneChip,
+  Sensitive,
 } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -292,7 +293,7 @@ function Hero({ event, manage }: { event: CrmEvent; manage: boolean }) {
                 <span aria-hidden="true">·</span>
                 <span className="inline-flex items-center gap-1">
                   <MapPin className="size-3.5" aria-hidden="true" />
-                  {event.location}
+                  <Sensitive kind="address">{event.location}</Sensitive>
                 </span>
               </>
             )}

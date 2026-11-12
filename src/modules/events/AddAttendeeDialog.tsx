@@ -18,7 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { STAGE_LABEL } from "@/components/brand";
+import { STAGE_LABEL, Sensitive } from "@/components/brand";
 import {
   addPerson,
   assignToEvent,
@@ -28,6 +28,7 @@ import {
 } from "@/data";
 import { Segmented } from "./Segmented";
 
+import { sensitive } from "@/lib/sensitive";
 /**
  * Add someone to an event: pick from the people you can see, or create a new
  * prospect (sponsored by you, so they stay visible to you). `customersOnly`
@@ -163,7 +164,7 @@ function AddForm({
               <SelectContent>
                 {available.map((p) => (
                   <SelectItem key={p.id} value={p.id}>
-                    {p.name}
+                    <Sensitive kind="name">{p.name}</Sensitive>
                     <span className="ml-1.5 text-muted-foreground">
                       {STAGE_LABEL[effectiveBizClass(p)]}
                     </span>
@@ -179,6 +180,7 @@ function AddForm({
           <Input
             id="add-att-name"
             autoFocus
+            {...sensitive("name")}
             value={newName}
             onChange={(e) => {
               setNewName(e.target.value);

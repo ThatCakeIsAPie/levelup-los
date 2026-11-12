@@ -44,6 +44,9 @@ import {
 import { fmtDate } from "./format";
 import { ClearableDate } from "@/modules/events/ClearableDate";
 
+import { Sensitive } from "@/components/brand";
+
+import { sensitive } from "@/lib/sensitive";
 type AttendedValue = "unset" | "yes" | "no";
 
 /** Edit every attendance field for one person at one event. */
@@ -132,7 +135,7 @@ function AttendanceForm({
       <DialogHeader>
         <DialogTitle>{event.name}</DialogTitle>
         <DialogDescription>
-          {personName} · {fmtDate(event.date, { year: true })}
+          <Sensitive kind="name">{personName}</Sensitive> · {fmtDate(event.date, { year: true })}
         </DialogDescription>
       </DialogHeader>
 
@@ -160,7 +163,7 @@ function AttendanceForm({
               {!helperKnown && <SelectItem value={helperId}>Someone outside your team</SelectItem>}
               {helperOptions.map((p) => (
                 <SelectItem key={p.id} value={p.id}>
-                  {p.name}
+                  <Sensitive kind="name">{p.name}</Sensitive>
                 </SelectItem>
               ))}
             </SelectContent>
@@ -240,6 +243,7 @@ function AttendanceForm({
         <Textarea
           id="att-notes"
           rows={3}
+          {...sensitive("note")}
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           placeholder="Anything to remember for this event"
@@ -268,8 +272,8 @@ function AttendanceForm({
           <AlertDialogHeader>
             <AlertDialogTitle>Remove from {event.name}?</AlertDialogTitle>
             <AlertDialogDescription>
-              This deletes {personName}'s ticket, helper and notes for this event. You can add them
-              to the event again later.
+              This deletes <Sensitive kind="name">{personName}</Sensitive>'s ticket, helper and
+              notes for this event. You can add them to the event again later.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

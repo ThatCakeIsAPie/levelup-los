@@ -11,7 +11,7 @@ import {
   type CrmPerson,
   type PipelineStage,
 } from "@/data";
-import { SectionCard } from "@/components/brand";
+import { SectionCard, Sensitive } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { firstName, fmtDate, relativeDays } from "./format";
@@ -170,8 +170,9 @@ export function ApprenticeNotice({
       <div className="grid gap-2">
         {level === "due" ? (
           <p>
-            <b>{apprenticeAlertLabel(level)}.</b> {name}'s apprentice year ended on{" "}
-            {format(parseDate(ibo), "MMM d")}. Update the stage so it shows everywhere.
+            <b>{apprenticeAlertLabel(level)}.</b> <Sensitive kind="name">{name}</Sensitive>'s
+            apprentice year ended on {format(parseDate(ibo), "MMM d")}. Update the stage so it shows
+            everywhere.
           </p>
         ) : compact ? (
           <p>
@@ -179,8 +180,9 @@ export function ApprenticeNotice({
           </p>
         ) : (
           <p>
-            <b>{level === "30d" ? "30-day notice." : "90-day notice."}</b> {name} becomes an IBO
-            automatically on {format(parseDate(ibo), "MMM d")}.{" "}
+            <b>{level === "30d" ? "30-day notice." : "90-day notice."}</b>{" "}
+            <Sensitive kind="name">{name}</Sensitive> becomes an IBO automatically on{" "}
+            {format(parseDate(ibo), "MMM d")}.{" "}
             {idsOnFile
               ? "IBO# and LTD# are on file, so nothing is blocking it."
               : "Add the IBO# and LTD# in Details before then."}

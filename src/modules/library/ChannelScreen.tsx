@@ -16,7 +16,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { Breadcrumbs, EmptyState, PageHeader, useIsDesktop } from "@/components/brand";
+import { Breadcrumbs, EmptyState, PageHeader, useIsDesktop, Sensitive } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -194,7 +194,7 @@ function Channel({
         />
         <div className="min-w-0">
           <span className="text-[10.5px] font-extrabold uppercase tracking-[.08em] text-faint">
-            Channel · by {view.ownerName}
+            Channel · by <Sensitive kind="name">{view.ownerName}</Sensitive>
             {c.visibility !== "team" &&
               ` · ${audienceText(c.visibility, c.createdBy, view.ownerName, user.personId)}`}
           </span>

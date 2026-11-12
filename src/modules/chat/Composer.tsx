@@ -14,7 +14,7 @@ import {
   X,
   CornerUpLeft,
 } from "lucide-react";
-import { PersonAvatar } from "@/components/brand";
+import { PersonAvatar, Sensitive } from "@/components/brand";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,6 +41,7 @@ import { LinkPicker } from "./LinkPicker";
 import { EventPostDialog } from "./EventPostDialog";
 import { duration, firstName } from "./format";
 
+import { sensitive } from "@/lib/sensitive";
 const round =
   "grid size-9 shrink-0 place-items-center rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
 
@@ -356,11 +357,20 @@ export function Composer({
           )}
           <div className="min-w-0 flex-1">
             <div className="font-bold text-primary-ink">
-              {editing ? "Editing message" : `Replying to ${replyTo?.author?.name ?? "message"}`}
+              {editing ? (
+                "Editing message"
+              ) : (
+                <>
+                  Replying to{" "}
+                  <Sensitive kind="name">{replyTo?.author?.name ?? "message"}</Sensitive>
+                </>
+              )}
             </div>
             {!editing && replyTo && (
               <div className="truncate text-muted-foreground">
-                {replyTo.body || (replyTo.card ? "Post" : "Attachment")}
+                <Sensitive kind="message">
+                  {replyTo.body || (replyTo.card ? "Post" : "Attachment")}
+                </Sensitive>
               </div>
             )}
           </div>
@@ -389,6 +399,7 @@ export function Composer({
           {card?.type === "event" && <EventCard eventId={card.eventId} />}
           {image && (
             <img
+              {...sensitive("photo")}
               src={image.url}
               alt="Photo to send"
               className="max-h-40 w-auto rounded-lg object-contain"
@@ -431,7 +442,9 @@ export function Composer({
               )}
             >
               <PersonAvatar name={p.name} stage={p.stage} size="sm" />
-              <span className="truncate">{p.name}</span>
+              <span className="truncate">
+                <Sensitive kind="name">{p.name}</Sensitive>
+              </span>
             </li>
           ))}
         </ul>
@@ -481,6 +494,7 @@ export function Composer({
         <textarea
           ref={area}
           rows={1}
+          {...sensitive("message")}
           value={text}
           aria-label={placeholder}
           placeholder={placeholder}

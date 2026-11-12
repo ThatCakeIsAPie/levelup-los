@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import { ChevronDown, CreditCard, Info, Plus, Receipt, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
-import { EmptyState, PersonAvatar, SectionCard, ToneChip } from "@/components/brand";
+import { EmptyState, PersonAvatar, SectionCard, ToneChip, Sensitive } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
@@ -327,7 +327,7 @@ function MemberRow({
         size="sm"
       />
       <span className="min-w-0 flex-1 truncate">
-        {name}
+        <Sensitive kind="name">{name}</Sensitive>
         {custom && <span className="ml-1.5 text-[11px] text-faint">custom</span>}
       </span>
       {invoice && <ToneChip tone={paid ? "good" : "warn"}>{paid ? "Paid" : "Owes"}</ToneChip>}

@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { PersonAvatar, STAGE_SOLID_CLASS, ToneChip } from "@/components/brand";
+import { PersonAvatar, STAGE_SOLID_CLASS, ToneChip, Sensitive } from "@/components/brand";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
@@ -93,7 +93,7 @@ export function AttendeeKanban({
                       onClick={() => onEdit(a.id)}
                       className="min-w-0 flex-1 truncate rounded-sm text-left text-[13px] font-semibold hover:underline focus-visible:outline-2 focus-visible:outline-ring"
                     >
-                      {p?.name ?? "Unknown person"}
+                      <Sensitive kind="name">{p?.name ?? "Unknown person"}</Sensitive>
                     </button>
                     <RiskBadge attendance={a} finished={finished} />
                   </div>

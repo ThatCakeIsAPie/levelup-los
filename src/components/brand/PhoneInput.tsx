@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, type ComponentProps } from "react";
 import { Input } from "@/components/ui/input";
 import { caretAfter, digitsBefore, formatPhone, normalizePhone } from "@/lib/phone";
 
+import { sensitive } from "@/lib/sensitive";
 /**
  * A phone field that formats as you type, US style "(512) 555-0102" (see
  * src/lib/phone.ts; +1 and other country codes are accepted). On blur the
@@ -31,6 +32,7 @@ export function PhoneInput({
   return (
     <Input
       {...props}
+      {...sensitive("phone")}
       ref={ref}
       type="tel"
       inputMode="tel"

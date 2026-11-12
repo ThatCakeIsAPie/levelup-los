@@ -4,10 +4,18 @@
  * encoded as JPEG and kept under SNAPSHOT_MAX_BYTES. The capture library
  * (modern-screenshot) is loaded on demand, so it isn't in the main bundle.
  *
+ * Sensitive things (people's names, contact details, ID numbers, notes, chat
+ * text, photos) are painted as solid black bars in the clone the library renders:
+ * marked elements (src/lib/sensitive.ts) and, as a safety net, any text that holds
+ * a value the client knows (./redact.ts, ./redactDom.ts). The sender cannot turn
+ * this off, and the page on screen is never changed.
+ *
  * Never throws: a failure, or taking longer than SNAPSHOT_TIMEOUT_MS, gives null
  * and the feedback dialog simply opens without a picture.
  */
+import { redactClone } from "./redactDom";
 import { fitImage } from "./rules";
+import { currentSensitiveMatcher } from "./values";
 import { SNAPSHOT_MAX_BYTES, SNAPSHOT_TIMEOUT_MS } from "./types";
 
 /** The page's own background, so the JPEG (which has no transparency) isn't black. */
@@ -32,6 +40,17 @@ function startsBelowViewport(node: Node): boolean {
   return !/fixed|sticky/.test(getComputedStyle(node).position);
 }
 
+/**
+ * `startsBelowViewport` drops the rows under the fold, but the clone of a long
+ * <table> keeps its measured height, and the table would stretch the few rows left
+ * to fill it (the same goes for its row groups). Let the table be as tall as its rows.
+ */
+function relaxTables(root: Element): void {
+  for (const el of Array.from(root.querySelectorAll<HTMLElement>("table, tbody, thead, tfoot"))) {
+    el.style.setProperty("height", "auto", "important");
+  }
+}
+
 async function capture(): Promise<Blob | null> {
   const { domToCanvas } = await import("modern-screenshot");
   const width = window.innerWidth;
@@ -47,6 +66,12 @@ async function capture(): Promise<Blob | null> {
       !(node instanceof HTMLMediaElement && !node.currentSrc) && !startsBelowViewport(node),
     // The shell scrolls inside <main>, not the page: draw it where it is scrolled to.
     features: { restoreScrollPosition: true },
+    // Names and contact details become black bars, in the clone only (the live page is never touched).
+    onCloneNode: (clone) => {
+      if (!(clone instanceof Element)) return;
+      relaxTables(clone);
+      redactClone(clone, currentSensitiveMatcher());
+    },
   });
   return fitImage((scale, quality) => {
     let source = canvas;

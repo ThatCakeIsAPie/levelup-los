@@ -11,7 +11,7 @@ import {
   ShoppingBag,
 } from "lucide-react";
 import { toast } from "sonner";
-import { PersonAvatar, RatingPicker, ToneChip, useIsDesktop } from "@/components/brand";
+import { PersonAvatar, RatingPicker, ToneChip, useIsDesktop, Sensitive } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -144,9 +144,17 @@ function Details({
         <div className="flex items-center gap-3">
           <PersonAvatar name={card.name} stage={customer ? "customer" : "prospect"} size="lg" />
           <div className="min-w-0">
-            <SheetTitle className="truncate text-base font-extrabold">{card.name}</SheetTitle>
+            <SheetTitle className="truncate text-base font-extrabold">
+              <Sensitive kind="name">{card.name}</Sensitive>
+            </SheetTitle>
             <SheetDescription className="text-[12.5px]">
-              {card.ownerName ? `On ${card.ownerName}'s list · ` : ""}
+              {card.ownerName ? (
+                <>
+                  On <Sensitive kind="name">{card.ownerName}</Sensitive>&rsquo;s list ·{" "}
+                </>
+              ) : (
+                ""
+              )}
               {col ? names.band(col.band) : ""}
             </SheetDescription>
           </div>
@@ -169,8 +177,13 @@ function Details({
               : card.days === 0
                 ? "Moved here today"
                 : `Here for ${ageLong(card.days)}`}
-            {card.elsewhere &&
-              ` · at ${card.elsewhere.ownerName}'s step "${card.elsewhere.label}" on their board`}
+            {card.elsewhere && (
+              <>
+                {" "}
+                · at <Sensitive kind="name">{card.elsewhere.ownerName}</Sensitive>&rsquo;s step "
+                {card.elsewhere.label}" on their board
+              </>
+            )}
           </span>
           <MoveMenu
             columns={columns}
@@ -190,7 +203,11 @@ function Details({
 
         {entry && (
           <div className="grid gap-2 text-[13px]">
-            {entry.howKnown && <p className="text-muted-foreground">{entry.howKnown}</p>}
+            {entry.howKnown && (
+              <p className="text-muted-foreground">
+                <Sensitive kind="note">{entry.howKnown}</Sensitive>
+              </p>
+            )}
             {(entry.phone || entry.email) && (
               <div className="flex flex-wrap gap-x-4 gap-y-1">
                 {entry.phone && (
@@ -198,7 +215,8 @@ function Details({
                     href={`tel:${phoneHref(entry.phone)}`}
                     className="inline-flex items-center gap-1.5 rounded-sm font-semibold text-primary hover:underline focus-visible:outline-2 focus-visible:outline-ring"
                   >
-                    <Phone className="size-3.5" aria-hidden="true" /> {displayPhone(entry.phone)}
+                    <Phone className="size-3.5" aria-hidden="true" />{" "}
+                    <Sensitive kind="phone">{displayPhone(entry.phone)}</Sensitive>
                   </a>
                 )}
                 {entry.email && (
@@ -207,12 +225,18 @@ function Details({
                     className="inline-flex min-w-0 items-center gap-1.5 rounded-sm font-semibold text-primary hover:underline focus-visible:outline-2 focus-visible:outline-ring"
                   >
                     <Mail className="size-3.5 shrink-0" aria-hidden="true" />
-                    <span className="truncate">{entry.email}</span>
+                    <span className="truncate">
+                      <Sensitive kind="email">{entry.email}</Sensitive>
+                    </span>
                   </a>
                 )}
               </div>
             )}
-            {entry.notes && <p className="whitespace-pre-line text-[12.5px]">{entry.notes}</p>}
+            {entry.notes && (
+              <p className="whitespace-pre-line text-[12.5px]">
+                <Sensitive kind="note">{entry.notes}</Sensitive>
+              </p>
+            )}
             <RatingPicker
               value={entry.rating}
               onChange={(rating) => updateListEntry(entry.id, { rating })}
@@ -284,7 +308,8 @@ function Details({
           )}
           {entry?.customerId && !customer && (
             <p className="w-full text-[12px] text-muted-foreground">
-              A customer of {card.ownerName}&rsquo;s. Customers are private, so they log the sales.
+              A customer of <Sensitive kind="name">{card.ownerName}</Sensitive>&rsquo;s. Customers
+              are private, so they log the sales.
             </p>
           )}
           {prospect ? (

@@ -28,6 +28,7 @@ import {
   type PipelineColumn,
 } from "@/data";
 
+import { Sensitive } from "@/components/brand";
 const FAILURE: Record<CustomerMoveFailure, string> = {
   "no-access": "Your customer pipeline starts when you register.",
   "not-found": "That name isn't on a list you can see.",
@@ -111,7 +112,7 @@ export function useCustomerMove(columns: PipelineColumn<CustomerBand>[]) {
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>
-            Move {confirm ? first(confirm.name) : ""} to{" "}
+            Move <Sensitive kind="name">{confirm ? first(confirm.name) : ""}</Sensitive> to{" "}
             {columns.find((c) => c.id === confirm?.to)?.label ?? names.name("first_sale")}?
           </AlertDialogTitle>
           <AlertDialogDescription>

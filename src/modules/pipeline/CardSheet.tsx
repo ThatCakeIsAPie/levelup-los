@@ -2,7 +2,14 @@ import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { ArrowUpRight, ClockAlert, MoveRight, UserMinus } from "lucide-react";
 import { toast } from "sonner";
-import { PersonAvatar, RatingChip, RatingPicker, ToneChip, useIsDesktop } from "@/components/brand";
+import {
+  PersonAvatar,
+  RatingChip,
+  RatingPicker,
+  ToneChip,
+  useIsDesktop,
+  Sensitive,
+} from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -36,6 +43,7 @@ import { BookingFields, NoteField } from "./BookingFields";
 import { BookedStep } from "./BookedStep";
 import { ReferralsBlock } from "./Referrals";
 
+import { sensitive } from "@/lib/sensitive";
 /** A card's details: where it is, move it, next step, hot, where you met, take it off the board. */
 export function CardSheet({
   card,
@@ -121,9 +129,17 @@ function CardDetails({
         <div className="flex items-center gap-3">
           <PersonAvatar name={card.name} stage="prospect" size="lg" />
           <div className="min-w-0">
-            <SheetTitle className="truncate text-base font-extrabold">{card.name}</SheetTitle>
+            <SheetTitle className="truncate text-base font-extrabold">
+              <Sensitive kind="name">{card.name}</Sensitive>
+            </SheetTitle>
             <SheetDescription className="text-[12.5px]">
-              {card.ownerName ? `${card.ownerName}'s prospect · ` : ""}
+              {card.ownerName ? (
+                <>
+                  <Sensitive kind="name">{card.ownerName}</Sensitive>&rsquo;s prospect ·{" "}
+                </>
+              ) : (
+                ""
+              )}
               {col ? `${names.band(col.band)}${col.kind === "fixed" ? "" : " band"}` : ""}
             </SheetDescription>
           </div>
@@ -142,8 +158,13 @@ function CardDetails({
           </div>
           <span className="text-[12px] text-muted-foreground">
             {card.days === 0 ? "Moved here today" : `Here for ${ageLong(card.days)}`}
-            {card.elsewhere &&
-              ` · at ${card.elsewhere.ownerName}'s step "${card.elsewhere.label}" on their board`}
+            {card.elsewhere && (
+              <>
+                {" "}
+                · at <Sensitive kind="name">{card.elsewhere.ownerName}</Sensitive>&rsquo;s step "
+                {card.elsewhere.label}" on their board
+              </>
+            )}
           </span>
           <MoveMenu
             columns={columns}
@@ -203,6 +224,7 @@ function CardDetails({
             </Label>
             <Input
               id="card-source"
+              {...sensitive("note")}
               value={source}
               maxLength={30}
               placeholder="e.g. Gym, Referral"

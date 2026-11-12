@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Check, Eye, Search, Share2, UserCheck, X } from "lucide-react";
-import { PersonAvatar, SectionCard } from "@/components/brand";
+import { PersonAvatar, SectionCard, Sensitive } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -25,6 +25,7 @@ import {
 } from "@/data";
 import { plural } from "./format";
 
+import { sensitiveIf } from "@/lib/sensitive";
 /**
  * Requests to see your pipeline numbers, waiting for your answer. Shown on
  * the Pipeline page and your profile (and ready for the Inbox).
@@ -49,7 +50,9 @@ export function StatRequestsPanel({ className }: { className?: string }) {
           <li key={r.id} className="flex flex-wrap items-center gap-x-2 gap-y-1.5 text-[13px]">
             <PersonAvatar name={r.person.name} stage={r.person.stage} size="sm" />
             <span className="min-w-0 flex-[1_1_12rem]">
-              <b>{r.person.name}</b>
+              <b>
+                <Sensitive kind="name">{r.person.name}</Sensitive>
+              </b>
               <span className="text-muted-foreground"> wants to see your conversions</span>
             </span>
             <span className="flex gap-1.5">
@@ -104,6 +107,7 @@ function PeoplePicker({
       <div className="relative">
         <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-faint" />
         <Input
+          {...sensitiveIf(!!q, "name")}
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search people"
@@ -137,7 +141,9 @@ function PeoplePicker({
                   />
                 )}
                 <PersonAvatar name={p.name} stage={p.stage} size="sm" />
-                <span className="truncate">{p.name}</span>
+                <span className="truncate">
+                  <Sensitive kind="name">{p.name}</Sensitive>
+                </span>
               </label>
             </li>
           );
@@ -248,7 +254,9 @@ export function RequestStatsDialog({
             {s.outgoing.map((r) => (
               <div key={r.id} className="flex items-center gap-2">
                 <PersonAvatar name={r.person.name} stage={r.person.stage} size="sm" />
-                <span className="flex-1 truncate">{r.person.name}</span>
+                <span className="flex-1 truncate">
+                  <Sensitive kind="name">{r.person.name}</Sensitive>
+                </span>
                 <Button size="sm" variant="ghost" onClick={() => cancelStatRequest(r.id)}>
                   Withdraw
                 </Button>
@@ -296,7 +304,9 @@ export function StatsAccessCard() {
               aria-hidden="true"
             />
             <span className="text-muted-foreground">
-              Your upline ({s.automatic.map((p) => p.name).join(", ")}) sees them automatically.
+              Your upline (
+              <Sensitive kind="name">{s.automatic.map((p) => p.name).join(", ")}</Sensitive>) sees
+              them automatically.
             </span>
           </li>
         )}
@@ -304,7 +314,9 @@ export function StatsAccessCard() {
           <li key={sh.id} className="flex items-center gap-2.5">
             <PersonAvatar name={sh.person.name} stage={sh.person.stage} size="sm" />
             <span className="min-w-0 flex-1 truncate">
-              <b className="font-semibold">{sh.person.name}</b>
+              <b className="font-semibold">
+                <Sensitive kind="name">{sh.person.name}</Sensitive>
+              </b>
               <span className="text-muted-foreground"> · you shared</span>
             </span>
             <Button
@@ -325,7 +337,8 @@ export function StatsAccessCard() {
       </ul>
       {s.sharesIn.length > 0 && (
         <p className="text-[12px] text-muted-foreground">
-          Shared with you: {s.sharesIn.map((x) => x.person.name).join(", ")}.
+          Shared with you:{" "}
+          <Sensitive kind="name">{s.sharesIn.map((x) => x.person.name).join(", ")}</Sensitive>.
         </p>
       )}
       <ShareStatsDialog open={shareOpen} onOpenChange={setShareOpen} />

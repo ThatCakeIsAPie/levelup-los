@@ -13,7 +13,7 @@ import {
   type GrowthMilestoneCode,
   type GrowthPath,
 } from "@/data";
-import { useIsDesktop } from "@/components/brand";
+import { useIsDesktop, Sensitive } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -88,9 +88,12 @@ export function CoachSheet({
           />
         )}
         <SheetHeader className="border-b border-line px-5 pt-3.5 pb-3 text-left lg:pt-4">
-          <SheetTitle className="text-base font-extrabold">Update {name}'s path</SheetTitle>
+          <SheetTitle className="text-base font-extrabold">
+            Update <Sensitive kind="name">{name}</Sensitive>&rsquo;s path
+          </SheetTitle>
           <SheetDescription className="text-[12.5px]">
-            Changes are saved with your name, so {name}'s other uplines can see who made them.
+            Changes are saved with your name, so <Sensitive kind="name">{name}</Sensitive>&rsquo;s
+            other uplines can see who made them.
           </SheetDescription>
         </SheetHeader>
         {target && (
@@ -231,7 +234,8 @@ function PvForm({ person, onDone }: { person: CrmPerson; onDone: () => void }) {
 
       <div className="grid gap-1.5">
         <Label htmlFor="coach-pv" className="text-xs font-semibold">
-          {name}'s PV for {monthName(month)} (from the Amway app)
+          <Sensitive kind="name">{name}</Sensitive>&rsquo;s PV for {monthName(month)} (from the
+          Amway app)
         </Label>
         <Input
           id="coach-pv"

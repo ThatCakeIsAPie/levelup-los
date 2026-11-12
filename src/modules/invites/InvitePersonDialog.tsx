@@ -17,6 +17,8 @@ import { inviteExistingPerson, usePersonInvite, type InviteResult } from "./pers
 import { inviteEmailProblem, shortDate } from "./personRules";
 import type { InviteRequest } from "./inviteDialogStore";
 
+import { Sensitive } from "@/components/brand";
+import { sensitive } from "@/lib/sensitive";
 type Sent = Extract<InviteResult, { ok: true }>;
 
 /**
@@ -80,18 +82,35 @@ function InviteBody({
   return (
     <>
       <DialogHeader>
-        <DialogTitle>{congrats ? "Congrats!" : `Invite ${person.name}`}</DialogTitle>
+        <DialogTitle>
+          {congrats ? (
+            "Congrats!"
+          ) : (
+            <>
+              Invite <Sensitive kind="name">{person.name}</Sensitive>
+            </>
+          )}
+        </DialogTitle>
         <DialogDescription>
-          {congrats
-            ? `${person.name} moved to ${stages.name("registered")} and is now an apprentice.`
-            : `We'll email ${first} a link that signs them in to this record.`}
+          {congrats ? (
+            <>
+              <Sensitive kind="name">{person.name}</Sensitive> moved to {stages.name("registered")}{" "}
+              and is now an apprentice.
+            </>
+          ) : (
+            <>
+              We&rsquo;ll email <Sensitive kind="name">{first}</Sensitive> a link that signs them in
+              to this record.
+            </>
+          )}
         </DialogDescription>
       </DialogHeader>
 
       {step === "ask" ? (
         <>
           <p className="text-[13px] text-muted-foreground">
-            Want to invite {first} to sign in? We'll email a link that signs them in to this record.
+            Want to invite <Sensitive kind="name">{first}</Sensitive> to sign in? We'll email a link
+            that signs them in to this record.
           </p>
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={onClose}>
@@ -112,6 +131,7 @@ function InviteBody({
               inputMode="email"
               autoComplete="off"
               autoFocus={congrats}
+              {...sensitive("email")}
               value={email}
               onChange={(e) => {
                 setEmail(e.target.value);
@@ -181,16 +201,27 @@ function InviteSent({
     <>
       <DialogHeader>
         <DialogTitle>
-          {outcome.kind === "sent"
-            ? `Invite sent to ${sent.invite.email}`
-            : `Invite for ${person.name}`}
+          {outcome.kind === "sent" ? (
+            <>
+              Invite sent to <Sensitive kind="email">{sent.invite.email}</Sensitive>
+            </>
+          ) : (
+            <>
+              Invite for <Sensitive kind="name">{person.name}</Sensitive>
+            </>
+          )}
         </DialogTitle>
         <DialogDescription>
-          {outcome.kind === "sent"
-            ? `${person.name.split(" ")[0]} can sign in to their record from the email.`
-            : outcome.kind === "demo"
-              ? "The demo does not send email. Share this link."
-              : "We couldn't send the email. Share the link yourself."}
+          {outcome.kind === "sent" ? (
+            <>
+              <Sensitive kind="name">{person.name.split(" ")[0]}</Sensitive> can sign in to their
+              record from the email.
+            </>
+          ) : outcome.kind === "demo" ? (
+            "The demo does not send email. Share this link."
+          ) : (
+            "We couldn't send the email. Share the link yourself."
+          )}
         </DialogDescription>
       </DialogHeader>
       {outcome.kind === "failed" && (

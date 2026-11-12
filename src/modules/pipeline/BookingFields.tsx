@@ -19,6 +19,7 @@ import {
   type PipelineColumn,
 } from "@/data";
 
+import { sensitive } from "@/lib/sensitive";
 const NONE = "none";
 
 /**
@@ -143,6 +144,7 @@ export function NoteField({
       </Label>
       <Textarea
         id={id}
+        {...sensitive("note")}
         value={value}
         maxLength={MAX_CARD_NOTE}
         rows={2}

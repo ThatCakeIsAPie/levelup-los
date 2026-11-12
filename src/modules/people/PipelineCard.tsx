@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { format } from "date-fns";
 import { ClockAlert, MoveRight, StickyNote, Undo2 } from "lucide-react";
-import { RatingChip, SectionCard, ToneChip } from "@/components/brand";
+import { RatingChip, SectionCard, ToneChip, Sensitive } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import {
   parseDate,
@@ -69,7 +69,9 @@ export function PipelineCard({ person }: { person: CrmPerson }) {
           {p.card?.note && (
             <p className="flex items-start gap-1.5 whitespace-pre-line text-[12.5px] text-muted-foreground">
               <StickyNote className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-              <span className="min-w-0">{p.card.note}</span>
+              <span className="min-w-0">
+                <Sensitive kind="note">{p.card.note}</Sensitive>
+              </span>
             </p>
           )}
           <MoveMenu
@@ -106,7 +108,10 @@ export function PipelineCard({ person }: { person: CrmPerson }) {
               />
               <span className="min-w-0 flex-1">
                 <b className="font-semibold">{h.toLabel}</b>
-                <span className="text-muted-foreground"> · by {h.by}</span>
+                <span className="text-muted-foreground">
+                  {" "}
+                  · by <Sensitive kind="name">{h.by}</Sensitive>
+                </span>
               </span>
               <span className="shrink-0 text-[11.5px] text-faint">
                 {format(parseDate(h.at), "MMM d")}

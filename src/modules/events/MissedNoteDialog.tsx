@@ -13,6 +13,9 @@ import {
 } from "@/components/ui/dialog";
 import { addMissedNote, removeMissedNote } from "@/data";
 
+import { Sensitive } from "@/components/brand";
+
+import { sensitive } from "@/lib/sensitive";
 const firstName = (name: string) => name.trim().split(/\s+/)[0] ?? name;
 
 /**
@@ -63,7 +66,8 @@ export function MissedNoteDialog({
           <DialogHeader className="text-left">
             <DialogTitle>Already handled?</DialogTitle>
             <DialogDescription>
-              {first} missed {eventName}. Leave a note so the rest of {first}'s uplines know it's
+              <Sensitive kind="name">{first}</Sensitive> missed {eventName}. Leave a note so the
+              rest of <Sensitive kind="name">{first}</Sensitive>&rsquo;s uplines know it&rsquo;s
               taken care of.
             </DialogDescription>
           </DialogHeader>
@@ -73,6 +77,7 @@ export function MissedNoteDialog({
               id="missed-note"
               autoFocus
               maxLength={1000}
+              {...sensitive("note")}
               value={text}
               onChange={(e) => setText(e.target.value)}
               placeholder="Talked at the gym, she was sick"

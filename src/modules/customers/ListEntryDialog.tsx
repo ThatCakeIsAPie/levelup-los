@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { toastWithUndo } from "@/components/log/quickLog";
-import { PhoneInput, RatingPicker } from "@/components/brand";
+import { PhoneInput, RatingPicker, Sensitive } from "@/components/brand";
 import { ReferrerPicker } from "@/modules/pipeline/Referrals";
 import {
   MAX_ENTRY_NAME,
@@ -37,6 +37,7 @@ import {
   type Ref,
 } from "@/data";
 
+import { sensitive } from "@/lib/sensitive";
 export type EntryDialogMode =
   { kind: "list"; ownerId: string } | { kind: "board" } | { kind: "edit"; entryId: string };
 
@@ -161,7 +162,7 @@ function EntryForm({ mode, onDone }: { mode: EntryDialogMode; onDone: () => void
             <SelectContent className="max-h-72">
               {owners.map((o) => (
                 <SelectItem key={o.id} value={o.id}>
-                  {o.isMe ? "Mine" : o.name}
+                  {o.isMe ? "Mine" : <Sensitive kind="name">{o.name}</Sensitive>}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -174,6 +175,7 @@ function EntryForm({ mode, onDone }: { mode: EntryDialogMode; onDone: () => void
           id="le-name"
           autoFocus
           autoComplete="off"
+          {...sensitive("name")}
           value={name}
           maxLength={MAX_ENTRY_NAME}
           onChange={(e) => {
@@ -187,6 +189,7 @@ function EntryForm({ mode, onDone }: { mode: EntryDialogMode; onDone: () => void
         <Label htmlFor="le-how">How you know them (optional)</Label>
         <Input
           id="le-how"
+          {...sensitive("note")}
           value={howKnown}
           maxLength={MAX_HOW_KNOWN}
           onChange={(e) => setHowKnown(e.target.value)}
@@ -203,6 +206,7 @@ function EntryForm({ mode, onDone }: { mode: EntryDialogMode; onDone: () => void
           <Input
             id="le-email"
             type="email"
+            {...sensitive("email")}
             value={email}
             onChange={(e) => {
               setEmail(e.target.value);
@@ -239,6 +243,7 @@ function EntryForm({ mode, onDone }: { mode: EntryDialogMode; onDone: () => void
         <Label htmlFor="le-notes">Notes (optional)</Label>
         <Textarea
           id="le-notes"
+          {...sensitive("note")}
           value={notes}
           maxLength={MAX_ENTRY_NOTES}
           rows={2}

@@ -37,10 +37,11 @@ import {
   type PipelineColumn,
   type Ref,
 } from "@/data";
-import { PhoneInput, RatingPicker } from "@/components/brand";
+import { PhoneInput, RatingPicker, Sensitive } from "@/components/brand";
 import { BookingFields, NoteField } from "./BookingFields";
 import { ReferrerPicker } from "./Referrals";
 
+import { sensitive } from "@/lib/sensitive";
 /** Add a prospect straight onto the board (a new person, a "New contact" and a card). */
 export function AddProspectDialog({
   open,
@@ -137,6 +138,7 @@ function AddForm({ columns, onDone }: { columns: PipelineColumn[]; onDone: () =>
           id="ap-name"
           autoFocus
           autoComplete="off"
+          {...sensitive("name")}
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Their name"
@@ -151,6 +153,7 @@ function AddForm({ columns, onDone }: { columns: PipelineColumn[]; onDone: () =>
           <Label htmlFor="ap-source">Where you met</Label>
           <Input
             id="ap-source"
+            {...sensitive("note")}
             value={source}
             maxLength={30}
             onChange={(e) => setSource(e.target.value)}
@@ -200,7 +203,7 @@ function AddForm({ columns, onDone }: { columns: PipelineColumn[]; onDone: () =>
               <SelectContent className="max-h-72">
                 {sponsors.map((p) => (
                   <SelectItem key={p.id} value={p.id}>
-                    {p.id === me.personId ? "Mine" : p.name}
+                    {p.id === me.personId ? "Mine" : <Sensitive kind="name">{p.name}</Sensitive>}
                   </SelectItem>
                 ))}
               </SelectContent>

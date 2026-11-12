@@ -6,7 +6,7 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Check, NotebookPen, Trash2, UserX } from "lucide-react";
-import { PersonAvatar, SectionCard, ToneChip } from "@/components/brand";
+import { PersonAvatar, SectionCard, ToneChip, Sensitive } from "@/components/brand";
 import { quickCheckIn } from "@/components/log/quickLog";
 import { Button } from "@/components/ui/button";
 import {
@@ -38,10 +38,13 @@ function MissedStatus({ s }: { s: MissedStreak }) {
     const n = s.handled.note;
     return (
       <div className="mt-1.5 grid gap-1 rounded-lg bg-surface-2 px-2.5 py-2 text-[12.5px]">
-        <p className="break-words">“{n.note}”</p>
+        <p className="break-words">
+          “<Sensitive kind="note">{n.note}</Sensitive>”
+        </p>
         <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
           <span>
-            Handled by {who(n.byId)} · {shortDate(n.createdAt.slice(0, 10))}
+            Handled by <Sensitive kind="name">{who(n.byId)}</Sensitive> ·{" "}
+            {shortDate(n.createdAt.slice(0, 10))}
           </span>
           {n.byId === me.personId && (
             <button
@@ -134,7 +137,7 @@ export function EventMissedPanel({ event }: { event: CrmEvent }) {
                 params={{ id: p.id }}
                 className="rounded-sm text-[13.5px] font-semibold hover:underline focus-visible:outline-2 focus-visible:outline-ring"
               >
-                {p.name}
+                <Sensitive kind="name">{p.name}</Sensitive>
               </Link>
               <p className="text-xs text-muted-foreground">
                 Came {shortDate(s.lastAttended.date)}

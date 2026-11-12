@@ -136,7 +136,7 @@ function FeedbackForm({
             </div>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="min-w-0 flex-1 text-xs text-muted-foreground">
-                A snapshot of this page is attached. It may show people's names and phone numbers.
+                A snapshot of this page is attached. Names and contact details are blacked out.
               </p>
               <Button
                 type="button"

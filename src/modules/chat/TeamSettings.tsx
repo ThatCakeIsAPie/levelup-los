@@ -9,6 +9,7 @@ import {
   SectionCard,
   StageChip,
   ToneChip,
+  Sensitive,
 } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,6 +49,7 @@ import {
 } from "@/modules/settings/TeamSettingsCards";
 import { EventCategoriesCard } from "@/modules/events/EventCategoriesCard";
 
+import { sensitiveIf } from "@/lib/sensitive";
 /**
  * /settings/team: leaders and their deputies switch features on for the team
  * and tidy up the event categories; leaders name deputies. With Chats on: leaders designate moderators and work
@@ -113,11 +115,12 @@ function Reports() {
             <li key={r.id} className="grid gap-2 rounded-xl border border-line p-3">
               <p className="text-xs text-muted-foreground">
                 <b className="font-bold text-foreground">{r.reason}</b> · reported by{" "}
-                {r.reporterName} · {shortAgo(r.createdAt)} ago · in {r.conversationTitle}
+                <Sensitive kind="name">{r.reporterName}</Sensitive> · {shortAgo(r.createdAt)} ago ·
+                in {r.conversationTitle}
               </p>
               <blockquote className="rounded-[10px] bg-surface-2 px-3 py-2 text-[13px]">
                 <span className="block text-[11px] font-bold text-muted-foreground">
-                  {r.authorName}
+                  <Sensitive kind="name">{r.authorName}</Sensitive>
                 </span>
                 {r.message ? messagePreview(r.message) : "Message no longer exists"}
               </blockquote>
@@ -197,10 +200,14 @@ function Drafts() {
           {drafts.map((d) => (
             <li key={d.id} className="grid gap-2 rounded-xl border border-line p-3">
               <div className="text-xs text-muted-foreground">
-                <b className="font-bold text-foreground">{people.get(d.authorId)?.name}</b> ·{" "}
-                {shortAgo(d.createdAt)} ago
+                <b className="font-bold text-foreground">
+                  <Sensitive kind="name">{people.get(d.authorId)?.name}</Sensitive>
+                </b>{" "}
+                · {shortAgo(d.createdAt)} ago
               </div>
-              <p className="whitespace-pre-wrap text-[13px]">{d.body}</p>
+              <p className="whitespace-pre-wrap text-[13px]">
+                <Sensitive kind="message">{d.body}</Sensitive>
+              </p>
               <div className="flex flex-wrap gap-2">
                 <Button
                   size="sm"
@@ -249,6 +256,7 @@ function MembersCard({ canEdit }: { canEdit: boolean }) {
         />
         <Input
           type="search"
+          {...sensitiveIf(!!q, "name")}
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search members"
@@ -265,7 +273,7 @@ function MembersCard({ canEdit }: { canEdit: boolean }) {
             <PersonAvatar name={m.name} stage={m.stage} />
             <div className="min-w-0 flex-1">
               <div className="truncate text-[13px] font-semibold">
-                {m.name}
+                <Sensitive kind="name">{m.name}</Sensitive>
                 {m.id === access.personId && <span className="font-normal text-faint"> (you)</span>}
               </div>
               <div className="flex flex-wrap items-center gap-1.5">
@@ -328,7 +336,7 @@ function Blocked() {
               >
                 <PersonAvatar name={p?.name ?? "?"} stage={p?.stage} />
                 <span className="min-w-0 flex-1 truncate text-[13px] font-semibold">
-                  {p?.name ?? "Former member"}
+                  <Sensitive kind="name">{p?.name ?? "Former member"}</Sensitive>
                 </span>
                 <Button size="sm" variant="outline" onClick={() => unblockPerson(id)}>
                   Unblock

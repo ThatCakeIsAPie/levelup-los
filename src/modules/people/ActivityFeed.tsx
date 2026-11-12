@@ -3,7 +3,7 @@ import { format } from "date-fns";
 import { MoreHorizontal, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { parseDate, removeContact, removeSale } from "@/data";
-import { EmptyState } from "@/components/brand";
+import { EmptyState, Sensitive } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -85,9 +85,13 @@ export function FeedList({
               )}
             />
             <div className="min-w-0">
-              <p className="break-words">{it.text}</p>
+              <p className="break-words">
+                <Sensitive kind="note">{it.text}</Sensitive>
+              </p>
               {showSub && it.sub && (
-                <p className="break-words text-xs text-muted-foreground">{it.sub}</p>
+                <p className="break-words text-xs text-muted-foreground">
+                  <Sensitive kind="note">{it.sub}</Sensitive>
+                </p>
               )}
             </div>
             <time
@@ -130,7 +134,7 @@ export function FeedList({
           <AlertDialogHeader>
             <AlertDialogTitle>Remove this {removing?.remove?.label}?</AlertDialogTitle>
             <AlertDialogDescription>
-              {removing?.text}
+              <Sensitive kind="note">{removing?.text}</Sensitive>
               {removing ? ` on ${fmtDate(removing.when.slice(0, 10))}` : ""}.{" "}
               {removing?.remove?.kind === "sale"
                 ? "It's removed from their purchase history and totals."
