@@ -1,32 +1,35 @@
 /**
- * A text field with a dropdown of titles logged before (the Learning form's
- * Book / Title). Typing filters the list; when the text matches nothing logged
- * before, the last row adds it as a new entry. Follows the ARIA combobox
- * pattern: arrows move through the list, Enter picks, Escape closes.
+ * A text field with a dropdown of titles (the Learning form's Book / Title):
+ * library items first, then titles logged before. Typing filters the list;
+ * when the text matches neither, the last row adds it as a new entry. Follows
+ * the ARIA combobox pattern: arrows move through the list, Enter picks,
+ * Escape closes.
  */
 import { useId, useMemo, useState, type KeyboardEvent } from "react";
 import { ChevronDown, Plus } from "lucide-react";
 import { format } from "date-fns";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { parseDate } from "@/data";
-import { filterTitles, matchTitle, type TitleSuggestion } from "./titleSuggestions";
+import { KIND_LABEL, parseDate } from "@/data";
+import { capTitles, filterTitles, matchTitle, type TitleOption } from "./titleSuggestions";
 
-type Row = { kind: "past"; item: TitleSuggestion } | { kind: "new"; title: string };
+type Row = { kind: "option"; item: TitleOption } | { kind: "new"; title: string };
+
+const sourceOf = (row: Row) => (row.kind === "option" ? row.item.source : null);
 
 export function TitleCombobox({
   id,
   value,
   onChange,
-  titles,
+  options,
   placeholder,
   noun,
 }: {
   id: string;
   value: string;
   onChange: (v: string) => void;
-  /** Titles logged before, most recent first. */
-  titles: TitleSuggestion[];
+  /** Library items, then titles logged before (most recent first). */
+  options: TitleOption[];
   placeholder?: string;
   /** What one entry is called, e.g. "book". */
   noun: string;
@@ -36,10 +39,17 @@ export function TitleCombobox({
   const [active, setActive] = useState(-1);
 
   const rows = useMemo<Row[]>(() => {
-    const past: Row[] = filterTitles(titles, value).map((item) => ({ kind: "past", item }));
+    const found: Row[] = capTitles(filterTitles(options, value)).map((item) => ({
+      kind: "option",
+      item,
+    }));
     const typed = value.trim();
-    return typed && !matchTitle(titles, typed) ? [...past, { kind: "new", title: typed }] : past;
-  }, [titles, value]);
+    return typed && !matchTitle(options, typed) ? [...found, { kind: "new", title: typed }] : found;
+  }, [options, value]);
+  // Name the groups only when both are listed.
+  const grouped =
+    rows.some((r) => r.kind === "option" && r.item.source === "library") &&
+    rows.some((r) => r.kind === "option" && r.item.source === "past");
   const shown = open && rows.length > 0;
 
   const show = () => {
@@ -47,7 +57,7 @@ export function TitleCombobox({
     setActive(-1);
   };
   const pick = (row: Row) => {
-    onChange(row.kind === "past" ? row.item.title : row.title);
+    onChange(row.kind === "option" ? row.item.title : row.title);
     setOpen(false);
     setActive(-1);
   };
@@ -88,11 +98,11 @@ export function TitleCombobox({
         onBlur={() => setOpen(false)}
         onKeyDown={onKeyDown}
       />
-      {titles.length > 0 && (
+      {options.length > 0 && (
         <button
           type="button"
           tabIndex={-1}
-          aria-label={`Show past ${noun}s`}
+          aria-label={`Show ${noun} suggestions`}
           // Keep focus in the field so the list doesn't close on blur.
           onMouseDown={(e) => e.preventDefault()}
           onClick={() => (shown ? setOpen(false) : show())}
@@ -105,43 +115,58 @@ export function TitleCombobox({
         <ul
           id={listId}
           role="listbox"
-          aria-label={`Past ${noun}s`}
-          className="absolute inset-x-0 top-full z-50 mt-1 max-h-60 overflow-y-auto rounded-lg border border-line bg-popover p-1 text-popover-foreground shadow-md"
+          aria-label={`${noun} suggestions`}
+          className="absolute inset-x-0 top-full z-50 mt-1 max-h-72 overflow-y-auto rounded-lg border border-line bg-popover p-1 text-popover-foreground shadow-md"
         >
-          {rows.map((row, i) => [
-            row.kind === "new" && i > 0 && (
-              <li key="sep" role="presentation" className="mx-1 my-1 h-px bg-line" />
-            ),
-            <li
-              key={row.kind === "past" ? row.item.title : "new"}
-              id={`${listId}-${i}`}
-              role="option"
-              aria-selected={i === active}
-              onMouseDown={(e) => e.preventDefault()}
-              onMouseEnter={() => setActive(i)}
-              onClick={() => pick(row)}
-              className={cn(
-                "flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-2 text-[13px]",
-                i === active && "bg-surface-2",
-              )}
-            >
-              {row.kind === "past" ? (
-                <>
-                  <span className="min-w-0 flex-1 truncate font-semibold">{row.item.title}</span>
-                  <span className="shrink-0 text-xs text-muted-foreground">
-                    {format(parseDate(row.item.lastDate), "MMM d")}
-                  </span>
-                </>
-              ) : (
-                <>
-                  <Plus className="size-4 shrink-0 text-primary" aria-hidden="true" />
-                  <span className="min-w-0 flex-1 truncate">
-                    New {noun}: <span className="font-semibold">{row.title}</span>
-                  </span>
-                </>
-              )}
-            </li>,
-          ])}
+          {rows.map((row, i) => {
+            const source = sourceOf(row);
+            const prevSource = i > 0 ? sourceOf(rows[i - 1]) : null;
+            return [
+              grouped && source && source !== prevSource && (
+                <li
+                  key={`group-${source}`}
+                  role="presentation"
+                  className="px-2.5 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
+                >
+                  {source === "library" ? "Library" : "Logged before"}
+                </li>
+              ),
+              row.kind === "new" && i > 0 && (
+                <li key="sep" role="presentation" className="mx-1 my-1 h-px bg-line" />
+              ),
+              <li
+                key={row.kind === "new" ? "new" : `${row.item.source}:${row.item.title}`}
+                id={`${listId}-${i}`}
+                role="option"
+                aria-selected={i === active}
+                onMouseDown={(e) => e.preventDefault()}
+                onMouseEnter={() => setActive(i)}
+                onClick={() => pick(row)}
+                className={cn(
+                  "flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-2 text-[13px]",
+                  i === active && "bg-surface-2",
+                )}
+              >
+                {row.kind === "option" ? (
+                  <>
+                    <span className="min-w-0 flex-1 truncate font-semibold">{row.item.title}</span>
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                      {row.item.source === "library"
+                        ? KIND_LABEL[row.item.itemKind]
+                        : format(parseDate(row.item.lastDate), "MMM d")}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <Plus className="size-4 shrink-0 text-primary" aria-hidden="true" />
+                    <span className="min-w-0 flex-1 truncate">
+                      New {noun}: <span className="font-semibold">{row.title}</span>
+                    </span>
+                  </>
+                )}
+              </li>,
+            ];
+          })}
         </ul>
       )}
     </div>

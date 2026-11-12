@@ -8,6 +8,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { IS_SUPABASE } from "@/lib/config";
+import { localDate } from "@/lib/dates";
 import { getSupabase } from "@/lib/supabase";
 import { refreshAccount, signOut } from "@/modules/login/auth";
 import { useSessionStore } from "@/stores/sessionStore";
@@ -18,6 +19,7 @@ import { libraryLearningId } from "@/data/library/mutations";
 import {
   addCatalogItem,
   addItemsToChannel,
+  completeLibraryItemWithEntry,
   createChannel,
   markLibraryItemDone,
   markLibraryItemNotDone,
@@ -196,6 +198,75 @@ describe("progress and the learning log", () => {
     await whenIdle();
     const row = await jamal.from("learning").select("kind, amount").eq("id", id).single();
     expect(row.data).toEqual({ kind: "pages", amount: 4 });
+  });
+});
+
+describe("finishing from the Log sheet's title pick", () => {
+  it("logs one row with the form's values; Undo leaves the item unfinished and unlogged", async () => {
+    await signInApp("jamal");
+    const jamal = await login("jamal");
+    const id = libraryLearningId("4", "lib-24");
+    cleanup.push(() =>
+      jamal.from("library_progress").delete().match({ person_id: "4", item_id: "lib-24" }),
+    );
+    cleanup.push(() => jamal.from("learning").delete().like("id", "library:lib-24:%"));
+    const rowsNow = async () =>
+      (
+        await jamal
+          .from("learning")
+          .select("id, kind, title, amount, unit")
+          .like("id", "library:lib-24:%")
+      ).data;
+    const progressNow = async () =>
+      (
+        await jamal
+          .from("library_progress")
+          .select("position_sec, completed_at, logged_at")
+          .match({ person_id: "4", item_id: "lib-24" })
+      ).data;
+
+    // Started, not finished.
+    saveLibraryPosition("lib-24", 100, 28 * 60);
+    await whenIdle();
+
+    const done = completeLibraryItemWithEntry("lib-24", {
+      amount: 25,
+      unit: "minutes",
+      date: localDate(),
+    });
+    expect(done?.learningId).toBe(id);
+    await whenIdle();
+    // One row, carrying the form's values (the database's own insert found it there).
+    expect(await rowsNow()).toEqual([
+      { id, kind: "podcast", title: "Q&A: pricing and value", amount: 25, unit: "minutes" },
+    ]);
+    const finished = await progressNow();
+    expect(finished?.[0].completed_at).not.toBeNull();
+    expect(finished?.[0].logged_at).not.toBeNull();
+
+    // Finished now: another pick is an ordinary entry, and marking done adds nothing.
+    expect(completeLibraryItemWithEntry("lib-24", { amount: 1, date: localDate() })).toBeNull();
+    expect(markLibraryItemDone("lib-24").logged).toBe(false);
+    await whenIdle();
+    expect(await rowsNow()).toHaveLength(1);
+
+    // Undo: the row goes, and the progress row is back to started, never logged.
+    done!.undo();
+    await new Promise((r) => setTimeout(r, 0));
+    await whenIdle();
+    expect(await rowsNow()).toEqual([]);
+    const back = await progressNow();
+    expect(back).toHaveLength(1);
+    expect(Number(back?.[0].position_sec)).toBe(100);
+    expect(back?.[0].completed_at).toBeNull();
+    expect(back?.[0].logged_at).toBeNull();
+
+    // So finishing it later logs again, once.
+    expect(markLibraryItemDone("lib-24").logged).toBe(true);
+    await whenIdle();
+    expect(await rowsNow()).toEqual([
+      { id, kind: "podcast", title: "Q&A: pricing and value", amount: 1, unit: null },
+    ]);
   });
 });
 
