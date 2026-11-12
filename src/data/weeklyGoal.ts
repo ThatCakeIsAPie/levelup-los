@@ -27,7 +27,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { localDate, parseDate } from "@/lib/dates";
-import { getStageNames } from "./stageNames/hooks";
+import { currentStageNames } from "./stageNames/names";
 import type { Attendance } from "@/stores/attendanceStore";
 import type {
   Contact,
@@ -258,16 +258,16 @@ export const GOAL_CATEGORIES = {
   // viewer's stage names (read when asked, not at load).
   first_meetings: {
     get label() {
-      return getStageNames("recruiting").plural("first_meeting");
+      return currentStageNames("recruiting").plural("first_meeting");
     },
     get hint() {
-      return `Prospects on your board reaching ${getStageNames("recruiting").name("first_meeting")}`;
+      return `Prospects on your board reaching ${currentStageNames("recruiting").name("first_meeting")}`;
     },
     icon: Handshake,
     defaultTarget: 3,
-    rowLabel: () => getStageNames("recruiting").plural("first_meeting"),
+    rowLabel: () => currentStageNames("recruiting").plural("first_meeting"),
     words: () => {
-      const names = getStageNames("recruiting");
+      const names = currentStageNames("recruiting");
       const own = names.stages.find((s) => s.key === "first_meeting")?.source !== "default";
       return own ? names.plural("first_meeting") : names.plural("first_meeting").toLowerCase();
     },

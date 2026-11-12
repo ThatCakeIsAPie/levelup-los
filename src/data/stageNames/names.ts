@@ -81,3 +81,19 @@ const DEFAULTS: Partial<Record<StagePipeline, StageNames>> = {};
 export function defaultStageNames(pipeline: StagePipeline): StageNames {
   return (DEFAULTS[pipeline] ??= makeStageNames(pipeline, resolveStageNames([], [])[pipeline]));
 }
+
+let liveStageNames: ((pipeline: StagePipeline) => StageNames) | null = null;
+
+/** hooks.ts registers the viewer's names here once the app loads it. */
+export function registerStageNamesSource(fn: (pipeline: StagePipeline) => StageNames) {
+  liveStageNames = fn;
+}
+
+/**
+ * The signed-in person's names for plain data modules (rules, goals) that can't
+ * import the hooks: those pull in the session and stores, which the Node seed
+ * generator can't load. Built-in names until the app has registered its source.
+ */
+export function currentStageNames(pipeline: StagePipeline): StageNames {
+  return (liveStageNames ?? defaultStageNames)(pipeline);
+}

@@ -14,7 +14,7 @@ import { IS_SUPABASE } from "@/lib/config";
 import { usePeopleStore, type CrmPerson } from "@/stores/peopleStore";
 import { useSessionStore } from "@/stores/sessionStore";
 import { useInheritedStageNames, type InheritedStageName } from "./inherited";
-import { makeStageNames, type StageNames } from "./names";
+import { makeStageNames, registerStageNamesSource, type StageNames } from "./names";
 import {
   draftOf,
   inheritedStageNames,
@@ -142,6 +142,7 @@ export function useStageNames(pipeline: StagePipeline): StageNames {
 export function getStageNames(pipeline: StagePipeline): StageNames {
   return currentContext().views[pipeline];
 }
+registerStageNamesSource(getStageNames);
 
 /** A pipeline's board layout with the signed-in person's stage names. */
 export function useBoardDef(pipeline: "recruiting"): BoardDef<RecruitingBand>;
