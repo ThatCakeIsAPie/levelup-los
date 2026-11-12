@@ -1495,7 +1495,8 @@ export type Database = {
           expires_at: string;
           id: string;
           name: string | null;
-          sponsor_person_id: string;
+          person_id: string | null;
+          sponsor_person_id: string | null;
           stage: string;
           token: string;
           used_at: string | null;
@@ -1510,7 +1511,8 @@ export type Database = {
           expires_at?: string;
           id?: string;
           name?: string | null;
-          sponsor_person_id: string;
+          person_id?: string | null;
+          sponsor_person_id?: string | null;
           stage?: string;
           token?: string;
           used_at?: string | null;
@@ -1524,7 +1526,8 @@ export type Database = {
           expires_at?: string;
           id?: string;
           name?: string | null;
-          sponsor_person_id?: string;
+          person_id?: string | null;
+          sponsor_person_id?: string | null;
           stage?: string;
           token?: string;
           used_at?: string | null;
@@ -1549,6 +1552,27 @@ export type Database = {
           {
             foreignKeyName: "invites_created_by_fkey";
             columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "invites_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: false;
+            referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "invites_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "invites_person_id_fkey";
+            columns: ["person_id"];
             isOneToOne: false;
             referencedRelation: "people";
             referencedColumns: ["id"];
@@ -4381,6 +4405,7 @@ export type Database = {
       can_organize_costs: { Args: Record<PropertyKey, never>; Returns: boolean };
       can_own_list: { Args: { p_person_id: string }; Returns: boolean };
       can_pin_conversation: { Args: { p_conversation_id: string }; Returns: boolean };
+      can_invite_person: { Args: { p_person_id: string }; Returns: boolean };
       can_see_person: { Args: { p_person_id: string }; Returns: boolean };
       chat_eligible: { Args: { p_person_id: string }; Returns: boolean };
       conversation_kind: { Args: { p_conversation_id: string }; Returns: string };
@@ -4430,6 +4455,7 @@ export type Database = {
         Returns: {
           email: string;
           expires_at: string;
+          for_person: boolean;
           is_valid: boolean;
           name: string;
           sponsor_name: string;
@@ -4505,6 +4531,7 @@ export type Database = {
         Returns: boolean;
       };
       mark_conversation_read: { Args: { p_conversation_id: string }; Returns: string };
+      mask_email: { Args: { p_email: string }; Returns: string };
       merge_event_categories: { Args: { p_from_id: string; p_into_id: string }; Returns: number };
       message_author_id: { Args: { p_message_id: string }; Returns: string };
       message_conversation_id: { Args: { p_message_id: string }; Returns: string };
