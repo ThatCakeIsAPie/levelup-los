@@ -18,7 +18,14 @@ import {
   useSales,
   type CrmPerson,
 } from "@/data";
-import { EmptyState, PersonAvatar, PhoneInput, SectionCard, ToneChip } from "@/components/brand";
+import {
+  EmptyState,
+  PersonAvatar,
+  PhoneInput,
+  SectionCard,
+  ToneChip,
+  Sensitive,
+} from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -43,6 +50,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { daysLabel, firstName, fmtMoney } from "./format";
 
+import { sensitive } from "@/lib/sensitive";
 /**
  * Who may see/manage this person's customers. Customers are private to their
  * owner, so only the owner (viewing their own profile) sees names.
@@ -94,9 +102,17 @@ export function CustomersCard({
     return (
       <SectionCard title="Customers">
         <p className="text-[12.5px] text-muted-foreground">
-          {count === 0
-            ? `${firstName(person.name)} has no customers yet.`
-            : `${firstName(person.name)} has ${count} ${count === 1 ? "customer" : "customers"}. Customer details are private to the person who owns them.`}
+          {count === 0 ? (
+            <>
+              <Sensitive kind="name">{firstName(person.name)}</Sensitive> has no customers yet.
+            </>
+          ) : (
+            <>
+              <Sensitive kind="name">{firstName(person.name)}</Sensitive> has {count}{" "}
+              {count === 1 ? "customer" : "customers"}. Customer details are private to the person
+              who owns them.
+            </>
+          )}
         </p>
       </SectionCard>
     );
@@ -130,7 +146,7 @@ export function CustomersCard({
                     params={{ id: c.id }}
                     className="block truncate rounded-sm font-semibold hover:underline focus-visible:outline-2 focus-visible:outline-ring"
                   >
-                    {c.name}
+                    <Sensitive kind="name">{c.name}</Sensitive>
                   </Link>
                   <p className="truncate text-[11.5px] text-faint">
                     {[last?.product, c.monthlyVolume ? `${fmtMoney(c.monthlyVolume)}/mo` : ""]
@@ -230,7 +246,7 @@ export function CustomersTab({
                       params={{ id: c.id }}
                       className="block truncate rounded-sm text-[13px] font-semibold hover:underline focus-visible:outline-2 focus-visible:outline-ring"
                     >
-                      {c.name}
+                      <Sensitive kind="name">{c.name}</Sensitive>
                     </Link>
                     <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
                       <LastContactChip id={c.id} />
@@ -275,7 +291,9 @@ export function CustomersTab({
       <AlertDialog open={!!removing} onOpenChange={(o) => !o && setRemoving(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove {removing?.name}?</AlertDialogTitle>
+            <AlertDialogTitle>
+              Remove <Sensitive kind="name">{removing?.name}</Sensitive>?
+            </AlertDialogTitle>
             <AlertDialogDescription>
               They'll be removed from your customers along with their contact details. This can't be
               undone.
@@ -384,7 +402,14 @@ function CustomerForm({
       </DialogHeader>
       <div className="grid gap-4 sm:grid-cols-2">
         <F label="Name" id="cust-name" className="sm:col-span-2">
-          <Input id="cust-name" value={f.name} onChange={set("name")} required autoFocus />
+          <Input
+            id="cust-name"
+            {...sensitive("name")}
+            value={f.name}
+            onChange={set("name")}
+            required
+            autoFocus
+          />
         </F>
         <F label="Phone" id="cust-phone">
           <PhoneInput
@@ -394,11 +419,18 @@ function CustomerForm({
           />
         </F>
         <F label="Email" id="cust-email">
-          <Input id="cust-email" type="email" value={f.email} onChange={set("email")} />
+          <Input
+            id="cust-email"
+            {...sensitive("email")}
+            type="email"
+            value={f.email}
+            onChange={set("email")}
+          />
         </F>
         <F label="Location" id="cust-loc">
           <Input
             id="cust-loc"
+            {...sensitive("address")}
             value={f.location}
             onChange={set("location")}
             placeholder="City, State"
@@ -418,7 +450,13 @@ function CustomerForm({
           <Input id="cust-since" type="date" value={f.joinedDate} onChange={set("joinedDate")} />
         </F>
         <F label="Notes" id="cust-notes" className="sm:col-span-2">
-          <Textarea id="cust-notes" rows={3} value={f.notes} onChange={set("notes")} />
+          <Textarea
+            id="cust-notes"
+            {...sensitive("note")}
+            rows={3}
+            value={f.notes}
+            onChange={set("notes")}
+          />
         </F>
       </div>
       <DialogFooter className="gap-2">

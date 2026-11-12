@@ -20,6 +20,7 @@ import {
   type PipelineColumn,
 } from "@/data";
 
+import { Sensitive } from "@/components/brand";
 const FAILURE: Record<MoveFailure, string> = {
   "no-access": "Candidates don't have a pipeline yet.",
   "not-found": "That person isn't on your team.",
@@ -66,7 +67,7 @@ export function useMoveCard(columns: PipelineColumn[]) {
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>
-            Move {confirm?.name} to {stages.name("registered")}?
+            Move <Sensitive kind="name">{confirm?.name}</Sensitive> to {stages.name("registered")}?
           </AlertDialogTitle>
           <AlertDialogDescription>
             Reaching {stages.name("registered")} registers them: they become an apprentice from

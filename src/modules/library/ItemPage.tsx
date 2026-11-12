@@ -19,7 +19,14 @@ import {
   Undo2,
 } from "lucide-react";
 import { toast } from "sonner";
-import { Breadcrumbs, EmptyState, PersonAvatar, ToneChip, type Crumb } from "@/components/brand";
+import {
+  Breadcrumbs,
+  EmptyState,
+  PersonAvatar,
+  ToneChip,
+  type Crumb,
+  Sensitive,
+} from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -206,7 +213,7 @@ function Item({ item, channelId }: { item: CatalogItem; channelId?: string }) {
             {item.speakers.map((s, i) => (
               <span key={i} className="inline-flex items-center gap-1.5 text-[13px]">
                 <PersonAvatar name={speakerName(s, people)} size="sm" />
-                {speakerName(s, people)}
+                <Sensitive kind="name">{speakerName(s, people)}</Sensitive>
                 {!s.personId && <span className="text-muted-foreground">(guest)</span>}
               </span>
             ))}
@@ -250,7 +257,8 @@ function Item({ item, channelId }: { item: CatalogItem; channelId?: string }) {
               people.get(item.createdBy)?.name ?? "Your upline",
               viewer?.personId ?? "",
             )}{" "}
-            · added by {people.get(item.createdBy)?.name ?? "a team member"}{" "}
+            · added by{" "}
+            <Sensitive kind="name">{people.get(item.createdBy)?.name ?? "a team member"}</Sensitive>{" "}
             {format(new Date(item.createdAt), "MMM d, yyyy")}
           </span>
         </Detail>

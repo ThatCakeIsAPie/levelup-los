@@ -1,6 +1,6 @@
 import { storageKey } from "@/lib/brand";
 import { IS_LOCAL_DEMO } from "@/lib/config";
-import { useState, type ReactNode } from "react";
+import { Fragment, useState, type ReactNode } from "react";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   Bell,
@@ -47,7 +47,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { Logo, PersonAvatar } from "@/components/brand";
+import { Logo, PersonAvatar, Sensitive } from "@/components/brand";
 import { LogButton, LogSheet } from "@/components/log/LogSheet";
 import { FeedbackDialog } from "@/components/feedback/FeedbackDialog";
 import { startFeedback, useFeedbackFlow } from "@/components/feedback/feedbackFlow";
@@ -240,14 +240,19 @@ function NavItemLink({
 // ---------------------------------------------------------------------------
 
 /** "IBO", "IBO · Maria's deputy · Admin": the line under the person's name. */
-function useRoleLine(): string {
+function useRoleLine(): ReactNode {
   const user = useCurrentUser();
   const actingFor = useActingFor();
-  const parts = [roleLabel[user.role]];
+  const parts: ReactNode[] = [roleLabel[user.role]];
   if (actingFor.length)
-    parts.push(`${actingFor.map((p) => p.name.split(" ")[0]).join(" & ")}'s deputy`);
+    parts.push(
+      <Fragment key="deputy">
+        <Sensitive kind="name">{actingFor.map((p) => p.name.split(" ")[0]).join(" & ")}</Sensitive>
+        's deputy
+      </Fragment>,
+    );
   if (user.admin) parts.push("Admin");
-  return parts.join(" · ");
+  return parts.flatMap((p, i) => (i ? [" · ", p] : [p]));
 }
 
 function Sidebar({ onReset }: { onReset: () => void }) {
@@ -345,7 +350,9 @@ function UserMenu({ onReset }: { onReset: () => void }) {
             className="ring-1 ring-white/25"
           />
           <span className="min-w-0 flex-1 leading-tight">
-            <span className="block truncate font-semibold">{user.name}</span>
+            <span className="block truncate font-semibold">
+              <Sensitive kind="name">{user.name}</Sensitive>
+            </span>
             <span className="block truncate text-[11px] text-sidebar-fg">{roleLine}</span>
           </span>
           <ChevronsUpDown className="size-3.5 text-sidebar-fg" aria-hidden="true" />
@@ -353,7 +360,7 @@ function UserMenu({ onReset }: { onReset: () => void }) {
       </DropdownMenuTrigger>
       <DropdownMenuContent side="top" align="start" className="w-56">
         <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
-          Signed in as {user.name}
+          Signed in as <Sensitive kind="name">{user.name}</Sensitive>
         </DropdownMenuLabel>
         <DropdownMenuItem
           onSelect={() => navigate({ to: "/people/$id", params: { id: user.personId } })}
@@ -655,7 +662,9 @@ function MoreSheet({
         <SheetHeader className="mb-2 flex-row items-center gap-3 space-y-0 px-1 text-left">
           <PersonAvatar name={user.name} stage={me?.bizClass ?? "ibo"} size="lg" />
           <div>
-            <SheetTitle className="text-base font-extrabold">{user.name}</SheetTitle>
+            <SheetTitle className="text-base font-extrabold">
+              <Sensitive kind="name">{user.name}</Sensitive>
+            </SheetTitle>
             <SheetDescription className="text-xs">{roleLine}</SheetDescription>
           </div>
         </SheetHeader>

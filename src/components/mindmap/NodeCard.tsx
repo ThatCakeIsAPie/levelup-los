@@ -11,7 +11,7 @@ import {
   UserPlus,
   Users,
 } from "lucide-react";
-import { PersonAvatar, StageChip, initials } from "@/components/brand";
+import { PersonAvatar, StageChip, initials, Sensitive } from "@/components/brand";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,6 +26,7 @@ import { NODE_H, NODE_W } from "./layout";
 import type { PositionedNode } from "./types";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
+import { sensitive } from "@/lib/sensitive";
 export type CardAction = "apprentice" | "ibo" | "customer" | "view" | "edit";
 
 export interface NodeCardProps {
@@ -121,7 +122,7 @@ function NodeCardImpl({
         <PersonAvatar name={p.name} stage={stage} />
         <div className="min-w-0 flex-1">
           <div className="truncate text-[13px] font-bold leading-tight" title={p.name}>
-            {p.name}
+            <Sensitive kind="name">{p.name}</Sensitive>
             {isViewer && <span className="ml-1 font-semibold text-faint">· you</span>}
           </div>
           <div className="mt-1 flex items-center gap-1.5">
@@ -163,7 +164,7 @@ function NodeCardImpl({
               <>
                 <DropdownMenuSeparator />
                 <DropdownMenuLabel className="truncate text-xs font-normal text-muted-foreground">
-                  Add under {isViewer ? "you" : firstName}
+                  Add under {isViewer ? "you" : <Sensitive kind="name">{firstName}</Sensitive>}
                 </DropdownMenuLabel>
                 <DropdownMenuItem onSelect={() => onAction(node, "apprentice")}>
                   <UserPlus /> Add apprentice
@@ -309,11 +310,14 @@ function CustomerSlot({
             <span className="tabular-nums">
               {count} {count === 1 ? "customer" : "customers"}
             </span>
-            <span className="sr-only"> (only {ownerName} sees who they are)</span>
+            <span className="sr-only">
+              {" "}
+              (only <Sensitive kind="name">{ownerName}</Sensitive> sees who they are)
+            </span>
           </span>
         </TooltipTrigger>
         <TooltipContent aria-hidden="true">
-          Only {ownerName} sees who their customers are
+          Only <Sensitive kind="name">{ownerName}</Sensitive> sees who their customers are
         </TooltipContent>
       </Tooltip>
     );
@@ -337,7 +341,7 @@ function CustomerSlot({
     >
       <span className="flex -space-x-1.5">
         {top.map((c) => (
-          <span key={c.id} className={circle} title={c.name}>
+          <span key={c.id} className={circle} title={c.name} {...sensitive("name")}>
             {initials(c.name)}
           </span>
         ))}

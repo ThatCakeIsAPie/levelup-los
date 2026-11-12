@@ -18,7 +18,7 @@ import {
   UserRound,
   X,
 } from "lucide-react";
-import { PersonAvatar, StageChip, ToneChip } from "@/components/brand";
+import { PersonAvatar, StageChip, ToneChip, Sensitive } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
@@ -86,6 +86,7 @@ import { MemberPicker } from "./NewChatDialog";
 import { duration, plural } from "./format";
 import { TAB_LABEL, togglePin } from "./chatTab";
 
+import { sensitiveIf } from "@/lib/sensitive";
 const retentionLabel = (d: number | null) => (d === null ? "Keep forever" : `${d} days`);
 
 /** Chat details: about, members and roles, shared media, notifications, history, leave. */
@@ -111,7 +112,9 @@ function Details({ conv, onClose }: { conv: ConversationSummary; onClose?: () =>
       <div className="flex items-start gap-2.5">
         <ConversationAvatar summary={conv} />
         <div className="min-w-0 flex-1">
-          <h2 className="truncate text-sm font-extrabold">{conv.title}</h2>
+          <h2 className="truncate text-sm font-extrabold" {...sensitiveIf(isDm, "name")}>
+            {conv.title}
+          </h2>
           <p className="text-[11.5px] text-muted-foreground">
             {isDm ? "Direct message" : plural(conv.memberCount, "member")}
           </p>
@@ -244,7 +247,9 @@ function DmPerson({ conv }: { conv: ConversationSummary }) {
       <div className="flex items-center gap-2.5">
         <PersonAvatar name={other.name} stage={other.stage} />
         <div className="min-w-0 flex-1">
-          <div className="truncate font-semibold">{other.name}</div>
+          <div className="truncate font-semibold">
+            <Sensitive kind="name">{other.name}</Sensitive>
+          </div>
           <div className="flex items-center gap-1.5">
             <StageChip stage={other.stage} />
             {other.role && other.role !== "member" && (
@@ -279,7 +284,9 @@ function DmPerson({ conv }: { conv: ConversationSummary }) {
       <AlertDialog open={confirm} onOpenChange={setConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Block {other.name}?</AlertDialogTitle>
+            <AlertDialogTitle>
+              Block <Sensitive kind="name">{other.name}</Sensitive>?
+            </AlertDialogTitle>
             <AlertDialogDescription>
               Their messages are hidden for you and neither of you can message the other directly.
               They aren't told.
@@ -386,7 +393,7 @@ function MemberRow({
     <li className="flex items-center gap-2">
       <PersonAvatar name={m.name} stage={m.stage} size="sm" className="size-[26px]" />
       <span className="min-w-0 flex-1 truncate">
-        {m.name}
+        <Sensitive kind="name">{m.name}</Sensitive>
         {self && <span className="text-faint"> (you)</span>}
       </span>
       {roleText && (

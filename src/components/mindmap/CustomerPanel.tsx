@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Link } from "@tanstack/react-router";
 import { ShoppingBag, X } from "lucide-react";
-import { PersonAvatar } from "@/components/brand";
+import { PersonAvatar, Sensitive } from "@/components/brand";
 import type { CrmPerson } from "@/data";
 import { NODE_W } from "./layout";
 import type { PositionedNode } from "./types";
@@ -51,7 +51,13 @@ export function CustomerPanel({
         </span>
         <div className="min-w-0 flex-1 leading-tight">
           <div className="truncate text-[13px] font-bold">
-            {isViewer ? "Your customers" : `Customers of ${node.person.name}`}
+            {isViewer ? (
+              "Your customers"
+            ) : (
+              <>
+                Customers of <Sensitive kind="name">{node.person.name}</Sensitive>
+              </>
+            )}
           </div>
           <div className="text-[11.5px] text-muted-foreground tabular-nums">
             {customers.length} · {total.toLocaleString()} PV a month
@@ -75,7 +81,9 @@ export function CustomerPanel({
               className="flex items-center gap-2 rounded-lg px-1 py-1.5 text-[12.5px] hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-ring"
             >
               <PersonAvatar name={c.name} stage="customer" size="sm" />
-              <span className="min-w-0 flex-1 truncate font-medium">{c.name}</span>
+              <span className="min-w-0 flex-1 truncate font-medium">
+                <Sensitive kind="name">{c.name}</Sensitive>
+              </span>
               <span className="tabular-nums text-muted-foreground">
                 {(c.monthlyVolume ?? 0).toLocaleString()} PV
               </span>

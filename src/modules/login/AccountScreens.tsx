@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { refreshAccount, signOut, useAccount, useAuthError } from "./auth";
 import { AuthHeading, AuthLayout, StatusIcon } from "./AuthLayout";
 
+import { Sensitive } from "@/components/brand";
 /**
  * Signed in, but the account isn't on a team (no member row): typically
  * someone who signed up without an invite link.
@@ -22,7 +23,10 @@ export function NoTeamScreen() {
           {account?.email ? (
             <>
               {" "}
-              as <span className="font-semibold text-foreground">{account.email}</span>
+              as{" "}
+              <span className="font-semibold text-foreground">
+                <Sensitive kind="email">{account.email}</Sensitive>
+              </span>
             </>
           ) : null}
           , but this account isn't part of a team. Ask your leader for an invite link, then open it

@@ -16,6 +16,7 @@ import {
   RatingChip,
   SectionCard,
   ToneChip,
+  Sensitive,
 } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,6 +61,7 @@ import {
 import { plural } from "@/modules/pipeline/format";
 import { ListEntryDialog, type EntryDialogMode } from "./ListEntryDialog";
 
+import { sensitiveIf } from "@/lib/sensitive";
 const PAGE = "grid w-full min-w-0 content-start gap-4 px-4 py-5 lg:px-[26px] lg:py-[22px]";
 const first = (name: string) => name.split(" ")[0] ?? name;
 
@@ -109,9 +111,20 @@ export function YourListTab({
       <PageHeader
         title="Customers"
         subtitle={
-          owner
-            ? `${mine ? "Your list" : `${owner.name}'s list`} · ${plural(list.rows.length, "name")} · ${list.notContacted} not contacted yet`
-            : "Your list"
+          owner ? (
+            <>
+              {mine ? (
+                "Your list"
+              ) : (
+                <>
+                  <Sensitive kind="name">{owner.name}</Sensitive>&rsquo;s list
+                </>
+              )}{" "}
+              · {plural(list.rows.length, "name")} · {list.notContacted} not contacted yet
+            </>
+          ) : (
+            "Your list"
+          )
         }
         actions={
           <>
@@ -127,7 +140,13 @@ export function YourListTab({
                 <SelectContent className="max-h-80">
                   {owners.map((o) => (
                     <SelectItem key={o.id} value={o.id}>
-                      {o.isMe ? "My list" : `${o.name}'s list`}
+                      {o.isMe ? (
+                        "My list"
+                      ) : (
+                        <>
+                          <Sensitive kind="name">{o.name}</Sensitive>&rsquo;s list
+                        </>
+                      )}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -179,6 +198,7 @@ export function YourListTab({
               />
               <Input
                 type="search"
+                {...sensitiveIf(!!query, "name")}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search names"
@@ -210,7 +230,9 @@ export function YourListTab({
       <AlertDialog open={!!removing} onOpenChange={(o) => !o && setRemoving(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove {removing?.entry.name} from the list?</AlertDialogTitle>
+            <AlertDialogTitle>
+              Remove <Sensitive kind="name">{removing?.entry.name}</Sensitive> from the list?
+            </AlertDialogTitle>
             <AlertDialogDescription>
               They leave the list and the customer board. Past moves still count in the numbers
               {removing?.customer ? ", and they stay a customer" : ""}.
@@ -270,7 +292,9 @@ function ListItem({
         className="min-w-0 rounded-sm text-left focus-visible:outline-2 focus-visible:outline-ring disabled:cursor-default"
       >
         <span className="flex min-w-0 items-center gap-1.5">
-          <b className="truncate text-[13px]">{e.name}</b>
+          <b className="truncate text-[13px]">
+            <Sensitive kind="name">{e.name}</Sensitive>
+          </b>
           <RatingChip rating={e.rating} size="xs" />
         </span>
         <small className="block truncate text-[11.5px] text-muted-foreground">

@@ -27,6 +27,7 @@ import {
   type CancelReason,
 } from "@/data";
 
+import { sensitive } from "@/lib/sensitive";
 /**
  * "Cancel" on a booked next step: why (they cancelled, no-show, couldn't
  * reach them, not interested anymore, or in their own words). The booking is
@@ -162,6 +163,7 @@ function CancelForm({
           <Input
             id="cancel-text"
             autoFocus
+            {...sensitive("note")}
             value={text}
             maxLength={MAX_CANCEL_TEXT}
             aria-invalid={tried && !!error}

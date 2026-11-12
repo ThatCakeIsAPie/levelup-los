@@ -1,7 +1,14 @@
 import { useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { ChevronDown, Plus, UserPlus, Users, X } from "lucide-react";
-import { ActionRow, PersonAvatar, PhoneInput, RatingPicker, StageChip } from "@/components/brand";
+import {
+  ActionRow,
+  PersonAvatar,
+  PhoneInput,
+  RatingPicker,
+  StageChip,
+  Sensitive,
+} from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -47,6 +54,7 @@ import {
   type ReferrerChoice,
 } from "@/data";
 
+import { sensitive, sensitiveIf } from "@/lib/sensitive";
 const LINK =
   "rounded-sm font-semibold text-primary hover:underline focus-visible:outline-2 focus-visible:outline-ring";
 
@@ -160,7 +168,9 @@ export function ReferrerPicker({
                 size="sm"
                 className="size-5 text-[8px]"
               />
-              <span className="truncate">{picked.name}</span>
+              <span className="truncate">
+                <Sensitive kind="name">{picked.name}</Sensitive>
+              </span>
               <button
                 type="button"
                 onClick={() => pick(null)}
@@ -187,6 +197,7 @@ export function ReferrerPicker({
           <Command shouldFilter={false}>
             <CommandInput
               autoFocus
+              {...sensitiveIf(!!query, "name")}
               value={query}
               onValueChange={setQuery}
               placeholder="Search names"
@@ -239,7 +250,9 @@ function ChoiceItem({
   return (
     <CommandItem value={`${c.ref.kind}:${c.ref.id}`} onSelect={() => onPick(c.ref)}>
       <PersonAvatar name={c.name} stage={c.bizClass ?? undefined} size="sm" />
-      <span className="min-w-0 flex-1 truncate">{c.name}</span>
+      <span className="min-w-0 flex-1 truncate">
+        <Sensitive kind="name">{c.name}</Sensitive>
+      </span>
       <span className="shrink-0 text-[11px] text-muted-foreground">{c.hint}</span>
     </CommandItem>
   );
@@ -253,10 +266,12 @@ function ChoiceItem({
 function ContactName({ c }: { c: ReferralContact }) {
   return c.personId ? (
     <Link to="/people/$id" params={{ id: c.personId }} className={LINK}>
-      {c.name}
+      <Sensitive kind="name">{c.name}</Sensitive>
     </Link>
   ) : (
-    <b className="font-semibold">{c.name}</b>
+    <b className="font-semibold">
+      <Sensitive kind="name">{c.name}</Sensitive>
+    </b>
   );
 }
 
@@ -427,7 +442,8 @@ export function AddReferredDialog({
         <DialogHeader>
           <DialogTitle>Add someone {firstName(referrerName)} referred</DialogTitle>
           <DialogDescription>
-            They start in Not contacted yet and show &ldquo;Referred by {referrerName}&rdquo;.
+            They start in Not contacted yet and show &ldquo;Referred by{" "}
+            <Sensitive kind="name">{referrerName}</Sensitive>&rdquo;.
           </DialogDescription>
         </DialogHeader>
         {open && (
@@ -558,6 +574,7 @@ function AddReferredForm({
           id="ar-name"
           autoFocus
           autoComplete="off"
+          {...sensitive("name")}
           value={name}
           maxLength={80}
           onChange={(e) => {

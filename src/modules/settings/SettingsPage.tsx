@@ -2,7 +2,14 @@ import { IS_LOCAL_DEMO } from "@/lib/config";
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { BellRing, LogOut, RotateCcw, ShieldCheck, UserCircle } from "lucide-react";
-import { ActionRow, PageHeader, PersonAvatar, SectionCard, StageChip } from "@/components/brand";
+import {
+  ActionRow,
+  PageHeader,
+  PersonAvatar,
+  SectionCard,
+  StageChip,
+  Sensitive,
+} from "@/components/brand";
 import { ThemeSwitcher } from "@/components/shell/AppShell";
 import { ResetDemoDialog } from "@/components/shell/ResetDemoDialog";
 import { useNavAccess } from "@/components/shell/access";
@@ -78,7 +85,9 @@ function AccountCard() {
       <div className="flex flex-wrap items-center gap-3">
         <PersonAvatar name={user.name} stage={stage ?? "ibo"} size="lg" />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[15px] font-bold">{user.name}</p>
+          <p className="truncate text-[15px] font-bold">
+            <Sensitive kind="name">{user.name}</Sensitive>
+          </p>
           <p className="flex flex-wrap items-center gap-1.5 text-[12.5px] text-muted-foreground">
             {roleLabel[user.role]}
             {stage && <StageChip stage={stage} />}

@@ -31,6 +31,7 @@ import {
   SectionCard,
   StageChip,
   ToneChip,
+  Sensitive,
 } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import {
@@ -124,11 +125,15 @@ function RowMeta({
   if (upcoming && a.followUpDate)
     bits.push(<span key="fu">Follow up {fmtDate(a.followUpDate)}</span>);
   if (a.helperId)
-    bits.push(<span key="helper">Helper {names.get(a.helperId) ?? "from your upline"}</span>);
+    bits.push(
+      <span key="helper">
+        Helper <Sensitive kind="name">{names.get(a.helperId) ?? "from your upline"}</Sensitive>
+      </span>,
+    );
   if (!detailed && !upcoming && a.notes)
     bits.push(
       <span key="notes" className="truncate">
-        {a.notes}
+        <Sensitive kind="note">{a.notes}</Sensitive>
       </span>,
     );
   return bits.length ? <>{bits}</> : null;
@@ -166,7 +171,9 @@ function EventRow({
           <RowMeta row={row} names={names} detailed={detailed} />
         </div>
         {detailed && a.notes && (
-          <p className="mt-1.5 break-words text-xs text-muted-foreground">{a.notes}</p>
+          <p className="mt-1.5 break-words text-xs text-muted-foreground">
+            <Sensitive kind="note">{a.notes}</Sensitive>
+          </p>
         )}
       </div>
       {action ? (
@@ -749,7 +756,7 @@ function HelpingFor({ person }: { person: CrmPerson }) {
                   params={{ id: p.id }}
                   className="rounded-sm font-semibold hover:underline focus-visible:outline-2 focus-visible:outline-ring"
                 >
-                  {p.name}
+                  <Sensitive kind="name">{p.name}</Sensitive>
                 </Link>
                 <p className="truncate text-xs text-muted-foreground">{ev.name}</p>
               </div>

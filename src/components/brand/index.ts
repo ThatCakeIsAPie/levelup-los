@@ -16,6 +16,7 @@ export { SegmentedBar, ProgressRing, DateBadge } from "./progress";
 export { ActionRow } from "./ActionRow";
 export { Breadcrumbs, type Crumb } from "./Breadcrumbs";
 export { PhoneInput } from "./PhoneInput";
+export { Sensitive } from "./Sensitive";
 export { RatingPicker, RatingChip } from "./rating";
 export {
   STAGE_LABEL,

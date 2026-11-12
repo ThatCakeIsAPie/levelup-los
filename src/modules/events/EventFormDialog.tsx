@@ -34,6 +34,7 @@ import { MODE_ICON } from "./categoryIcons";
 import { CategoryPicker } from "./CategoryPicker";
 import { ActingForBadge } from "@/modules/settings/TeamSettingsCards";
 
+import { sensitive } from "@/lib/sensitive";
 type Draft = Omit<CrmEvent, "id">;
 
 /** A new event starts in the team's first category, named after it. */
@@ -292,6 +293,7 @@ function EventForm({
         <Label htmlFor="ev-loc">{form.format === "virtual" ? "Link or where" : "Location"}</Label>
         <Input
           id="ev-loc"
+          {...sensitive("address")}
           value={form.location ?? ""}
           onChange={(e) => set({ location: e.target.value })}
           placeholder={

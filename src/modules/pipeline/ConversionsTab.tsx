@@ -1,6 +1,6 @@
 import { Fragment, useState } from "react";
 import { ArrowRight, Lightbulb, Settings2, ThumbsUp, UserPlus } from "lucide-react";
-import { PersonAvatar } from "@/components/brand";
+import { PersonAvatar, Sensitive } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
@@ -388,7 +388,9 @@ function HotRow({ row, names, total }: { row: HotspotRow; names: StageNames; tot
             className="size-[18px] text-[8px]"
           />
         )}
-        <span className="truncate">{row.name}</span>
+        <span className="truncate">
+          <Sensitive kind="name">{row.name}</Sensitive>
+        </span>
       </span>
       {row.stats.map((s) => (
         <Cell key={s.key} stat={s} name={row.name} names={names} total={total} />
@@ -427,7 +429,9 @@ function Cell({
           </button>
         </PopoverTrigger>
         <PopoverContent className="w-64 text-[12.5px]" align="center">
-          <b className="block">{name}</b>
+          <b className="block">
+            <Sensitive kind="name">{name}</Sensitive>
+          </b>
           <span className="text-muted-foreground">{short}</span>
           <p className="mt-1.5">
             {stat.toCount} of {stat.fromCount} {v.did}

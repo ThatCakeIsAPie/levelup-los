@@ -20,6 +20,7 @@ import { canInvite } from "@/modules/login/roles";
 import { createInvite, type NewInvite } from "./api";
 import { INVITE_DAYS, looksLikeEmail, type InviteStage } from "./rules";
 
+import { sensitive } from "@/lib/sensitive";
 /**
  * "Invite" button for page headers: shown to people with a team (leaders,
  * IBOs, apprentices). Opens the invite dialog.
@@ -168,6 +169,7 @@ function InviteForm({ onClose }: { onClose: () => void }) {
         <Label htmlFor="invite-new-name">Their name (optional)</Label>
         <Input
           id="invite-new-name"
+          {...sensitive("name")}
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="So the invite greets them by name"
@@ -179,6 +181,7 @@ function InviteForm({ onClose }: { onClose: () => void }) {
           id="invite-new-email"
           type="email"
           inputMode="email"
+          {...sensitive("email")}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="Fills in the sign-up form for them"

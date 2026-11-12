@@ -1,8 +1,10 @@
 import type { ComponentType, ReactNode } from "react";
 import type { BizClass } from "@/stores/peopleStore";
 import { cn } from "@/lib/utils";
+
 import { STAGE_CHIP_CLASS, STAGE_LABEL, TONE_CLASS, initials, type Tone } from "./stage";
 
+import { sensitive } from "@/lib/sensitive";
 const CHIP =
   "inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-bold leading-[1.45] [&_svg]:size-3 [&_svg]:shrink-0";
 
@@ -60,6 +62,7 @@ export function PersonAvatar({
       )}
       aria-hidden="true"
       title={name}
+      {...sensitive("name")}
     >
       {initials(name)}
     </span>

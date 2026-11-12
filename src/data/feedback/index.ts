@@ -13,7 +13,7 @@ import { brand } from "@/brand/brand";
 import { IS_SUPABASE } from "@/lib/config";
 import { supabase } from "@/lib/supabase";
 import { useSessionStore } from "@/stores/sessionStore";
-import { buildFeedbackContext, nextStatus } from "./rules";
+import { buildFeedbackContext, nextStatus, pageLabel, safeSearch } from "./rules";
 import { listRemoteReports, remoteImageUrl, sendRemoteReport, setRemoteStatus } from "./remote";
 import { listLocalReports, loadLocalImage, saveLocalReport, setLocalStatus } from "./localStore";
 import {
@@ -37,8 +37,9 @@ export const FEEDBACK_LOCAL_ONLY = !IS_SUPABASE;
 export function collectFeedbackContext(path: string): FeedbackContext {
   return buildFeedbackContext({
     path,
-    search: window.location.search,
-    title: document.title,
+    search: safeSearch(window.location.search),
+    // Not document.title: on a person or chat page that holds their name.
+    title: pageLabel(path),
     width: window.innerWidth,
     height: window.innerHeight,
     dark: document.documentElement.classList.contains("dark"),

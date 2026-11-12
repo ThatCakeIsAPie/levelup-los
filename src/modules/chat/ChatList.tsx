@@ -12,7 +12,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { EmptyState } from "@/components/brand";
+import { EmptyState, Sensitive } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -42,6 +42,7 @@ import { NewChatDialog, type NewChatMode } from "./NewChatDialog";
 import { TAB_LABEL, togglePin } from "./chatTab";
 import { listTime } from "./format";
 
+import { sensitiveIf } from "@/lib/sensitive";
 const FOCUS = "focus-visible:outline-2 focus-visible:outline-ring";
 const TABS: ChatTab[] = ["groups", "direct"];
 
@@ -178,6 +179,7 @@ export function ChatList({
         />
         <Input
           type="search"
+          {...sensitiveIf(!!query, "name")}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search chats and messages"
@@ -245,8 +247,12 @@ export function ChatList({
                         FOCUS,
                       )}
                     >
-                      <span className="truncate text-xs font-semibold">{h.title}</span>
-                      <span className="truncate text-xs text-muted-foreground">{h.snippet}</span>
+                      <span className="truncate text-xs font-semibold">
+                        <Sensitive kind="message">{h.title}</Sensitive>
+                      </span>
+                      <span className="truncate text-xs text-muted-foreground">
+                        <Sensitive kind="message">{h.snippet}</Sensitive>
+                      </span>
                     </Link>
                   ))}
                 </>
@@ -392,7 +398,9 @@ function Row({
             <ConversationAvatar summary={c} />
             <div className="min-w-0">
               <div className="flex min-w-0 items-center gap-1.5 text-[13.5px] font-bold">
-                <span className="truncate">{c.title}</span>
+                <span className="truncate" {...sensitiveIf(c.conversation.kind === "dm", "name")}>
+                  {c.title}
+                </span>
                 {c.pinned && (
                   <Pin className="size-[13px] shrink-0 text-faint" aria-label="Pinned" />
                 )}
@@ -403,11 +411,11 @@ function Row({
               <div className="truncate text-xs text-muted-foreground">
                 {c.lastAuthor && (
                   <b className="font-semibold text-foreground">
-                    {c.lastAuthor}
+                    <Sensitive kind="name">{c.lastAuthor}</Sensitive>
                     {": "}
                   </b>
                 )}
-                {c.preview}
+                <Sensitive kind="message">{c.preview}</Sensitive>
               </div>
             </div>
             <div

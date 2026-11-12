@@ -18,7 +18,7 @@ import {
   type CrmPerson,
   type PipelineStage,
 } from "@/data";
-import { PhoneInput, SectionCard, StageChip } from "@/components/brand";
+import { PhoneInput, SectionCard, StageChip, Sensitive } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -44,6 +44,7 @@ import { cn } from "@/lib/utils";
 import { displayPhone } from "@/lib/phone";
 import { fmtDate, fmtMoney } from "./format";
 
+import { type SensitiveKind, sensitive } from "@/lib/sensitive";
 export interface DetailsPermissions {
   /** Edit anything at all (contact fields, notes, tags). */
   canEdit: boolean;
@@ -98,7 +99,7 @@ function DetailsView({
 
   const rows: [string, React.ReactNode][] = isCustomer
     ? [
-        ["Name", person.name],
+        ["Name", <Sensitive kind="name">{person.name}</Sensitive>],
         [
           "Owner",
           owner ? <PersonLink p={owner} /> : (required("owner") ?? "Someone outside your team"),
@@ -108,12 +109,12 @@ function DetailsView({
           person.monthlyVolume ? `${fmtMoney(person.monthlyVolume)} a month` : undefined,
         ],
         ["Customer since", fmtDate(person.joinedDate, { year: true })],
-        ["Phone", displayPhone(person.phone)],
-        ["Email", person.email],
-        ["Location", person.location],
+        ["Phone", sens("phone", displayPhone(person.phone))],
+        ["Email", sens("email", person.email)],
+        ["Location", sens("address", person.location)],
       ]
     : [
-        ["Name", person.name],
+        ["Name", <Sensitive kind="name">{person.name}</Sensitive>],
         ["Stage", <StageChip key="s" stage={effectiveBizClass(person)} />],
         [
           "Sponsor",
@@ -125,8 +126,8 @@ function DetailsView({
         person.ltdNumber ||
         person.businessStartDate
           ? ([
-              ["IBO#", person.iboNumber || required("iboNumber")],
-              ["LTD#", person.ltdNumber || required("ltdNumber")],
+              ["IBO#", sens("id-number", person.iboNumber) || required("iboNumber")],
+              ["LTD#", sens("id-number", person.ltdNumber) || required("ltdNumber")],
               [
                 "Business start date",
                 fmtDate(person.businessStartDate, { year: true }) || required("businessStartDate"),
@@ -134,9 +135,9 @@ function DetailsView({
             ] as [string, React.ReactNode][])
           : []),
         ["Joined", fmtDate(person.joinedDate, { year: true })],
-        ["Phone", displayPhone(person.phone)],
-        ["Email", person.email],
-        ["Location", person.location],
+        ["Phone", sens("phone", displayPhone(person.phone))],
+        ["Email", sens("email", person.email)],
+        ["Location", sens("address", person.location)],
       ];
 
   return (
@@ -174,7 +175,9 @@ function DetailsView({
       <div className="grid gap-1.5 border-t border-line pt-3 text-[13px]">
         <span className="text-muted-foreground">Notes</span>
         {person.notes ? (
-          <p className="whitespace-pre-wrap break-words">{person.notes}</p>
+          <p className="whitespace-pre-wrap break-words">
+            <Sensitive kind="note">{person.notes}</Sensitive>
+          </p>
         ) : (
           <span className="text-faint">No notes</span>
         )}
@@ -203,6 +206,11 @@ function DetailsView({
   );
 }
 
+/** A value wrapped as sensitive for the snapshot, or nothing when there is none. */
+function sens(kind: SensitiveKind, value: string | null | undefined): React.ReactNode {
+  return value ? <Sensitive kind={kind}>{value}</Sensitive> : undefined;
+}
+
 function PersonLink({ p }: { p: CrmPerson }) {
   return (
     <Link
@@ -210,7 +218,7 @@ function PersonLink({ p }: { p: CrmPerson }) {
       params={{ id: p.id }}
       className="rounded-sm font-semibold text-primary hover:underline focus-visible:outline-2 focus-visible:outline-ring"
     >
-      {p.name}
+      <Sensitive kind="name">{p.name}</Sensitive>
     </Link>
   );
 }
@@ -331,7 +339,13 @@ function DetailsForm({
       <form onSubmit={save} className="grid gap-4">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Field label="Name" id="d-name">
-            <Input id="d-name" value={f.name} onChange={set("name")} required />
+            <Input
+              id="d-name"
+              {...sensitive("name")}
+              value={f.name}
+              onChange={set("name")}
+              required
+            />
           </Field>
           {!isCustomer && (
             <Field
@@ -374,7 +388,7 @@ function DetailsForm({
                   )}
                   {sponsorOptions.map((p) => (
                     <SelectItem key={p.id} value={p.id}>
-                      {p.name}
+                      <Sensitive kind="name">{p.name}</Sensitive>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -389,11 +403,18 @@ function DetailsForm({
             />
           </Field>
           <Field label="Email" id="d-email">
-            <Input id="d-email" type="email" value={f.email} onChange={set("email")} />
+            <Input
+              id="d-email"
+              {...sensitive("email")}
+              type="email"
+              value={f.email}
+              onChange={set("email")}
+            />
           </Field>
           <Field label="Location" id="d-loc">
             <Input
               id="d-loc"
+              {...sensitive("address")}
               value={f.location}
               onChange={set("location")}
               placeholder="City, State"
@@ -410,6 +431,7 @@ function DetailsForm({
               >
                 <Input
                   id="d-ibo"
+                  {...sensitive("id-number")}
                   value={f.iboNumber}
                   onChange={set("iboNumber")}
                   disabled={!perms.canEditIds}
@@ -424,6 +446,7 @@ function DetailsForm({
               >
                 <Input
                   id="d-ltd"
+                  {...sensitive("id-number")}
                   value={f.ltdNumber}
                   onChange={set("ltdNumber")}
                   disabled={!perms.canEditIds}
@@ -498,7 +521,13 @@ function DetailsForm({
         </Field>
 
         <Field label="Notes" id="d-notes">
-          <Textarea id="d-notes" rows={4} value={f.notes} onChange={set("notes")} />
+          <Textarea
+            id="d-notes"
+            {...sensitive("note")}
+            rows={4}
+            value={f.notes}
+            onChange={set("notes")}
+          />
         </Field>
 
         <div className="flex flex-wrap justify-end gap-2 border-t border-line pt-4">
@@ -586,7 +615,9 @@ export function DeletePersonDialog({
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent className="w-[calc(100%-2rem)] rounded-card">
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete {person.name}?</AlertDialogTitle>
+          <AlertDialogTitle>
+            Delete <Sensitive kind="name">{person.name}</Sensitive>?
+          </AlertDialogTitle>
           <AlertDialogDescription>
             Removes their profile from your {customer ? "customers" : "team list"} for good.{" "}
             {consequences} This can't be undone.

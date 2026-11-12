@@ -12,6 +12,7 @@ import {
   ToneChip,
   useIsDesktop,
   type Tone,
+  Sensitive,
 } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,6 +37,7 @@ import { CustomersTabs, type CustomersTab } from "./CustomersTabs";
 import { YourListTab } from "./YourListTab";
 import { dayWord, money0, shortDate } from "./format";
 
+import { sensitiveIf } from "@/lib/sensitive";
 export type { CustomersTab };
 
 type Filter = "all" | "due";
@@ -235,6 +237,7 @@ function Toolbar({
         />
         <Input
           type="search"
+          {...sensitiveIf(!!query, "name")}
           value={query}
           onChange={(e) => onQuery(e.target.value)}
           placeholder="Search name, product, email"
@@ -335,7 +338,7 @@ function NameLink({ person }: { person: CrmPerson }) {
         params={{ id: person.id }}
         className="block truncate rounded-sm text-[13px] font-semibold hover:underline focus-visible:outline-2 focus-visible:outline-ring"
       >
-        {person.name}
+        <Sensitive kind="name">{person.name}</Sensitive>
       </Link>
       {person.dittoSince && (
         <ToneChip tone="good" className="shrink-0">
@@ -355,13 +358,17 @@ function ContactLinks({ person }: { person: CrmPerson }) {
       {person.phone && (
         <a href={`tel:${phoneHref(person.phone)}`} className={linkCls}>
           <Phone className="size-3 shrink-0" aria-hidden="true" />
-          <span className="truncate">{displayPhone(person.phone)}</span>
+          <span className="truncate">
+            <Sensitive kind="phone">{displayPhone(person.phone)}</Sensitive>
+          </span>
         </a>
       )}
       {person.email && (
         <a href={`mailto:${person.email}`} className={cn(linkCls, "max-w-full")}>
           <Mail className="size-3 shrink-0" aria-hidden="true" />
-          <span className="truncate">{person.email}</span>
+          <span className="truncate">
+            <Sensitive kind="email">{person.email}</Sensitive>
+          </span>
         </a>
       )}
     </div>

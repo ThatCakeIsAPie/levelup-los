@@ -9,6 +9,7 @@ import {
   SectionCard,
   SegmentedBar,
   ToneChip,
+  Sensitive,
 } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import {
@@ -300,7 +301,7 @@ function MetaLine({ event, className }: { event: CrmEvent; className?: string })
           <span aria-hidden="true">·</span>
           <span className="inline-flex items-center gap-1">
             <MapPin className="size-3" aria-hidden="true" />
-            {event.location}
+            <Sensitive kind="address">{event.location}</Sensitive>
           </span>
         </>
       )}
@@ -539,7 +540,15 @@ function PastRow({ s, candidate }: { s: EventSummary; candidate: boolean }) {
         </Link>
         <p className="truncate text-xs text-muted-foreground">
           {s.category.name}
-          {event.location ? ` · ${event.location}` : ""} · {timingLabel(t)}
+          {event.location ? (
+            <>
+              {" · "}
+              <Sensitive kind="address">{event.location}</Sensitive>
+            </>
+          ) : (
+            ""
+          )}{" "}
+          · {timingLabel(t)}
         </p>
       </div>
       <div className="col-start-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs sm:col-start-3 sm:justify-end">

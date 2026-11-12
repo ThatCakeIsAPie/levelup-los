@@ -16,7 +16,7 @@ import {
   UserRoundCheck,
 } from "lucide-react";
 import { toast } from "sonner";
-import { PersonAvatar } from "@/components/brand";
+import { PersonAvatar, Sensitive } from "@/components/brand";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -43,6 +43,7 @@ import { SentPanel } from "@/modules/login/SentPanel";
 import { acceptInvite, fetchInvite } from "./api";
 import { inviteState, looksLikeEmail, stageLabel, type InvitePreview } from "./rules";
 
+import { sensitive } from "@/lib/sensitive";
 /**
  * /invite/$token: who invited you and to which team; sign up or sign in
  * (email link or password); then accept the invite, which creates your
@@ -111,7 +112,9 @@ function InviteHeader({ preview }: { preview: InvitePreview }) {
     <div className="flex items-center gap-3 rounded-card border border-line bg-surface px-4 py-3.5">
       <PersonAvatar name={sponsor} stage="ibo" size="lg" />
       <p className="min-w-0 text-[13px] text-muted-foreground">
-        <span className="block text-sm font-bold text-foreground">{sponsor}</span>
+        <span className="block text-sm font-bold text-foreground">
+          <Sensitive kind="name">{sponsor}</Sensitive>
+        </span>
         invited you to join{" "}
         <span className="font-semibold text-foreground">{preview.workspace_name}</span> as{" "}
         {stageLabel(preview.stage)}.
@@ -168,7 +171,14 @@ function JoinForm({ token, preview }: { token: string; preview: InvitePreview })
     <form className="grid gap-4" onSubmit={submit} noValidate>
       <AuthHeading
         title={
-          preview.name ? `Hi ${preview.name.split(" ")[0]}, let's get you in` : "Let's get you in"
+          preview.name ? (
+            <>
+              Hi <Sensitive kind="name">{preview.name.split(" ")[0]}</Sensitive>, let&rsquo;s get
+              you in
+            </>
+          ) : (
+            "Let's get you in"
+          )
         }
       >
         <p>
@@ -216,6 +226,7 @@ function JoinForm({ token, preview }: { token: string; preview: InvitePreview })
           <Input
             id="invite-name"
             autoComplete="name"
+            {...sensitive("name")}
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="First and last name"
@@ -230,6 +241,7 @@ function JoinForm({ token, preview }: { token: string; preview: InvitePreview })
           type="email"
           inputMode="email"
           autoComplete="email"
+          {...sensitive("email")}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="you@example.com"
@@ -364,7 +376,9 @@ function AlreadyOnTeam() {
         <UserRoundCheck className="mt-0.5 size-5 shrink-0 text-primary-ink" aria-hidden="true" />
         <p className="text-[13px] text-muted-foreground">
           You're signed in as{" "}
-          <span className="font-semibold text-foreground">{account?.email ?? "a team member"}</span>
+          <span className="font-semibold text-foreground">
+            <Sensitive kind="email">{account?.email ?? "a team member"}</Sensitive>
+          </span>
           {account?.workspaceName ? <>, already on {account.workspaceName}</> : null}. This invite
           is for someone new: sign out to use it with a different email, or pass the link on.
         </p>

@@ -10,7 +10,7 @@ import {
   Upload,
   UserSearch,
 } from "lucide-react";
-import { EmptyState, PersonAvatar } from "@/components/brand";
+import { EmptyState, PersonAvatar, Sensitive } from "@/components/brand";
 import { MindmapCanvas } from "@/components/mindmap/MindmapCanvas";
 import { NodeCard } from "@/components/mindmap/NodeCard";
 import { NODE_H, NODE_W } from "@/components/mindmap/layout";
@@ -316,7 +316,15 @@ function Toolbar({
             <>
               <PersonAvatar name={focus.person.name} size="sm" className="hidden size-5 sm:grid" />
               <span className="truncate">
-                {focused ? focus.person.name : isMe ? "Your team" : `${focus.person.name}'s team`}
+                {focused ? (
+                  <Sensitive kind="name">{focus.person.name}</Sensitive>
+                ) : isMe ? (
+                  "Your team"
+                ) : (
+                  <>
+                    <Sensitive kind="name">{focus.person.name}</Sensitive>&rsquo;s team
+                  </>
+                )}
                 {!focused &&
                   uploaded &&
                   (rootCount > 1 ? ` · tree 1 of ${rootCount}` : " · from spreadsheet")}

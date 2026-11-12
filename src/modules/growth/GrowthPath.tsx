@@ -22,7 +22,7 @@ import {
   type GrowthPath,
   type MilestoneStatus,
 } from "@/data";
-import { SectionCard, ToneChip } from "@/components/brand";
+import { SectionCard, ToneChip, Sensitive } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ApprenticeNotice, BusinessPathCard } from "@/modules/people/BusinessPath";
@@ -624,7 +624,9 @@ function MilestoneDetail({
                       ) : (
                         <span className="size-3.5 shrink-0" aria-hidden="true" />
                       )}
-                      <span className="truncate">{l.name}</span>
+                      <span className="truncate">
+                        <Sensitive kind="name">{l.name}</Sensitive>
+                      </span>
                     </span>
                     <b className="tabular-nums">{pv(l.pv)} PV</b>
                   </li>

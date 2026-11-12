@@ -41,6 +41,8 @@ import {
 } from "@/data";
 import { Errors, Field, FormSheet } from "./FormSheet";
 
+import { Sensitive } from "@/components/brand";
+import { sensitive } from "@/lib/sensitive";
 const NONE = "__none";
 
 /** Length of an audio/video file in seconds (null when the browser can't read it). */
@@ -444,7 +446,11 @@ export function ItemDialog({
                 key={`${s.personId ?? s.name}-${i}`}
                 className="inline-flex items-center gap-1 rounded-full bg-surface-2 py-0.5 pr-1 pl-2.5 text-[12px] font-semibold"
               >
-                {s.personId ? (people.get(s.personId)?.name ?? "Team member") : `${s.name} (guest)`}
+                <Sensitive kind="name">
+                  {s.personId
+                    ? (people.get(s.personId)?.name ?? "Team member")
+                    : `${s.name} (guest)`}
+                </Sensitive>
                 <button
                   type="button"
                   onClick={() => setSpeakers(speakers.filter((_, j) => j !== i))}
@@ -465,13 +471,14 @@ export function ItemDialog({
             <SelectContent>
               {members.map((m) => (
                 <SelectItem key={m.id} value={m.id}>
-                  {m.name}
+                  <Sensitive kind="name">{m.name}</Sensitive>
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
           <div className="flex gap-1.5">
             <Input
+              {...sensitive("name")}
               value={guest}
               onChange={(e) => setGuest(e.target.value)}
               onKeyDown={(e) => {
