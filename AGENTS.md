@@ -27,3 +27,9 @@ Feedback snapshots paint people's details as black bars. Any UI that shows one o
 ## Before pushing
 
 Run `npm run typecheck`, `npm run lint`, `npm test` and `npm run build`. Database tests (`db:test`, `test:integration`) need Docker and run in CI (`.github/workflows/ci.yml`).
+
+## Planned work
+
+Plans that are saved but not started live in `docs/plans/`. A plan marked NOT STARTED must not be begun without asking the owner first: at the start of a working session, raise it and ask whether to continue.
+
+- `docs/plans/glass-theme-and-brand-options-2026-11-12.md`: background image, glass look and team-chosen theme.
