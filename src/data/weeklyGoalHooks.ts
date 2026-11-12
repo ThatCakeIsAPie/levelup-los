@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { logPerson } from "@/stores/activityStore";
 import { useAttendanceStore } from "@/stores/attendanceStore";
 import { useCrmStore, learningGoalFor, type LearningGoal } from "@/stores/crmStore";
 import { useEventsStore } from "@/stores/eventsStore";
@@ -58,7 +59,17 @@ export function useWeeklyGoal(personId: string | undefined): WeeklyGoalView & {
   ]);
 }
 
-/** Replace a person's weekly goal (items in order; units fitted to each category). */
+/**
+ * Replace a person's weekly goal (items in order; units fitted to each
+ * category). A change is noted in their activity ("Updated weekly goal"; Home's
+ * "What you did today" lists it for whoever edited it).
+ */
 export function setLearningGoal(personId: string, goal: LearningGoal): void {
-  useCrmStore.getState().setLearningGoal(personId, { items: goal.items.map(normalizeItem) });
+  const store = useCrmStore.getState();
+  const next = { items: goal.items.map(normalizeItem) };
+  const before = JSON.stringify(learningGoalFor(store.goals, personId).items);
+  store.setLearningGoal(personId, next);
+  if (JSON.stringify(next.items) !== before) {
+    logPerson("updated", personId, "Edited weekly goal", { goal: true });
+  }
 }

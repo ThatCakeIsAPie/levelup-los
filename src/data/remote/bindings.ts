@@ -4,6 +4,8 @@
  */
 import { usePeopleStore, type CrmPerson } from "@/stores/peopleStore";
 import { useEventsStore, type CrmEvent } from "@/stores/eventsStore";
+import { useEventCategoriesStore } from "@/data/eventCategories/store";
+import type { EventCategoriesData, EventCategory } from "@/data/eventCategories/types";
 import {
   useAttendanceStore,
   type Attendance,
@@ -59,6 +61,8 @@ import type {
   ListEntry,
 } from "@/data/customerPipeline/types";
 import { useTeamStore } from "@/data/team/store";
+import { useHomeLayoutStore, type HomeLayoutState } from "@/data/homeLayoutStore";
+import type { HomeLayout } from "@/data/homeLayout";
 import type { Deputy, FeatureSwitch, TeamData } from "@/data/team/types";
 import { applyRemote, keyOf, syncContext, type Binding, type Row, type TableSpec } from "./engine";
 import * as m from "./rows";
@@ -181,6 +185,25 @@ export const peopleBinding: Binding<PeopleS> = {
       set: (people) => ({ people }),
       toRow: m.personToRow,
       fromRow: m.personFromRow,
+    }),
+  ],
+};
+
+// The team's event categories: added, edited and archived, never deleted
+// (archived ones stay for old events; a merge is merge_event_categories()).
+type CatS = EventCategoriesData;
+export const eventCategoriesBinding: Binding<CatS> = {
+  name: "eventCategories",
+  store: useEventCategoriesStore,
+  specs: [
+    listSpec<CatS, EventCategory>({
+      table: "event_categories",
+      pk: ["id"],
+      get: (s) => s.categories,
+      set: (categories) => ({ categories }),
+      toRow: m.eventCategoryToRow,
+      fromRow: m.eventCategoryFromRow,
+      delete: false,
     }),
   ],
 };
@@ -918,7 +941,9 @@ export const pipelineBinding: Binding<PipeS> = {
             p_next_step_date: card?.nextStepDate ?? undefined,
             p_next_step_time: card?.nextStepTime ?? undefined,
             p_source: card?.source ?? undefined,
-            p_hot: card?.hot ?? undefined,
+            p_hot: card ? card.rating === "hot" : undefined,
+            // A new card's rating comes back on the RPC's row (it's shown as is).
+            p_rating: card?.rating ?? undefined,
           });
           if (error) throw rpcError("move_pipeline_card", error);
           const out = (data ?? {}) as { move?: Row; card?: Row };
@@ -1177,8 +1202,30 @@ export const teamBinding: Binding<TeamS> = {
   ],
 };
 
+// ---------------------------------------------------------------------------
+// Home card layout (src/data/homeLayout): your own row only
+// ---------------------------------------------------------------------------
+
+export const homeLayoutBinding: Binding<HomeLayoutState> = {
+  name: "homeLayout",
+  store: useHomeLayoutStore,
+  specs: [
+    // One row per person; "Reset layout" deletes it.
+    recordSpec<HomeLayoutState, HomeLayout>({
+      table: "dashboard_layouts",
+      pk: ["person_id"],
+      get: (s) => s.layouts,
+      set: (layouts) => ({ layouts }),
+      toRow: m.homeLayoutToRow,
+      fromRow: m.homeLayoutFromRow,
+      insert: "upsert",
+    }),
+  ],
+};
+
 export const ALL_BINDINGS = [
   peopleBinding,
+  eventCategoriesBinding,
   eventsBinding,
   attendanceBinding,
   crmBinding,
@@ -1189,4 +1236,5 @@ export const ALL_BINDINGS = [
   pipelineBinding,
   customerPipelineBinding,
   teamBinding,
+  homeLayoutBinding,
 ] as unknown as Binding<unknown>[];

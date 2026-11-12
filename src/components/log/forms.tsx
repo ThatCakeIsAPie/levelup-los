@@ -22,7 +22,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Plus } from "lucide-react";
 import { format } from "date-fns";
-import { EmptyState } from "@/components/brand";
+import { EmptyState, PhoneInput, RatingPicker } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -61,6 +61,7 @@ import {
   type PodcastUnit,
   type ReadingUnit,
   type WinKind,
+  type ContactRating,
 } from "@/data";
 import { toastWithUndo } from "./quickLog";
 import {
@@ -569,6 +570,7 @@ export function NewContactForm() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [where, setWhere] = useState("");
+  const [rating, setRating] = useState<ContactRating | null>(null);
   const [date, setDate] = useState(localDate());
   const [win, setWin] = useWin(true, "Just made a new contact", "Recruiting");
 
@@ -583,7 +585,7 @@ export function NewContactForm() {
       ...(where.trim() ? { notes: `Met ${where.trim()}` } : {}),
     });
     const contact = logContact({ personId: person.id, date, note: "New contact" });
-    const undoCard = startPipelineCard(person.id, { source: where });
+    const undoCard = startPipelineCard(person.id, { source: where, rating });
     finish({
       message: `${person.name} added as a new prospect`,
       undoneMessage: "New contact removed",
@@ -615,12 +617,7 @@ export function NewContactForm() {
       </Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Phone (optional)" htmlFor="log-new-phone">
-          <Input
-            id="log-new-phone"
-            type="tel"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-          />
+          <PhoneInput id="log-new-phone" value={phone} onValueChange={setPhone} />
         </Field>
         <DateField id="log-new-date" value={date} onChange={setDate} />
       </div>
@@ -636,6 +633,10 @@ export function NewContactForm() {
           placeholder="e.g. at the gym"
         />
       </Field>
+      <div className="grid gap-1.5">
+        <span className="text-xs font-semibold">How warm are they? (optional)</span>
+        <RatingPicker value={rating} onChange={setRating} />
+      </div>
       <ShareAsWin id="share-new-contact" value={win} onChange={setWin} winKind="contact" />
       <SubmitButton disabled={!name.trim()} sharing={win.on} label="Log" />
     </form>

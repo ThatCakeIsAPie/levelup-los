@@ -2,8 +2,6 @@ import { useState, type ReactNode } from "react";
 import { addDays, format } from "date-fns";
 import { toast } from "sonner";
 import {
-  EVENT_TYPE_INFO,
-  EVENT_TYPES,
   MAX_TICKET_URL,
   addEvent,
   allowsVirtual,
@@ -12,9 +10,11 @@ import {
   localDate,
   parseDate,
   updateEvent,
+  useCategoryOf,
+  useEventCategories,
   type CrmEvent,
+  type EventCategory,
   type EventFormat,
-  type EventType,
 } from "@/data";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -29,35 +29,30 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { OptionGrid } from "@/components/log/parts";
 import { Segmented } from "./Segmented";
-import { EVENT_TYPE_ICON, MODE_ICON } from "./typeIcons";
+import { MODE_ICON } from "./categoryIcons";
+import { CategoryPicker } from "./CategoryPicker";
 import { ActingForBadge } from "@/modules/settings/TeamSettingsCards";
 
 type Draft = Omit<CrmEvent, "id">;
 
-const blank = (): Draft => ({
-  name: EVENT_TYPE_INFO.night_owls.label,
-  type: "night_owls",
+/** A new event starts in the team's first category, named after it. */
+const blank = (first: EventCategory | undefined): Draft => ({
+  name: first?.name ?? "",
+  categoryId: first?.id ?? "",
   date: localDate(),
   format: "in_person",
 });
-
-const TYPE_OPTIONS = EVENT_TYPES.map((t) => ({
-  value: t,
-  label: EVENT_TYPE_INFO[t].label,
-  hint: EVENT_TYPE_INFO[t].hint,
-  icon: EVENT_TYPE_ICON[t],
-}));
 
 /** Weekly copies when creating ("Repeat every week"): 2 to 12 in all. */
 const MAX_WEEKS = 12;
 
 /**
- * Create (no `event`) or edit (with `event`) an event: type, name, in person
- * and/or virtual (where the type allows it), dates, location and notes. A new
- * event can repeat weekly (Night Owls). Controlled open state so it can be
- * opened from a button or a menu item.
+ * Create (no `event`) or edit (with `event`) an event: category (with "+ New
+ * category" for people who may plan events), name, in person and/or virtual
+ * (where the category allows it), dates, location and notes. A new event can
+ * repeat weekly (Night Owls). Controlled open state so it can be opened from a
+ * button or a menu item.
  */
 export function EventFormDialog({
   open,
@@ -98,24 +93,28 @@ function EventForm({
   onDone: (created?: CrmEvent) => void;
   onCancel: () => void;
 }) {
+  const categories = useEventCategories();
+  const categoryOf = useCategoryOf();
   const [form, setForm] = useState<Draft>(() => {
-    if (!event) return blank();
+    if (!event) return blank(categories[0]);
     const { id: _id, ...rest } = event;
-    return { ...rest, format: eventFormat(event) };
+    return { ...rest, format: eventFormat(event, categoryOf(event)) };
   });
   const [touched, setTouched] = useState(false);
-  // The name follows the type until the user types their own.
+  // The name follows the category until the user types their own.
   const [autoName, setAutoName] = useState(!event);
   const [repeat, setRepeat] = useState(false);
   const [weeks, setWeeks] = useState("4");
   const set = (patch: Partial<Draft>) => setForm((f) => ({ ...f, ...patch }));
 
-  const pickType = (type: EventType) =>
+  const pickCategory = (c: EventCategory) =>
     set({
-      type,
-      format: allowsVirtual(type) ? (form.format ?? "in_person") : "in_person",
-      ...(autoName ? { name: EVENT_TYPE_INFO[type].label } : {}),
+      categoryId: c.id,
+      format: allowsVirtual(c) ? (form.format ?? "in_person") : "in_person",
+      ...(autoName ? { name: c.name } : {}),
     });
+  const category = categoryOf(form.categoryId);
+  const categoryError = touched && !form.categoryId ? "Pick a category." : null;
 
   const weekCount = Math.min(MAX_WEEKS, Math.max(2, Math.round(Number(weeks)) || 2));
   const nameError = touched && !form.name.trim() ? "Give the event a name." : null;
@@ -131,7 +130,7 @@ function EventForm({
 
   const submit = () => {
     setTouched(true);
-    if (!form.name.trim() || dateError || endError || ticketBad) return;
+    if (!form.categoryId || !form.name.trim() || dateError || endError || ticketBad) return;
     const clean: Draft = {
       ...form,
       name: form.name.trim(),
@@ -139,7 +138,7 @@ function EventForm({
       location: form.location?.trim() || undefined,
       notes: form.notes?.trim() || undefined,
       ticketUrl: ticketUrl ?? undefined,
-      format: eventFormat(form),
+      format: eventFormat(form, category),
     };
     if (event) {
       updateEvent(event.id, clean);
@@ -160,8 +159,7 @@ function EventForm({
     onDone(created);
   };
 
-  const virtualOk = allowsVirtual(form.type);
-  const info = EVENT_TYPE_INFO[form.type];
+  const virtualOk = allowsVirtual(category);
 
   return (
     <form
@@ -182,12 +180,15 @@ function EventForm({
         <ActingForBadge className="w-fit" />
       </DialogHeader>
 
-      <OptionGrid<EventType>
-        label="Type of event"
-        options={TYPE_OPTIONS}
-        value={form.type}
-        onChange={pickType}
-      />
+      <div className="grid gap-1">
+        <CategoryPicker
+          id="ev-category"
+          value={form.categoryId}
+          onChange={pickCategory}
+          keepId={event?.categoryId}
+        />
+        {categoryError && <p className="text-xs text-bad">{categoryError}</p>}
+      </div>
 
       <div className="grid gap-1.5">
         <Label htmlFor="ev-name">Name</Label>
@@ -200,7 +201,7 @@ function EventForm({
             setAutoName(false);
             set({ name: e.target.value });
           }}
-          placeholder={info.label}
+          placeholder={category.name}
         />
         {nameError && (
           <p id="ev-name-err" className="text-xs text-bad">
@@ -223,28 +224,33 @@ function EventForm({
             ]}
           />
         ) : (
-          <p className="text-[12.5px] text-muted-foreground">{info.label} is in person only.</p>
+          <p className="text-[12.5px] text-muted-foreground">
+            {form.categoryId ? `${category.name} is in person only.` : "In person."}
+          </p>
         )}
       </div>
 
+      {/* min-w-0: native date inputs are wider than half a phone screen. */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="grid gap-1.5">
-          <Label htmlFor="ev-start">{info.travel ? "Start date" : "Date"}</Label>
+        <div className="grid min-w-0 gap-1.5">
+          <Label htmlFor="ev-start">{category.usesTravel ? "Start date" : "Date"}</Label>
           <Input
             id="ev-start"
             type="date"
+            className="min-w-0"
             value={form.date}
             onChange={(e) => set({ date: e.target.value })}
           />
           {dateError && <p className="text-xs text-bad">{dateError}</p>}
         </div>
-        <div className="grid gap-1.5">
+        <div className="grid min-w-0 gap-1.5">
           <Label htmlFor="ev-end">
             End date <span className="font-normal text-faint">(optional)</span>
           </Label>
           <Input
             id="ev-end"
             type="date"
+            className="min-w-0"
             min={form.date}
             value={form.endDate ?? ""}
             onChange={(e) => set({ endDate: e.target.value || undefined })}
@@ -327,7 +333,7 @@ function EventForm({
           value={form.notes ?? ""}
           onChange={(e) => set({ notes: e.target.value })}
           placeholder={
-            info.travel ? "Travel details, agenda, what to bring" : "Agenda, what to bring"
+            category.usesTravel ? "Travel details, agenda, what to bring" : "Agenda, what to bring"
           }
         />
       </div>

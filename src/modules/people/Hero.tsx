@@ -1,6 +1,6 @@
 import type { ComponentType, ReactNode } from "react";
 import { toast } from "sonner";
-import { Copy, Mail, MessageSquare, MoreHorizontal, Pencil, Phone } from "lucide-react";
+import { Copy, Mail, MessageSquare, MoreHorizontal, Pencil, Phone, Trash2 } from "lucide-react";
 import { useNextEvent, type BizClass, type CrmPerson } from "@/data";
 import { PersonAvatar } from "@/components/brand";
 import { Button } from "@/components/ui/button";
@@ -9,9 +9,11 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { phoneHref } from "@/lib/phone";
 import { firstName, fmtDate } from "./format";
 
 type Icon = ComponentType<{ className?: string }>;
@@ -39,6 +41,7 @@ export function ProfileHero({
   contact,
   actions,
   onEditDetails,
+  onDelete,
   isDesktop,
 }: {
   person: CrmPerson;
@@ -51,9 +54,11 @@ export function ProfileHero({
   contact: boolean;
   actions: HeroAction[];
   onEditDetails?: () => void;
+  /** Adds "Delete person" to the ⋯ menu (it opens the confirmation). */
+  onDelete?: () => void;
   isDesktop: boolean;
 }) {
-  const more = <MoreMenu person={person} onEditDetails={onEditDetails} />;
+  const more = <MoreMenu person={person} onEditDetails={onEditDetails} onDelete={onDelete} />;
 
   if (!isDesktop) {
     return (
@@ -124,13 +129,13 @@ function contactLinks(p: CrmPerson) {
     {
       label: "Call",
       icon: Phone,
-      href: p.phone ? `tel:${p.phone.replace(/[^\d+]/g, "")}` : undefined,
+      href: p.phone ? `tel:${phoneHref(p.phone)}` : undefined,
       missing: "No phone number on file",
     },
     {
       label: "Text",
       icon: MessageSquare,
-      href: p.phone ? `sms:${p.phone.replace(/[^\d+]/g, "")}` : undefined,
+      href: p.phone ? `sms:${phoneHref(p.phone)}` : undefined,
       missing: "No phone number on file",
     },
     {
@@ -228,7 +233,15 @@ function QuickRow({
   );
 }
 
-function MoreMenu({ person, onEditDetails }: { person: CrmPerson; onEditDetails?: () => void }) {
+function MoreMenu({
+  person,
+  onEditDetails,
+  onDelete,
+}: {
+  person: CrmPerson;
+  onEditDetails?: () => void;
+  onDelete?: () => void;
+}) {
   const next = useNextEvent();
   const script = next
     ? `Hi ${firstName(person.name)}, quick note about ${next.name} on ${fmtDate(next.date)}. I want to make sure you're in the loop. Got a minute to chat?`
@@ -257,6 +270,17 @@ function MoreMenu({ person, onEditDetails }: { person: CrmPerson; onEditDetails?
           <DropdownMenuItem onSelect={onEditDetails}>
             <Pencil /> Edit details
           </DropdownMenuItem>
+        )}
+        {onDelete && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onSelect={onDelete}
+              className="text-destructive focus:bg-bad-soft focus:text-destructive [&_svg]:text-destructive"
+            >
+              <Trash2 /> Delete person
+            </DropdownMenuItem>
+          </>
         )}
       </DropdownMenuContent>
     </DropdownMenu>

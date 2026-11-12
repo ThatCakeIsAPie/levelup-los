@@ -46,10 +46,11 @@ import {
   DeputiesCard,
   FeatureSwitchesCard,
 } from "@/modules/settings/TeamSettingsCards";
+import { EventCategoriesCard } from "@/modules/events/EventCategoriesCard";
 
 /**
- * /settings/team: leaders and their deputies switch features on for the team;
- * leaders name deputies. With Chats on: leaders designate moderators and work
+ * /settings/team: leaders and their deputies switch features on for the team
+ * and tidy up the event categories; leaders name deputies. With Chats on: leaders designate moderators and work
  * the report queue; leaders and moderators approve announcement drafts;
  * everyone manages the people they blocked.
  */
@@ -62,6 +63,7 @@ export function TeamSettings() {
     <Page>
       {can.teamSettings && <FeatureSwitchesCard />}
       {can.teamSettings && <DeputiesCard />}
+      {can.teamSettings && <EventCategoriesCard />}
       {chatParts && access.isLeader && <Reports />}
       {chatParts && access.canReview && <Drafts />}
       {chatParts && <MembersCard canEdit={access.isLeader} />}
@@ -82,8 +84,7 @@ function Page({ children }: { children: React.ReactNode }) {
       <PageHeader
         title="Team settings"
         subtitle="Features for the team, deputies and, with chats on, moderators and reports"
-        back={{ to: "/settings", label: "Settings" }}
-        logButton={false}
+        crumbs={[{ label: "Settings", link: { to: "/settings" } }, { label: "Team settings" }]}
         actions={<ActingForBadge />}
       />
       {children}

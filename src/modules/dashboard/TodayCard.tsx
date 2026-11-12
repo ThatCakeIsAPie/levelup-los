@@ -12,7 +12,9 @@ import {
   Ticket,
   TrendingUp,
   Undo2,
+  UserPlus,
   UserX,
+  Users,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -24,7 +26,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { quickCheckIn, toastWithUndo } from "@/components/log/quickLog";
 import {
-  EVENT_TYPE_LABEL,
   bookingLabel,
   effectiveBizClass,
   removeContact,
@@ -32,6 +33,8 @@ import {
   rescheduleBookedStep,
   rescheduleChoices,
   setContactSettings,
+  useAttendancesForEvent,
+  useCategoryOf,
   useContactSettings,
   useCurrentUser,
   useCustomerColumns,
@@ -42,8 +45,18 @@ import { useMoveCard } from "@/modules/pipeline/useMoveCard";
 import { useCustomerMove } from "@/modules/customers/useCustomerMove";
 import { CancelStepDialog } from "@/modules/pipeline/CancelStepDialog";
 import { timeText, whenText } from "@/modules/pipeline/format";
+import { AddAttendeeDialog } from "@/modules/events/AddAttendeeDialog";
+import { ReferralTodayRow } from "@/modules/pipeline/Referrals";
 import { plural, relativeDay, shortDate } from "./format";
-import { countByFilter, type TodayFilter, type TodayItem } from "./today";
+import { useInvitesOff } from "./hooks";
+import {
+  countByFilter,
+  groupToday,
+  type TodayFilter,
+  type TodayGroup,
+  type TodayItem,
+  type TodaySub,
+} from "./today";
 
 type Filter = "all" | TodayFilter;
 
@@ -51,9 +64,20 @@ const FILTERS: { value: Filter; label: string }[] = [
   { value: "all", label: "All" },
   { value: "team", label: "Team" },
   { value: "customers", label: "Customers" },
-  { value: "events", label: "Events" },
   { value: "pipeline", label: "Pipeline" },
+  { value: "events", label: "Events" },
 ];
+
+const GROUP_LABEL: Record<TodayFilter, string> = {
+  team: "Team",
+  customers: "Customers",
+  pipeline: "Pipeline",
+  events: "Events",
+};
+const SUB_LABEL: Record<TodaySub, string> = {
+  recruiting: "Recruiting",
+  customer: "Customer pipeline",
+};
 
 const ICON: Record<TodayItem["kind"], { icon: typeof Ticket; tone: IconTone }> = {
   ticket: { icon: Ticket, tone: "bad" },
@@ -61,11 +85,15 @@ const ICON: Record<TodayItem["kind"], { icon: typeof Ticket; tone: IconTone }> =
   customer: { icon: ShoppingBag, tone: "warn" },
   anniversary: { icon: TrendingUp, tone: "info" },
   team: { icon: MessageCircle, tone: "primary" },
+  prospect: { icon: MessageCircle, tone: "primary" },
   missed: { icon: UserX, tone: "warn" },
   step: { icon: CalendarClock, tone: "primary" },
+  invite: { icon: UserPlus, tone: "info" },
+  referral: { icon: Users, tone: "info" },
 };
 
 type StepItem = Extract<TodayItem, { kind: "step" }>;
+type InviteItem = Extract<TodayItem, { kind: "invite" }>;
 
 /**
  * The prioritised "Today" list. Desktop shows 5 rows and "Show N more";
@@ -128,13 +156,48 @@ export function TodayCard({
     else recruiting.move(b.cardId, b.name, b.column.id);
   };
 
+  const invites = useInvitesOff(user.personId);
+
   const counts = countByFilter(items.filter((i) => !done.has(i.key)));
   const shown = filter === "all" ? list : list.filter((i) => i.filter === filter);
+  // "All" shows each group's most urgent few under its header; one group
+  // shows its first few. "Show N more" opens everything up.
+  const all = filter === "all";
+  const perGroup = compact ? 2 : 3;
   const limit = compact ? 3 : 5;
-  const visible = expanded ? shown : shown.slice(0, limit);
-  const hidden = shown.length - visible.length;
-  // Phones keep the header simple until the list is opened up.
-  const showFilters = !candidate && items.length > 0 && (!compact || expanded);
+  const groups: (TodayGroup & { total: number })[] = groupToday(shown).map((g) => {
+    const take = expanded ? g.items.length : all ? perGroup : limit;
+    const keep = new Set(g.items.slice(0, take).map((i) => i.key));
+    return {
+      ...g,
+      total: g.items.length,
+      items: g.items.filter((i) => keep.has(i.key)),
+      subs: g.subs
+        ?.map((s) => ({ ...s, items: s.items.filter((i) => keep.has(i.key)) }))
+        .filter((s) => s.items.length > 0),
+    };
+  });
+  const visibleCount = groups.reduce((n, g) => n + g.items.length, 0);
+  const hidden = shown.length - visibleCount;
+  // Group headers only when it helps: not for candidates (events only).
+  const headers = !candidate;
+  const showFilters = !candidate && items.length > 0;
+
+  const row = (item: TodayItem) => {
+    const d = done.get(item.key);
+    return d ? (
+      <DoneRow key={item.key} entry={d} compact={compact} onUndo={() => undo(d)} />
+    ) : (
+      <TodayRow
+        key={item.key}
+        item={item}
+        compact={compact}
+        onCheckIn={checkIn}
+        onAccept={accept}
+        onPutOff={invites.putOff}
+      />
+    );
+  };
 
   return (
     <section
@@ -151,15 +214,6 @@ export function TodayCard({
         <div className="flex flex-wrap items-center gap-1.5">
           {showFilters && !compact && (
             <FilterChips filter={filter} counts={counts} onChange={setFilter} />
-          )}
-          {compact && hidden > 0 && !expanded && (
-            <button
-              type="button"
-              onClick={() => setExpanded(true)}
-              className="rounded-sm text-[12.5px] font-semibold text-primary hover:underline focus-visible:outline-2 focus-visible:outline-ring"
-            >
-              See all {shown.length}
-            </button>
           )}
           {!candidate && <ContactSettings />}
         </div>
@@ -183,26 +237,61 @@ export function TodayCard({
         <p className="py-4 text-center text-[13px] text-muted-foreground">
           Nothing in {FILTERS.find((f) => f.value === filter)?.label.toLowerCase()} right now.
         </p>
+      ) : !headers ? (
+        <div>{groups.flatMap((g) => g.items).map(row)}</div>
       ) : (
-        <div>
-          {visible.map((item) => {
-            const d = done.get(item.key);
-            return d ? (
-              <DoneRow key={item.key} entry={d} compact={compact} onUndo={() => undo(d)} />
-            ) : (
-              <TodayRow
-                key={item.key}
-                item={item}
-                compact={compact}
-                onCheckIn={checkIn}
-                onAccept={accept}
-              />
-            );
-          })}
+        <div className="grid gap-3.5">
+          {groups.map((g) => (
+            <section
+              key={g.filter}
+              aria-labelledby={`today-group-${g.filter}`}
+              className="grid gap-1.5"
+            >
+              {all && (
+                <div className="flex items-center justify-between gap-2">
+                  <h3
+                    id={`today-group-${g.filter}`}
+                    className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground"
+                  >
+                    {GROUP_LABEL[g.filter]}{" "}
+                    <span className="font-semibold tabular-nums text-faint">{g.total}</span>
+                  </h3>
+                  {g.total > g.items.length && (
+                    <button
+                      type="button"
+                      onClick={() => setFilter(g.filter)}
+                      className="rounded-sm text-[12px] font-semibold text-primary hover:underline focus-visible:outline-2 focus-visible:outline-ring"
+                      aria-label={`See all ${g.total} in ${GROUP_LABEL[g.filter]}`}
+                    >
+                      See all {g.total}
+                    </button>
+                  )}
+                </div>
+              )}
+              {!all && (
+                <h3 id={`today-group-${g.filter}`} className="sr-only">
+                  {GROUP_LABEL[g.filter]}
+                </h3>
+              )}
+              {g.subs ? (
+                g.subs.map((s) => (
+                  <div key={s.sub} className="grid gap-1">
+                    <h4 className="flex items-center gap-1.5 text-[11.5px] font-semibold text-faint">
+                      <span aria-hidden="true" className="h-px w-2.5 bg-line" />
+                      {SUB_LABEL[s.sub]}
+                    </h4>
+                    <div>{s.items.map(row)}</div>
+                  </div>
+                ))
+              ) : (
+                <div>{g.items.map(row)}</div>
+              )}
+            </section>
+          ))}
         </div>
       )}
 
-      {hidden > 0 && !compact && (
+      {hidden > 0 && (
         <button
           type="button"
           onClick={() => setExpanded(true)}
@@ -211,7 +300,7 @@ export function TodayCard({
           Show {hidden} more
         </button>
       )}
-      {expanded && shown.length > limit && (
+      {expanded && shown.length > (all ? perGroup : limit) && (
         <button
           type="button"
           onClick={() => setExpanded(false)}
@@ -391,19 +480,26 @@ function TodayRow({
   compact,
   onCheckIn: checkIn,
   onAccept,
+  onPutOff,
 }: {
   item: TodayItem;
   compact: boolean;
   onCheckIn: (item: TodayItem) => void;
   onAccept: (item: StepItem) => void;
+  /** "Not now" on an invite suggestion. */
+  onPutOff: (eventId: string) => void;
 }) {
   const { icon } = ICON[item.kind];
   let tone = ICON[item.kind].tone;
   const [noteOpen, setNoteOpen] = useState(false);
+  const categoryOf = useCategoryOf();
   const [cancelOpen, setCancelOpen] = useState(false);
   const p = item.person;
   const first = p.name.split(" ")[0];
-  const stage = item.kind === "customer" ? "customer" : effectiveBizClass(p);
+  const stage =
+    item.kind === "customer" || (item.kind === "step" && item.filter === "customers")
+      ? "customer"
+      : effectiveBizClass(p);
   let title: ReactNode;
   let detail: string;
   let action: ReactNode;
@@ -541,7 +637,12 @@ function TodayRow({
         detail += item.numbersOnFile ? " · IBO# and LTD# on file" : " · IBO# or LTD# missing";
       }
       break;
+    case "invite":
+      return <InviteRow item={item} compact={compact} onPutOff={onPutOff} />;
+    case "referral":
+      return <ReferralTodayRow item={item} compact={compact} />;
     case "team":
+    case "prospect":
       title = compact ? p.name : `Check in with ${p.name}`;
       detail = item.never
         ? item.days !== null
@@ -556,8 +657,8 @@ function TodayRow({
       const { latest, lastAttended, missed } = item.streak;
       title = compact ? p.name : `${p.name} missed ${latest.name}`;
       detail = compact
-        ? `Missed ${EVENT_TYPE_LABEL[latest.type]} ${shortDate(latest.date)}`
-        : `${EVENT_TYPE_LABEL[latest.type]} ${shortDate(latest.date)} · ${
+        ? `Missed ${categoryOf(latest).name} ${shortDate(latest.date)}`
+        : `${categoryOf(latest).name} ${shortDate(latest.date)} · ${
             missed.length > 1
               ? `missed the last ${missed.length}`
               : `came ${shortDate(lastAttended.date)}`
@@ -713,5 +814,81 @@ function Reschedule({ item, label }: { item: StepItem; label: string }) {
         </form>
       </PopoverContent>
     </Popover>
+  );
+}
+
+/**
+ * "Invite your customers" to an upcoming event whose category welcomes them
+ * (at first the monthly meeting, info sessions and trainings): Invite opens
+ * the event's add-attendee dialog with just your customers; "Not now" puts it
+ * off for that event.
+ */
+function InviteRow({
+  item,
+  compact,
+  onPutOff,
+}: {
+  item: InviteItem;
+  compact: boolean;
+  onPutOff: (eventId: string) => void;
+}) {
+  const { event, customers } = item;
+  const rows = useAttendancesForEvent(event.id);
+  const category = useCategoryOf()(event);
+  const listed = useMemo(() => rows.map((a) => a.personId), [rows]);
+  const n = customers.length;
+  const who =
+    n === 1 ? customers[0].name : n === 2 ? `${customers[0].name} and ${customers[1].name}` : null;
+  const when = relativeDay(event.date);
+  return (
+    <ActionRow
+      icon={UserPlus}
+      iconTone="info"
+      title={
+        compact ? `Invite customers to ${event.name}` : `Invite your customers to ${event.name}`
+      }
+      link={{ to: "/events/$id", params: { id: event.id } }}
+      meta={
+        <span>
+          {compact
+            ? `${plural(n, "customer")} not on the list · ${when}`
+            : `${who ?? plural(n, "customer")} ${n === 1 ? "isn't" : "aren't"} on the list yet · ${category.name} ${when}`}
+        </span>
+      }
+      action={
+        <span className="flex items-center gap-1.5">
+          <AddAttendeeDialog eventId={event.id} existingPersonIds={listed} customersOnly>
+            {(open) =>
+              compact ? (
+                <Button
+                  size="icon"
+                  variant="soft"
+                  className="size-8"
+                  aria-label={`Invite customers to ${event.name}`}
+                  onClick={open}
+                >
+                  <UserPlus />
+                </Button>
+              ) : (
+                <Button size="sm" variant="soft" onClick={open}>
+                  <UserPlus /> Invite
+                </Button>
+              )
+            }
+          </AddAttendeeDialog>
+          <Button
+            size="icon"
+            variant="outline"
+            className="size-8"
+            aria-label={`Not now: inviting customers to ${event.name}`}
+            title="Not now"
+            onClick={() => onPutOff(event.id)}
+          >
+            <X />
+          </Button>
+        </span>
+      }
+      className={cn(compact && "gap-2.5 py-[9px]")}
+    />
   );
 }

@@ -9,21 +9,27 @@ import { AddPersonDialog } from "./AddPersonDialog";
 import { BulkBar } from "./BulkBar";
 import { exportRowsCsv } from "./exportCsv";
 import {
-  ATTENTION_OPTIONS,
   DEFAULT_FILTERS,
   SORT_OPTIONS,
   activeFilterCount,
+  attentionCounts as countAttention,
   baseFilter,
+  filterRows,
+  filtersFromSearch,
   inSegment,
-  matchesAttention,
   plural,
-  sortRows,
+  searchFromFilters,
+  selectableRows,
+  selectedShown,
+  shownSelection,
+  stageCounts as countStages,
+  toggleAllShown,
+  toggleSelected,
   usePeopleRows,
-  type AttentionFilter,
   type Filters,
+  type PeopleSearch,
   type PersonRow,
   type Segment,
-  type StageFilter,
 } from "./model";
 import { PeopleCards } from "./PeopleCards";
 import { PeopleTable } from "./PeopleTable";
@@ -32,14 +38,22 @@ import { DesktopToolbar, PhoneToolbar } from "./Toolbar";
 const PAGE =
   "mx-auto grid w-full max-w-[1400px] content-start gap-4 px-4 py-5 lg:px-[26px] lg:py-[22px]";
 
-/** The People page for leaders, IBOs and apprentices. */
-export function PeopleList() {
+/**
+ * The People page for leaders, IBOs and apprentices. Filters live in the URL
+ * (`search`); the selection for bulk actions is local.
+ */
+export function PeopleList({
+  search,
+  onSearch,
+}: {
+  search: PeopleSearch;
+  onSearch: (next: PeopleSearch) => void;
+}) {
   const user = useCurrentUser();
   const desktop = useIsDesktop();
   const rows = usePeopleRows();
 
-  const [segment, setSegment] = useState<Segment>("business");
-  const [filters, setFiltersState] = useState<Filters>(DEFAULT_FILTERS);
+  const { segment, filters } = useMemo(() => filtersFromSearch(search), [search]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [selecting, setSelecting] = useState(false);
   const [add, setAdd] = useState<{ open: boolean; path: "business" | "customer"; key: number }>({
@@ -48,19 +62,22 @@ export function PeopleList() {
     key: 0,
   });
 
-  const setFilters = (patch: Partial<Filters>) => setFiltersState((f) => ({ ...f, ...patch }));
+  const setFilters = (patch: Partial<Filters>) =>
+    onSearch(searchFromFilters(segment, { ...filters, ...patch }));
   const changeSegment = (s: Segment) => {
     if (s === segment) return;
-    setSegment(s);
     setSelected(new Set());
-    setFiltersState((f) => ({
-      ...f,
-      stage: "all",
-      location: "all",
-      sort: SORT_OPTIONS[s].some((o) => o.value === f.sort) ? f.sort : "name",
-    }));
+    onSearch(
+      searchFromFilters(s, {
+        ...filters,
+        stages: [],
+        locations: [],
+        sort: SORT_OPTIONS[s].some((o) => o.value === filters.sort) ? filters.sort : "name",
+      }),
+    );
   };
-  const clearFilters = () => setFiltersState({ ...DEFAULT_FILTERS, sort: filters.sort });
+  const clearFilters = () =>
+    onSearch(searchFromFilters(segment, { ...DEFAULT_FILTERS, sort: filters.sort }));
 
   const segmentRows = useMemo(() => rows.filter((r) => inSegment(r, segment)), [rows, segment]);
   const teamCount = rows.filter((r) => inSegment(r, "business") && !r.isSelf).length;
@@ -68,20 +85,11 @@ export function PeopleList() {
   const customerCount = rows.length - businessCount;
 
   const base = useMemo(() => baseFilter(rows, segment, filters), [rows, segment, filters]);
-  const stageCounts = useMemo(() => {
-    const c: Record<StageFilter, number> = { all: base.length, prospect: 0, apprentice: 0, ibo: 0 };
-    for (const r of base) if (r.stage !== "customer") c[r.stage]++;
-    return c;
-  }, [base]);
-  const attentionCounts = useMemo(() => {
-    const pool = baseFilter(rows, segment, { ...filters, attention: null }).filter(
-      (r) => filters.stage === "all" || segment === "customers" || r.stage === filters.stage,
-    );
-    const c = {} as Record<AttentionFilter, number>;
-    for (const o of ATTENTION_OPTIONS)
-      c[o.value] = pool.filter((r) => matchesAttention(r, o.value)).length;
-    return c;
-  }, [rows, segment, filters]);
+  const stageCounts = useMemo(() => countStages(base), [base]);
+  const attentionCounts = useMemo(
+    () => countAttention(rows, segment, filters),
+    [rows, segment, filters],
+  );
   const locations = useMemo(
     () =>
       [
@@ -89,37 +97,21 @@ export function PeopleList() {
       ].sort(),
     [segmentRows],
   );
-  const visibleRows = useMemo(
-    () =>
-      sortRows(
-        segment === "business" && filters.stage !== "all"
-          ? base.filter((r) => r.stage === filters.stage)
-          : base,
-        filters.sort,
-      ),
-    [base, segment, filters.stage, filters.sort],
-  );
-  const selectedRows = visibleRows.filter((r) => selected.has(r.person.id));
+  const visibleRows = useMemo(() => filterRows(rows, segment, filters), [rows, segment, filters]);
+  const selectedRows = selectedShown(selected, visibleRows);
+  const allState = shownSelection(selected, visibleRows);
 
-  const toggle = (id: string) =>
-    setSelected((s) => {
-      const next = new Set(s);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  const selectable = visibleRows.filter((r) => !r.isSelf);
-  const toggleAll = () =>
-    setSelected(
-      selectable.length > 0 && selectable.every((r) => selected.has(r.person.id))
-        ? new Set()
-        : new Set(selectable.map((r) => r.person.id)),
-    );
+  const toggle = (id: string) => setSelected((s) => toggleSelected(s, id));
+  const toggleAll = () => setSelected((s) => toggleAllShown(s, visibleRows));
+  // Phones: a long press on a card starts selecting with that person.
+  const startSelecting = (id: string) => {
+    setSelecting(true);
+    setSelected((s) => (s.has(id) ? s : toggleSelected(s, id)));
+  };
   const clearSelection = () => {
     setSelected(new Set());
     setSelecting(false);
   };
-
   const openAdd = (path: "business" | "customer") =>
     setAdd((a) => ({ open: true, path, key: a.key + 1 }));
   const filtersActive =
@@ -184,6 +176,7 @@ export function PeopleList() {
         selecting={selecting}
         selected={selected}
         onToggle={toggle}
+        onLongPress={startSelecting}
       />
     );
   }
@@ -241,18 +234,28 @@ export function PeopleList() {
           <PhoneToolbar {...toolbarProps} />
           {visibleRows.length > 0 && (
             <div className="-mb-1 flex items-center justify-between gap-2">
-              <p className="text-[12.5px] text-muted-foreground" aria-live="polite">
-                {listLabel}
-              </p>
-              <Button
-                size="sm"
-                variant={selecting ? "soft" : "ghost"}
-                onClick={() => (selecting ? clearSelection() : setSelecting(true))}
-                aria-pressed={selecting}
+              <p
+                className="min-w-0 truncate text-[12.5px] text-muted-foreground"
+                aria-live="polite"
               >
-                <ListChecks />
-                {selecting ? "Done" : "Select"}
-              </Button>
+                {selecting ? `${selectedRows.length} of ${listLabel} selected` : listLabel}
+              </p>
+              <div className="flex shrink-0 items-center gap-1">
+                {selecting && selectableRows(visibleRows).length > 0 && (
+                  <Button size="sm" variant="ghost" onClick={toggleAll}>
+                    {allState === "all" ? "Clear all" : "Select all"}
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  variant={selecting ? "soft" : "ghost"}
+                  onClick={() => (selecting ? clearSelection() : setSelecting(true))}
+                  aria-pressed={selecting}
+                >
+                  <ListChecks />
+                  {selecting ? "Done" : "Select"}
+                </Button>
+              </div>
             </div>
           )}
           {body}
@@ -277,7 +280,15 @@ export function PeopleList() {
       )}
 
       {selectedRows.length > 0 && (
-        <BulkBar rows={selectedRows} segment={segment} onClear={clearSelection} />
+        <BulkBar
+          rows={selectedRows}
+          segment={segment}
+          people={rows.map((r) => r.person)}
+          viewerId={user.personId}
+          shownCount={selectableRows(visibleRows).length}
+          onSelectAll={allState === "all" ? undefined : toggleAll}
+          onClear={clearSelection}
+        />
       )}
 
       <AddPersonDialog
