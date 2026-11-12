@@ -175,10 +175,10 @@ const KIND_OPTIONS: { value: LearningKind; label: string }[] = [
   { value: "conference", label: "Conference" },
 ];
 
-/** The amount the field starts at for each unit. */
 /** Title that reading and listening logged without one go under. */
 const UNNAMED_TITLE = "Unnamed";
 
+/** The amount the field starts at for each unit. */
 const UNIT_DEFAULT: Record<LearningUnit, string> = {
   minutes: "30",
   pages: "20",
