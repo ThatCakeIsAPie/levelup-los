@@ -1,0 +1,66 @@
+# Checks every pull request and every push to main. The two jobs are
+# independent: `app` needs only Node, `database` starts the local Supabase
+# stack (Docker is preinstalled on the runner) and runs the pgTAP and
+# integration tests against it.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  app:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+
+  database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # Needs the database, auth, REST, realtime and storage services. The
+      # rest (studio, image proxy, mail catcher, edge functions, logs) is skipped.
+      - name: Start local Supabase
+        run: npx supabase start -x studio,imgproxy,mailpit,edge-runtime,logflare,vector
+      # Regenerates supabase/seed.sql (dates are relative to today), then
+      # applies every migration and the seed.
+      - name: Reset and seed the database
+        run: npm run db:reset
+      - name: pgTAP tests
+        run: npm run db:test
+      # The tests default to the CLI's local URL and public anon key (see
+      # vitest.integration.config.ts) and read the service-role key from
+      # `npx supabase status -o env`, so they need no secrets.
+      - name: Integration tests
+        run: npm run test:integration
+      - name: Supabase logs on failure
+        if: failure()
+        run: |
+          docker ps -a --format '{{.Names}}\t{{.Status}}'
+          for c in $(docker ps -a --format '{{.Names}}' | grep -E 'supabase_(db|auth|rest|realtime|storage)'); do
+            echo "::group::$c"; docker logs --tail 80 "$c" 2>&1 || true; echo "::endgroup::"
+          done

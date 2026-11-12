@@ -9,7 +9,14 @@ import {
   Trash2,
   Users,
 } from "lucide-react";
-import { EmptyState, PageHeader, PersonAvatar, SectionCard, ToneChip } from "@/components/brand";
+import {
+  EmptyState,
+  PageHeader,
+  PersonAvatar,
+  RatingChip,
+  SectionCard,
+  ToneChip,
+} from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -241,9 +248,7 @@ function ListItem({
 }) {
   const recruiting = usePipelineAccess();
   const e = row.entry;
-  const sub = [e.howKnown, e.rating, row.addedByName ? `added by ${row.addedByName}` : null].filter(
-    Boolean,
-  );
+  const sub = [e.howKnown, row.addedByName ? `added by ${row.addedByName}` : null].filter(Boolean);
   const start = () => {
     const r = startListEntry(e.id);
     if (r.ok)
@@ -261,7 +266,10 @@ function ListItem({
         disabled={!canEdit}
         className="min-w-0 rounded-sm text-left focus-visible:outline-2 focus-visible:outline-ring disabled:cursor-default"
       >
-        <b className="block truncate text-[13px]">{e.name}</b>
+        <span className="flex min-w-0 items-center gap-1.5">
+          <b className="truncate text-[13px]">{e.name}</b>
+          <RatingChip rating={e.rating} size="xs" />
+        </span>
         <small className="block truncate text-[11.5px] text-muted-foreground">
           {sub.join(" · ") || " "}
         </small>

@@ -39,7 +39,7 @@ values ('w2', '901', '00000000-0000-4000-8000-000000000901', 'leader'), ('w2', '
 insert into public.conversations (id, workspace_id, kind, title, created_by)
 values ('w2-main', 'w2', 'main', 'Main chat', '901');
 insert into public.messages (id, conversation_id, author_id, body) values ('w2-m1', 'w2-main', '901', 'Hello team two');
-insert into public.events (id, workspace_id, name, type, date) values ('w2-e1', 'w2', 'Other event', 'conference', current_date + 5);
+insert into public.events (id, workspace_id, name, category_id, date) values ('w2-e1', 'w2', 'Other event', 'w2-conference', current_date + 5);
 insert into public.contacts (workspace_id, person_id, by_id) values ('w2', '902', '901');
 insert into public.library_items (id, workspace_id, kind, source, storage_path, title, created_by, permission_confirmed)
 values ('w2-lib', 'w2', 'audio', 'upload', 'w2/w2-lib/talk.m4a', 'Other talk', '901', true);

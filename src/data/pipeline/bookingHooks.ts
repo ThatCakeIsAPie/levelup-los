@@ -61,6 +61,7 @@ export function useDueBookings(): DueBooking[] {
           name: entry.name,
           ownerId: me,
           personIds: [entry.customerId, entry.prospectId].filter((x): x is string => !!x),
+          customerId: entry.customerId,
           booking: bookingOf(card),
           column: card.column,
           dropped: false,

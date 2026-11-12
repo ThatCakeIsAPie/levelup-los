@@ -62,7 +62,7 @@ const ANY = "__any";
 
 export function TalksPage({ filters }: { filters: CatalogFilters }) {
   const desktop = useIsDesktop();
-  const navigate = useNavigate();
+  const navigate = useNavigate({ from: "/library/talks" });
   const catalog = useCatalog();
   const topics = useLibraryTopics();
   const events = useEvents();
@@ -170,7 +170,6 @@ export function TalksPage({ filters }: { filters: CatalogFilters }) {
       <PageHeader
         title="Library"
         subtitle={`${n} ${n === 1 ? "talk" : "talks, panels and workshops"}`}
-        logButton={false}
         actions={
           <>
             {canManageTopics && (

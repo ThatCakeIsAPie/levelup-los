@@ -15,6 +15,7 @@
  *  - Every move is recorded (`PipelineMove`) and is the source of truth for
  *    activity ("happened this month") and conversions.
  */
+import type { ContactRating } from "../rating";
 
 export type MilestoneCode = "contact" | "first_meeting" | "first_plan" | "registered";
 
@@ -41,12 +42,21 @@ export const MILESTONE_LABEL: Record<MilestoneCode, string> = {
 export const NOT_CONTACTED = "not_contacted";
 export const NOT_INTERESTED = "not_interested";
 export const DO_NOT_CONTACT = "do_not_contact";
+/**
+ * Not a fit or not interested, but passes on names of people who are (see
+ * src/data/referrals). An outcome like the other two: it reaches no milestone.
+ */
+export const REFERRAL_SOURCE = "referral_source";
+/** Fixed columns' labels shared by both boards. */
+export const REFERRAL_SOURCE_LABEL = "Referral source";
+export const REFERRAL_SOURCE_HINT = "Passes on names";
 
 /** Board bands: the start column, the four milestones, the outcomes. */
 export type RecruitingBand = "start" | MilestoneCode | "out";
 
 export const FIXED_RECRUITING_COLUMNS = [
   { id: NOT_CONTACTED, band: "start", label: "Not contacted yet", hint: "Haven't reached out" },
+  { id: REFERRAL_SOURCE, band: "out", label: REFERRAL_SOURCE_LABEL, hint: REFERRAL_SOURCE_HINT },
   { id: NOT_INTERESTED, band: "out", label: "Not interested", hint: "Revisit in 6 months" },
   { id: DO_NOT_CONTACT, band: "out", label: "Do not contact", hint: "Hidden from reminders" },
 ] as const satisfies readonly { id: string; band: RecruitingBand; label: string; hint: string }[];
@@ -108,7 +118,8 @@ export interface PipelineCard {
   nextStepTime: string | null;
   /** A free-text note on the card (at most MAX_CARD_NOTE characters). */
   note: string | null;
-  hot: boolean;
+  /** Hot / Warm / Cold, or not rated (src/data/rating.ts). */
+  rating: ContactRating | null;
   /** Where you met ("Gym", "Referral"). */
   source: string | null;
   /** Taken off the board (not now / said no). The person stays a prospect. */
@@ -303,8 +314,8 @@ export interface BoardDef<B extends string = MilestoneCode> {
 
 /**
  * The recruiting board: "Not contacted yet", four milestones with steps after
- * the first three, then "Not interested" and "Do not contact" (as on the
- * customer board).
+ * the first three, then "Referral source", "Not interested" and "Do not
+ * contact" (as on the customer board).
  */
 export const RECRUITING_BOARD: BoardDef<RecruitingBand> = {
   kind: "recruiting",

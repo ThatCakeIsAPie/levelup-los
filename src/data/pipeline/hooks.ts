@@ -56,7 +56,9 @@ import {
   type TransitionStat,
 } from "./rules";
 import {
+  MILESTONES,
   RECRUITING_BOARD,
+  REFERRAL_SOURCE,
   STEP_BANDS,
   type ConversionTargets,
   type MilestoneCode,
@@ -70,7 +72,10 @@ import {
   type StepBand,
 } from "./types";
 import { columnsFor } from "./rules";
+import { ratingRank, type ContactRating } from "../rating";
 import { bookingOf, bookingView, type BookingView } from "./booking";
+import { useReferralIndex } from "../referrals/hooks";
+import { referralSourcesByStep } from "../referrals/rules";
 
 // ---------------------------------------------------------------------------
 // Shared helpers
@@ -216,19 +221,22 @@ export interface BoardCard {
   elsewhere: { label: string; ownerName: string } | null;
   days: number;
   stale: boolean;
-  hot: boolean;
+  /** Hot / Warm / Cold, or not rated. */
+  rating: ContactRating | null;
   /** The booked next step, named as the owner's board names it (null: nothing booked). */
   booking: BookingView | null;
   /** The card's note. */
   note: string | null;
   source: string | null;
   enteredAt: string;
-  /** Customer board: a warm name on the list. */
-  warm?: boolean;
   /** Customer board: still on the list (not contacted yet), so no age. */
   listed?: boolean;
-  /** An outcome (Not interested, Do not contact), shown dimmed. */
+  /** An outcome (Not interested, Do not contact), shown dimmed (not Referral source). */
   dim?: boolean;
+  /** Who referred them, as the viewer sees it (null: nobody, or nobody the viewer sees). */
+  referredBy?: string | null;
+  /** How many people they referred (src/data/referrals). */
+  referrals?: number;
 }
 
 export interface BoardColumn<B extends string = RecruitingBand> {
@@ -271,6 +279,7 @@ export function usePipelineBoard(scope: PipelineScope, month: string): PipelineB
   const lastContact = useLastContactMap();
   const columns = usePipelineColumns(opt?.leaderId);
   const uplines = useUplines();
+  const refs = useReferralIndex();
   const today = localDate();
   return useMemo(() => {
     if (!opt) return null;
@@ -314,17 +323,22 @@ export function usePipelineBoard(scope: PipelineScope, month: string): PipelineB
             : null,
         days: daysInColumn(card.enteredAt, today),
         stale: isMilestoneBand(band) && isStale(card.enteredAt, lastContact.get(person.id), today),
-        hot: card.hot,
-        dim: band === "out",
+        rating: card.rating,
+        dim: band === "out" && card.column !== REFERRAL_SOURCE,
         booking: bookingView(bookingOf(card), boardOf(person.sponsorId!), today),
         note: card.note,
         source: card.source,
         enteredAt: card.enteredAt,
+        referredBy: refs.referrerOf({ kind: "person", id: person.id })?.name ?? null,
+        referrals: refs.count({ kind: "person", id: person.id }),
       });
     }
     for (const list of byColumn.values()) {
       list.sort(
-        (a, b) => Number(b.hot) - Number(a.hot) || a.days - b.days || a.name.localeCompare(b.name),
+        (a, b) =>
+          ratingRank(a.rating) - ratingRank(b.rating) ||
+          a.days - b.days ||
+          a.name.localeCompare(b.name),
       );
     }
     const reaches = reachesFor(data.moves);
@@ -372,7 +386,7 @@ export function usePipelineBoard(scope: PipelineScope, month: string): PipelineB
       registered: { cards: regCards, total: regReaches.length },
       inProgress,
     };
-  }, [opt, people, ids, data, lastContact, columns, month, today, uplines]);
+  }, [opt, people, ids, data, lastContact, columns, month, today, uplines, refs]);
 }
 
 // ---------------------------------------------------------------------------
@@ -529,6 +543,11 @@ export interface PipelineConversions {
   targets: ConversionTargets;
   rows: HotspotRow[];
   sharedRows: HotspotRow[];
+  /**
+   * Per step between milestones (as `stats`): of those who stopped there in
+   * the period, how many became referral sources (passed on names instead).
+   */
+  referralSources: number[];
 }
 
 /**
@@ -643,6 +662,7 @@ export function usePipelineConversions(
       targets,
       rows,
       sharedRows,
+      referralSources: referralSourcesByStep(moves, reaches, opt.owners, from, to, MILESTONES),
     };
   }, [
     opt,

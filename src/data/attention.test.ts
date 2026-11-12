@@ -5,8 +5,11 @@ import type { Attendance } from "@/stores/attendanceStore";
 import { seedAttendances, seedEvents, seedPeople } from "./seed";
 import { filterAttendances, visibleIdSet } from "./access";
 import { attentionItems, needsTicket, upcomingAttentionCount } from "./attention";
+import { categoryLookup, startingCategories, usesTickets } from "./eventCategories/rules";
 
-const events = seedEvents();
+// Each event with whether its category uses tickets (as the hooks pass it).
+const categoryOf = categoryLookup(startingCategories());
+const events = seedEvents().map((e) => ({ ...e, tickets: usesTickets(categoryOf(e)) }));
 const rows = seedAttendances();
 const people = seedPeople();
 const event = (id: string) => events.find((e) => e.id === id)!;
@@ -70,7 +73,7 @@ describe("needsTicket", () => {
 });
 
 describe("getComparisonEvents", () => {
-  it("picks the previous same-type event and the one about a year ago", () => {
+  it("picks the previous same-category event and the one about a year ago", () => {
     const r = getComparisonEvents(event("e1"), events);
     expect(r.prior?.id).toBe("e3"); // Summer Conference, the last conference before
     expect(r.lastYear?.id).toBe("e2"); // last year's Fall Leadership Weekend

@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/brand";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { localDate } from "@/data";
@@ -307,11 +308,10 @@ export function AddCustomerDialog({
               />
             </Field>
             <Field label="Phone" htmlFor={`${uid}-phone`}>
-              <Input
+              <PhoneInput
                 id={`${uid}-phone`}
-                type="tel"
                 value={form.phone}
-                onChange={(e) => set({ phone: e.target.value })}
+                onValueChange={(phone) => set({ phone })}
               />
             </Field>
           </div>

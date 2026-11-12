@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -35,12 +35,14 @@ import {
   addPerson,
   effectiveBizClass,
   localDate,
+  updatePipelineCard,
   useCurrentUser,
   useVisibleTeam,
+  type ContactRating,
   type CrmPerson,
 } from "@/data";
 import { cn } from "@/lib/utils";
-import { STAGE_LABEL } from "@/components/brand";
+import { PhoneInput, RatingPicker, STAGE_LABEL } from "@/components/brand";
 import { anniversaryOf, fullDate } from "./model";
 
 const schema = z
@@ -152,6 +154,7 @@ function AddPersonForm({
     resolver: zodResolver(schema),
     defaultValues: blank(defaultPath, user.personId),
   });
+  const [rating, setRating] = useState<ContactRating | null>(null);
   const path = useWatch({ control: form.control, name: "path" });
   const stage = useWatch({ control: form.control, name: "stage" });
   const startDate = useWatch({ control: form.control, name: "businessStartDate" });
@@ -192,6 +195,8 @@ function AddPersonForm({
             businessStartDate: v.stage === "prospect" ? undefined : opt(v.businessStartDate),
           };
     const created = addPerson(person);
+    // Hot / Warm / Cold lives on the prospect's pipeline card.
+    if (person.bizClass === "prospect" && rating) updatePipelineCard(created.id, { rating });
     const hidden = v.path === "customer" && v.ownerId !== user.personId;
     toast.success(`Added ${created.name}`, {
       description: hidden
@@ -262,7 +267,24 @@ function AddPersonForm({
             className="sm:col-span-2"
           />
           <TextField form={form} name="email" label="Email" type="email" />
-          <TextField form={form} name="phone" label="Phone" type="tel" />
+          <FormField
+            control={form.control}
+            name="phone"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Phone</FormLabel>
+                <FormControl>
+                  <PhoneInput
+                    name={field.name}
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    onBlur={field.onBlur}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
           <TextField form={form} name="location" label="Location" placeholder="City, State" />
           <TextField form={form} name="joinedDate" label="Joined" type="date" />
         </div>
@@ -300,6 +322,12 @@ function AddPersonForm({
               nameOf={nameOf}
               placeholder="Choose a sponsor"
             />
+            {stage === "prospect" && (
+              <div className="grid gap-2 sm:col-span-2">
+                <span className="text-sm font-medium">How warm are they? (optional)</span>
+                <RatingPicker value={rating} onChange={setRating} />
+              </div>
+            )}
             {stage !== "prospect" && (
               <>
                 <TextField form={form} name="iboNumber" label="IBO#" required />

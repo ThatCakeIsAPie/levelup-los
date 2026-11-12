@@ -11,6 +11,7 @@
 import { usePeopleStore, type CrmPerson } from "@/stores/peopleStore";
 import { IS_SUPABASE } from "@/lib/config";
 import { localDate } from "@/lib/dates";
+import { normalizePhone } from "@/lib/phone";
 import { serverSide } from "../remote";
 import { useRemoteStore } from "../remote/extras";
 import { addPerson, removePerson } from "../people";
@@ -19,6 +20,7 @@ import { useCrmStore } from "@/stores/crmStore";
 import { getViewer } from "../session";
 import { chainOf, columnsFor, validateMove } from "../pipeline/rules";
 import { addPipelineProspect } from "../pipeline/mutations";
+import { linksFor, type Ref } from "../referrals/rules";
 import type { PipelineColumn } from "../pipeline/types";
 import { bookingAfterMove, bookingOf, cleanNote, type Booking } from "../pipeline/booking";
 import { customerPipeline, updateCustomerPipeline } from "./store";
@@ -146,6 +148,8 @@ export interface ListEntryInput extends EntryInput {
   /** Whose list (default: yours). An upline may add to their downline's list. */
   ownerId?: string;
   rating?: ListRating | null;
+  /** Who referred them (a person or another name on a list; src/data/referrals). */
+  referredBy?: Ref | null;
 }
 
 export type EntryResult =
@@ -166,12 +170,13 @@ export function addListEntry(input: ListEntryInput): EntryResult {
     ownerId,
     name: input.name.trim(),
     howKnown: clean(input.howKnown),
-    phone: clean(input.phone),
+    phone: clean(normalizePhone(input.phone)),
     email: clean(input.email),
     notes: clean(input.notes),
     rating: input.rating ?? null,
     customerId: null,
     prospectId: null,
+    ...linksFor(input.referredBy ?? null),
     addedBy: me,
     createdAt: at,
     updatedAt: at,
@@ -193,7 +198,7 @@ export function updateListEntry(
   patchEntry(id, {
     ...(patch.name !== undefined ? { name: patch.name.trim() } : {}),
     ...(patch.howKnown !== undefined ? { howKnown: clean(patch.howKnown) } : {}),
-    ...(patch.phone !== undefined ? { phone: clean(patch.phone) } : {}),
+    ...(patch.phone !== undefined ? { phone: clean(normalizePhone(patch.phone)) } : {}),
     ...(patch.email !== undefined ? { email: clean(patch.email) } : {}),
     ...(patch.notes !== undefined ? { notes: clean(patch.notes) } : {}),
     ...(patch.rating !== undefined ? { rating: patch.rating } : {}),
@@ -397,6 +402,7 @@ export function addEntryToRecruiting(
     phone: entry.phone ?? undefined,
     source: entry.howKnown ?? undefined,
     sponsorId: entry.ownerId,
+    rating: entry.rating,
   });
   if (!r) return null;
   patchEntry(entryId, { prospectId: r.person.id });

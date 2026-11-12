@@ -10,10 +10,10 @@ import { PersonAvatar, SectionCard, ToneChip } from "@/components/brand";
 import { quickCheckIn } from "@/components/log/quickLog";
 import { Button } from "@/components/ui/button";
 import {
-  EVENT_TYPE_LABEL,
   effectiveBizClass,
   removeMissedNote,
-  useCanCoach,
+  useCanFollowUpMissed,
+  useCategoryOf,
   useChatPeople,
   useCurrentUser,
   useMissedAtEvent,
@@ -25,7 +25,7 @@ import {
 import { usePeopleMap } from "./hooks";
 import { shortDate } from "./lib";
 import { MissedNoteDialog } from "./MissedNoteDialog";
-import { EVENT_TYPE_ICON } from "./typeIcons";
+import { categoryIcon } from "./categoryIcons";
 
 /** How a streak stands: the note (with its author), the check-in, or open. */
 function MissedStatus({ s }: { s: MissedStreak }) {
@@ -72,9 +72,9 @@ function MissedStatus({ s }: { s: MissedStreak }) {
   );
 }
 
-/** Check in / note buttons for an open streak (uplines only). */
+/** Check in / note buttons for an open streak (uplines, and a customer's owner and their uplines). */
 function MissedActions({ s, person }: { s: MissedStreak; person: CrmPerson }) {
-  const coach = useCanCoach(person.id);
+  const coach = useCanFollowUpMissed(person.id);
   const [noteOpen, setNoteOpen] = useState(false);
   if (!coach || s.handled) return null;
   return (
@@ -102,7 +102,7 @@ function MissedActions({ s, person }: { s: MissedStreak; person: CrmPerson }) {
 }
 
 /**
- * Finished event: the people who came to the previous one of this type and
+ * Finished event: the people who came to the previous one of this category and
  * missed this one (recent misses only), with their follow-up status.
  */
 export function EventMissedPanel({ event }: { event: CrmEvent }) {
@@ -156,12 +156,14 @@ export function EventMissedPanel({ event }: { event: CrmEvent }) {
 export function PersonMissedCard({ person }: { person: CrmPerson }) {
   const streaks = useMissedForPerson(person.id);
   const people = usePeopleMap();
+  const categoryOf = useCategoryOf();
   if (!streaks.length) return null;
   return (
     <SectionCard title="Missed events">
       <ul>
         {streaks.map((s) => {
-          const Icon = EVENT_TYPE_ICON[s.type];
+          const category = categoryOf(s.categoryId);
+          const Icon = categoryIcon(category);
           return (
             <li
               key={s.key}
@@ -183,7 +185,7 @@ export function PersonMissedCard({ person }: { person: CrmPerson }) {
                   Missed {s.latest.name} · {shortDate(s.latest.date)}
                 </Link>
                 <p className="text-xs text-muted-foreground">
-                  {EVENT_TYPE_LABEL[s.type]} · came {shortDate(s.lastAttended.date)}
+                  {category.name} · came {shortDate(s.lastAttended.date)}
                   {s.missed.length > 1 ? ` · missed the last ${s.missed.length}` : ""}
                 </p>
                 <MissedStatus s={s} />

@@ -4,6 +4,8 @@ import { Trash2 } from "lucide-react";
 import {
   removeAttendance,
   updateAttendance,
+  usesTickets,
+  useEventCategory,
   type Attendance,
   type CrmEvent,
   type CrmPerson,
@@ -29,7 +31,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
@@ -41,6 +42,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { fmtDate } from "./format";
+import { ClearableDate } from "@/modules/events/ClearableDate";
 
 type AttendedValue = "unset" | "yes" | "no";
 
@@ -100,6 +102,9 @@ function AttendanceForm({
     a.attended === true ? "yes" : a.attended === false ? "no" : "unset",
   );
   const [notes, setNotes] = useState(a.notes ?? "");
+  const [leadership, setLeadership] = useState(a.leadershipQualified);
+  const [special, setSpecial] = useState(a.specialEventQualified);
+  const tickets = usesTickets(useEventCategory(event));
   const [confirmRemove, setConfirmRemove] = useState(false);
 
   // The current helper may be someone the viewer can't see (e.g. their upline).
@@ -116,6 +121,7 @@ function AttendanceForm({
       helperId: helperId === "none" ? null : helperId,
       attended: hasTicket ? (attended === "unset" ? undefined : attended === "yes") : undefined,
       notes: notes.trim() || undefined,
+      ...(tickets ? { leadershipQualified: leadership, specialEventQualified: special } : {}),
     });
     toast.success(`Saved ${event.name}`);
     onDone();
@@ -151,9 +157,7 @@ function AttendanceForm({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="none">No helper</SelectItem>
-              {!helperKnown && (
-                <SelectItem value={helperId}>Current helper (outside your team)</SelectItem>
-              )}
+              {!helperKnown && <SelectItem value={helperId}>Someone outside your team</SelectItem>}
               {helperOptions.map((p) => (
                 <SelectItem key={p.id} value={p.id}>
                   {p.name}
@@ -200,23 +204,37 @@ function AttendanceForm({
         </div>
       ) : (
         <Field label="Plans to buy by" htmlFor="att-planned">
-          <Input
+          <ClearableDate
             id="att-planned"
-            type="date"
-            value={planned}
-            onChange={(e) => setPlanned(e.target.value)}
+            label="plans to buy by date"
+            value={planned || undefined}
+            onChange={(v) => setPlanned(v ?? "")}
           />
         </Field>
       )}
 
       <Field label="Follow-up date" htmlFor="att-follow">
-        <Input
+        <ClearableDate
           id="att-follow"
-          type="date"
-          value={followUp}
-          onChange={(e) => setFollowUp(e.target.value)}
+          label="follow-up date"
+          value={followUp || undefined}
+          onChange={(v) => setFollowUp(v ?? "")}
         />
       </Field>
+
+      {tickets && (
+        <div className="grid gap-2">
+          <span className="text-xs font-semibold text-muted-foreground">Qualifications</span>
+          <label className="flex items-center justify-between gap-3 rounded-lg border border-line px-3 py-2 text-[13px]">
+            Leadership qualified
+            <Switch checked={leadership} onCheckedChange={setLeadership} />
+          </label>
+          <label className="flex items-center justify-between gap-3 rounded-lg border border-line px-3 py-2 text-[13px]">
+            Qualified for the additional event
+            <Switch checked={special} onCheckedChange={setSpecial} />
+          </label>
+        </div>
+      )}
 
       <Field label="Notes" htmlFor="att-notes">
         <Textarea
