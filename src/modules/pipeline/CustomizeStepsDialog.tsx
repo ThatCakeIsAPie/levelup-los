@@ -45,6 +45,7 @@ import {
 import { plural } from "./format";
 import { nextOwnName, stageEditError } from "./stageNameEdit";
 
+import { Sensitive } from "@/components/brand";
 /** A band of the steps editor (the same shape on both boards). */
 interface EditorBand {
   band: string;
@@ -478,7 +479,13 @@ function StepRow({
               {s.step.label}
             </span>
             <span className="shrink-0 text-[11px] text-faint">
-              {s.own ? "Your step" : `${s.ownerName}’s step`}
+              {s.own ? (
+                "Your step"
+              ) : (
+                <>
+                  <Sensitive kind="name">{s.ownerName}</Sensitive>’s step
+                </>
+              )}
             </span>
             <span className="ml-auto flex shrink-0 items-center gap-0.5">
               {s.own ? (
@@ -525,7 +532,7 @@ function StepRow({
       {error && <p className="text-[11.5px] text-bad">{error}</p>}
       {hiddenByUpline && (
         <p className="text-[11px] text-muted-foreground">
-          Hidden by {s.hiddenByName} for their team.
+          Hidden by <Sensitive kind="name">{s.hiddenByName}</Sensitive> for their team.
         </p>
       )}
       <AlertDialog open={confirm} onOpenChange={setConfirm}>

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ImageOff, MessageSquareText } from "lucide-react";
 import { toast } from "sonner";
-import { EmptyState, PageHeader, ToneChip } from "@/components/brand";
+import { EmptyState, PageHeader, ToneChip, Sensitive } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -21,6 +21,7 @@ import {
   type FeedbackReport,
 } from "@/data";
 
+import { sensitive } from "@/lib/sensitive";
 const PAGE =
   "mx-auto grid w-full max-w-3xl content-start gap-4 px-4 py-5 lg:px-[26px] lg:py-[22px]";
 
@@ -90,9 +91,13 @@ function ReportRow({ report, onChanged }: { report: FeedbackReport; onChanged: (
     <li className="flex flex-col gap-3 rounded-card border border-line bg-surface p-3.5 sm:flex-row">
       <Thumbnail report={report} />
       <div className="grid min-w-0 flex-1 content-start gap-2">
-        <p className="whitespace-pre-wrap break-words text-sm">{report.message}</p>
+        <p className="whitespace-pre-wrap break-words text-sm">
+          <Sensitive kind="message">{report.message}</Sensitive>
+        </p>
         <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
-          <span className="font-semibold text-foreground">{report.senderName}</span>
+          <span className="font-semibold text-foreground">
+            <Sensitive kind="name">{report.senderName}</Sensitive>
+          </span>
           <span aria-hidden="true">·</span>
           <span className="break-all">{page}</span>
           <span aria-hidden="true">·</span>
@@ -136,17 +141,23 @@ function Thumbnail({ report }: { report: FeedbackReport }) {
         onClick={() => setOpen(true)}
         aria-label="Open the screenshot"
       >
-        <img src={url} alt="" className="size-full object-cover object-top" />
+        <img
+          {...sensitive("photo")}
+          src={url}
+          alt=""
+          className="size-full object-cover object-top"
+        />
       </button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-h-[92dvh] max-w-4xl overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Screenshot</DialogTitle>
             <DialogDescription>
-              {report.senderName}, {when(report.createdAt)}
+              <Sensitive kind="name">{report.senderName}</Sensitive>, {when(report.createdAt)}
             </DialogDescription>
           </DialogHeader>
           <img
+            {...sensitive("photo")}
             src={url}
             alt="What the sender was looking at"
             className="w-full rounded-lg border border-line"

@@ -12,7 +12,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { format } from "date-fns";
-import { PersonAvatar, STAGE_LABEL } from "@/components/brand";
+import { PersonAvatar, STAGE_LABEL, Sensitive } from "@/components/brand";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,6 +34,7 @@ import { isActivityCard, MessageCardView } from "./cards";
 import { ImageThumb, VoicePlayer } from "./media";
 import { clockTime } from "./format";
 
+import { sensitive } from "@/lib/sensitive";
 export const QUICK_REACTIONS = ["👍", "❤️", "😂", "🎉", "🔥", "🙌"];
 
 export type MessageAction =
@@ -123,10 +124,12 @@ export const MessageBubble = memo(function MessageBubble({
           >
             <span className="flex items-center gap-1 text-[11px] font-bold text-primary-ink">
               <CornerUpLeft className="size-3" aria-hidden="true" />
-              {m.replyTo.authorName.split(" ")[0]}
+              <Sensitive kind="name">{m.replyTo.authorName.split(" ")[0]}</Sensitive>
               {m.replyTo.at && ` · ${format(new Date(m.replyTo.at), "MMM d")}`}
             </span>
-            <span className="truncate text-muted-foreground">{m.replyTo.preview}</span>
+            <span className="truncate text-muted-foreground">
+              <Sensitive kind="message">{m.replyTo.preview}</Sensitive>
+            </span>
           </button>
         )}
         {m.card && (
@@ -145,7 +148,7 @@ export const MessageBubble = memo(function MessageBubble({
           ) : null,
         )}
         {m.body && (
-          <p className="whitespace-pre-wrap break-words">
+          <p className="whitespace-pre-wrap break-words" {...sensitive("message")}>
             <Body text={m.body} mentionNames={mentionNames} />
           </p>
         )}
@@ -194,7 +197,7 @@ export const MessageBubble = memo(function MessageBubble({
                     m.author?.stage === "apprentice" ? "text-primary-ink" : "text-foreground"
                   }
                 >
-                  {authorName}
+                  <Sensitive kind="name">{authorName}</Sensitive>
                 </span>
                 {tag && <small className="font-medium text-faint">{tag}</small>}
               </div>

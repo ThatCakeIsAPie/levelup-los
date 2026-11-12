@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { ChevronRight, KeyRound, Loader2, Mail, Wrench } from "lucide-react";
-import { PersonAvatar } from "@/components/brand";
+import { PersonAvatar, Sensitive } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,6 +11,7 @@ import { AuthHeading, FormError } from "./AuthLayout";
 import { DEV_ACCOUNTS, DEV_PASSWORD, ROLE_STAGE } from "./demoRoles";
 import { SentPanel } from "./SentPanel";
 
+import { sensitive } from "@/lib/sensitive";
 type Mode = "link" | "password" | "forgot";
 
 /**
@@ -99,6 +100,7 @@ export function SignInForm() {
             autoComplete="email"
             autoFocus
             required
+            {...sensitive("email")}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@example.com"
@@ -211,12 +213,14 @@ function DevAccounts({ onError }: { onError: (e: string | null) => void }) {
               <PersonAvatar name={a.name} stage={ROLE_STAGE[a.role]} size="md" />
               <span className="min-w-0">
                 <span className="block truncate text-[13px] font-semibold">
-                  {a.name}{" "}
+                  <Sensitive kind="name">{a.name}</Sensitive>{" "}
                   <span className="font-normal text-muted-foreground">
                     · {a.label ?? roleLabel[a.role]}
                   </span>
                 </span>
-                <span className="block truncate text-[12px] text-muted-foreground">{a.email}</span>
+                <span className="block truncate text-[12px] text-muted-foreground">
+                  <Sensitive kind="email">{a.email}</Sensitive>
+                </span>
               </span>
               {busy === a.email ? (
                 <Loader2 className="size-4 animate-spin text-muted-foreground" aria-hidden="true" />

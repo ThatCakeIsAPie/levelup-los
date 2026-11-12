@@ -11,6 +11,7 @@ import {
 import { cn } from "@/lib/utils";
 import { daysSince, type CrmPerson, type PodcastUnit, type ReadingUnit } from "@/data";
 
+import { Sensitive } from "@/components/brand";
 export function Field({
   label,
   htmlFor,
@@ -55,7 +56,7 @@ export function PersonSelect({
           const age = daysSince(ages.get(p.id));
           return (
             <SelectItem key={p.id} value={p.id}>
-              {p.name}
+              <Sensitive kind="name">{p.name}</Sensitive>
               <span className="ml-2 text-xs text-muted-foreground">
                 {age === null ? "never" : age === 0 ? "today" : `${age}d ago`}
               </span>

@@ -47,6 +47,7 @@ import {
   ToneChip,
   useIsDesktop,
   type Crumb,
+  Sensitive,
 } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -128,7 +129,7 @@ function ProfileCrumbs({ customer, current }: { customer?: boolean; current: str
       : null;
   // Someone without the People page (a new apprentice on their own profile) has no trail.
   if (!parent) return null;
-  return <Breadcrumbs items={[parent, { label: current }]} />;
+  return <Breadcrumbs items={[parent, { label: current, sensitive: "name" }]} />;
 }
 
 function MissingChip({ person, onFix }: { person: CrmPerson; onFix?: () => void }) {
@@ -385,22 +386,34 @@ function BusinessProfile({ person }: { person: CrmPerson }) {
             params={{ id: sponsor.id }}
             className="rounded-sm font-semibold text-primary hover:underline focus-visible:outline-2 focus-visible:outline-ring"
           >
-            {sponsor.name}
+            <Sensitive kind="name">{sponsor.name}</Sensitive>
           </Link>
         </span>
       ),
     },
-    person.location && { key: "loc", icon: MapPin, content: person.location },
-    person.phone && { key: "phone", icon: Phone, content: displayPhone(person.phone) },
+    person.location && {
+      key: "loc",
+      icon: MapPin,
+      content: <Sensitive kind="address">{person.location}</Sensitive>,
+    },
+    person.phone && {
+      key: "phone",
+      icon: Phone,
+      content: <Sensitive kind="phone">{displayPhone(person.phone)}</Sensitive>,
+    },
     (person.iboNumber || person.ltdNumber) && {
       key: "ids",
       icon: IdCard,
-      content: [
-        person.iboNumber && `IBO# ${person.iboNumber}`,
-        person.ltdNumber && `LTD# ${person.ltdNumber}`,
-      ]
-        .filter(Boolean)
-        .join(" · "),
+      content: (
+        <Sensitive kind="id-number">
+          {[
+            person.iboNumber && `IBO# ${person.iboNumber}`,
+            person.ltdNumber && `LTD# ${person.ltdNumber}`,
+          ]
+            .filter(Boolean)
+            .join(" · ")}
+        </Sensitive>
+      ),
     },
   ].filter(Boolean) as MetaItem[];
 
@@ -426,7 +439,13 @@ function BusinessProfile({ person }: { person: CrmPerson }) {
             <MissingChip person={person} onFix={openDetailsEdit} />
           </>
         }
-        phoneSub={sponsor ? <span className="truncate">under {sponsor.name}</span> : undefined}
+        phoneSub={
+          sponsor ? (
+            <span className="truncate">
+              under <Sensitive kind="name">{sponsor.name}</Sensitive>
+            </span>
+          ) : undefined
+        }
         meta={meta}
         contact={!isSelf}
         actions={actions}
@@ -602,7 +621,7 @@ function CustomerProfile({ person }: { person: CrmPerson }) {
       params={{ id: owner.id }}
       className="rounded-sm font-semibold text-primary hover:underline focus-visible:outline-2 focus-visible:outline-ring"
     >
-      {owner.name}
+      <Sensitive kind="name">{owner.name}</Sensitive>
     </Link>
   ) : null;
 
@@ -612,12 +631,24 @@ function CustomerProfile({ person }: { person: CrmPerson }) {
       icon: GitBranch,
       content: ownsIt ? <span>Your customer</span> : <span>Customer of {ownerLink}</span>,
     },
-    person.location && { key: "loc", icon: MapPin, content: person.location },
-    person.phone && { key: "phone", icon: Phone, content: displayPhone(person.phone) },
+    person.location && {
+      key: "loc",
+      icon: MapPin,
+      content: <Sensitive kind="address">{person.location}</Sensitive>,
+    },
+    person.phone && {
+      key: "phone",
+      icon: Phone,
+      content: <Sensitive kind="phone">{displayPhone(person.phone)}</Sensitive>,
+    },
     person.email && {
       key: "email",
       icon: Mail,
-      content: <span className="truncate">{person.email}</span>,
+      content: (
+        <span className="truncate">
+          <Sensitive kind="email">{person.email}</Sensitive>
+        </span>
+      ),
     },
     person.joinedDate && {
       key: "since",
@@ -728,7 +759,9 @@ function CustomerProfile({ person }: { person: CrmPerson }) {
               />
               {person.notes && (
                 <SectionCard title="Notes">
-                  <p className="whitespace-pre-wrap break-words text-[13px]">{person.notes}</p>
+                  <p className="whitespace-pre-wrap break-words text-[13px]">
+                    <Sensitive kind="note">{person.notes}</Sensitive>
+                  </p>
                 </SectionCard>
               )}
               <TagsCard tags={person.tags} onEdit={openDetailsEdit} />

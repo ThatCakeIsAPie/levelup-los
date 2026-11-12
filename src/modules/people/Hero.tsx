@@ -2,7 +2,7 @@ import type { ComponentType, ReactNode } from "react";
 import { toast } from "sonner";
 import { Copy, Mail, MessageSquare, MoreHorizontal, Pencil, Phone, Trash2 } from "lucide-react";
 import { useNextEvent, type BizClass, type CrmPerson } from "@/data";
-import { PersonAvatar } from "@/components/brand";
+import { PersonAvatar, Sensitive } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -66,7 +66,9 @@ export function ProfileHero({
         <div className="flex items-center gap-3">
           <PersonAvatar name={person.name} stage={stage} size="xl" className="size-14 text-lg" />
           <div className="min-w-0 flex-1">
-            <h1 className="break-words text-[19px] font-extrabold leading-tight">{person.name}</h1>
+            <h1 className="break-words text-[19px] font-extrabold leading-tight">
+              <Sensitive kind="name">{person.name}</Sensitive>
+            </h1>
             <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11.5px] text-faint">
               {chips}
               {phoneSub}
@@ -92,7 +94,9 @@ export function ProfileHero({
       <PersonAvatar name={person.name} stage={stage} size="xl" />
       <div className="min-w-0">
         <h1 className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-2xl font-extrabold leading-tight">
-          <span className="break-words">{person.name}</span>
+          <span className="break-words">
+            <Sensitive kind="name">{person.name}</Sensitive>
+          </span>
           {chips}
         </h1>
         {meta.length > 0 && (

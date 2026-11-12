@@ -13,7 +13,7 @@ import {
   Sparkles,
   UserPlus,
 } from "lucide-react";
-import { EmptyState, SectionCard, TONE_CLASS, type IconTone } from "@/components/brand";
+import { EmptyState, SectionCard, TONE_CLASS, type IconTone, Sensitive } from "@/components/brand";
 import { cn } from "@/lib/utils";
 import { useMyDay, useVisibleIds, type MyDayItem, type MyDayKind } from "@/data";
 
@@ -94,7 +94,7 @@ function Row({ item, linkable }: { item: MyDayItem; linkable: boolean }) {
         params={{ id: item.personId }}
         className="rounded-sm hover:underline focus-visible:outline-2 focus-visible:outline-ring"
       >
-        {item.text}
+        <Sensitive kind="note">{item.text}</Sensitive>
       </Link>
     ) : item.eventId ? (
       <Link
@@ -102,10 +102,10 @@ function Row({ item, linkable }: { item: MyDayItem; linkable: boolean }) {
         params={{ id: item.eventId }}
         className="rounded-sm hover:underline focus-visible:outline-2 focus-visible:outline-ring"
       >
-        {item.text}
+        <Sensitive kind="note">{item.text}</Sensitive>
       </Link>
     ) : (
-      item.text
+      <Sensitive kind="note">{item.text}</Sensitive>
     );
   return (
     <li className="grid grid-cols-[28px_minmax(0,1fr)_auto] items-start gap-2.5 border-t border-line py-2 first:border-t-0 first:pt-0.5">

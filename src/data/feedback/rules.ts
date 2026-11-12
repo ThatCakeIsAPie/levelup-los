@@ -16,6 +16,41 @@ export function feedbackMessageError(text: string): string | null {
   return null;
 }
 
+/** Static second segments of the routes that have them; any other second segment is an id or a name. */
+const STATIC_SUBPAGES: Record<string, string[]> = {
+  settings: ["team", "feedback"],
+  library: ["talks", "item"],
+};
+
+/**
+ * A page label that never holds a name. The browser's `document.title` on a
+ * person or chat page does ("Anita Patel"), so reports store this instead: the
+ * section and, below it, the static subpage; a dynamic part (a person, a chat,
+ * an event) becomes "detail". "/people/12" gives "People / detail".
+ */
+export function pageLabel(path: string): string {
+  const [first, second] = path.split(/[?#]/)[0].split("/").filter(Boolean);
+  if (!first) return "Home";
+  const word = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).replace(/[^a-z-]/gi, "");
+  const label = word(first.toLowerCase());
+  if (!second) return label;
+  return STATIC_SUBPAGES[first]?.includes(second)
+    ? `${label} / ${word(second)}`
+    : `${label} / detail`;
+}
+
+/** Search parameters that hold what the person typed (a name, say): their values are dropped. */
+const TYPED_PARAMS = ["q", "search", "query", "name"];
+
+/** The query string without typed text, so a search for a person's name is not kept. */
+export function safeSearch(search: string): string {
+  if (!search) return "";
+  const params = new URLSearchParams(search);
+  for (const key of TYPED_PARAMS) if (params.has(key)) params.set(key, "hidden");
+  const out = params.toString();
+  return out ? `?${out}` : "";
+}
+
 export interface ContextEnv {
   /** `location.pathname` with the deploy base already removed, and `location.search`. */
   path: string;

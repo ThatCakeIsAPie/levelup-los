@@ -18,7 +18,7 @@ import {
   UserPlus,
   type LucideIcon,
 } from "lucide-react";
-import { PersonAvatar, StageChip } from "@/components/brand";
+import { PersonAvatar, StageChip, Sensitive } from "@/components/brand";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -126,8 +126,14 @@ export function WinCardFrame({
       <div className="min-w-0">
         {children ?? (
           <>
-            <div className="text-[13px] font-extrabold text-foreground">{title}</div>
-            {detail && <div className="text-[11.5px]">{detail}</div>}
+            <div className="text-[13px] font-extrabold text-foreground">
+              <Sensitive kind="message">{title}</Sensitive>
+            </div>
+            {detail && (
+              <div className="text-[11.5px]">
+                <Sensitive kind="message">{detail}</Sensitive>
+              </div>
+            )}
           </>
         )}
       </div>
@@ -185,7 +191,10 @@ export function LearningCard({
       </span>
       <div className="min-w-0">
         <div className="text-[13px] font-extrabold text-foreground">
-          {authorName.split(" ")[0]} finished <i>{card.title}</i>
+          <Sensitive kind="name">{authorName.split(" ")[0]}</Sensitive> finished{" "}
+          <i>
+            <Sensitive kind="message">{card.title}</Sensitive>
+          </i>
         </div>
         <div className="text-[11.5px]">Learning · logged</div>
       </div>
@@ -325,7 +334,9 @@ function PersonLink({ id }: { id: string }) {
     >
       <PersonAvatar name={p.name} stage={p.stage} size="md" className="size-9" />
       <div className="min-w-0">
-        <div className="truncate text-[12.5px] font-bold">{p.name}</div>
+        <div className="truncate text-[12.5px] font-bold">
+          <Sensitive kind="name">{p.name}</Sensitive>
+        </div>
         <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
           <StageChip stage={p.stage} />
           {!visible && <span>Profile is private to their upline</span>}

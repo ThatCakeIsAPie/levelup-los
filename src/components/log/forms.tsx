@@ -80,6 +80,7 @@ import { TitleCombobox } from "./TitleCombobox";
 import { matchTitle, pastTitles } from "./titleSuggestions";
 import { boardTarget, meetingBooking, movesToPlan } from "./pipelineMove";
 
+import { sensitive } from "@/lib/sensitive";
 // ---------------------------------------------------------------------------
 // Shared: save + optional share + Undo toast
 // ---------------------------------------------------------------------------
@@ -386,6 +387,7 @@ export function ContactForm({
       <Field label="Note (optional)" htmlFor={`log-${kind}-note`}>
         <Textarea
           id={`log-${kind}-note`}
+          {...sensitive("note")}
           value={note}
           onChange={(e) => setNote(e.target.value)}
           placeholder={kind === "team" ? "What did you talk about?" : "Reorder? Questions?"}
@@ -610,6 +612,7 @@ export function NewContactForm() {
       <Field label="Who (a new prospect)" htmlFor="log-new-name">
         <Input
           id="log-new-name"
+          {...sensitive("name")}
           value={name}
           autoComplete="off"
           onChange={(e) => setName(e.target.value)}
@@ -775,6 +778,7 @@ export function RecruitTouchForm({ kind }: { kind: RecruitTouch }) {
       <Field label="Note (optional)" htmlFor={`log-${kind}-note`}>
         <Textarea
           id={`log-${kind}-note`}
+          {...sensitive("note")}
           value={note}
           onChange={(e) => setNote(e.target.value)}
           placeholder="Only you and your upline see this"

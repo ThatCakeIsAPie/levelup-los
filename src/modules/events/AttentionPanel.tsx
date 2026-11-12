@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { CalendarClock, CheckCircle2, ClipboardCheck, HandHelping, Ticket } from "lucide-react";
 import { toast } from "sonner";
-import { ActionRow, SectionCard, StageChip, type IconTone } from "@/components/brand";
+import { ActionRow, SectionCard, StageChip, type IconTone, Sensitive } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import {
   daysFromToday,
@@ -183,7 +183,7 @@ export function AttentionPanel({
                 key={it.a.id}
                 icon={ICON[it.code]}
                 iconTone={TONE[it.code]}
-                title={p?.name ?? "Unknown person"}
+                title={<Sensitive kind="name">{p?.name ?? "Unknown person"}</Sensitive>}
                 onClick={() => onEdit(it.a.id)}
                 meta={
                   <>

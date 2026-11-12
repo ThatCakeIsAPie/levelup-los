@@ -14,6 +14,7 @@ import { PhoneInput } from "@/components/brand";
 import { Label } from "@/components/ui/label";
 import { addPerson, localDate } from "@/data";
 
+import { sensitive } from "@/lib/sensitive";
 /** Add a customer owned by the current user. */
 export function AddCustomerDialog({
   open,
@@ -81,6 +82,7 @@ export function AddCustomerDialog({
           <Field label="Name" htmlFor="cust-name">
             <Input
               id="cust-name"
+              {...sensitive("name")}
               value={name}
               onChange={(e) => setName(e.target.value)}
               autoComplete="off"
@@ -100,6 +102,7 @@ export function AddCustomerDialog({
               <Input
                 id="cust-email"
                 type="email"
+                {...sensitive("email")}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 autoComplete="off"

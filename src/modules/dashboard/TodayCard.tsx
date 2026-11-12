@@ -18,7 +18,14 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
-import { ActionRow, EmptyState, STAGE_LABEL, StageChip, type IconTone } from "@/components/brand";
+import {
+  ActionRow,
+  EmptyState,
+  STAGE_LABEL,
+  StageChip,
+  type IconTone,
+  Sensitive,
+} from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -58,6 +65,7 @@ import {
   type TodaySub,
 } from "./today";
 
+import { sensitive } from "@/lib/sensitive";
 type Filter = "all" | TodayFilter;
 
 const FILTERS: { value: Filter; label: string }[] = [
@@ -723,7 +731,9 @@ function TodayRow({
     <ActionRow
       icon={icon}
       iconTone={tone}
-      title={title}
+      title={
+        item.kind === "ticket" && item.self ? title : <Sensitive kind="name">{title}</Sensitive>
+      }
       link={
         (item.kind === "ticket" || item.kind === "followup") && item.self
           ? { to: "/events/$id", params: { id: item.event.id } }
@@ -849,7 +859,7 @@ function InviteRow({
       }
       link={{ to: "/events/$id", params: { id: event.id } }}
       meta={
-        <span>
+        <span {...sensitive("name")}>
           {compact
             ? `${plural(n, "customer")} not on the list · ${when}`
             : `${who ?? plural(n, "customer")} ${n === 1 ? "isn't" : "aren't"} on the list yet · ${category.name} ${when}`}

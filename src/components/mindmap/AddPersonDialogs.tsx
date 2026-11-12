@@ -9,12 +9,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { PhoneInput } from "@/components/brand";
+import { PhoneInput, Sensitive } from "@/components/brand";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { localDate } from "@/data";
 import type { NewMemberClass, NewMemberInput } from "./useTreeStore";
 
+import { sensitive } from "@/lib/sensitive";
 function Field({
   label,
   required,
@@ -130,7 +131,7 @@ export function AddMemberDialog({
       <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-[17px] font-extrabold">
-            {copy.title} under {shown.parentName}
+            {copy.title} under <Sensitive kind="name">{shown.parentName}</Sensitive>
           </DialogTitle>
           <DialogDescription className="text-[13px]">{copy.body}</DialogDescription>
         </DialogHeader>
@@ -145,6 +146,7 @@ export function AddMemberDialog({
           <Field label="Name" required htmlFor={`${uid}-name`} error={errors.name}>
             <Input
               id={`${uid}-name`}
+              {...sensitive("name")}
               value={name}
               autoComplete="off"
               aria-invalid={!!errors.name}
@@ -186,6 +188,7 @@ export function AddMemberDialog({
             <Field label="IBO number" htmlFor={`${uid}-ibo`}>
               <Input
                 id={`${uid}-ibo`}
+                {...sensitive("id-number")}
                 value={iboNumber}
                 onChange={(e) => setIboNumber(e.target.value)}
               />
@@ -193,6 +196,7 @@ export function AddMemberDialog({
             <Field label="LTD number" htmlFor={`${uid}-ltd`}>
               <Input
                 id={`${uid}-ltd`}
+                {...sensitive("id-number")}
                 value={ltdNumber}
                 onChange={(e) => setLtdNumber(e.target.value)}
               />
@@ -201,6 +205,7 @@ export function AddMemberDialog({
           <Field label="Location" htmlFor={`${uid}-loc`}>
             <Input
               id={`${uid}-loc`}
+              {...sensitive("address")}
               value={location}
               placeholder="City, state"
               onChange={(e) => setLocation(e.target.value)}
@@ -267,11 +272,18 @@ export function AddCustomerDialog({
       <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-[17px] font-extrabold">
-            {shown.isOwnCard ? "Add a customer" : `Add a customer for ${shown.ownerName}`}
+            {shown.isOwnCard ? (
+              "Add a customer"
+            ) : (
+              <>
+                Add a customer for <Sensitive kind="name">{shown.ownerName}</Sensitive>
+              </>
+            )}
           </DialogTitle>
           <DialogDescription className="text-[13px]">
-            Customers belong to {shown.isOwnCard ? "you" : shown.ownerName} and don't count toward
-            GPV or member counts.
+            Customers belong to{" "}
+            {shown.isOwnCard ? "you" : <Sensitive kind="name">{shown.ownerName}</Sensitive>} and
+            don't count toward GPV or member counts.
           </DialogDescription>
         </DialogHeader>
         <form
@@ -291,6 +303,7 @@ export function AddCustomerDialog({
           <Field label="Name" required htmlFor={`${uid}-name`} error={error}>
             <Input
               id={`${uid}-name`}
+              {...sensitive("name")}
               value={form.name}
               autoComplete="off"
               aria-invalid={!!error}
@@ -303,6 +316,7 @@ export function AddCustomerDialog({
               <Input
                 id={`${uid}-email`}
                 type="email"
+                {...sensitive("email")}
                 value={form.email}
                 onChange={(e) => set({ email: e.target.value })}
               />

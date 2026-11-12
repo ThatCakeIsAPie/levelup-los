@@ -6,6 +6,7 @@ import { answerStatRequest, approveDraft, markNotificationsRead, useCurrentUser 
 import { shortAgo } from "@/modules/chat/format";
 import type { InboxRow, InboxTarget } from "./model";
 
+import { Sensitive } from "@/components/brand";
 export function useOpenInboxTarget() {
   const navigate = useNavigate();
   const me = useCurrentUser().personId;
@@ -57,12 +58,12 @@ export function NotificationRow({ row, compact }: { row: InboxRow; compact?: boo
             row.unread ? "font-bold" : "font-medium",
           )}
         >
-          {row.title}
+          <Sensitive kind="name">{row.title}</Sensitive>
           {row.unread && <span className="sr-only"> (unread)</span>}
         </button>
         {row.sub && (
           <p className={cn("mt-0.5 text-[11.5px] text-muted-foreground", compact && "truncate")}>
-            {row.sub}
+            <Sensitive kind="message">{row.sub}</Sensitive>
           </p>
         )}
         {(row.draft || row.openReport || row.statRequest) && !compact && (

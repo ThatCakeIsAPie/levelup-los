@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { effectiveBizClass, useDownline, useSponsorChain, type CrmPerson } from "@/data";
-import { PersonAvatar, SectionCard, StageChip } from "@/components/brand";
+import { PersonAvatar, SectionCard, StageChip, Sensitive } from "@/components/brand";
 
 const ORDER = { ibo: 0, apprentice: 1, prospect: 2, customer: 3 } as const;
 const PREVIEW = 5;
@@ -70,7 +70,7 @@ function TeamNode({ person, depth, self }: { person: CrmPerson; depth: number; s
       <PersonAvatar name={person.name} stage={stage} size="sm" />
       {self ? (
         <span className="min-w-0 truncate font-bold" aria-current="page">
-          {person.name}
+          <Sensitive kind="name">{person.name}</Sensitive>
         </span>
       ) : (
         <Link
@@ -78,7 +78,7 @@ function TeamNode({ person, depth, self }: { person: CrmPerson; depth: number; s
           params={{ id: person.id }}
           className="min-w-0 truncate rounded-sm hover:underline focus-visible:outline-2 focus-visible:outline-ring"
         >
-          {person.name}
+          <Sensitive kind="name">{person.name}</Sensitive>
         </Link>
       )}
       <StageChip stage={stage} className="ml-auto" />

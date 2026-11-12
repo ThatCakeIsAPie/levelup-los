@@ -1,5 +1,5 @@
 import { Bug } from "lucide-react";
-import { SectionCard, ToneChip } from "@/components/brand";
+import { SectionCard, ToneChip, Sensitive } from "@/components/brand";
 import { DATA_SOURCE } from "@/lib/config";
 import {
   FEATURES,
@@ -66,7 +66,13 @@ export function AdminDebugCard() {
         </div>
         <div className={row}>
           <dt className="text-muted-foreground">Deputy for</dt>
-          <dd>{actingFor.length ? actingFor.map((p) => p.name).join(", ") : "nobody"}</dd>
+          <dd>
+            {actingFor.length ? (
+              <Sensitive kind="name">{actingFor.map((p) => p.name).join(", ")}</Sensitive>
+            ) : (
+              "nobody"
+            )}
+          </dd>
         </div>
         <div className={row}>
           <dt className="text-muted-foreground">Loaded</dt>

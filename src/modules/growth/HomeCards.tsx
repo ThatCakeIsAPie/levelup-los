@@ -22,7 +22,7 @@ import {
   useUnlocks,
   type GrowthPath,
 } from "@/data";
-import { SectionCard, ToneChip } from "@/components/brand";
+import { SectionCard, ToneChip, Sensitive } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -271,8 +271,15 @@ export function FirstSponsorCelebration() {
             You sponsored your first person
           </DialogTitle>
           <DialogDescription className="text-[12.5px]">
-            {sponsored ? `Welcome to the team, ${who}. ` : ""}You've reached{" "}
-            <b className="text-foreground">First sponsor</b>, and new things are ready:
+            {sponsored ? (
+              <>
+                Welcome to the team, <Sensitive kind="name">{who}</Sensitive>.{" "}
+              </>
+            ) : (
+              ""
+            )}
+            You've reached <b className="text-foreground">First sponsor</b>, and new things are
+            ready:
           </DialogDescription>
         </DialogHeader>
         <ul className="grid gap-2">
@@ -283,7 +290,14 @@ export function FirstSponsorCelebration() {
             >
               <r.icon className="mt-px size-[17px] text-primary" aria-hidden="true" />
               <span>
-                <b>{r.title}</b> · {r.text}
+                <b>{r.title}</b> ·{" "}
+                {r.title === "Your team" ? (
+                  <>
+                    see <Sensitive kind="name">{who}</Sensitive> and everyone they bring in
+                  </>
+                ) : (
+                  r.text
+                )}
               </span>
             </li>
           ))}

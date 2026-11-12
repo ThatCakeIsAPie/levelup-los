@@ -10,7 +10,7 @@ import {
 import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { Ban, Check, ChevronLeft, Megaphone, PanelRight, Pin, Search, X } from "lucide-react";
-import { EmptyState, PersonAvatar, StageChip } from "@/components/brand";
+import { EmptyState, PersonAvatar, StageChip, Sensitive } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -62,6 +62,7 @@ import { MessageBubble, type MessageAction } from "./MessageBubble";
 import { dayKey, dayLabel, messageUrl, plural, shortAgo } from "./format";
 import "./chat.css";
 
+import { sensitive, sensitiveIf } from "@/lib/sensitive";
 /** Messages from the same author within this window share one name/avatar. */
 const RUN_MS = 5 * 60 * 1000;
 
@@ -301,7 +302,12 @@ function ConversationBody({
           >
             <ConversationAvatar summary={conv} className={onBack ? "size-[34px]" : undefined} />
             <span className="min-w-0">
-              <span className="block truncate text-[15px] font-extrabold">{conv.title}</span>
+              <span
+                className="block truncate text-[15px] font-extrabold"
+                {...sensitiveIf(conv.conversation.kind === "dm", "name")}
+              >
+                {conv.title}
+              </span>
               <span className="flex min-w-0 items-center gap-1.5 truncate text-[11.5px] text-muted-foreground">
                 {isDm && conv.other ? (
                   <>
@@ -333,6 +339,7 @@ function ConversationBody({
             <Input
               autoFocus
               type="search"
+              {...sensitiveIf(!!q, "name")}
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder={`Search in ${conv.title}`}
@@ -360,7 +367,8 @@ function ConversationBody({
           >
             <Pin className="size-[13px] shrink-0 text-amber-strong" aria-hidden="true" />
             <span className="truncate">
-              <b className="font-semibold text-foreground">Pinned:</b> {pinned.body || "Post"}
+              <b className="font-semibold text-foreground">Pinned:</b>{" "}
+              <Sensitive kind="message">{pinned.body || "Post"}</Sensitive>
             </span>
           </button>
         )}
@@ -436,7 +444,7 @@ function ConversationBody({
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line pt-2.5 text-[12.5px] text-muted-foreground">
           <span className="flex items-center gap-2">
             <Ban className="size-4" aria-hidden="true" />
-            You blocked {conv.other.name}.
+            You blocked <Sensitive kind="name">{conv.other.name}</Sensitive>.
           </span>
           <Button size="sm" variant="outline" onClick={() => unblockPerson(conv.other!.id)}>
             Unblock
@@ -478,7 +486,9 @@ function ConversationBody({
             </AlertDialogHeader>
           ) : (
             <AlertDialogHeader>
-              <AlertDialogTitle>Block {confirm?.m.author?.name ?? "this person"}?</AlertDialogTitle>
+              <AlertDialogTitle>
+                Block <Sensitive kind="name">{confirm?.m.author?.name ?? "this person"}</Sensitive>?
+              </AlertDialogTitle>
               <AlertDialogDescription>
                 Their messages are hidden for you and neither of you can send direct messages to the
                 other. They aren't told. You can unblock them in the chat details or Team settings.
@@ -563,10 +573,14 @@ function DraftsPanel() {
           <div key={d.id} className="grid gap-2 rounded-xl border border-line bg-surface p-3">
             <div className="flex items-center gap-2 text-xs">
               <PersonAvatar name={author?.name ?? "?"} stage={author?.stage} size="sm" />
-              <b className="font-bold">{author?.name ?? "Someone"}</b>
+              <b className="font-bold">
+                <Sensitive kind="name">{author?.name ?? "Someone"}</Sensitive>
+              </b>
               <span className="text-faint">· {shortAgo(d.createdAt)}</span>
             </div>
-            <p className="whitespace-pre-wrap text-[13px]">{d.body}</p>
+            <p className="whitespace-pre-wrap text-[13px]">
+              <Sensitive kind="message">{d.body}</Sensitive>
+            </p>
             <div className="flex flex-wrap gap-2">
               <Button
                 size="sm"
@@ -661,6 +675,7 @@ function SuggestBar() {
               <Textarea
                 id="suggest-body"
                 rows={4}
+                {...sensitive("message")}
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
                 placeholder="e.g. Carpool sign-up for the Fall Weekend is open…"
@@ -737,6 +752,7 @@ function ReportDialog({
             <Textarea
               id="report-details"
               rows={2}
+              {...sensitive("note")}
               value={details}
               onChange={(e) => setDetails(e.target.value)}
             />

@@ -22,6 +22,7 @@ import {
   STAGE_LABEL,
   ToneChip,
   useIsDesktop,
+  Sensitive,
 } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -69,6 +70,7 @@ import { RiskBadge } from "./RiskFlags";
 import { Segmented } from "./Segmented";
 import { countByStage, filterByStage, stageChips } from "./stageFilter";
 
+import { sensitiveIf } from "@/lib/sensitive";
 type View = "table" | "board";
 
 /** Roster filters reachable by link (`/events/$id?tab=attendees&filter=no-ticket`). */
@@ -215,6 +217,7 @@ export function AttendeesTab({
           />
           <Input
             type="search"
+            {...sensitiveIf(!!query, "name")}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Find an attendee"
@@ -442,7 +445,7 @@ function AttendeeRow({
                 onClick={onEdit}
                 className="truncate rounded-sm text-left font-semibold hover:underline focus-visible:outline-2 focus-visible:outline-ring"
               >
-                {name}
+                <Sensitive kind="name">{name}</Sensitive>
               </button>
               <RiskBadge attendance={a} finished={finished} />
             </div>
@@ -507,7 +510,11 @@ function AttendeeRow({
         {a.followUpDate ? shortDate(a.followUpDate) : <span className="text-faint">None</span>}
       </TableCell>
       <TableCell className="max-w-[140px] truncate text-muted-foreground">
-        {helper?.name ?? <span className="text-faint">None</span>}
+        {helper ? (
+          <Sensitive kind="name">{helper.name}</Sensitive>
+        ) : (
+          <span className="text-faint">None</span>
+        )}
       </TableCell>
       <TableCell className="text-center">
         {a.hasTicket ? (
@@ -540,7 +547,7 @@ function AttendeeRow({
                 </span>
               </TooltipTrigger>
               <TooltipContent aria-hidden="true" className="max-w-64 whitespace-pre-wrap">
-                {a.notes}
+                <Sensitive kind="note">{a.notes}</Sensitive>
               </TooltipContent>
             </Tooltip>
           )}
@@ -601,7 +608,7 @@ function AttendeeCard({
             onClick={onEdit}
             className="truncate rounded-sm text-left text-[13.5px] font-semibold after:absolute after:inset-0 after:rounded-card focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:outline-ring"
           >
-            {name}
+            <Sensitive kind="name">{name}</Sensitive>
           </button>
           <RiskBadge attendance={a} finished={finished} />
         </div>

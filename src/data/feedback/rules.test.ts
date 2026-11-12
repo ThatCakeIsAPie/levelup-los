@@ -6,7 +6,9 @@ import {
   fitImage,
   newestFirst,
   nextStatus,
+  pageLabel,
   reportFromRow,
+  safeSearch,
 } from "./rules";
 import { FEEDBACK_MAX_LENGTH, type FeedbackReport } from "./types";
 
@@ -121,5 +123,32 @@ describe("fitImage", () => {
   it("gives up (null) when nothing fits or the browser can't encode", async () => {
     expect(await fitImage(async () => blob(500), 200)).toBeNull();
     expect(await fitImage(async () => null, 200)).toBeNull();
+  });
+});
+
+describe("pageLabel", () => {
+  it("names the section and never a person, chat or event", () => {
+    expect(pageLabel("/")).toBe("Home");
+    expect(pageLabel("/pipeline")).toBe("Pipeline");
+    expect(pageLabel("/people")).toBe("People");
+    expect(pageLabel("/people/12")).toBe("People / detail");
+    expect(pageLabel("/chats/c-9?m=abc")).toBe("Chats / detail");
+    expect(pageLabel("/events/e1")).toBe("Events / detail");
+  });
+  it("keeps the static subpages", () => {
+    expect(pageLabel("/settings/feedback")).toBe("Settings / Feedback");
+    expect(pageLabel("/settings/team")).toBe("Settings / Team");
+    expect(pageLabel("/library/talks")).toBe("Library / Talks");
+    expect(pageLabel("/library/item/abc")).toBe("Library / Item");
+    expect(pageLabel("/library/some-channel")).toBe("Library / detail");
+  });
+});
+
+describe("safeSearch", () => {
+  it("keeps filters and drops what was typed", () => {
+    expect(safeSearch("")).toBe("");
+    expect(safeSearch("?tab=board")).toBe("?tab=board");
+    expect(safeSearch("?q=Anita%20Patel&sort=name")).toBe("?q=hidden&sort=name");
+    expect(safeSearch("?name=Ty")).toBe("?name=hidden");
   });
 });

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { CalendarDays, MessageSquareQuote } from "lucide-react";
-import { PersonAvatar } from "@/components/brand";
+import { PersonAvatar, Sensitive } from "@/components/brand";
 import {
   Command,
   CommandEmpty,
@@ -24,6 +24,7 @@ import { dateRange } from "@/modules/dashboard/format";
 import { KIND_ICON } from "@/modules/library/icons";
 import { materialMeta } from "./cards";
 
+import { sensitiveIf } from "@/lib/sensitive";
 /**
  * "Link something": search messages, events, people (only those you may see)
  * and library material; picking one attaches a link card to the message.
@@ -69,6 +70,7 @@ export function LinkPicker({
         </DialogDescription>
         <Command shouldFilter={false}>
           <CommandInput
+            {...sensitiveIf(!!query, "name")}
             value={query}
             onValueChange={setQuery}
             placeholder="Search messages, events, people, library…"
@@ -85,9 +87,14 @@ export function LinkPicker({
                   >
                     <MessageSquareQuote aria-hidden="true" />
                     <div className="min-w-0">
-                      <div className="truncate text-[13px]">{messagePreview(m)}</div>
+                      <div className="truncate text-[13px]">
+                        <Sensitive kind="message">{messagePreview(m)}</Sensitive>
+                      </div>
                       <div className="truncate text-[11px] text-muted-foreground">
-                        {people.get(m.authorId)?.name ?? "Someone"} · {titles.get(m.conversationId)}
+                        <Sensitive kind="name">
+                          {people.get(m.authorId)?.name ?? "Someone"}
+                        </Sensitive>{" "}
+                        · {titles.get(m.conversationId)}
                       </div>
                     </div>
                   </CommandItem>
@@ -116,7 +123,9 @@ export function LinkPicker({
               render={(p) => (
                 <CommandItem key={p.id} value={`p-${p.id}`} onSelect={() => pick("person", p.id)}>
                   <PersonAvatar name={p.name} stage={p.bizClass} size="sm" />
-                  <span className="truncate">{p.name}</span>
+                  <span className="truncate">
+                    <Sensitive kind="name">{p.name}</Sensitive>
+                  </span>
                 </CommandItem>
               )}
             />

@@ -2,7 +2,7 @@ import { pageTitle } from "@/lib/brand";
 import { useMemo } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { format } from "date-fns";
-import { PageHeader, useIsDesktop } from "@/components/brand";
+import { PageHeader, useIsDesktop, Sensitive } from "@/components/brand";
 import {
   useAttendancesForPerson,
   useCategoryOf,
@@ -73,7 +73,16 @@ function Dashboard() {
     n === 0 ? "You're all caught up" : `${n} ${n === 1 ? "thing needs" : "things need"} you today`
   }`;
 
-  const header = <PageHeader title={`${greeting(now)}, ${first}`} subtitle={subtitle} />;
+  const header = (
+    <PageHeader
+      title={
+        <>
+          {greeting(now)}, <Sensitive kind="name">{first}</Sensitive>
+        </>
+      }
+      subtitle={subtitle}
+    />
+  );
   const today = <TodayCard items={items} compact={!desktop} candidate={candidate} />;
   const event = (
     <NextEventCard
