@@ -421,7 +421,13 @@ export interface LibraryEntry {
   date: string;
 }
 
-function applyProgress(
+function applyProgress(itemId: string, update: ProgressUpdate): ProgressResult {
+  const { learningId: _id, ...result } = applyProgressWith(itemId, update);
+  return result;
+}
+
+/** `applyProgress`, also telling which learning row finishing logged and taking the entry to log. */
+function applyProgressWith(
   itemId: string,
   update: ProgressUpdate,
   entry?: LibraryEntry,
@@ -505,7 +511,7 @@ export function completeLibraryItemWithEntry(
   if (!v) return null;
   const prev = library().progress.find((p) => p.personId === v.personId && p.itemId === itemId);
   if (!completionLogs(prev)) return null;
-  const r = applyProgress(itemId, { type: "complete" }, entry);
+  const r = applyProgressWith(itemId, { type: "complete" }, entry);
   if (!r.logged || !r.learningId) return null;
   const learningId = r.learningId;
   return {
