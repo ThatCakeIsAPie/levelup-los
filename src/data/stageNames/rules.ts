@@ -210,7 +210,7 @@ export function stageSourceHint(stage: ResolvedStage): string {
 }
 
 // ---------------------------------------------------------------------------
-// Validation (what the rename dialog and the save check)
+// Validation (what the Customize steps dialog and the save check)
 // ---------------------------------------------------------------------------
 
 /** What the person typed per stage key; empty = "not set by me". */
