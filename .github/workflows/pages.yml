@@ -1,9 +1,14 @@
-# Builds a brand's browser-storage demo and publishes it on every push to that
-# brand's branch (or by hand with "Run workflow" on that branch).
+# Builds a brand's site and publishes it on every push to that brand's branch
+# (or by hand with "Run workflow" on that branch).
 #
 #   levelup -> this repo's GitHub Pages site: https://coleholistics.us/levelup-los/
+#              Browser-storage demo with the demo-user picker; no database.
 #   heroes  -> the gh-pages branch of ThatCakeIsAPie/heroes-crm, which serves
-#              https://heroes.coleholistics.us/ (custom domain, so base "/")
+#              https://heroes.coleholistics.us/ (custom domain, so base "/").
+#              The real app on Supabase: real sign-in, no demo data. Its project
+#              URL and publishable key are the repository variables
+#              HEROES_SUPABASE_URL and HEROES_SUPABASE_ANON_KEY (both are public
+#              values that end up in the browser bundle anyway).
 #
 # A repo has one Pages site, so a second brand's demo lives in a second repo
 # that holds only the built files. Pushing there
@@ -35,16 +40,18 @@ jobs:
       # base: URL path the app is served under. external: repo that hosts the
       # built files (empty = this repo's Pages site). cname: custom domain of
       # that external site (written as its CNAME file so each deploy keeps it).
+      # data: "local" (browser-storage demo) or "supabase" (see src/lib/config.ts).
       - id: target
         run: |
           case "$GITHUB_REF_NAME" in
-            levelup) base="/${{ github.event.repository.name }}/"; external=""; cname="" ;;
-            heroes)  base="/"; external="ThatCakeIsAPie/heroes-crm"; cname="heroes.coleholistics.us" ;;
+            levelup) base="/${{ github.event.repository.name }}/"; external=""; cname=""; data="local" ;;
+            heroes)  base="/"; external="ThatCakeIsAPie/heroes-crm"; cname="heroes.coleholistics.us"; data="supabase" ;;
             *) echo "::error::No demo is published from branch '$GITHUB_REF_NAME'."; exit 1 ;;
           esac
           echo "base=$base" >> "$GITHUB_OUTPUT"
           echo "external=$external" >> "$GITHUB_OUTPUT"
           echo "cname=$cname" >> "$GITHUB_OUTPUT"
+          echo "data=$data" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
@@ -55,9 +62,9 @@ jobs:
       - run: npm run build
         env:
           BASE_PATH: ${{ steps.target.outputs.base }}
-          # The public demo runs on browser storage with the demo-user picker
-          # and never contacts a database (see src/lib/config.ts).
-          VITE_DATA_SOURCE: local
+          VITE_DATA_SOURCE: ${{ steps.target.outputs.data }}
+          VITE_SUPABASE_URL: ${{ steps.target.outputs.data == 'supabase' && vars.HEROES_SUPABASE_URL || '' }}
+          VITE_SUPABASE_ANON_KEY: ${{ steps.target.outputs.data == 'supabase' && vars.HEROES_SUPABASE_ANON_KEY || '' }}
       # Pages has no SPA rewrites: serve the app for unknown paths so deep
       # links like /people/4 load on refresh.
       - run: cp dist/index.html dist/404.html
