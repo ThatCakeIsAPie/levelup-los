@@ -370,6 +370,17 @@ export function nextProgress(
 }
 
 /**
+ * Would finishing the item now log it to learning? Only the first finish
+ * does: not when it's finished already, nor when it was finished and logged
+ * before and marked not done since (`loggedAt` is never cleared).
+ */
+export function completionLogs(
+  prev: Pick<LibraryProgress, "completedAt" | "loggedAt"> | undefined,
+): boolean {
+  return !prev?.completedAt && !prev?.loggedAt;
+}
+
+/**
  * What finishing an item logs to learning (so it counts toward the streak and
  * the weekly goal, src/stores/crmStore.ts):
  *  - documents: "pages", amount = page count (1 when unknown);

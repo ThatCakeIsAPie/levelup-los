@@ -274,6 +274,7 @@ The snapshot never shows people's details: they are solid black bars in the pict
 ## Log sheet and theme
 
 - `openLog({ tab?: "learning"|"checkin"|"customer"|"sale"|"attendance", personId? })` / `closeLog()` from `@/data`. Right-side sheet on desktop, bottom sheet on phones; opened by the Log button at the far top right of the desktop shell (`DesktopBar` in `AppShell`) and the phone FAB.
+- Log sheet, learning form: the Title (Book) field is a combobox (`TitleCombobox`, pure rules in `titleSuggestions.ts`, tested) listing, for Reading and Podcast, the library items the viewer may open that log as that kind (`learningFor`; only with the Library on; first, at most 5 at a time) and then the titles logged before that aren't in the library; typing a new title adds it, an empty one is logged as "Unnamed". Saving with a library item not finished yet goes through `completeLibraryItemWithEntry` (the Library's own completion, so the item is marked done and its one learning entry carries the form's amount, unit and date; Undo removes both); an item finished or logged before just gets an ordinary entry.
 - `useTheme()` from `@/lib/theme` → `{ preference: "light"|"dark"|"auto", resolved, setPreference }`, stored in `<prefix>.theme`, applied before first paint by a script in `index.html`.
 
 ## Seed data

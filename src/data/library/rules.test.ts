@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   allowedVisibilities,
   buildLibraryViewer,
+  completionLogs,
   canCreateInLibrary,
   canEditLibrary,
   canManageTopics,
@@ -223,6 +224,23 @@ describe("progress", () => {
     const again = nextProgress(undone.progress, { type: "complete" }, ctx);
     expect(again.completedNow).toBe(true);
     expect(again.shouldLog).toBe(false);
+  });
+
+  it("says whether finishing now would log (matching nextProgress)", () => {
+    const done = nextProgress(undefined, { type: "complete" }, ctx);
+    const undone = nextProgress(done.progress, { type: "uncomplete" }, ctx);
+    const started = nextProgress(
+      undefined,
+      { type: "position", positionSec: 5, durationSec: 100 },
+      ctx,
+    );
+    for (const prev of [undefined, started.progress, done.progress, undone.progress]) {
+      expect(completionLogs(prev)).toBe(nextProgress(prev, { type: "complete" }, ctx).shouldLog);
+    }
+    expect(completionLogs(undefined)).toBe(true);
+    expect(completionLogs(started.progress)).toBe(true);
+    expect(completionLogs(done.progress)).toBe(false);
+    expect(completionLogs(undone.progress)).toBe(false);
   });
 
   it("clamps positions to the length", () => {

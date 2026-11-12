@@ -11,7 +11,8 @@
 import { useSessionStore } from "@/stores/sessionStore";
 import { effectiveBizClass, usePeopleStore } from "@/stores/peopleStore";
 import { useChatStore } from "@/data/chat/store";
-import { logLearning } from "@/data/crm";
+import { logLearning, removeLearning } from "@/data/crm";
+import type { LearningUnit } from "@/stores/crmStore";
 import { IS_SUPABASE } from "@/lib/config";
 import { localDate } from "@/lib/dates";
 import { useCrmStore } from "@/stores/crmStore";
@@ -21,6 +22,7 @@ import { library, updateLibrary } from "./store";
 import {
   buildLibraryViewer,
   canEditLibrary,
+  completionLogs,
   canManageTopics,
   canSeeLibrary,
   learningFor,
@@ -35,6 +37,7 @@ import {
 } from "./rules";
 import type {
   CatalogItem,
+  LibraryProgress,
   ChannelColor,
   ChannelSection,
   LibraryChannel,
@@ -411,7 +414,18 @@ export interface ProgressResult {
   logged: boolean;
 }
 
-function applyProgress(itemId: string, update: ProgressUpdate): ProgressResult {
+/** What to log when finishing an item, in place of the standard entry (see `completeLibraryItemWithEntry`). */
+export interface LibraryEntry {
+  amount: number;
+  unit?: LearningUnit;
+  date: string;
+}
+
+function applyProgress(
+  itemId: string,
+  update: ProgressUpdate,
+  entry?: LibraryEntry,
+): ProgressResult & { learningId?: string } {
   const v = getLibraryViewer();
   const item = library().items.find((i) => i.id === itemId);
   // Real accounts: the store only holds what the database let you see.
@@ -423,29 +437,102 @@ function applyProgress(itemId: string, update: ProgressUpdate): ProgressResult {
     itemId,
     now: nowIso(),
   });
+  let learningId: string | undefined;
+  if (shouldLog) {
+    const std = learningFor(item);
+    const { kind } = std;
+    const amount = entry?.amount ?? std.amount;
+    if (IS_SUPABASE) {
+      // The database logs it (same id). Without an entry, show that row now
+      // without writing it. With one, write the row ourselves first (the
+      // sync sends learning before progress), so the database's own insert
+      // finds it there (`on conflict do nothing`) and the log has your values.
+      const id = libraryLearningId(v.personId, item.id);
+      learningId = id;
+      const row = {
+        id,
+        personId: v.personId,
+        kind,
+        title: item.title,
+        amount,
+        ...(entry?.unit ? { unit: entry.unit } : {}),
+        date: entry?.date ?? localDate(),
+        ...(entry ? { createdAt: nowIso() } : {}),
+      };
+      const add = () => {
+        const learning = useCrmStore.getState().learning;
+        if (learning.some((l) => l.id === id)) return;
+        useCrmStore.setState({ learning: [row, ...learning] });
+      };
+      if (entry) add();
+      else serverSide(add);
+    } else {
+      logLearning({
+        kind,
+        title: item.title,
+        amount,
+        ...(entry?.unit ? { unit: entry.unit } : {}),
+        ...(entry ? { date: entry.date } : {}),
+        personId: v.personId,
+      });
+      learningId = useCrmStore.getState().learning.find((l) => l.personId === v.personId)?.id;
+    }
+  }
   updateLibrary((s) => ({
     progress: prev ? s.progress.map((p) => (p === prev ? progress : p)) : [...s.progress, progress],
   }));
-  if (shouldLog) {
-    const { kind, amount } = learningFor(item);
-    if (IS_SUPABASE) {
-      // The database logs it (same id); show it now without writing it.
-      const id = libraryLearningId(v.personId, item.id);
-      serverSide(() => {
-        const learning = useCrmStore.getState().learning;
-        if (learning.some((l) => l.id === id)) return;
-        useCrmStore.setState({
-          learning: [
-            { id, personId: v.personId, kind, title: item.title, amount, date: localDate() },
-            ...learning,
-          ],
-        });
-      });
-    } else {
-      logLearning({ kind, title: item.title, amount, personId: v.personId });
-    }
+  return { completedNow, logged: shouldLog, learningId };
+}
+
+/**
+ * Finish an item from somewhere else (the Log sheet's learning form) with the
+ * entry the person filled in. It goes through the same completion as "Mark as
+ * done", so the one learning row that finishing logs is the only one: in the
+ * demo it is written here with the form's amount, unit and date; with real
+ * accounts the database writes it on completion, and the row with its
+ * deterministic id is written first so it carries the form's values.
+ *
+ * Returns null (nothing changed) when finishing wouldn't log: the item was
+ * finished or logged before, or the viewer can't open it. The caller then
+ * logs an ordinary entry. `undo` removes the entry and puts the item back as
+ * it was, including that it was never logged (so finishing it later logs).
+ */
+export function completeLibraryItemWithEntry(
+  itemId: string,
+  entry: LibraryEntry,
+): { learningId: string; undo: () => void } | null {
+  const v = getLibraryViewer();
+  if (!v) return null;
+  const prev = library().progress.find((p) => p.personId === v.personId && p.itemId === itemId);
+  if (!completionLogs(prev)) return null;
+  const r = applyProgress(itemId, { type: "complete" }, entry);
+  if (!r.logged || !r.learningId) return null;
+  const learningId = r.learningId;
+  return {
+    learningId,
+    undo: () => {
+      removeLearning(learningId);
+      restoreProgress(v.personId, itemId, prev);
+    },
+  };
+}
+
+/** Put one progress row back as it was (or remove it when there was none). */
+function restoreProgress(personId: string, itemId: string, prev: LibraryProgress | undefined) {
+  const same = (p: LibraryProgress) => p.personId === personId && p.itemId === itemId;
+  if (!IS_SUPABASE) {
+    updateLibrary((s) => ({
+      progress: prev
+        ? s.progress.map((p) => (same(p) ? prev : p))
+        : s.progress.filter((p) => !same(p)),
+    }));
+    return;
   }
-  return { completedNow, logged: shouldLog };
+  // The database never clears `logged_at` on update, so an update back to
+  // "not finished" would leave the item logged for good. Delete the row and,
+  // when there was one, put it back as a separate write (an insert starts unlogged).
+  updateLibrary((s) => ({ progress: s.progress.filter((p) => !same(p)) }));
+  if (prev) queueMicrotask(() => updateLibrary((s) => ({ progress: [...s.progress, prev] })));
 }
 
 /** Save where the current user is in an audio/video (finishing ≥ 90% marks it done and logs it). */
