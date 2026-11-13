@@ -326,13 +326,16 @@ html[data-backdrop="on"] body,
 html[data-backdrop="on"] .bg-app:not(.glass) {
   background-color: transparent;
 }
-/* A full-screen overlay hides the page behind it, so it carries the same picture, in the same place. */
+/*
+ * A full-screen overlay hides the page behind it, so it carries the same base
+ * layer in the same place: a fixed ::before with exactly the geometry,
+ * picture, tint and blur of .app-backdrop (shared rule below). The overlay
+ * itself only supplies the opaque page colour that hides what is behind it
+ * (an element cannot blur its own background without blurring its children,
+ * hence the pseudo-element).
+ */
 html[data-backdrop="on"] .bg-app.fixed:not(.glass) {
   background-color: var(--app-bg);
-  background-image: var(--backdrop-fill);
-  background-position: center;
-  background-size: cover;
-  background-repeat: no-repeat;
 }
 /*
  * Text that sits directly on the picture (a page title, a tab strip, a section
@@ -370,18 +373,40 @@ html[data-backdrop="on"]
   ):not(.bg-app, .bg-transparent, .bg-surface-2) {
   text-shadow: none;
 }
-/* Fixed to the viewport (not background-attachment: fixed, which breaks on iOS), behind everything, never animated. */
-.app-backdrop {
+/*
+ * The base layer: the picture seen through ONE sheet of tinted glass, for the
+ * whole viewport. The picture is blurred by a plain `filter` on this static
+ * fixed layer (rasterised once; a viewport-sized backdrop-filter would be
+ * re-composited whenever content moves) and the scrim (--scrim, per theme) is
+ * the tint. Nothing on the page shows the sharp picture. A blurred layer fades
+ * out at its own edges, so the layer is larger than the viewport by 3 blur
+ * radii on every side, and the rim stays off-screen at any size or aspect
+ * ratio. Fixed to the viewport (not background-attachment: fixed, which breaks
+ * on iOS), behind everything, never animated. Full-screen overlays
+ * (.bg-app.fixed) paint the same layer through their ::before, so keep the
+ * two in this one rule.
+ * --backdrop-blur is the blur radius; a brand may set another in tokens.css.
+ */
+:where(:root) {
+  --backdrop-blur: 28px;
+}
+.app-backdrop,
+html[data-backdrop="on"] .bg-app.fixed:not(.glass)::before {
+  content: "";
   position: fixed;
-  inset: 0;
-  height: 100vh;
-  height: 100lvh;
+  top: calc(var(--backdrop-blur) * -3);
+  right: calc(var(--backdrop-blur) * -3);
+  left: calc(var(--backdrop-blur) * -3);
+  height: calc(100vh + var(--backdrop-blur) * 6);
+  height: calc(100lvh + var(--backdrop-blur) * 6);
   z-index: -1;
   pointer-events: none;
   background-image: var(--backdrop-fill);
   background-position: center;
   background-size: cover;
   background-repeat: no-repeat;
+  -webkit-filter: blur(var(--backdrop-blur));
+  filter: blur(var(--backdrop-blur));
 }
 
 /* Surface fills become glass. */
