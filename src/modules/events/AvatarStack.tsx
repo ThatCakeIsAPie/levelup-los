@@ -10,12 +10,15 @@ export function AvatarStack({
   people,
   max = 5,
   ringClassName = "ring-card",
+  onDark = false,
   className,
 }: {
   people: CrmPerson[];
   max?: number;
   /** Ring color that separates the avatars (match the card background). */
   ringClassName?: string;
+  /** On a dark card (the next-event card): the "+N" chip is a pale wash with the card's own text, not a light chip. */
+  onDark?: boolean;
   className?: string;
 }) {
   if (people.length === 0) return null;
@@ -47,7 +50,9 @@ export function AvatarStack({
       {rest > 0 && (
         <span
           className={cn(
-            "relative -ml-1 inline-grid h-6 min-w-6 place-items-center rounded-full bg-surface-2 px-1 text-[10px] font-bold text-muted-foreground ring-2",
+            "relative -ml-1 inline-grid h-6 min-w-6 place-items-center rounded-full px-1 text-[10px] font-bold ring-2",
+            // The dark card turns text-muted-foreground into a pale grey: on a light chip that was unreadable.
+            onDark ? "bg-white/15 text-event-fg" : "bg-surface-2 text-muted-foreground",
             ringClassName,
           )}
           aria-hidden="true"

@@ -388,7 +388,7 @@ function FeaturedCard({
       )}
 
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        {!candidate && <AvatarStack people={s.people} ringClassName="ring-white/35" />}
+        {!candidate && <AvatarStack people={s.people} ringClassName="ring-white/35" onDark />}
         {!candidate && s.attention > 0 && (
           <ToneChip tone="warn" icon={AlertTriangle}>
             {s.attention} need attention

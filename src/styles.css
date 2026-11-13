@@ -449,6 +449,58 @@ html[data-glass="on"]
     var(--tw-shadow, 0 0 #0000), var(--glass-highlight);
 }
 
+/*
+ * A team's OWN picture (<html data-backdrop-source="team">, set by
+ * applyAppearance({ teamPicture: true })) can be anything: all white, all
+ * black, noise. A brand's picture is tuned by hand; this one is not, so the
+ * scrim and every tint are denser, built from the page and surface colours of
+ * the current theme (the brand's own, or the team's derived ones), so text on
+ * a panel keeps 4.5:1 over the brightest or darkest picture there is. Light
+ * theme: the worst picture is black; dark theme: white. The sidebar and the
+ * event card are dark glass in both themes and get a dense tint in both.
+ */
+html[data-backdrop-source="team"] {
+  --scrim: color-mix(in srgb, var(--app-bg) 80%, transparent);
+  --glass-tint: color-mix(in srgb, var(--surface) 88%, transparent);
+  --glass-tint-reading: color-mix(in srgb, var(--surface) 95%, transparent);
+  --glass-tint-inset: color-mix(in srgb, var(--surface-2) 90%, transparent);
+  --glass-tint-side: color-mix(in srgb, var(--side) 94%, transparent);
+  --glass-track: var(--track);
+}
+html.dark[data-backdrop-source="team"] {
+  --scrim: color-mix(in srgb, var(--app-bg) 76%, transparent);
+  --glass-tint-side: color-mix(in srgb, var(--side) 92%, transparent);
+}
+/*
+ * A picture with glass OFF (a team's choice): a pane that is only a `glass`
+ * layer has no fill of its own then (the glass rules are off), so its text
+ * would sit straight on the picture. Give it the solid surface.
+ */
+html[data-backdrop="on"][data-glass="off"] .glass:not([class*="bg-"]) {
+  background-color: var(--surface);
+}
+
+/*
+ * Sign-in on a narrow screen (below the two-column layout, lg): with a picture
+ * behind it the form would sit straight on the picture, so it gets a panel like
+ * the rest of the app (glass when glass is on). No picture: no panel, as before.
+ */
+@media (max-width: 1023.98px) {
+  html[data-backdrop="on"] .auth-form-panel {
+    padding: 1.25rem;
+    border-radius: var(--radius-card-value);
+    border: 1px solid var(--line-fill);
+    background-color: var(--surface-fill);
+    text-shadow: none;
+  }
+  html[data-backdrop="on"][data-glass="on"] .auth-form-panel {
+    background-image: var(--glass-sheen);
+    -webkit-backdrop-filter: var(--glass-filter-reading);
+    backdrop-filter: var(--glass-filter-reading);
+    box-shadow: var(--glass-highlight), var(--glass-shadow);
+  }
+}
+
 /* No backdrop-filter support, or the person asked for less transparency: near-opaque tints from the solid tokens. */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   html[data-glass="on"] {

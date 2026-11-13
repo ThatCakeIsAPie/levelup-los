@@ -30,6 +30,9 @@ import type { CustomerPipelineData } from "@/data/customerPipeline/types";
 import type { TeamData } from "@/data/team/types";
 import type { EventCategory } from "@/data/eventCategories/types";
 import type { HomeLayout } from "@/data/homeLayout";
+import { fetchTeamLook } from "@/data/teamLook/remote";
+import { useTeamLookStore } from "@/data/teamLook/store";
+import type { TeamLook } from "@/data/teamLook/types";
 import { sanitizeEntries, useStageNamesStore } from "@/data/stageNames/store";
 import { isStageKey, isStagePipeline, type StageNameEntry } from "@/data/stageNames/rules";
 import { useInheritedStageNames, type InheritedStageName } from "@/data/stageNames/inherited";
@@ -110,6 +113,8 @@ export interface CrmSnapshot {
   team: TeamData;
   /** Your Home card layout (RLS: only your own row), by person id. */
   homeLayouts: Record<string, HomeLayout>;
+  /** The team's look (the leader's background, glass, logo and colours); null when the workspace row is not readable. */
+  look: { workspaceId: string; look: TeamLook } | null;
 }
 
 export interface LibrarySnapshot {
@@ -139,6 +144,7 @@ export interface Snapshot {
 export async function fetchCrm(client: SupabaseClient, me: string): Promise<CrmSnapshot> {
   const all = (t: string, order: Order[], limit?: number) => fetchAll(client, t, order, { limit });
   const team = fetchTeam(client);
+  const look = fetchTeamLook(client);
   const [
     people,
     events,
@@ -274,6 +280,7 @@ export async function fetchCrm(client: SupabaseClient, me: string): Promise<CrmS
     activity: activity.map((r) => m.activityFromRow(r, me)),
     team: await team,
     homeLayouts: Object.fromEntries(homeLayouts.map((r) => m.homeLayoutFromRow(r))),
+    look: await look,
   };
 }
 
@@ -649,6 +656,8 @@ export function applyCrm(s: CrmSnapshot): void {
   });
   replaceStore(activityBinding, { events: s.activity });
   replaceStore(homeLayoutBinding, { layouts: s.homeLayouts });
+  // The team's look is not written by the sync engine (only set_workspace_appearance() writes it).
+  if (s.look) useTeamLookStore.setState({ look: s.look.look, workspaceId: s.look.workspaceId });
 }
 
 /**

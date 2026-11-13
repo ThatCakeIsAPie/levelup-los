@@ -70,6 +70,9 @@ export * from "./eventCategories";
 
 // Unlocks (what each person sees), feature switches, leader deputies (src/data/team)
 export * from "./team";
+
+// The team's look: background, glass, logo and colours the leader chose (src/data/teamLook)
+export * from "./teamLook";
 export {
   computeUnlocks,
   unlockStage,
