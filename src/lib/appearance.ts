@@ -4,7 +4,7 @@
  * Everything is driven by the <html> element, so CSS and components never
  * branch on brand or build:
  *   - `data-glass="on" | "off"`     the shared surfaces are translucent blurred glass (src/styles.css)
- *   - `data-backdrop="on" | "off"`  a fixed picture sits behind the app and the page background is transparent
+ *   - `data-backdrop="on" | "off"`  a fixed picture sits behind the app, blurred and tinted into one base layer, and the page background is transparent
  *   - `data-backdrop-source="team" | "brand"`  whose picture it is (a team's own gets a denser scrim)
  *   - `--backdrop-image`, `--backdrop-image-portrait`   the picture(s), as CSS `url()` values
  * The defaults come from `brand` (src/brand/brand.ts). `applyAppearance` changes

@@ -76,8 +76,8 @@
  * Glass and the background picture
  * --------------------------------
  * <html data-glass="on"> turns the shared surfaces into glass; <html
- * data-backdrop="on"> shows a fixed picture (.app-backdrop) behind a
- * transparent page. Both are set from the brand at startup and can be changed
+ * data-backdrop="on"> shows a fixed picture (.app-backdrop), blurred and tinted
+ * into one base layer, behind a transparent page. Both are set from the brand at startup and can be changed
  * at any time with applyAppearance() (src/lib/appearance.ts); nothing in a
  * component depends on the brand or the build. With glass off, every rule
  * below is inert and the plain solid surfaces apply.
@@ -389,6 +389,15 @@ html[data-glass="on"] {
   --side-fill: var(--glass-tint-side);
 }
 
+/*
+ * Text painted in a surface colour (the label on a selected filter chip, a
+ * check mark on a solid fill) must stay solid: under glass the fill tokens
+ * are translucent, and thin text on a pale or coloured fill would turn grey.
+ */
+html[data-glass="on"] :is(.text-surface, .text-card) {
+  color: var(--surface);
+}
+
 /* Outer glass layers. :where keeps the specificity low so the variants below can override. */
 html[data-glass="on"]
   :where(
@@ -417,7 +426,7 @@ html[data-glass="on"] .glass-dark {
   --glass-bg-inner: var(--glass-tint-side);
   background-image: none;
 }
-/* No blur of its own (tint, border and highlight only): for layers that sit over the still picture. */
+/* No blur of its own (tint, border and highlight only): for layers that sit over the already blurred base. */
 html[data-glass="on"] .glass-flat {
   --glass-blur: none;
 }

@@ -72,3 +72,8 @@ Owner's decision: the team's LEADER (not deputies, not anyone else) picks the ba
 - Speed: `backdrop-filter` over many cards on a phone, measured on the pipeline page (see the pull request).
 - Feedback snapshots: drawn from a plain clone; names and contact details are still blacked out.
 - Any new token or brand field on `main` needs a value on every brand branch in the same piece of work.
+
+## Base layer: the picture is blurred behind every page (built)
+
+- What changed: the background picture is no longer shown sharp anywhere. `.app-backdrop` is blurred by a static `filter` (`--backdrop-blur`, 28px) and tinted by `--scrim`, so the page background is the picture seen through one sheet of coloured glass and every panel sits on top; full-screen overlays paint the same layer through a `::before`, a team's own picture gets it too, and the text halo is gone.
+- Why: the owner wanted the team map grid, and then every page, to look like liquid glass (the art visible but blurred, under one layer of the theme's colour), and with nothing on sharp artwork the Heroes panels no longer need to be near-opaque (tints 0.84-0.94 became 0.36-0.7), so the art's colour glows through them.

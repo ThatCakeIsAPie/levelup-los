@@ -3,7 +3,7 @@
  * and the fixed background picture would only make the JPEG bigger and the
  * text harder to read (and the blurred base that full-screen overlays paint on a
  * pseudo-element goes too), so when the glass look or the picture is on, the CLONE
- * it renders is made plain: no picture, no blur, no text halo, and every glass
+ * it renders is made plain: no picture, no blur, no text shadow, and every glass
  * surface painted with the solid colour of the plain look.
  *
  * The solid colours are the raw tokens (`--surface`, `--surface-2`, ...): the
