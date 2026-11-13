@@ -225,17 +225,9 @@ emit(
     [
       ["id", "text"],
       ["name", "text"],
-      ["colors", "json"],
       ["timezone", "text"],
     ],
-    [
-      [
-        WORKSPACE_ID,
-        "Demo Team",
-        { navy: "#1a365d", teal: "#067781", sky: "#199bd7", amber: "#f2a93b" },
-        TIMEZONE,
-      ],
-    ],
+    [[WORKSPACE_ID, "Demo Team", TIMEZONE]],
   ),
 );
 

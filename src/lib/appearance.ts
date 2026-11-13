@@ -5,6 +5,7 @@
  * branch on brand or build:
  *   - `data-glass="on" | "off"`     the shared surfaces are translucent blurred glass (src/styles.css)
  *   - `data-backdrop="on" | "off"`  a fixed picture sits behind the app and the page background is transparent
+ *   - `data-backdrop-source="team" | "brand"`  whose picture it is (a team's own gets a denser scrim)
  *   - `--backdrop-image`, `--backdrop-image-portrait`   the picture(s), as CSS `url()` values
  * The defaults come from `brand` (src/brand/brand.ts). `applyAppearance` changes
  * any of them at any time without a reload: a later settings screen where a
@@ -24,6 +25,12 @@ export interface Appearance {
   backgroundImage: string | null;
   /** Phone / portrait picture, same rules. null = reuse `backgroundImage`. */
   backgroundImagePortrait: string | null;
+  /**
+   * The picture is the team's own, not the brand's tuned one: a denser scrim and
+   * tint go over it (`html[data-backdrop-source="team"]` in src/styles.css),
+   * because it can be any picture at all.
+   */
+  teamPicture: boolean;
 }
 
 /** Phones and portrait windows get the portrait picture. Keep in step with `.app-backdrop` in src/styles.css. */
@@ -34,6 +41,7 @@ let snapshot: Appearance = {
   glass: brand.glass,
   backgroundImage: brand.backgroundImage,
   backgroundImagePortrait: brand.backgroundImagePortrait,
+  teamPicture: false,
 };
 const listeners = new Set<() => void>();
 
@@ -71,6 +79,7 @@ function write(a: Appearance): void {
   const portrait = a.backgroundImagePortrait ? imageUrl(a.backgroundImagePortrait) : landscape;
   root.dataset.glass = a.glass ? "on" : "off";
   root.dataset.backdrop = landscape ? "on" : "off";
+  root.dataset.backdropSource = landscape && a.teamPicture ? "team" : "brand";
   if (landscape && portrait) {
     root.style.setProperty("--backdrop-image", cssUrl(landscape));
     root.style.setProperty("--backdrop-image-portrait", cssUrl(portrait));

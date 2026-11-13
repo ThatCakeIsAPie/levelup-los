@@ -1,6 +1,6 @@
 # Plan: background image, glass look and team-chosen theme
 
-Status: IN PROGRESS. Phase 1 (the foundation and the Heroes look) is built and in review (pull request "Glass surfaces and a fixed background picture, off by default"). Phase 2 (a team's leader chooses it in Settings) is NOT STARTED: ask the owner before beginning it.
+Status: IN PROGRESS. Phase 1 (the foundation and the Heroes look) is built and in review (pull request "Glass surfaces and a fixed background picture, off by default"). Phase 2 (a team's leader chooses it in Settings) is built and in review (pull request "Team appearance: the leader chooses background, glass, logo and colours"); what is left is listed under "What is left".
 
 ## What the owner asked for
 
@@ -32,14 +32,38 @@ Built on `main` (plain brands unchanged, pixel for pixel) with one prepared bran
 - Feedback snapshots are taken from a plain clone (no picture, no blur, solid surfaces); redaction is unchanged.
 - Docs: `src/brand/README.md`, `docs/frontend-guide.md`, `AGENTS.md`.
 
-## Phase 2: leader chooses in Settings (not started)
+## Phase 2: leader chooses in Settings (built)
 
-Ask the owner first. What it adds, on top of the phase 1 hooks:
+Owner's decision: the team's LEADER (not deputies, not anyone else) picks the background picture, glass on or off, the logo and the colours in Settings, for the whole team; the light/dark switch stays each person's own; a team can keep a plain background with no glass; free colour choice has guard rails so text never becomes unreadable.
 
-- Team settings (leader and deputies): choose the background picture (upload, or pick from a few), glass on or off, the logo, and the brand colours. The `workspaces` table already has `logo_url` and `colors` columns that nothing uses yet; the picture and the glass flag need new columns (or one `appearance` jsonb), a storage bucket for uploads, and RLS so only leaders and deputies write.
-- On sign-in the app reads the workspace's appearance and calls `applyAppearance(...)`; colours are applied as the same CSS custom properties `src/brand/tokens.css` defines. A leader's choice overrides the brand's and is checked for contrast before saving, because text must stay readable over any picture in both themes.
-- Build on: `applyAppearance`, `useAppearance` and the token set above. A leader-chosen picture also needs a scrim strength and a light and dark glass pair; derive them from the brand's tokens rather than letting a leader type raw values.
-- Open questions for the owner: who may change it (leaders only, or deputies too), whether members can turn glass off for themselves (a per-person accessibility choice, separate from the team's), and a size and type limit for uploaded pictures.
+### What a leader can change (Settings > Team > Appearance)
+
+- Background: Default (the brand's own: a picture for a brand that ships one, none otherwise), None, or Picture (upload). Glass: on or off; it only means something over a picture, so with no picture it is off and the control is disabled.
+- Logo: Default (the brand mark) or an uploaded image shown in place of the mark wherever `Logo` renders for a signed-in member; the wordmark text stays.
+- Colours: Default or custom Main (buttons, links, selected state), Highlight (progress, focus ring, accents) and Sidebar (the dark navigation and dark cards): a colour input plus a hex field each. When a colour had to be adjusted the picker shows the colour actually used next to the chosen one.
+- Changes show on the leader's own screen while editing; Save stores them for the team, Cancel restores what was saved, Reset to default clears every choice.
+
+### How it works
+
+- Data (one migration, `20261019000100_team_appearance.sql`): typed columns on `workspaces` (`background_mode`, `background_path`, `glass`, `logo_path` renamed from the unused `logo_url`, and the unused `colors` jsonb reused for the three colours), so no column is left half used. Written only by `set_workspace_appearance()` (SECURITY DEFINER, `search_path = ''`, leader only, validates everything); direct updates of these columns are revoked. Pictures live in the public `team-appearance` bucket under `<workspace id>/<bg|logo>-<32 random hex>.<ext>`, leader-managed. Details and the policies: `docs/backend.md`, "Team appearance".
+- Colours: `src/lib/teamColors.ts` derives every dependent token for both themes from the three chosen colours (only lightness moves, to keep the contrast rules of `src/brand/tokens.css`; hue is only nudged to stay clear of good/warn/danger). Property-tested on 2 x 2,500 random choices of all three colours, plus edge cases and exact snapshots.
+- Pictures: `src/lib/pictureFiles.ts` accepts PNG, JPEG and WebP by their first bytes (never SVG), resizes and re-encodes in the browser (background <= 2560 px and about 600 KB; logo <= 512 px and about 200 KB). A team's own picture gets a denser scrim and tint (`data-backdrop-source="team"`) than a brand's tuned one.
+- Applying: one module, `src/lib/teamLook.ts`, merges the team's look over the brand and applies it (derived colours in one `<style id="team-look">`, background and glass through `applyAppearance`); the last applied look is cached per signed-in person so the next load paints it before data arrives; signed out and the sign-in page always show the brand. Demo mode keeps the same thing in the browser stores. Frontend guide: "Team appearance".
+
+### Phase 2 leftovers settled
+
+- Heroes: muted, faint and table text now reach 4.5:1 on all 25 scenes (tokens only: darker muted/faint text, denser glass tints and scrim, a darker `--ok`, a less opaque dark `--glass-track`).
+- The "+N" overflow avatar on the dark event card was unreadable on every brand (light text on a light chip): fixed once in `AvatarStack` (`onDark`).
+- On narrow screens the sign-in form gets a glass panel when a picture is behind it.
+
+### What is left
+
+- Members cannot turn glass off for themselves (a per-person accessibility choice); `prefers-reduced-transparency` already makes glass near-opaque.
+- No realtime: a member sees a changed look on the next load or the periodic refresh.
+- Only one background picture per team (no gallery of presets), and no separate light/dark pictures or per-picture crop.
+- Colour choices are three roles; the semantic colours (good, warn, danger) keep the brand's values.
+- Orphan files: if removing a replaced picture fails, the file stays in the bucket (unlinked and unguessable); a cleanup job could remove them.
+- The hosted Supabase path (storage policies, the function) is covered by pgTAP and the integration test in CI, not by a browser run.
 
 ## Things checked in phase 1
 

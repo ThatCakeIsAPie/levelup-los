@@ -30,6 +30,7 @@ import { emptyCustomerPipeline, useCustomerPipelineStore } from "@/data/customer
 import { emptyTeam, useTeamStore } from "@/data/team/store";
 import { useHomeLayoutStore } from "@/data/homeLayoutStore";
 import { useStageNamesStore } from "@/data/stageNames/store";
+import { emptyTeamLook, useTeamLookStore } from "@/data/teamLook/store";
 import { useInheritedStageNames } from "@/data/stageNames/inherited";
 import { ALL_BINDINGS } from "./bindings";
 import {
@@ -195,6 +196,7 @@ export function closeRemoteSession(cancelLoading = true): void {
     useTeamStore.setState(emptyTeam());
     useHomeLayoutStore.setState({ layouts: {} });
     useStageNamesStore.setState({ entries: [] });
+    useTeamLookStore.setState(emptyTeamLook());
   });
   useInheritedStageNames.setState({ rows: [] });
   useLibraryExtras.setState({ teasers: [], names: {} });
