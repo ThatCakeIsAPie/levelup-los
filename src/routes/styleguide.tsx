@@ -237,7 +237,7 @@ function StyleguidePage() {
             total={20}
             className="bg-white/15"
             segments={[
-              { value: 12, className: "bg-sky", label: "Tickets" },
+              { value: 12, className: "bg-progress", label: "Tickets" },
               { value: 3, className: "bg-amber", label: "Planned this week" },
             ]}
           />
@@ -274,7 +274,7 @@ function StyleguidePage() {
           />
           <SegmentedBar
             total={60}
-            segments={[{ value: 45, className: "bg-sky", label: "Pages" }]}
+            segments={[{ value: 45, className: "bg-progress", label: "Pages" }]}
           />
           <div className="flex flex-wrap items-center gap-5">
             <ProgressRing value={0} />

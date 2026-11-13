@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { inPipeline } from "./format";
 
 /** Segment fills, in band order. */
-const FILLS = ["bg-sky", "bg-primary", "bg-amber"];
+const FILLS = ["bg-progress", "bg-primary", "bg-amber"];
 
 /**
  * How many people are in the pipeline right now: every card from the first

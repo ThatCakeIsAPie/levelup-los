@@ -136,7 +136,7 @@ function GoalCard({
           aria-valuenow={Math.min(count, goal)}
         >
           <span
-            className="block h-full rounded-full bg-sky"
+            className="block h-full rounded-full bg-progress"
             style={{ width: `${Math.min(100, (count / goal) * 100)}%` }}
           />
         </div>
@@ -172,7 +172,7 @@ function Trend({
             <i
               className={cn(
                 "block w-full rounded-t",
-                i === series.length - 1 ? "bg-sky" : "bg-track",
+                i === series.length - 1 ? "bg-progress" : "bg-track",
               )}
               style={{ height: `${(s.count / top) * 100}%` }}
             />
@@ -236,7 +236,7 @@ export function Kpis({
             className={cn(
               "grid min-w-0 content-start gap-0.5 rounded-xl border bg-card px-2 py-2 sm:rounded-card sm:px-3.5 sm:py-3",
               m === highlight
-                ? "border-sky shadow-[inset_0_0_0_1px_var(--color-sky)]"
+                ? "border-ring shadow-[inset_0_0_0_1px_var(--color-ring)]"
                 : "border-line",
             )}
           >

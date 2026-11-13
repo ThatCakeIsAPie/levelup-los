@@ -12,6 +12,7 @@ This repo is the unbranded Network Marketing CRM (`main`). Read `README.md`, `sr
 - Names and text come from `brand` (`brand.name`, `brand.teamName`) and `pageTitle()` in `@/lib/brand`. Never write a team or product name in code, docs or tests.
 - Storage keys and IndexedDB names come from `storageKey()` and `dbName()`.
 - Colours come from tokens in `src/brand/tokens.css` only; no hex or rgba values in components.
+- Surfaces come from the shared components (`SectionCard`, `Card`, the `ui/` dialogs, sheets, menus): they turn into glass when a brand switches it on (`docs/frontend-guide.md`, "Glass and the background picture"). A hand-rolled panel that needs a blur adds the `glass` class.
 - If you add a token or a brand field on `main`, add a value for it on every brand branch in the same piece of work, or their builds break or look wrong.
 - Demo fixtures are the same on every branch: logins `@demo.test`, password `demo-local`, workspace `Demo Team`.
 
@@ -30,6 +31,6 @@ Run `npm run typecheck`, `npm run lint`, `npm test` and `npm run build`. Databas
 
 ## Planned work
 
-Plans that are saved but not started live in `docs/plans/`. A plan marked NOT STARTED must not be begun without asking the owner first: at the start of a working session, raise it and ask whether to continue.
+Plans that are saved or in progress live in `docs/plans/`. A plan, or a phase of one, marked NOT STARTED must not be begun without asking the owner first: at the start of a working session, raise it and ask whether to continue.
 
-- `docs/plans/glass-theme-and-brand-options-2026-11-12.md`: background image, glass look and team-chosen theme.
+- `docs/plans/glass-theme-and-brand-options-2026-11-12.md`: background image, glass look and team-chosen theme. IN PROGRESS: phase 1 (the picture, glass surfaces, the Heroes look) is built; phase 2 (the leader chooses it in Settings) is NOT STARTED and needs the owner's go-ahead.

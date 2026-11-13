@@ -104,7 +104,7 @@ function TeamEvent({ event, compact }: { event: CrmEvent; compact?: boolean }) {
       total={Math.max(1, s.invited)}
       className="bg-white/15"
       segments={[
-        { value: s.bought, className: "bg-sky", label: "Tickets bought" },
+        { value: s.bought, className: "bg-progress", label: "Tickets bought" },
         { value: s.plannedThisWeek, className: "bg-amber", label: "Plan to buy this week" },
       ]}
     />

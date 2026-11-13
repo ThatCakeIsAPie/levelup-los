@@ -424,7 +424,7 @@ export function Composer({
           id="mention-list"
           role="listbox"
           aria-label="Mention someone"
-          className="absolute bottom-full left-10 z-20 mb-1 w-64 max-w-[calc(100%-3rem)] overflow-hidden rounded-lg border border-line bg-popover p-1 shadow-lg"
+          className="glass glass-reading absolute bottom-full left-10 z-20 mb-1 w-64 max-w-[calc(100%-3rem)] overflow-hidden rounded-lg border border-line bg-popover p-1 shadow-lg"
         >
           {suggestions.map((p, i) => (
             <li

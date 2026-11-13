@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 /**
  * Stacked horizontal bar on the track color. Each segment's width is
  * `value / total` (total defaults to the sum of values). Give each segment a
- * fill class, e.g. "bg-sky", "bg-amber", or a stage solid "bg-stage-ibo".
+ * fill class, e.g. "bg-progress", "bg-amber", or a stage solid "bg-stage-ibo".
  */
 export function SegmentedBar({
   segments,
@@ -54,7 +54,7 @@ export function ProgressRing({
   stroke,
   label,
   className,
-  arcClassName = "stroke-sky",
+  arcClassName = "stroke-progress",
 }: {
   value: number;
   size?: number;
