@@ -371,7 +371,7 @@ export function ProgressBar({ value, className }: { value: number; className?: s
       aria-valuemax={100}
       aria-valuenow={pct}
     >
-      <span className="block h-full rounded-full bg-sky" style={{ width: `${pct}%` }} />
+      <span className="block h-full rounded-full bg-progress" style={{ width: `${pct}%` }} />
     </div>
   );
 }

@@ -271,7 +271,7 @@ function Sidebar({ onReset }: { onReset: () => void }) {
   return (
     <nav
       aria-label="Main"
-      className="fixed inset-y-0 left-0 z-30 hidden w-[212px] flex-col bg-sidebar px-3 py-[18px] text-sidebar-fg lg:flex"
+      className="glass glass-dark glass-bar fixed inset-y-0 left-0 z-30 hidden w-[212px] flex-col bg-sidebar px-3 py-[18px] text-sidebar-fg lg:flex"
     >
       <Link to="/" className="mb-3.5 rounded-lg px-2 py-0.5 text-white">
         <Logo wordmark tagline />
@@ -448,7 +448,7 @@ function LogFab() {
 }
 
 const TAB_BAR =
-  "relative z-30 grid shrink-0 items-center border-t border-line bg-surface px-1.5 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] lg:hidden";
+  "glass glass-bar relative z-30 grid shrink-0 items-center border-t border-line bg-surface px-1.5 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] lg:hidden";
 
 function TabBar({ onMore }: { onMore: () => void }) {
   const { starter } = useNavAccess();
@@ -546,7 +546,7 @@ function StarterTabBar({ onMore }: { onMore: () => void }) {
  */
 function DesktopBar() {
   return (
-    <header className="relative z-20 hidden h-[52px] shrink-0 items-center justify-end gap-2 border-b border-line bg-surface px-[26px] lg:flex">
+    <header className="glass glass-bar relative z-20 hidden h-[52px] shrink-0 items-center justify-end gap-2 border-b border-line bg-surface px-[26px] lg:flex">
       <LogButton />
     </header>
   );
@@ -562,7 +562,7 @@ function TopBar({ onMore }: { onMore: () => void }) {
     "grid size-10 place-items-center rounded-full text-muted-foreground hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-ring";
   const iconOn = { className: "!text-primary bg-primary-soft", "aria-current": "page" as const };
   return (
-    <header className="relative z-20 flex shrink-0 items-center gap-1 border-b border-line bg-surface px-3 pt-safe lg:hidden">
+    <header className="glass glass-bar relative z-20 flex shrink-0 items-center gap-1 border-b border-line bg-surface px-3 pt-safe lg:hidden">
       <Link to="/" aria-label="Home" className="mr-auto rounded-lg py-2 pr-2 text-foreground">
         <Logo wordmark />
       </Link>

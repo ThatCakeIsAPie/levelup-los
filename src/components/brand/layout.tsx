@@ -62,9 +62,9 @@ export function SectionCard({
   return (
     <section
       className={cn(
-        "grid min-w-0 content-start gap-3 rounded-card border px-4 py-4 sm:px-[18px]",
+        "glass grid min-w-0 content-start gap-3 rounded-card border px-4 py-4 sm:px-[18px]",
         variant === "event"
-          ? "border-transparent bg-event text-event-fg [&_.text-muted-foreground]:text-event-muted"
+          ? "glass-dark border-transparent bg-event text-event-fg [&_.text-muted-foreground]:text-event-muted"
           : "border-line bg-card text-card-foreground",
         className,
       )}
@@ -91,7 +91,7 @@ export function StatTile({
   className?: string;
 }) {
   return (
-    <div className={cn("rounded-[10px] bg-surface-2 px-3 py-2.5", className)}>
+    <div className={cn("glass rounded-[10px] bg-surface-2 px-3 py-2.5", className)}>
       <div className="text-xl font-extrabold tabular-nums leading-tight">{value}</div>
       <div className="text-[11.5px] text-muted-foreground">{label}</div>
     </div>
@@ -112,7 +112,7 @@ export function StatStrip({
   return (
     <div
       className={cn(
-        "grid grid-cols-2 rounded-card border border-line bg-card lg:grid-cols-[repeat(var(--cols),minmax(0,1fr))]",
+        "glass grid grid-cols-2 rounded-card border border-line bg-card lg:grid-cols-[repeat(var(--cols),minmax(0,1fr))]",
         "[&>*:nth-child(even)]:border-l [&>*:nth-child(n+3)]:border-t",
         "lg:[&>*]:border-l lg:[&>*]:border-t-0 lg:[&>*:first-child]:border-l-0",
         className,

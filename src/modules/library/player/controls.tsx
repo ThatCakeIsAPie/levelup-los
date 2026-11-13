@@ -51,10 +51,10 @@ export function SeekBar({
             compact ? "h-1" : "h-1.5",
           )}
         >
-          <SliderPrimitive.Range className="absolute h-full bg-sky" />
+          <SliderPrimitive.Range className="absolute h-full bg-progress" />
         </SliderPrimitive.Track>
         <SliderPrimitive.Thumb
-          className="block size-3.5 rounded-full border-2 border-surface bg-sky shadow focus-visible:outline-2 focus-visible:outline-ring"
+          className="block size-3.5 rounded-full border-2 border-surface bg-progress shadow focus-visible:outline-2 focus-visible:outline-ring"
           aria-label="Position"
         />
       </SliderPrimitive.Root>

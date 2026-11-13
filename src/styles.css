@@ -40,7 +40,12 @@
  * Primary action (dark mode uses a lighter shade with dark text)
  *   bg-primary text-primary-foreground       solid primary button
  *   bg-primary-soft text-primary-ink         "soft" button / selected state
- *   ring-ring / outline-ring                 focus ring
+ *   ring-ring / outline-ring                 focus ring (--focus-ring, per theme)
+ *   bg-progress / stroke-progress            fill of progress bars, rings, chart
+ *                                            segments and dots (--progress-fill,
+ *                                            per theme). Use bg-sky only for
+ *                                            solid highlight buttons and chips
+ *                                            that carry text-on-sky.
  *
  * Stages (BizClass) - use <StageChip>/<PersonAvatar> where possible
  *   IBO         bg-stage-ibo text-stage-ibo-fg                 (solid dark chip)
@@ -67,6 +72,35 @@
  *   face (font-wordmark) is brand-owned.
  * Charts: --chart-1..5 = IBO, apprentice, prospect, customer, highlight
  *   (fill-chart-1...).
+ *
+ * Glass and the background picture
+ * --------------------------------
+ * <html data-glass="on"> turns the shared surfaces into glass; <html
+ * data-backdrop="on"> shows a fixed picture (.app-backdrop) behind a
+ * transparent page. Both are set from the brand at startup and can be changed
+ * at any time with applyAppearance() (src/lib/appearance.ts); nothing in a
+ * component depends on the brand or the build. With glass off, every rule
+ * below is inert and the plain solid surfaces apply.
+ *
+ * How it works (the "Glass" block at the end of this file):
+ *   1. The surface utilities (bg-surface, bg-surface-2, border-line, bg-track,
+ *      bg-card, bg-popover, bg-muted, ...) read --surface-fill, --surface-2-fill,
+ *      --line-fill, --track-fill and --side-fill, which equal the solid tokens
+ *      and, under data-glass="on", the translucent --glass-* ones. The raw
+ *      solid tokens (--surface, ...) are never overridden, so code that needs
+ *      the plain colours (feedback snapshots) can still read them.
+ *   2. OUTER glass layers (class `glass`, or any card written as
+ *      rounded-card + bg-card / bg-surface / bg-popover) get the tint, a blur,
+ *      the highlight and the shadow. Variants: glass-reading (denser: dialogs,
+ *      sheets, menus, toasts), glass-dark (dark glass in both themes: sidebar,
+ *      the event card), glass-flat (tint only, no blur), glass-bar (flat, and no
+ *      drop shadow: full-width bars and panes).
+ *   3. A glass layer inside another one is demoted: the denser tint, no blur
+ *      of its own (a nested backdrop-filter cannot see the picture anyway), so
+ *      blur is never stacked and cards in cards stay readable.
+ * New surfaces: use the shared components (SectionCard, Card, StatStrip,
+ * Dialog, Sheet, Popover, DropdownMenu, Select, ...). A hand-rolled surface
+ * that is not one of those adds `glass` (and `glass-reading` if it floats).
  */
 
 @theme {
@@ -132,10 +166,10 @@
 
   /* Surfaces */
   --color-app: var(--app-bg);
-  --color-surface: var(--surface);
-  --color-surface-2: var(--surface-2);
-  --color-line: var(--line);
-  --color-track: var(--track);
+  --color-surface: var(--surface-fill);
+  --color-surface-2: var(--surface-2-fill);
+  --color-line: var(--line-fill);
+  --color-track: var(--track-fill);
   --color-faint: var(--faint);
   --color-event: var(--event-bg);
   --color-event-fg: var(--event-fg);
@@ -144,6 +178,7 @@
   /* Primary extras */
   --color-primary-soft: var(--primary-soft);
   --color-primary-ink: var(--primary-ink);
+  --color-progress: var(--progress-fill);
 
   /* Stages */
   --color-stage-ibo: var(--stage-ibo);
@@ -180,39 +215,49 @@
   --radius: 9px;
   --radius-card-value: 14px;
 
+  /*
+   * What the surface utilities paint. Solid here; glass (below) swaps them for
+   * translucent tints. The solid tokens themselves are never overridden.
+   */
+  --surface-fill: var(--surface);
+  --surface-2-fill: var(--surface-2);
+  --line-fill: var(--line);
+  --track-fill: var(--track);
+  --side-fill: var(--side);
+
   /* shadcn mapping */
   --background: var(--app-bg);
   --foreground: var(--fg);
-  --card: var(--surface);
+  --card: var(--surface-fill);
   --card-foreground: var(--fg);
-  --popover: var(--surface);
+  --popover: var(--surface-fill);
   --popover-foreground: var(--fg);
   --primary: var(--primary-base);
   --primary-foreground: var(--on-primary);
-  --secondary: var(--surface-2);
+  --secondary: var(--surface-2-fill);
   --secondary-foreground: var(--fg);
-  --muted: var(--surface-2);
+  --muted: var(--surface-2-fill);
   --muted-foreground: var(--muted-text);
-  --accent: var(--surface-2);
+  --accent: var(--surface-2-fill);
   --accent-foreground: var(--fg);
   --destructive: var(--danger);
   --destructive-foreground: var(--on-danger);
-  --border: var(--line);
-  --input: var(--line);
-  --ring: var(--brand-sky);
+  --border: var(--line-fill);
+  --input: var(--line-fill);
+  --ring: var(--focus-ring);
   --chart-1: var(--stage-ibo);
   --chart-2: var(--stage-apprentice);
   --chart-3: var(--stage-prospect);
   --chart-4: var(--stage-customer);
   --chart-5: var(--brand-sky);
-  --sidebar: var(--side);
+  --sidebar: var(--side-fill);
   --sidebar-foreground: var(--side-fg);
   --sidebar-primary: var(--brand-teal);
   --sidebar-primary-foreground: var(--on-side);
   --sidebar-accent: var(--side-active-bg);
   --sidebar-accent-foreground: var(--on-side);
   --sidebar-border: var(--side-line);
-  --sidebar-ring: var(--brand-sky);
+  --sidebar-ring: var(--focus-ring);
 }
 
 @layer base {
@@ -257,5 +302,173 @@
   }
   .pt-safe {
     padding-top: env(safe-area-inset-top);
+  }
+}
+
+/*
+ * Glass. Unlayered on purpose: it must win over the utility classes, and every
+ * rule starts with html[data-glass="on"] (or data-backdrop="on"), so with the
+ * switch off none of it applies. Colours and filters come from the --glass-*
+ * tokens in src/brand/tokens.css; this block holds structure only.
+ */
+
+/* The picture. Layers are shared with full-screen overlays (.bg-app.fixed) so they match it. */
+html[data-backdrop="on"] {
+  background-color: var(--app-bg);
+  --backdrop-fill: linear-gradient(var(--scrim), var(--scrim)), var(--backdrop-image);
+}
+@media (max-aspect-ratio: 1 / 1), (max-width: 760px) {
+  html[data-backdrop="on"] {
+    --backdrop-fill: linear-gradient(var(--scrim), var(--scrim)), var(--backdrop-image-portrait);
+  }
+}
+html[data-backdrop="on"] body,
+html[data-backdrop="on"] .bg-app:not(.glass) {
+  background-color: transparent;
+}
+/* A full-screen overlay hides the page behind it, so it carries the same picture, in the same place. */
+html[data-backdrop="on"] .bg-app.fixed:not(.glass) {
+  background-color: var(--app-bg);
+  background-image: var(--backdrop-fill);
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+/*
+ * Text that sits directly on the picture (a page title, a tab strip, a section
+ * label) has no surface behind it, so it gets a soft halo in the page colour:
+ * it stays readable over the brightest part of the artwork. Anything inside a
+ * glass layer or an element that has its own fill (a bg-* class, a selected
+ * tab or pill) has none.
+ */
+html[data-backdrop="on"] body {
+  --halo: color-mix(in srgb, var(--app-bg) 96%, transparent);
+  text-shadow:
+    0 0 1px var(--halo),
+    0 0 2px var(--halo),
+    0 0 3px var(--halo),
+    0 0 4px var(--halo),
+    0 0 6px var(--halo),
+    0 0 8px var(--halo),
+    0 0 12px var(--halo),
+    0 0 16px var(--halo);
+}
+/* Form controls reset text-shadow in the browser's own stylesheet; let them follow their surroundings. */
+html[data-backdrop="on"] :is(button, input, select, textarea) {
+  text-shadow: inherit;
+}
+html[data-backdrop="on"]
+  :is(
+    .glass,
+    [class^="bg-"],
+    [class*=" bg-"],
+    [data-state="on"],
+    [data-state="active"],
+    [data-state="checked"],
+    [aria-selected="true"],
+    [aria-pressed="true"]
+  ):not(.bg-app, .bg-transparent, .bg-surface-2) {
+  text-shadow: none;
+}
+/* Fixed to the viewport (not background-attachment: fixed, which breaks on iOS), behind everything, never animated. */
+.app-backdrop {
+  position: fixed;
+  inset: 0;
+  height: 100vh;
+  height: 100lvh;
+  z-index: -1;
+  pointer-events: none;
+  background-image: var(--backdrop-fill);
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+/* Surface fills become glass. */
+html[data-glass="on"] {
+  --surface-fill: var(--glass-tint-reading);
+  --surface-2-fill: var(--glass-tint-inset);
+  --line-fill: var(--glass-border);
+  --track-fill: var(--glass-track);
+  --side-fill: var(--glass-tint-side);
+}
+
+/* Outer glass layers. :where keeps the specificity low so the variants below can override. */
+html[data-glass="on"]
+  :where(
+    .glass,
+    :is(.rounded-card, [class*=":rounded-card"]):is(.bg-card, .bg-surface, .bg-popover)
+  ) {
+  --glass-bg: var(--glass-tint);
+  --glass-bg-inner: var(--glass-tint-reading);
+  --glass-blur: var(--glass-filter);
+  background-color: var(--glass-bg);
+  background-image: var(--glass-sheen);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  /* Rings and inset accents a component sets (utilities ring-*, shadow-[inset...]) stay on top of the glass shadow. */
+  box-shadow:
+    var(--tw-inset-shadow, 0 0 #0000), var(--tw-inset-ring-shadow, 0 0 #0000),
+    var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000),
+    var(--tw-shadow, 0 0 #0000), var(--glass-highlight), var(--glass-shadow);
+}
+html[data-glass="on"] .glass-reading {
+  --glass-bg: var(--glass-tint-reading);
+  --glass-blur: var(--glass-filter-reading);
+}
+html[data-glass="on"] .glass-dark {
+  --glass-bg: var(--glass-tint-side);
+  --glass-bg-inner: var(--glass-tint-side);
+  background-image: none;
+}
+/* No blur of its own (tint, border and highlight only): for layers that sit over the still picture. */
+html[data-glass="on"] .glass-flat {
+  --glass-blur: none;
+}
+html[data-glass="on"] .glass-bar {
+  --glass-blur: none;
+  box-shadow:
+    var(--tw-inset-shadow, 0 0 #0000), var(--tw-inset-ring-shadow, 0 0 #0000),
+    var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000),
+    var(--tw-shadow, 0 0 #0000), var(--glass-highlight);
+}
+/* A glass layer inside another: the denser tint, no blur of its own, no drop shadow. */
+html[data-glass="on"]
+  :where(
+    .glass,
+    :is(.rounded-card, [class*=":rounded-card"]):is(.bg-card, .bg-surface, .bg-popover)
+  )
+  :is(.glass, :is(.rounded-card, [class*=":rounded-card"]):is(.bg-card, .bg-surface, .bg-popover)) {
+  --glass-bg: var(--glass-bg-inner);
+  background-image: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow:
+    var(--tw-inset-shadow, 0 0 #0000), var(--tw-inset-ring-shadow, 0 0 #0000),
+    var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000),
+    var(--tw-shadow, 0 0 #0000), var(--glass-highlight);
+}
+
+/* No backdrop-filter support, or the person asked for less transparency: near-opaque tints from the solid tokens. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  html[data-glass="on"] {
+    --glass-tint: color-mix(in srgb, var(--surface) 94%, transparent);
+    --glass-tint-reading: var(--surface);
+    --glass-tint-inset: var(--surface-2);
+    --glass-tint-side: var(--side);
+    --glass-track: var(--track);
+    --glass-filter: none;
+    --glass-filter-reading: none;
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  html[data-glass="on"] {
+    --glass-tint: color-mix(in srgb, var(--surface) 94%, transparent);
+    --glass-tint-reading: var(--surface);
+    --glass-tint-inset: var(--surface-2);
+    --glass-tint-side: var(--side);
+    --glass-track: var(--track);
+    --glass-filter: none;
+    --glass-filter-reading: none;
   }
 }

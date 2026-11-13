@@ -168,7 +168,7 @@ function Funnel({ conv }: { conv: PipelineConversions }) {
                 <i
                   className={cn(
                     "block h-full rounded-md",
-                    m === "registered" ? "bg-good" : "bg-sky",
+                    m === "registered" ? "bg-good" : "bg-progress",
                   )}
                   style={{ width: `${(n / top) * 100}%` }}
                 />

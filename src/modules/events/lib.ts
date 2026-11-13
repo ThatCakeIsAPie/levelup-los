@@ -56,7 +56,7 @@ export type StageKey = "invited" | "interested" | "date" | "ticket" | "attended"
 
 export const STAGES: { key: StageKey; label: string; funnelLabel: string; dot: string }[] = [
   { key: "invited", label: "Invited", funnelLabel: "Invited", dot: "bg-faint" },
-  { key: "interested", label: "Interested", funnelLabel: "Interested", dot: "bg-sky" },
+  { key: "interested", label: "Interested", funnelLabel: "Interested", dot: "bg-progress" },
   { key: "date", label: "Date set", funnelLabel: "Committed", dot: "bg-amber" },
   { key: "ticket", label: "Ticket", funnelLabel: "Has a ticket", dot: "bg-teal" },
   { key: "attended", label: "Attended", funnelLabel: "Attended", dot: "bg-good" },

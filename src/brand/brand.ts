@@ -25,6 +25,20 @@ export const brand = {
   /** Browser chrome colour: `initial` is the static <meta theme-color>, light/dark match --app-bg. */
   themeColor: { initial: "#142423", light: "#F4EFE3", dark: "#0E1C1A" },
   /**
+   * Fixed background picture, as a file name in src/brand/public (served from the
+   * site's base path). The picture never moves; the app scrolls in front of it.
+   * null = no picture: the page keeps its plain --app-bg colour.
+   */
+  backgroundImage: null as string | null,
+  /** Picture for phones and portrait windows (same rules). null = reuse backgroundImage. */
+  backgroundImagePortrait: null as string | null,
+  /**
+   * Glass look on by default: cards, bars, sheets, dialogs and menus become
+   * translucent blurred glass over the page (the --glass-* tokens in tokens.css).
+   * false = plain solid surfaces. Works with or without a background picture.
+   */
+  glass: false as boolean,
+  /**
    * Colours for generated demo artwork (placeholder thumbnails, the demo map,
    * demo PDFs). They are baked into images and files, so they are not theme
    * tokens.

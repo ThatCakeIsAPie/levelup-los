@@ -27,7 +27,7 @@ import { fmtDate } from "./format";
 
 const DOT_CLASS: Record<Dot, string> = {
   primary: "bg-primary",
-  sky: "bg-sky",
+  sky: "bg-progress",
   amber: "bg-amber",
   navy: "bg-stage-ibo",
   neutral: "bg-muted-foreground",

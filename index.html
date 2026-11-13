@@ -23,6 +23,9 @@
         var root = document.documentElement;
         if (dark) root.classList.add("dark");
         root.style.colorScheme = dark ? "dark" : "light";
+        // Glass look and background picture defaults (src/lib/appearance.ts changes them later).
+        root.dataset.glass = "%BRAND_GLASS%";
+        root.dataset.backdrop = "%BRAND_BACKDROP%";
       })();
     </script>
   </head>
