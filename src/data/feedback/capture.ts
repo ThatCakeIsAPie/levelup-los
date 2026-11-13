@@ -4,6 +4,9 @@
  * encoded as JPEG and kept under SNAPSHOT_MAX_BYTES. The capture library
  * (modern-screenshot) is loaded on demand, so it isn't in the main bundle.
  *
+ * With the glass look or the background picture on, the clone is made plain (no
+ * blur, no picture, solid surfaces: ./plain.ts), so the JPEG stays legible and small.
+ *
  * Sensitive things (people's names, contact details, ID numbers, notes, chat
  * text, photos) are painted as solid black bars in the clone the library renders:
  * marked elements (src/lib/sensitive.ts) and, as a safety net, any text that holds
@@ -13,6 +16,7 @@
  * Never throws: a failure, or taking longer than SNAPSHOT_TIMEOUT_MS, gives null
  * and the feedback dialog simply opens without a picture.
  */
+import { makeClonePlain, needsPlainSnapshot, readPlainTokens } from "./plain";
 import { redactClone } from "./redactDom";
 import { fitImage } from "./rules";
 import { currentSensitiveMatcher } from "./values";
@@ -55,6 +59,9 @@ async function capture(): Promise<Blob | null> {
   const { domToCanvas } = await import("modern-screenshot");
   const width = window.innerWidth;
   const height = window.innerHeight;
+  // Glass and the fixed picture cannot be drawn by the library: the clone is made plain.
+  const root = document.documentElement;
+  const plain = needsPlainSnapshot(root) ? readPlainTokens(root) : null;
   const canvas = await domToCanvas(document.documentElement, {
     width,
     height,
@@ -63,13 +70,16 @@ async function capture(): Promise<Blob | null> {
     timeout: SNAPSHOT_TIMEOUT_MS - 500,
     // The library player's idle <video> has no source and would make the capture wait forever.
     filter: (node) =>
-      !(node instanceof HTMLMediaElement && !node.currentSrc) && !startsBelowViewport(node),
+      !(node instanceof HTMLMediaElement && !node.currentSrc) &&
+      !(plain && node instanceof Element && node.classList.contains("app-backdrop")) &&
+      !startsBelowViewport(node),
     // The shell scrolls inside <main>, not the page: draw it where it is scrolled to.
     features: { restoreScrollPosition: true },
     // Names and contact details become black bars, in the clone only (the live page is never touched).
     onCloneNode: (clone) => {
       if (!(clone instanceof Element)) return;
       relaxTables(clone);
+      if (plain) makeClonePlain(clone, plain);
       redactClone(clone, currentSensitiveMatcher());
     },
   });

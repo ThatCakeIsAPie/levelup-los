@@ -116,7 +116,7 @@ export function TitleCombobox({
           id={listId}
           role="listbox"
           aria-label={`${noun} suggestions`}
-          className="absolute inset-x-0 top-full z-50 mt-1 max-h-72 overflow-y-auto rounded-lg border border-line bg-popover p-1 text-popover-foreground shadow-md"
+          className="glass glass-reading absolute inset-x-0 top-full z-50 mt-1 max-h-72 overflow-y-auto rounded-lg border border-line bg-popover p-1 text-popover-foreground shadow-md"
         >
           {rows.map((row, i) => {
             const source = sourceOf(row);

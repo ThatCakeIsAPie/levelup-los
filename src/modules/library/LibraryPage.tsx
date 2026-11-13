@@ -90,7 +90,7 @@ function ChannelListAside({ activeId }: { activeId?: string }) {
   const groups = useMemo(() => groupChannels(views), [views]);
   return (
     <aside
-      className="flex w-[272px] shrink-0 flex-col border-r border-line bg-surface"
+      className="glass glass-bar flex w-[272px] shrink-0 flex-col border-r border-line bg-surface"
       aria-label="Channels"
     >
       <div className="px-4 pt-[18px] pb-2">

@@ -79,11 +79,11 @@ export function ChatsScreen({
       <div className="flex min-h-0 flex-1">
         <aside
           aria-label="Chat list"
-          className="w-[300px] shrink-0 overflow-y-auto border-r border-line bg-surface px-3.5 py-4"
+          className="glass glass-bar w-[300px] shrink-0 overflow-y-auto border-r border-line bg-surface px-3.5 py-4"
         >
           <ChatList selectedId={selectedId} tab={tab} onTab={setTab} />
         </aside>
-        <div className="flex min-w-0 flex-1 flex-col">
+        <div className="glass glass-bar flex min-w-0 flex-1 flex-col">
           {selectedId ? (
             <ConversationView
               id={selectedId}
@@ -106,7 +106,7 @@ export function ChatsScreen({
         {inlineDetails && (
           <aside
             aria-label="Chat details"
-            className="w-[260px] shrink-0 overflow-y-auto border-l border-line bg-surface px-3.5 py-4"
+            className="glass glass-bar w-[260px] shrink-0 overflow-y-auto border-l border-line bg-surface px-3.5 py-4"
           >
             <DetailsPanel id={selectedId} onClose={togglePane} />
           </aside>
@@ -125,7 +125,7 @@ export function ChatsScreen({
   }
   // Full screen above the tab bar: a conversation has its own composer at the bottom.
   return (
-    <div className="fixed inset-0 z-40 flex flex-col bg-app pb-safe pt-safe">
+    <div className="glass glass-bar fixed inset-0 z-40 flex flex-col bg-app pb-safe pt-safe">
       <ConversationView
         id={selectedId}
         focusMessageId={focusMessageId}

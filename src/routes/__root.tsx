@@ -12,6 +12,7 @@ import {
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
 import { AppShell } from "@/components/shell/AppShell";
+import { AppBackdrop } from "@/components/shell/AppBackdrop";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useIsDesktop } from "@/hooks/use-media-query";
@@ -106,6 +107,8 @@ function RootComponent() {
     <>
       {/* Renders route head() tags; React 19 hoists <title>/<meta> into <head>. */}
       <HeadContent />
+      {/* The fixed background picture, when the brand (or a later setting) has one. */}
+      <AppBackdrop />
       {/* One provider for every Tooltip in the app. */}
       <TooltipProvider delayDuration={200}>
         <SessionGate />

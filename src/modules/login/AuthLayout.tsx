@@ -97,7 +97,7 @@ function BrandPanel({ headline, blurb }: { headline?: ReactNode; blurb?: ReactNo
     .filter(Boolean)
     .join(" · ");
   return (
-    <aside className="relative isolate overflow-hidden bg-sidebar px-5 pb-6 pt-[calc(1.5rem+env(safe-area-inset-top))] text-white lg:flex lg:flex-col lg:px-12 lg:py-12">
+    <aside className="glass glass-dark glass-bar relative isolate overflow-hidden bg-sidebar px-5 pb-6 pt-[calc(1.5rem+env(safe-area-inset-top))] text-white lg:flex lg:flex-col lg:px-12 lg:py-12">
       <LogoMotif />
       <div className="text-white">
         <Logo size="lg" wordmark tagline />

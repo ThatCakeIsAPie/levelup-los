@@ -247,7 +247,7 @@ function Channel({
       ) : (
         <div className="grid gap-0.5 px-2 pt-2 pb-8 lg:px-[18px]">
           {edit && (
-            <div className="sticky top-0 z-10 mb-2 flex flex-wrap items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2">
+            <div className="glass glass-reading sticky top-0 z-10 mb-2 flex flex-wrap items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2">
               <b className="mr-auto text-[13px]">
                 Editing lessons
                 <span className="ml-2 hidden font-normal text-muted-foreground lg:inline">
