@@ -460,18 +460,24 @@ html[data-glass="on"]
  * event card are dark glass in both themes and get a dense tint in both.
  */
 html[data-backdrop-source="team"] {
-  --scrim: color-mix(in srgb, var(--app-bg) 52%, transparent);
-  --glass-tint: color-mix(in srgb, var(--surface) 76%, transparent);
-  --glass-tint-reading: color-mix(in srgb, var(--surface) 90%, transparent);
-  --glass-tint-inset: color-mix(in srgb, var(--surface-2) 80%, transparent);
-  --glass-tint-side: color-mix(in srgb, var(--side) 90%, transparent);
+  --scrim: color-mix(in srgb, var(--app-bg) 80%, transparent);
+  --glass-tint: color-mix(in srgb, var(--surface) 88%, transparent);
+  --glass-tint-reading: color-mix(in srgb, var(--surface) 95%, transparent);
+  --glass-tint-inset: color-mix(in srgb, var(--surface-2) 90%, transparent);
+  --glass-tint-side: color-mix(in srgb, var(--side) 94%, transparent);
+  --glass-track: var(--track);
 }
 html.dark[data-backdrop-source="team"] {
-  --scrim: color-mix(in srgb, var(--app-bg) 62%, transparent);
-  --glass-tint: color-mix(in srgb, var(--surface) 78%, transparent);
-  --glass-tint-reading: color-mix(in srgb, var(--surface) 90%, transparent);
-  --glass-tint-inset: color-mix(in srgb, var(--surface-2) 82%, transparent);
-  --glass-tint-side: color-mix(in srgb, var(--side) 88%, transparent);
+  --scrim: color-mix(in srgb, var(--app-bg) 76%, transparent);
+  --glass-tint-side: color-mix(in srgb, var(--side) 92%, transparent);
+}
+/*
+ * A picture with glass OFF (a team's choice): a pane that is only a `glass`
+ * layer has no fill of its own then (the glass rules are off), so its text
+ * would sit straight on the picture. Give it the solid surface.
+ */
+html[data-backdrop="on"][data-glass="off"] .glass:not([class*="bg-"]) {
+  background-color: var(--surface);
 }
 
 /*
