@@ -6,6 +6,8 @@ interface ImportMetaEnv {
   readonly VITE_DATA_SOURCE?: string;
   readonly VITE_SUPABASE_URL?: string;
   readonly VITE_SUPABASE_ANON_KEY?: string;
+  /** "owner/repo" that the Feedback button files GitHub issues on; unset = upstream, "off" = none. */
+  readonly VITE_FEEDBACK_GITHUB_REPO?: string;
 }
 
 interface ImportMeta {

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ImageOff } from "lucide-react";
+import { ExternalLink, ImageOff } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,8 +14,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import {
+  FEEDBACK_GITHUB_REPO,
   FEEDBACK_LOCAL_ONLY,
   FEEDBACK_MAX_LENGTH,
+  buildIssueUrl,
   feedbackMessageError,
   sendFeedback,
 } from "@/data";
@@ -55,6 +57,7 @@ function FeedbackForm({
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [touched, setTouched] = useState(false);
+  const [issueUrl, setIssueUrl] = useState<string | null>(null);
   const preview = usePreviewUrl(image);
   const problem = feedbackMessageError(message);
   const tooLong = message.trim().length > FEEDBACK_MAX_LENGTH;
@@ -67,6 +70,13 @@ function FeedbackForm({
     setError(null);
     try {
       await sendFeedback({ id, message, context, image });
+      const url = buildIssueUrl(FEEDBACK_GITHUB_REPO, { message, context });
+      // The link is a real anchor the person clicks: a tab opened after the await would be blocked.
+      if (url) {
+        setIssueUrl(url);
+        setSending(false);
+        return;
+      }
       closeFeedback();
       if (FEEDBACK_LOCAL_ONLY)
         toast.success("Saved in this browser only", {
@@ -77,6 +87,40 @@ function FeedbackForm({
       setError(e instanceof Error && e.message ? e.message : "Couldn't send your feedback.");
       setSending(false);
     }
+  }
+
+  if (issueUrl) {
+    return (
+      <DialogContent className="max-h-[90dvh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>
+            {FEEDBACK_LOCAL_ONLY ? "Saved in this browser" : "Your feedback was sent"}
+          </DialogTitle>
+          <DialogDescription>
+            {FEEDBACK_LOCAL_ONLY
+              ? "This demo has no server, so only this browser's admin login can read it."
+              : "The app's admins can read it in Settings > Feedback."}{" "}
+            To also send it to the people who build the app, file it as a GitHub issue on{" "}
+            {FEEDBACK_GITHUB_REPO}.
+          </DialogDescription>
+        </DialogHeader>
+        <p className="text-xs text-muted-foreground">
+          The form opens in a new tab with your message filled in. You need a GitHub account, and
+          the issue is public, so check the text first. The snapshot can't be attached for you:
+          paste or attach it there if you want.
+        </p>
+        <DialogFooter className="gap-2 sm:gap-2">
+          <Button type="button" variant="outline" onClick={closeFeedback}>
+            Done
+          </Button>
+          <Button asChild>
+            <a href={issueUrl} target="_blank" rel="noopener noreferrer">
+              <ExternalLink aria-hidden="true" /> File on GitHub
+            </a>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    );
   }
 
   return (
@@ -157,6 +201,8 @@ function FeedbackForm({
           {FEEDBACK_LOCAL_ONLY
             ? "This demo has no server. Your report is saved in this browser only, and the admin login here can read it."
             : "Your name, message and screenshot go to the app's admins. Nobody else sees them."}
+          {FEEDBACK_GITHUB_REPO &&
+            ` Next you can also file it as a public GitHub issue on ${FEEDBACK_GITHUB_REPO}; your name and screenshot are not included.`}
         </p>
 
         {error && (
