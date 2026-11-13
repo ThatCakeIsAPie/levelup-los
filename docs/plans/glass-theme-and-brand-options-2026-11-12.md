@@ -1,6 +1,6 @@
 # Plan: background image, glass look and team-chosen theme
 
-Status: IN PROGRESS. Phase 1 (the foundation and the Heroes look) is built and in review (pull request "Glass surfaces and a fixed background picture, off by default"). Phase 2 (a team's leader chooses it in Settings) is built and in review (pull request "Team appearance: the leader chooses background, glass, logo and colours"); what is left is listed under "What is left".
+Status: BUILT (2026-11-13). Phase 1 (the foundation and the first brand look) and phase 2 (a team's leader chooses it in Settings) are merged to `main` and carried down to every brand branch. Still open, for the owner to decide: on a light theme the brand picture is mostly washed out by the light frosted glass (more of the picture means lower text contrast, or a separate picture for the light theme). Not yet tried by hand on a hosted database: saving an appearance as a real leader.
 
 ## What the owner asked for
 
