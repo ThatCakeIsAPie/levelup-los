@@ -353,7 +353,7 @@ export function MindmapCanvas({ root, canAdd }: Props) {
         dragging ? "cursor-grabbing" : "cursor-grab",
       )}
       style={{
-        backgroundImage: "radial-gradient(circle, var(--line) 1.2px, transparent 1.3px)",
+        backgroundImage: "radial-gradient(circle, var(--line-fill) 1.2px, transparent 1.3px)",
         backgroundSize: `${dots}px ${dots}px`,
         backgroundPosition: `${view.x}px ${view.y}px`,
       }}
@@ -383,7 +383,12 @@ export function MindmapCanvas({ root, canAdd }: Props) {
           className="pointer-events-none absolute inset-0 overflow-visible"
           aria-hidden="true"
         >
-          <g fill="none" strokeLinejoin="round" style={{ stroke: "var(--line)" }} strokeWidth={2}>
+          <g
+            fill="none"
+            strokeLinejoin="round"
+            style={{ stroke: "var(--line-fill)" }}
+            strokeWidth={2}
+          >
             {laid.edges.map((e) =>
               isHot(e) ? null : <path key={`${e.from}-${e.to}`} d={edgePath(nodeMap, e)} />,
             )}

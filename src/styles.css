@@ -338,42 +338,6 @@ html[data-backdrop="on"] .bg-app.fixed:not(.glass) {
   background-color: var(--app-bg);
 }
 /*
- * Text that sits directly on the picture (a page title, a tab strip, a section
- * label) has no surface behind it, so it gets a soft halo in the page colour:
- * it stays readable over the brightest part of the artwork. Anything inside a
- * glass layer or an element that has its own fill (a bg-* class, a selected
- * tab or pill) has none.
- */
-html[data-backdrop="on"] body {
-  --halo: color-mix(in srgb, var(--app-bg) 96%, transparent);
-  text-shadow:
-    0 0 1px var(--halo),
-    0 0 2px var(--halo),
-    0 0 3px var(--halo),
-    0 0 4px var(--halo),
-    0 0 6px var(--halo),
-    0 0 8px var(--halo),
-    0 0 12px var(--halo),
-    0 0 16px var(--halo);
-}
-/* Form controls reset text-shadow in the browser's own stylesheet; let them follow their surroundings. */
-html[data-backdrop="on"] :is(button, input, select, textarea) {
-  text-shadow: inherit;
-}
-html[data-backdrop="on"]
-  :is(
-    .glass,
-    [class^="bg-"],
-    [class*=" bg-"],
-    [data-state="on"],
-    [data-state="active"],
-    [data-state="checked"],
-    [aria-selected="true"],
-    [aria-pressed="true"]
-  ):not(.bg-app, .bg-transparent, .bg-surface-2) {
-  text-shadow: none;
-}
-/*
  * The base layer: the picture seen through ONE sheet of tinted glass, for the
  * whole viewport. The picture is blurred by a plain `filter` on this static
  * fixed layer (rasterised once; a viewport-sized backdrop-filter would be
@@ -385,10 +349,17 @@ html[data-backdrop="on"]
  * on iOS), behind everything, never animated. Full-screen overlays
  * (.bg-app.fixed) paint the same layer through their ::before, so keep the
  * two in this one rule.
- * --backdrop-blur is the blur radius; a brand may set another in tokens.css.
+ * --backdrop-blur is the blur radius; --backdrop-tone is any further filter
+ * functions for the layer (saturate(), brightness()), applied to the picture
+ * AND its tint. Both default here and may be set by a brand in tokens.css
+ * (:where keeps this default from outranking the brand).
+ *
+ * With the picture blurred and tinted nothing sits on sharp artwork, so text
+ * that stands directly on the page (titles, tab strips) needs no halo.
  */
 :where(:root) {
   --backdrop-blur: 28px;
+  --backdrop-tone: saturate(100%);
 }
 .app-backdrop,
 html[data-backdrop="on"] .bg-app.fixed:not(.glass)::before {
@@ -405,8 +376,8 @@ html[data-backdrop="on"] .bg-app.fixed:not(.glass)::before {
   background-position: center;
   background-size: cover;
   background-repeat: no-repeat;
-  -webkit-filter: blur(var(--backdrop-blur));
-  filter: blur(var(--backdrop-blur));
+  -webkit-filter: blur(var(--backdrop-blur)) var(--backdrop-tone);
+  filter: blur(var(--backdrop-blur)) var(--backdrop-tone);
 }
 
 /* Surface fills become glass. */
@@ -516,7 +487,6 @@ html[data-backdrop="on"][data-glass="off"] .glass:not([class*="bg-"]) {
     border-radius: var(--radius-card-value);
     border: 1px solid var(--line-fill);
     background-color: var(--surface-fill);
-    text-shadow: none;
   }
   html[data-backdrop="on"][data-glass="on"] .auth-form-panel {
     background-image: var(--glass-sheen);
