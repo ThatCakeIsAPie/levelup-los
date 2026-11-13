@@ -90,6 +90,13 @@ export const GENERIC_BASE: BrandBase = {
 
 /** Smallest OKLab distance between a derived solid and a semantic colour in the same theme. */
 export const MIN_SEPARATION = 0.06;
+
+/**
+ * A distance as it is reported. `**` and `Math.pow` differ in the last bit between JavaScript engine
+ * versions, so the raw number differs by 1e-16 from one Node to the next; six decimals are the same
+ * everywhere and far finer than the 0.06 rule they are compared with (the rule itself uses the raw value).
+ */
+const reported = (d: number): number => Math.round(d * 1e6) / 1e6;
 /** The sidebar's luminance cap: white text on it is above 15:1 and a 3:1 focus ring still exists on both the sidebar and the light track. */
 export const SIDEBAR_MAX_LUMINANCE = 0.02;
 
@@ -339,7 +346,7 @@ export interface RoleResult {
   chosen: string;
   used: Pair;
   adjusted: Pair<boolean>;
-  /** Smallest distance to a semantic colour (null for the sidebar: dark and neutral). */
+  /** Smallest distance to a semantic colour, to 6 decimals (null for the sidebar: dark and neutral). */
   separation: number | null;
   /** True when the rule above is met (always true for the sidebar). */
   separated: boolean;
@@ -403,7 +410,7 @@ export function deriveTeamColors(
       chosen: main,
       used: m.base,
       adjusted: { light: !same(m.base.light, main), dark: !same(m.base.dark, main) },
-      separation: r.distance,
+      separation: reported(r.distance),
       separated: r.separated,
       turned: r.turned,
     };
@@ -441,7 +448,7 @@ export function deriveTeamColors(
         light: !same(h.accent.light, highlight),
         dark: !same(h.accent.dark, highlight),
       },
-      separation: r.distance,
+      separation: reported(r.distance),
       separated: r.separated,
       turned: r.turned,
     };
