@@ -150,8 +150,8 @@
   --line: #ddd5c0;
   --track: #ddd5c0;
   --fg: #142423;
-  --muted-text: #4a5a54;
-  --faint: #5b6862;
+  --muted-text: #3d4d47;
+  --faint: #53605a;
   --primary-base: #1d5546;
   --on-primary: #f8f4ec;
   --primary-soft: #dde8dc;
@@ -167,7 +167,7 @@
   --danger: #b3122e;
   --danger-soft: #fbe1e5;
   --on-danger: #ffffff;
-  --ok: #256f40;
+  --ok: #17512c;
   --ok-soft: #dcebdc;
   --side: #142423;
   --side-fg: #c4b49a;
@@ -209,9 +209,9 @@
   --progress-fill: #8f6b12;
 
   /* Glass over the stained-glass picture (light): parchment frosted glass. */
-  --glass-tint: rgba(251, 248, 241, 0.8);
-  --glass-tint-reading: rgba(251, 248, 241, 0.92);
-  --glass-tint-inset: rgba(236, 230, 214, 0.78);
+  --glass-tint: rgba(251, 248, 241, 0.88);
+  --glass-tint-reading: rgba(251, 248, 241, 0.94);
+  --glass-tint-inset: rgba(236, 230, 214, 0.9);
   --glass-tint-side: rgba(9, 18, 17, 0.8);
   --glass-filter: blur(24px) saturate(150%);
   --glass-filter-reading: blur(28px) saturate(150%);
@@ -221,7 +221,7 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.7), inset 0 0 0 1px rgba(255, 255, 255, 0.2);
   --glass-shadow: 0 16px 44px rgba(9, 18, 17, 0.18);
   --glass-sheen: linear-gradient(135deg, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0) 40%);
-  --scrim: rgba(244, 239, 227, 0.7);
+  --scrim: rgba(244, 239, 227, 0.78);
 }
 
 .dark {
@@ -232,8 +232,8 @@
   --line: #2c4a44;
   --track: #2c4a44;
   --fg: #e7dcc6;
-  --muted-text: #a3afa8;
-  --faint: #8d9a93;
+  --muted-text: #b3beb7;
+  --faint: #a3afa8;
   --primary-base: #e3c271;
   --on-primary: #142423;
   --primary-soft: #2c3b2d;
@@ -271,19 +271,19 @@
   --win-line: #e3c271;
 
   /* Glass over the stained-glass picture (dark): the personal site's recipe. */
-  --glass-tint: rgba(14, 28, 26, 0.7);
-  --glass-tint-reading: rgba(14, 28, 26, 0.78);
-  --glass-tint-inset: rgba(30, 53, 49, 0.62);
+  --glass-tint: rgba(14, 28, 26, 0.84);
+  --glass-tint-reading: rgba(14, 28, 26, 0.9);
+  --glass-tint-inset: rgba(30, 53, 49, 0.84);
   --glass-tint-side: rgba(9, 18, 17, 0.62);
   --glass-filter: blur(24px) saturate(180%) brightness(0.8);
   --glass-filter-reading: blur(24px) saturate(180%) brightness(0.84);
   --glass-border: rgba(231, 220, 198, 0.2);
-  --glass-track: rgba(231, 220, 198, 0.18);
+  --glass-track: rgba(231, 220, 198, 0.12);
   --glass-highlight:
     inset 0 1px 0 rgba(255, 255, 255, 0.18), inset 0 0 0 1px rgba(255, 255, 255, 0.03);
   --glass-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
   --glass-sheen: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0) 40%);
-  --scrim: rgba(9, 18, 17, 0.3);
+  --scrim: rgba(9, 18, 17, 0.4);
 
   color-scheme: dark;
 }
