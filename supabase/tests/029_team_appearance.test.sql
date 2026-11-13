@@ -220,12 +220,15 @@ select throws_ok($$insert into storage.objects (bucket_id, name) values ('team-a
 select is((select count(*)::int from storage.objects where bucket_id = 'team-appearance'), 0, 'or list');
 
 -- Removing -----------------------------------------------------------------------------------
+-- The storage schema refuses any direct DELETE (a statement trigger, storage.protect_delete) unless
+-- this is set; it fires before row security looks at a single row, so it has to be on for every
+-- delete below, including the ones that must remove nothing.
+select set_config('storage.allow_delete_query', 'true', true);
 select pg_temp.login('4');
 select is(pg_temp.affected($$delete from storage.objects where bucket_id = 'team-appearance'$$), 0, 'a member removes nothing');
 select pg_temp.login('901');
 select is(pg_temp.affected($$delete from storage.objects where bucket_id = 'team-appearance' and name like 'w1/%'$$), 0, 'another team''s leader removes nothing of this team''s');
 select pg_temp.login('1');
-select set_config('storage.allow_delete_query', 'true', true);
 select is(pg_temp.affected($$delete from storage.objects where bucket_id = 'team-appearance' and name = 'w1/bg-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.webp'$$), 1, 'the leader removes a file no longer used');
 
 -- Reset -----------------------------------------------------------------------------------------

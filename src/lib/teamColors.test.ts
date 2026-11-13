@@ -370,7 +370,7 @@ describe("deriveTeamColors: exact outputs for known inputs", () => {
             },
             "chosen": "#ffff00",
             "separated": true,
-            "separation": 0.07725426143265149,
+            "separation": 0.077254,
             "turned": 0,
             "used": {
               "dark": "#ffff00",
@@ -459,7 +459,7 @@ describe("deriveTeamColors: exact outputs for known inputs", () => {
             },
             "chosen": "#e3c271",
             "separated": true,
-            "separation": 0.06411976660537451,
+            "separation": 0.06412,
             "turned": 0,
             "used": {
               "dark": "#e3c271",
@@ -473,7 +473,7 @@ describe("deriveTeamColors: exact outputs for known inputs", () => {
             },
             "chosen": "#0f766e",
             "separated": true,
-            "separation": 0.07471375548860955,
+            "separation": 0.074714,
             "turned": 0,
             "used": {
               "dark": "#3d978e",
@@ -531,7 +531,7 @@ describe("deriveTeamColors: exact outputs for known inputs", () => {
             },
             "chosen": "#39ff14",
             "separated": true,
-            "separation": 0.06761110118943492,
+            "separation": 0.067611,
             "turned": 0,
             "used": {
               "dark": "#39ff14",
