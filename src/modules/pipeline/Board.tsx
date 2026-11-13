@@ -374,9 +374,9 @@ function DesktopColumn({
       data-drop-column={c.id}
       aria-label={`${c.label}, ${isReg ? registered.total : list.length}`}
       className={cn(
-        "grid w-[186px] grid-cols-[minmax(0,1fr)] content-start gap-2 rounded-card bg-app p-2.5 transition-shadow",
+        "glass glass-flat grid w-[186px] grid-cols-[minmax(0,1fr)] content-start gap-2 rounded-card bg-app p-2.5 transition-shadow",
         c.kind === "milestone" && "shadow-[inset_0_3px_0_var(--color-stage-ibo)]",
-        over && "ring-2 ring-sky",
+        over && "ring-2 ring-ring",
       )}
     >
       <ColumnHead
@@ -649,8 +649,8 @@ function PhoneColumn({
       data-drop-column={c.id}
       aria-label={`${c.label}, ${count}`}
       className={cn(
-        "grid w-[84%] flex-none snap-start content-start rounded-xl border border-line bg-surface px-3 py-2.5",
-        over && "ring-2 ring-sky",
+        "glass glass-flat grid w-[84%] flex-none snap-start content-start rounded-xl border border-line bg-surface px-3 py-2.5",
+        over && "ring-2 ring-ring",
       )}
     >
       <div className="text-[10px] font-extrabold uppercase tracking-[.08em] text-faint">
@@ -858,7 +858,7 @@ function DragGhost({ drag }: { drag: DragInfo }) {
   return createPortal(
     <div
       aria-hidden="true"
-      className="pointer-events-none fixed z-[60] max-w-[200px] -translate-x-1/2 -translate-y-[120%] truncate rounded-[10px] border border-sky bg-surface px-3 py-2 text-[12.5px] font-bold shadow-lg"
+      className="pointer-events-none fixed z-[60] max-w-[200px] -translate-x-1/2 -translate-y-[120%] truncate rounded-[10px] border border-ring bg-surface px-3 py-2 text-[12.5px] font-bold shadow-lg"
       style={{ left: drag.x, top: drag.y }}
     >
       <Sensitive kind="name">{drag.name}</Sensitive>

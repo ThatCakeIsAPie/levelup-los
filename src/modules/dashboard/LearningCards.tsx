@@ -225,7 +225,7 @@ export function GoalTile({ learning, personId }: { learning: MyLearning; personI
             <span className="text-[22px] font-extrabold leading-none tabular-nums">{pct}%</span>
             <SegmentedBar
               total={1}
-              segments={[{ value: learning.progress, className: "bg-sky" }]}
+              segments={[{ value: learning.progress, className: "bg-progress" }]}
             />
             <span className="text-[11px] leading-snug text-faint">{itemLine(first)}</span>
           </>

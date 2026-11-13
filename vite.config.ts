@@ -19,16 +19,43 @@ function brandHtml(): Plugin {
     "%BRAND_DESCRIPTION%": escapeHtml(brand.description),
     "%BRAND_THEME_COLOR%": escapeHtml(brand.themeColor.initial),
     "%BRAND_STORAGE_PREFIX%": escapeJs(brand.storagePrefix),
+    "%BRAND_GLASS%": brand.glass ? "on" : "off",
+    "%BRAND_BACKDROP%": brand.backgroundImage ? "on" : "off",
+  };
+  // Starts fetching the background picture while the scripts load (src/lib/appearance.ts
+  // keeps the same hints in step when the picture changes). Same media split as .app-backdrop.
+  const portraitQuery = "(max-aspect-ratio: 1 / 1), (max-width: 760px)";
+  const base = process.env.BASE_PATH ?? "/";
+  const preload = (file: string, media?: string) => ({
+    tag: "link",
+    attrs: {
+      rel: "preload",
+      as: "image",
+      href: base + file,
+      "data-appearance-preload": "",
+      ...(media ? { media } : {}),
+    },
+    injectTo: "head" as const,
+  });
+  const preloads = () => {
+    const landscape = brand.backgroundImage;
+    if (!landscape) return [];
+    const portrait = brand.backgroundImagePortrait;
+    return portrait && portrait !== landscape
+      ? [preload(landscape, `not all and ${portraitQuery}`), preload(portrait, portraitQuery)]
+      : [preload(landscape)];
   };
   return {
     name: "brand-html",
     transformIndexHtml: {
       order: "pre",
-      handler: (html) =>
-        html.replace(/%BRAND_[A-Z_]+%/g, (token) => {
+      handler: (html) => ({
+        html: html.replace(/%BRAND_[A-Z_]+%/g, (token) => {
           if (!(token in values)) throw new Error(`Unknown index.html placeholder ${token}`);
           return values[token];
         }),
+        tags: preloads(),
+      }),
     },
   };
 }

@@ -333,7 +333,7 @@ function FeaturedCard({
             <Link
               to="/events/$id"
               params={{ id: event.id }}
-              className="rounded-sm hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky"
+              className="rounded-sm hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             >
               {event.name}
             </Link>
@@ -371,7 +371,7 @@ function FeaturedCard({
             className="bg-white/15"
             total={Math.max(s.invited, 1)}
             segments={[
-              { value: s.bought, className: "bg-sky", label: "Bought" },
+              { value: s.bought, className: "bg-progress", label: "Bought" },
               { value: s.planned, className: "bg-amber", label: "Planned" },
             ]}
           />
@@ -499,7 +499,7 @@ function UpcomingCard({ s, candidate }: { s: EventSummary; candidate: boolean })
           <SegmentedBar
             total={s.invited}
             segments={[
-              { value: s.bought, className: "bg-sky", label: "Bought" },
+              { value: s.bought, className: "bg-progress", label: "Bought" },
               { value: s.planned, className: "bg-amber", label: "Planned" },
             ]}
           />

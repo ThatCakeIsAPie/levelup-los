@@ -110,7 +110,7 @@ function NodeCardImpl({
       onMouseEnter={() => onHover(p.id)}
       onMouseLeave={() => onHover(null)}
       className={cn(
-        "group/card absolute flex cursor-pointer flex-col rounded-card border bg-surface px-3 pb-2.5 pt-2.5 text-foreground",
+        "glass-bar group/card absolute flex cursor-pointer flex-col rounded-card border bg-surface px-3 pb-2.5 pt-2.5 text-foreground",
         "shadow-[0_1px_2px_var(--shadow-tint-soft)] transition-[box-shadow,border-color] hover:shadow-md",
         "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
         selected ? "border-primary ring-2 ring-primary/25" : "border-line",

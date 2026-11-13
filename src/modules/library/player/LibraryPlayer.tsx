@@ -365,7 +365,7 @@ function PhoneBar({ item }: { item: CatalogItem }) {
       aria-label="Player"
     >
       <div className="absolute inset-x-0 top-0 h-[3px] bg-track" aria-hidden="true">
-        <span className="block h-full bg-sky" style={{ width: `${pct}%` }} />
+        <span className="block h-full bg-progress" style={{ width: `${pct}%` }} />
       </div>
       <div className="flex items-center gap-2.5 px-3 pt-2.5 pb-2">
         <button

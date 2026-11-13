@@ -37,7 +37,7 @@ export function StatRequestsPanel({ className }: { className?: string }) {
     <section
       aria-label="Requests to see your numbers"
       className={cn(
-        "grid gap-2 rounded-card border border-sky bg-info-soft/40 px-4 py-3",
+        "grid gap-2 rounded-card border border-ring bg-info-soft/40 px-4 py-3",
         className,
       )}
     >

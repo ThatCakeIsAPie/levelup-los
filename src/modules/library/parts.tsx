@@ -23,7 +23,7 @@ import { BookOpen } from "lucide-react";
 export function Bar({
   value,
   className,
-  fill = "bg-sky",
+  fill = "bg-progress",
 }: {
   value: number;
   className?: string;
@@ -199,7 +199,7 @@ export function MiniRing({ value }: { value: number }) {
         fill="none"
         strokeWidth="3"
         strokeLinecap="round"
-        className="stroke-sky"
+        className="stroke-progress"
         strokeDasharray={`${c * value} ${c}`}
       />
     </svg>
