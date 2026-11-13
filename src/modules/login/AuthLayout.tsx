@@ -26,7 +26,7 @@ export function AuthLayout({
     <div className="grid min-h-full grid-rows-[auto_1fr] lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:grid-rows-1">
       <BrandPanel headline={headline} blurb={blurb} />
       <main className="flex items-start justify-center px-4 py-6 sm:py-10 lg:items-center lg:px-12">
-        <div className="grid w-full max-w-[460px] gap-5">{children}</div>
+        <div className="auth-form-panel grid w-full max-w-[460px] gap-5">{children}</div>
       </main>
     </div>
   );

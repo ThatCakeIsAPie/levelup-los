@@ -1,5 +1,6 @@
 import { brand, BrandMark } from "@/brand";
 import { cn } from "@/lib/utils";
+import { useTeamLogoUrl } from "@/lib/teamLook";
 
 const SIZES = { sm: "size-4", md: "size-6", lg: "size-9" } as const;
 
@@ -20,7 +21,19 @@ export function Logo({
   tagline?: boolean;
   className?: string;
 }) {
-  const mark = <BrandMark className={SIZES[size]} />;
+  // A signed-in team's own logo replaces the mark (the wordmark text stays); the sign-in page never has one.
+  const teamLogo = useTeamLogoUrl();
+  const mark = teamLogo ? (
+    <img
+      src={teamLogo}
+      alt=""
+      aria-hidden="true"
+      draggable={false}
+      className={cn("shrink-0 object-contain", SIZES[size])}
+    />
+  ) : (
+    <BrandMark className={SIZES[size]} />
+  );
   if (!wordmark) {
     return (
       <span className={cn("inline-flex", className)} role="img" aria-label={brand.name}>
