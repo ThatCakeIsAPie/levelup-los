@@ -29,15 +29,15 @@ export const brand = {
    * site's base path). The picture never moves; the app scrolls in front of it.
    * null = no picture: the page keeps its plain --app-bg colour.
    */
-  backgroundImage: null as string | null,
+  backgroundImage: "stained-glass.webp" as string | null,
   /** Picture for phones and portrait windows (same rules). null = reuse backgroundImage. */
-  backgroundImagePortrait: null as string | null,
+  backgroundImagePortrait: "stained-glass-portrait.webp" as string | null,
   /**
    * Glass look on by default: cards, bars, sheets, dialogs and menus become
    * translucent blurred glass over the page (the --glass-* tokens in tokens.css).
    * false = plain solid surfaces. Works with or without a background picture.
    */
-  glass: false as boolean,
+  glass: true as boolean,
   /**
    * Colours for generated demo artwork (placeholder thumbnails, the demo map,
    * demo PDFs). They are baked into images and files, so they are not theme

@@ -54,6 +54,36 @@
  * <html> by src/lib/theme.ts). The sidebar and the event card are dark green
  * in both themes.
  *
+ * Focus and progress colours: --focus-ring is the focus outline / ring colour
+ * and --progress-fill the fill of progress bars, rings, chart segments and
+ * dots (utilities ring-ring and bg-progress / stroke-progress). Both default
+ * to --brand-sky. A brand whose highlight is too light on its light theme sets
+ * deeper values under :root; each must reach 3:1 against --surface and
+ * --track there, and --focus-ring also against the dark sidebar.
+ *
+ * Glass (--glass-*) and --scrim: used ONLY while <html data-glass="on"> /
+ * data-backdrop="on" (brand.glass and brand.backgroundImage in brand.ts, or
+ * applyAppearance() at runtime); with glass off none of them is read, so a
+ * plain brand looks the same whatever they hold. Every brand defines them in
+ * both themes. src/styles.css wires them to the surface utilities:
+ *   --glass-tint          outer panels: cards, bars, KPI strips, table frames
+ *   --glass-tint-reading  denser tint for floating layers (dialogs, sheets,
+ *                         menus, toasts), for cards nested in a panel, and for
+ *                         fields and chips: text-heavy surfaces
+ *   --glass-tint-inset    subtle inset fills (bg-surface-2: tiles, hover rows)
+ *   --glass-tint-side     dark glass in BOTH themes (sidebar, the event card);
+ *                         white text sits on it
+ *   --glass-filter / --glass-filter-reading   backdrop-filter of those two
+ *   --glass-border        hairlines (border-line) and the panel outline
+ *   --glass-track         the empty part of progress bars
+ *   --glass-highlight     inset top-edge light; --glass-shadow the drop shadow
+ *   --glass-sheen         faint diagonal gradient laid over the tint
+ *   --scrim               even layer over the picture so panels can be tuned
+ * Text contrast is judged against the composite of the tint over the blurred
+ * picture, at the brightest part of the picture. The no-support and
+ * reduced-transparency fallbacks (src/styles.css) use the solid surface
+ * tokens above, so they need no values here.
+ *
  * The logo mark (BrandMark.tsx) is one gold shape. --brand-mark-accent is the
  * gold on the dark sidebar and sign-in panel; in the light theme it is the
  * deeper #c6a04a so the mark still reads on the occasional parchment surface.
@@ -168,6 +198,30 @@
   --shadow-tint-soft: rgba(20, 36, 35, 0.06);
   --shadow-tint-primary: rgba(29, 85, 70, 0.35);
   --shadow-tint-strong: rgba(9, 18, 17, 0.2);
+
+  /*
+   * Focus ring and progress fill: the light gold (--brand-sky) is only 1.6:1 on
+   * parchment, so the light theme uses a deeper gold that reaches 3:1 on every
+   * light surface (4.6 on --surface, 3.9 on --surface-2, 3.4 on --track) and
+   * still 3.3:1 on the dark green sidebar. The dark theme keeps the light gold.
+   */
+  --focus-ring: #8f6b12;
+  --progress-fill: #8f6b12;
+
+  /* Glass over the stained-glass picture (light): parchment frosted glass. */
+  --glass-tint: rgba(251, 248, 241, 0.8);
+  --glass-tint-reading: rgba(251, 248, 241, 0.92);
+  --glass-tint-inset: rgba(236, 230, 214, 0.78);
+  --glass-tint-side: rgba(9, 18, 17, 0.8);
+  --glass-filter: blur(24px) saturate(150%);
+  --glass-filter-reading: blur(28px) saturate(150%);
+  --glass-border: rgba(20, 36, 35, 0.18);
+  --glass-track: rgba(20, 36, 35, 0.16);
+  --glass-highlight:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7), inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+  --glass-shadow: 0 16px 44px rgba(9, 18, 17, 0.18);
+  --glass-sheen: linear-gradient(135deg, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0) 40%);
+  --scrim: rgba(244, 239, 227, 0.7);
 }
 
 .dark {
@@ -215,6 +269,21 @@
   --brand-mark-accent: #e3c271;
 
   --win-line: #e3c271;
+
+  /* Glass over the stained-glass picture (dark): the personal site's recipe. */
+  --glass-tint: rgba(14, 28, 26, 0.7);
+  --glass-tint-reading: rgba(14, 28, 26, 0.78);
+  --glass-tint-inset: rgba(30, 53, 49, 0.62);
+  --glass-tint-side: rgba(9, 18, 17, 0.62);
+  --glass-filter: blur(24px) saturate(180%) brightness(0.8);
+  --glass-filter-reading: blur(24px) saturate(180%) brightness(0.84);
+  --glass-border: rgba(231, 220, 198, 0.2);
+  --glass-track: rgba(231, 220, 198, 0.18);
+  --glass-highlight:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18), inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+  --glass-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+  --glass-sheen: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0) 40%);
+  --scrim: rgba(9, 18, 17, 0.3);
 
   color-scheme: dark;
 }
