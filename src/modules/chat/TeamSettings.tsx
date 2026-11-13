@@ -33,6 +33,7 @@ import {
   useAnnouncementDrafts,
   useBlockedIds,
   useChatAccess,
+  useCanChangeLook,
   useChatPeople,
   useFeature,
   useUnlocks,
@@ -48,6 +49,7 @@ import {
   FeatureSwitchesCard,
 } from "@/modules/settings/TeamSettingsCards";
 import { EventCategoriesCard } from "@/modules/events/EventCategoriesCard";
+import { AppearanceCard } from "@/modules/settings/AppearanceCard";
 
 import { sensitiveIf } from "@/lib/sensitive";
 /**
@@ -60,10 +62,12 @@ export function TeamSettings() {
   const access = useChatAccess();
   const chats = useFeature("chats");
   const { can } = useUnlocks();
+  const leaderLook = useCanChangeLook();
   const chatParts = chats && access.eligible;
   return (
     <Page>
       {can.teamSettings && <FeatureSwitchesCard />}
+      {leaderLook && <AppearanceCard />}
       {can.teamSettings && <DeputiesCard />}
       {can.teamSettings && <EventCategoriesCard />}
       {chatParts && access.isLeader && <Reports />}

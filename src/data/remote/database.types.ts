@@ -4299,27 +4299,36 @@ export type Database = {
       };
       workspaces: {
         Row: {
+          background_mode: string;
+          background_path: string | null;
           colors: NonNullable<Json>;
           created_at: string;
+          glass: boolean | null;
           id: string;
-          logo_url: string | null;
+          logo_path: string | null;
           name: string;
           timezone: string;
         };
         ComputedFields: never;
         Insert: {
+          background_mode?: string;
+          background_path?: string | null;
           colors?: NonNullable<Json>;
           created_at?: string;
+          glass?: boolean | null;
           id?: string;
-          logo_url?: string | null;
+          logo_path?: string | null;
           name: string;
           timezone?: string;
         };
         Update: {
+          background_mode?: string;
+          background_path?: string | null;
           colors?: NonNullable<Json>;
           created_at?: string;
+          glass?: boolean | null;
           id?: string;
-          logo_url?: string | null;
+          logo_path?: string | null;
           name?: string;
           timezone?: string;
         };
@@ -4623,6 +4632,18 @@ export type Database = {
         Returns: undefined;
       };
       reject_announcement: { Args: { p_draft_id: string }; Returns: undefined };
+      set_workspace_appearance: {
+        Args: {
+          p_background?: string;
+          p_background_path?: string;
+          p_glass?: boolean;
+          p_highlight?: string;
+          p_logo_path?: string;
+          p_main?: string;
+          p_sidebar?: string;
+        };
+        Returns: string[];
+      };
       shares_conversation: { Args: { a: string; b: string }; Returns: boolean };
       sponsor_chain: {
         Args: { p_person_id: string };
@@ -4637,6 +4658,11 @@ export type Database = {
       sync_team_chats: {
         Args: { p_include_pinned: boolean; p_person_id: string };
         Returns: undefined;
+      };
+      team_colors_valid: { Args: { p_colors: Json }; Returns: boolean };
+      team_look_path_ok: {
+        Args: { p_kind: string; p_path: string; p_workspace: string };
+        Returns: boolean;
       };
       unread_counts: {
         Args: Record<PropertyKey, never>;
