@@ -16,6 +16,7 @@ describe("plainSnapshotCss", () => {
   it("switches every blur and text halo off", () => {
     expect(css).toContain("backdrop-filter:none!important");
     expect(css).toContain("text-shadow:none!important");
+    expect(css).toContain(".bg-app::before{display:none!important}");
   });
 
   it("paints glass surfaces with the solid surface colour and drops the sheen and shadow", () => {

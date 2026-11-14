@@ -122,18 +122,26 @@ export function MyLearningCard({ entries }: { entries: Learning[] }) {
           {recent.map((e) => {
             const Icon = KIND_ICON[e.kind];
             return (
-              <li
-                key={e.id}
-                className="grid grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-2.5 text-[13px]"
-              >
-                <span className="grid size-8 place-items-center rounded-[9px] bg-info-soft text-info-ink">
-                  <Icon className="size-4" aria-hidden="true" />
-                </span>
-                <div className="min-w-0">
-                  <div className="truncate font-semibold">{e.title}</div>
-                  <div className="text-[11.5px] text-muted-foreground">{entryDetail(e)}</div>
-                </div>
-                <span className="text-[11.5px] text-faint">{shortDate(e.date)}</span>
+              <li key={e.id}>
+                {/* Opens the Log sheet on this entry to change it. */}
+                <button
+                  type="button"
+                  onClick={() => openLog({ tab: "learning", editLearningId: e.id })}
+                  className="group grid w-full cursor-pointer grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-2.5 rounded-[9px] text-left text-[13px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                >
+                  <span className="grid size-8 place-items-center rounded-[9px] bg-info-soft text-info-ink">
+                    <Icon className="size-4" aria-hidden="true" />
+                  </span>
+                  <span className="block min-w-0">
+                    <span className="block truncate font-semibold group-hover:underline">
+                      {e.title}
+                    </span>
+                    <span className="block text-[11.5px] text-muted-foreground">
+                      {entryDetail(e)}
+                    </span>
+                  </span>
+                  <span className="text-[11.5px] text-faint">{shortDate(e.date)}</span>
+                </button>
               </li>
             );
           })}

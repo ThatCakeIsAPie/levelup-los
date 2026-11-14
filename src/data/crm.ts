@@ -6,6 +6,7 @@ import {
   type ContactSource,
   type Learning,
   type LearningGoal,
+  type LearningEdit,
   type LearningKind,
   type LearningUnit,
   type Sale,
@@ -162,6 +163,23 @@ export function logLearning(input: {
     ...(input.unit ? { unit: input.unit } : {}),
     date: input.date ?? localDate(),
   });
+}
+
+/** One learning entry by id (any the store holds), or undefined. */
+export function getLearning(id: string): Learning | undefined {
+  return useCrmStore.getState().learning.find((l) => l.id === id);
+}
+
+/**
+ * Change one of the current user's own learning entries in place (same id,
+ * person and `createdAt`): kind, title, amount, unit and date are replaced as
+ * given (no `unit` clears it). Returns the entry as it was, so the caller can
+ * undo by passing those values back, or null (nothing changed) when there is
+ * no such entry of yours. Never adds or removes an entry.
+ */
+export function updateLearning(id: string, next: LearningEdit): Learning | null {
+  if (getLearning(id)?.personId !== me()) return null;
+  return useCrmStore.getState().updateLearning(id, next) ?? null;
 }
 
 /** Delete a learning entry. */

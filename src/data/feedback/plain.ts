@@ -1,8 +1,9 @@
 /**
  * Snapshots are always plain. modern-screenshot cannot draw `backdrop-filter`,
  * and the fixed background picture would only make the JPEG bigger and the
- * text harder to read, so when the glass look or the picture is on, the CLONE
- * it renders is made plain: no picture, no blur, no text halo, and every glass
+ * text harder to read (and the blurred base that full-screen overlays paint on a
+ * pseudo-element goes too), so when the glass look or the picture is on, the CLONE
+ * it renders is made plain: no picture, no blur, no text shadow, and every glass
  * surface painted with the solid colour of the plain look.
  *
  * The solid colours are the raw tokens (`--surface`, `--surface-2`, ...): the
@@ -31,6 +32,8 @@ export function plainSnapshotCss(t: PlainTokens): string {
       : "";
   return [
     "*,*::before,*::after{-webkit-backdrop-filter:none!important;backdrop-filter:none!important;text-shadow:none!important}",
+    // The blurred base a full-screen overlay paints through its ::before (src/styles.css).
+    ".bg-app::before{display:none!important}",
     paint(".bg-app", t.appBg),
     paint(".glass,.bg-surface,.bg-card,.bg-popover", t.surface),
     paint(".bg-surface-2", t.surface2),
