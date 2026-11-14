@@ -2,7 +2,7 @@ import { Bug } from "lucide-react";
 import { SectionCard, ToneChip, Sensitive } from "@/components/brand";
 import { DATA_SOURCE } from "@/lib/config";
 import {
-  FEATURES,
+  featuresFor,
   useActingFor,
   useCurrentUser,
   useEvents,
@@ -86,7 +86,7 @@ export function AdminDebugCard() {
           Feature switches (team)
         </h3>
         <ul className="flex flex-wrap gap-1.5">
-          {FEATURES.map((f) => (
+          {featuresFor(DATA_SOURCE).map((f) => (
             <li key={f.key}>
               <ToneChip tone={switches[f.key] ? "good" : "neutral"}>
                 {f.label}: {switches[f.key] ? "on" : "off"} for the team
