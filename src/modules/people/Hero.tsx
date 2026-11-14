@@ -1,7 +1,7 @@
 import type { ComponentType, ReactNode } from "react";
 import { toast } from "sonner";
 import { Copy, Mail, MessageSquare, MoreHorizontal, Pencil, Phone, Trash2 } from "lucide-react";
-import { useNextEvent, type BizClass, type CrmPerson } from "@/data";
+import { formatTime, useNextEvent, type BizClass, type CrmPerson } from "@/data";
 import { PersonAvatar, Sensitive } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -248,7 +248,7 @@ function MoreMenu({
 }) {
   const next = useNextEvent();
   const script = next
-    ? `Hi ${firstName(person.name)}, quick note about ${next.name} on ${fmtDate(next.date)}. I want to make sure you're in the loop. Got a minute to chat?`
+    ? `Hi ${firstName(person.name)}, quick note about ${next.name} on ${fmtDate(next.date)}${next.startTime ? ` at ${formatTime(next.startTime)}` : ""}. I want to make sure you're in the loop. Got a minute to chat?`
     : `Hi ${firstName(person.name)}, just checking in. Got a minute to chat this week?`;
   const copy = () => {
     const done = () => toast.success("Follow-up message copied", { description: script });

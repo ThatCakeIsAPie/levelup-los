@@ -23,6 +23,12 @@ export interface CrmEvent {
   date: string; // "YYYY-MM-DD" (first day)
   /** Last day for multi-day events ("YYYY-MM-DD"); omit for single-day events. */
   endDate?: string;
+  /**
+   * Optional time of day, wall-clock "HH:mm" in the team's time zone (src/data/eventTimes): none = all-day. The
+   * end time needs a start time; on a multi-day event the start time is on the first day and the end time on the last.
+   */
+  startTime?: string;
+  endTime?: string;
   location?: string;
   notes?: string;
   /** In person (the default), virtual or both; see `eventFormat()` in @/data. */
@@ -59,6 +65,9 @@ export interface EventSeries {
   notes?: string;
   format?: EventFormat;
   ticketUrl?: string;
+  /** The times a new occurrence starts and ends (wall-clock "HH:mm"); none = all-day. */
+  startTime?: string;
+  endTime?: string;
   /** Days an occurrence runs past its first day (0 for a one-day event). */
   lengthDays: number;
 }

@@ -31,6 +31,7 @@ import { emptyTeam, useTeamStore } from "@/data/team/store";
 import { useHomeLayoutStore } from "@/data/homeLayoutStore";
 import { useStageNamesStore } from "@/data/stageNames/store";
 import { emptyTeamLook, useTeamLookStore } from "@/data/teamLook/store";
+import { setWorkspaceTimezone } from "@/data/workspaceTimezone";
 import { useInheritedStageNames } from "@/data/stageNames/inherited";
 import { ALL_BINDINGS } from "./bindings";
 import {
@@ -197,6 +198,7 @@ export function closeRemoteSession(cancelLoading = true): void {
     useHomeLayoutStore.setState({ layouts: {} });
     useStageNamesStore.setState({ entries: [] });
     useTeamLookStore.setState(emptyTeamLook());
+    setWorkspaceTimezone(null);
   });
   useInheritedStageNames.setState({ rows: [] });
   useLibraryExtras.setState({ teasers: [], names: {} });

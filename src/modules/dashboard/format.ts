@@ -8,16 +8,19 @@ import {
   type Attendance,
   type CategoryLookup,
   type CrmEvent,
+  spanWithTimes,
+  withTime,
 } from "@/data";
 
 /** "Oct 10" */
 export const shortDate = (d: string) => format(parseDate(d), "MMM d");
 
-/** "Nov 7–8", "Oct 31 – Nov 1" or "Nov 7". */
+/** "Nov 7–8", "Oct 31 – Nov 1" or "Nov 7"; with a time: "Nov 17 · 7:00 PM", "Nov 17 · 7:00 – 8:30 PM". */
 export function dateRange(e: CrmEvent): string {
   const start = parseDate(e.date);
-  if (!e.endDate || e.endDate === e.date) return format(start, "MMM d");
+  if (!e.endDate || e.endDate === e.date) return withTime(format(start, "MMM d"), e);
   const end = parseDate(e.endDate);
+  if (e.startTime) return spanWithTimes(format(start, "MMM d"), format(end, "MMM d"), e);
   return start.getMonth() === end.getMonth()
     ? `${format(start, "MMM d")}–${format(end, "d")}`
     : `${format(start, "MMM d")} – ${format(end, "MMM d")}`;
