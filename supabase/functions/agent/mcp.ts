@@ -11,12 +11,17 @@ import { TOOLS, inputSchema } from "./tools.ts";
 
 const SUPPORTED = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"];
 
+/** Whether a header value names a protocol version this server speaks. */
+export const supportsVersion = (v: string): boolean => SUPPORTED.includes(v);
+
 type Id = string | number | null;
 interface RpcMessage {
   jsonrpc?: unknown;
   id?: Id;
   method?: unknown;
   params?: unknown;
+  result?: unknown;
+  error?: unknown;
 }
 type RpcReply =
   | { jsonrpc: "2.0"; id: Id; result: unknown }
@@ -38,9 +43,12 @@ async function handleOne(db: AgentDb, conn: Connection, m: RpcMessage): Promise<
   if (m === null || typeof m !== "object" || m.jsonrpc !== "2.0")
     return fail(null, -32600, "Invalid Request");
   const hasId = m.id !== undefined;
-  // A response or a notification from the client: nothing to answer.
-  if (typeof m.method !== "string")
-    return hasId ? fail(m.id ?? null, -32600, "Invalid Request") : null;
+  // A JSON-RPC response sent by the client (a stateless server never asks it anything) or a
+  // notification: nothing to answer, so 202 with no body (the Streamable HTTP transport says so).
+  if (typeof m.method !== "string") {
+    const isResponse = hasId && ("result" in m || "error" in m);
+    return isResponse ? null : fail(m.id ?? null, -32600, "Invalid Request");
+  }
   if (!hasId) return null;
   const id = m.id ?? null;
   const params = (m.params ?? {}) as Record<string, unknown>;
@@ -75,7 +83,15 @@ async function handleOne(db: AgentDb, conn: Connection, m: RpcMessage): Promise<
       return ok(
         id,
         o.ok
-          ? { content: [{ type: "text", text: JSON.stringify(o.result) }], isError: false }
+          ? {
+              content: [
+                {
+                  type: "text",
+                  text: typeof o.result === "string" ? o.result : JSON.stringify(o.result),
+                },
+              ],
+              isError: false,
+            }
           : { content: [{ type: "text", text: o.error }], isError: true },
       );
     }
@@ -85,6 +101,18 @@ async function handleOne(db: AgentDb, conn: Connection, m: RpcMessage): Promise<
 }
 
 export async function handleMcp(req: Request, db: AgentDb, conn: Connection): Promise<Response> {
+  // After the first message the client names the version it speaks on every request; one this
+  // server does not support is a 400. No header at all is allowed (the spec assumes 2025-03-26).
+  const version = req.headers.get("mcp-protocol-version");
+  if (version !== null && !supportsVersion(version.trim())) {
+    return json(
+      {
+        error: "unsupported_protocol_version",
+        message: `MCP-Protocol-Version '${version.slice(0, 40)}' is not supported. Supported: ${SUPPORTED.join(", ")}.`,
+      },
+      400,
+    );
+  }
   if (req.method !== "POST") {
     // No server-sent event stream and no sessions to end.
     return json({ error: "method_not_allowed" }, 405, { allow: "POST" });

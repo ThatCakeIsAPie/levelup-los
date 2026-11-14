@@ -1,4 +1,4 @@
--- Agent connector: row-level security and grants of the new tables (migration 20261025000100_agent_connector).
+-- Agent connector: row-level security and grants of the new tables (migration 20261105000100_agent_connector).
 -- A person reads only their own connections (never the key hash) and their own audit rows; no client
 -- writes anything; pairings and attempts are not reachable at all.
 -- Self-contained: builds its own team (workspace agw), all rolled back.

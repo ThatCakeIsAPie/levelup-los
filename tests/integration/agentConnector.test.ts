@@ -145,6 +145,7 @@ describe("an ordinary signed-in session", () => {
       ["agent_add_prospect", { p_name: "Sneaky" }],
       ["agent_update_prospect", { p_id: "x", p_patch: { notes: "n" } }],
       ["agent_list_upcoming_events", {}],
+      ["agent_export_events_ics", {}],
       ["agent_set_event_answer", { p_event_id: "x", p_answer: "yes" }],
     ] as const) {
       const { error } = await jamal.rpc(fn, args);
@@ -249,12 +250,59 @@ describe("pairing and the tools", () => {
     expect(bad.status).toBe(400);
     expect((await bad.json()).error).toContain("sponsor_id: not a field of update_prospect");
 
-    // events and the person's own answer
-    const events = (await (await post("/tools/list_upcoming_events", {}, key)).json()).result as {
-      id: string;
-      my_answer: string | null;
-    }[];
+    // events (iCalendar's terms) and the person's own answer
+    const until = new Date(Date.now() + 180 * 86_400_000).toISOString().slice(0, 10);
+    const list = (await (await post("/tools/list_upcoming_events", { until }, key)).json())
+      .result as {
+      from: string;
+      until: string;
+      timezone: string;
+      events: {
+        id: string;
+        uid: string;
+        summary: string;
+        all_day: boolean;
+        last_modified: string;
+        my_answer: string | null;
+        partstat: string;
+      }[];
+      series: { series_uid: string; rrule: string; exdates: string[] }[];
+    };
+    const events = list.events;
     expect(events.length).toBeGreaterThan(0);
+    expect(list.timezone).toMatch(/^[A-Za-z_]+\/[A-Za-z_]+/);
+    for (const e of events) {
+      expect(e.uid).toMatch(/@events\.invalid$/);
+      expect(e.summary).toBeTruthy();
+      expect(e.last_modified).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
+      expect(["ACCEPTED", "DECLINED", "TENTATIVE", "NEEDS-ACTION"]).toContain(e.partstat);
+    }
+    for (const s of list.series) {
+      expect(s.series_uid).toMatch(/@series\.invalid$/);
+      expect(s.rrule).toMatch(/^FREQ=(DAILY|WEEKLY|MONTHLY)/);
+      expect(Array.isArray(s.exdates)).toBe(true);
+    }
+    // the same window as a file, and what changed since a far-off time (nothing), and a refused window
+    const ics = (await (await post("/tools/export_events_ics", { until }, key)).json())
+      .result as string;
+    expect(ics).toMatch(/^BEGIN:VCALENDAR\r\nVERSION:2\.0\r\n/);
+    expect(ics).toMatch(/END:VCALENDAR\r\n$/);
+    expect(ics.match(/BEGIN:VEVENT/g)?.length ?? 0).toBeGreaterThan(0);
+    for (const e of events.filter((x) => !("series_uid" in x)))
+      expect(ics).toContain(`UID:${e.uid}`);
+    const none = (
+      await (
+        await post("/tools/list_upcoming_events", { changed_since: "2999-01-01T00:00:00Z" }, key)
+      ).json()
+    ).result as { events: unknown[] };
+    expect(none.events).toEqual([]);
+    const refusedWindow = await post(
+      "/tools/list_upcoming_events",
+      { from: "2026-11-10", until: "2026-11-09" },
+      key,
+    );
+    expect(refusedWindow.status).toBe(422);
+    expect((await refusedWindow.json()).error).toBe("until must not be before from.");
     const ev = events[0];
     const [seeded] = await admin.unsafe(
       "select desire_to_attend from public.attendances where event_id = $1 and person_id = '4'",
@@ -294,6 +342,9 @@ describe("pairing and the tools", () => {
       "add_prospect",
       "update_prospect",
       "update_prospect",
+      "list_upcoming_events",
+      "export_events_ics",
+      "list_upcoming_events",
       "list_upcoming_events",
       "set_event_answer",
     ]);

@@ -1,5 +1,5 @@
 -- Agent connector: pairing codes, redemption, the key lookup, throttling and housekeeping
--- (migration 20261025000100_agent_connector). Self-contained: builds its own team (agw), all rolled back.
+-- (migration 20261105000100_agent_connector). Self-contained: builds its own team (agw), all rolled back.
 begin;
 create extension if not exists pgtap with schema extensions;
 select plan(63);

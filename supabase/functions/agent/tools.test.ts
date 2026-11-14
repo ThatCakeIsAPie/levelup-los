@@ -26,7 +26,7 @@ describe("the registry and the migrations agree", () => {
       const args = Object.fromEntries(
         Object.entries(t.properties).map(([k, f]) => [
           k,
-          f.enum ? f.enum[0] : f.type === "integer" ? 1 : "x",
+          f.enum ? f.enum[0] : f.type === "integer" ? 1 : f.type === "date" ? "2026-11-14" : "x",
         ]),
       );
       expect(t.params(args as never).length, t.name).toBe(used.size);
@@ -59,15 +59,135 @@ describe("the registry and the migrations agree", () => {
 describe("validateArgs", () => {
   const t = (name: string) => findTool(name)!;
 
-  it("takes nothing for whoami and list_upcoming_events, and refuses stray fields", () => {
+  it("takes nothing for whoami, and refuses stray fields", () => {
     expect(validateArgs(t("whoami"), {})).toEqual({ ok: true, args: {} });
     expect(validateArgs(t("whoami"), undefined)).toEqual({ ok: true, args: {} });
     expect(validateArgs(t("whoami"), null)).toEqual({ ok: true, args: {} });
-    const bad = validateArgs(t("list_upcoming_events"), { x: 1 });
+    const bad = validateArgs(t("whoami"), { x: 1 });
     expect(bad).toMatchObject({ ok: false });
     expect((bad as { error: string }).error).toContain("it takes no arguments");
     expect(validateArgs(t("whoami"), [])).toMatchObject({ ok: false });
     expect(validateArgs(t("whoami"), "x")).toMatchObject({ ok: false });
+  });
+
+  it("checks the window of list_upcoming_events and export_events_ics", () => {
+    for (const name of ["list_upcoming_events", "export_events_ics"]) {
+      expect(validateArgs(t(name), {}), name).toEqual({ ok: true, args: {} });
+      expect(validateArgs(t(name), { from: "2026-11-14", until: "2027-01-02" }), name).toEqual({
+        ok: true,
+        args: { from: "2026-11-14", until: "2027-01-02" },
+      });
+      for (const bad of [
+        { from: "2026-02-30" },
+        { from: "2026-13-01" },
+        { from: "14/11/2026" },
+        { from: "2026-11-14T00:00:00Z" },
+        { until: "" },
+        { until: 20261114 },
+        { from: null },
+        { x: 1 },
+      ]) {
+        expect(validateArgs(t(name), bad), `${name} ${JSON.stringify(bad)}`).toMatchObject({
+          ok: false,
+        });
+      }
+    }
+    const stray = validateArgs(t("export_events_ics"), { changed_since: "2026-11-14T00:00:00Z" });
+    expect((stray as { error: string }).error).toContain(
+      "not a field of export_events_ics (allowed: from, until)",
+    );
+  });
+
+  it("takes changed_since as an ISO 8601 time that names its offset", () => {
+    const ok = (v: string) => validateArgs(t("list_upcoming_events"), { changed_since: v });
+    for (const good of [
+      "2026-11-14T18:00:00Z",
+      "2026-11-14T18:00Z",
+      "2026-11-14T12:00:00-06:00",
+      "2026-11-14T18:00:00.123456+00:00",
+    ])
+      expect(ok(good), good).toEqual({ ok: true, args: { changed_since: good } });
+    for (const bad of [
+      "2026-11-14",
+      "2026-11-14T18:00:00",
+      "2026-11-14 18:00:00Z",
+      "2026-11-14T25:00:00Z",
+      "2026-02-30T10:00:00Z",
+      "yesterday",
+      "2026-11-14T18:00:00+0600",
+    ])
+      expect(ok(bad), bad).toMatchObject({ ok: false });
+    expect(validateArgs(t("list_upcoming_events"), { changed_since: 5 })).toMatchObject({
+      ok: false,
+    });
+  });
+
+  it("sends the window as three typed parameters, nulls when absent", () => {
+    const list = t("list_upcoming_events");
+    expect(list.sql).toBe(
+      "select public.agent_list_upcoming_events($1::date, $2::date, $3::timestamptz) as r",
+    );
+    expect(list.params({})).toEqual([null, null, null]);
+    expect(list.params({ from: "2026-11-14", changed_since: "2026-11-14T18:00:00Z" })).toEqual([
+      "2026-11-14",
+      null,
+      "2026-11-14T18:00:00Z",
+    ]);
+    const ics = t("export_events_ics");
+    expect(ics.sql).toBe("select public.agent_export_events_ics($1::date, $2::date) as r");
+    expect(ics.params({ until: "2027-01-02" })).toEqual([null, "2027-01-02"]);
+    expect(ics.write).toBe(false);
+    expect(list.write).toBe(false);
+  });
+
+  it("names iCalendar in the descriptions and states what the receiver must do", () => {
+    const list = t("list_upcoming_events").description;
+    for (const word of [
+      "iCalendar",
+      "uid",
+      "summary",
+      "last_modified",
+      "end_date_exclusive",
+      "start_utc",
+      "TZID",
+      "recurrence_id",
+      "is_exception",
+      "series_uid",
+      "rrule",
+      "exdates",
+      "until",
+      "partstat",
+      "changed_since",
+      "capped",
+      "no sequence",
+      "no end",
+      "point in time",
+    ])
+      expect(list, word).toContain(word);
+    const ics = t("export_events_ics").description;
+    for (const word of [
+      "VCALENDAR",
+      "RRULE",
+      "EXDATE",
+      "RECURRENCE-ID",
+      "VTIMEZONE",
+      "separate UTC events",
+      "CRLF",
+      "75 octets",
+    ])
+      expect(ics, word).toContain(word);
+  });
+
+  it("formats only the export, as text", () => {
+    expect(t("export_events_ics").format).toBeTypeOf("function");
+    for (const tool of TOOLS)
+      if (tool.name !== "export_events_ics") expect(tool.format, tool.name).toBeUndefined();
+    const text = t("export_events_ics").format!(
+      { timezone: "UTC", events: [], series: [], timezone_definition: null },
+      new Date("2026-11-14T12:00:00Z"),
+    );
+    expect(text).toBeTypeOf("string");
+    expect(text as string).toMatch(/^BEGIN:VCALENDAR\r\n/);
   });
 
   it("defaults and bounds the limit of list_prospects", () => {
@@ -200,6 +320,16 @@ describe("inputSchema", () => {
       maximum: 200,
       default: 50,
     });
+    expect(inputSchema(findTool("list_upcoming_events")!).properties).toEqual({
+      from: expect.objectContaining({ type: "string", format: "date" }),
+      until: expect.objectContaining({ type: "string", format: "date" }),
+      changed_since: expect.objectContaining({ type: "string", format: "date-time" }),
+    });
+    expect(inputSchema(findTool("export_events_ics")!).required).toEqual([]);
+    expect(Object.keys(inputSchema(findTool("export_events_ics")!).properties)).toEqual([
+      "from",
+      "until",
+    ]);
     expect(inputSchema(findTool("whoami")!)).toEqual({
       type: "object",
       properties: {},

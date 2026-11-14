@@ -1,4 +1,4 @@
--- Agent connector: the catalog checks and the ordinary session (migrations 20261025000100 and 20261025000200).
+-- Agent connector: the catalog checks and the ordinary session (migrations 20261105000100 and 20261105000200).
 --  * every function named agent_% in public is a SECURITY INVOKER tool that starts with the guard and is
 --    executable only by the signed-in role; the list of tools is exactly the whitelist below, so adding
 --    a tool means adding it here too, on purpose
@@ -9,7 +9,7 @@
 -- condition under PostgREST too, so nothing is pretended in this file.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(28);
+select plan(29);
 
 -- The test team: workspace agw. Leader Lena (agl), apprentice Alex (aga), IBO Bea (agb) and a
 -- candidate Dana (agd: a prospect with a login). Alex sponsors prospects agp1 and agp2, Bea sponsors
@@ -106,9 +106,9 @@ insert into public.agent_connections (id, user_id, person_id, workspace_id, labe
 -- The whitelist -----------------------------------------------------------------------------------
 select is((select array_agg(p.proname::text order by p.proname) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
             where n.nspname = 'public' and p.proname like 'agent\_%'),
-  array['agent_add_prospect', 'agent_list_prospects', 'agent_list_upcoming_events', 'agent_set_event_answer',
+  array['agent_add_prospect', 'agent_export_events_ics', 'agent_list_prospects', 'agent_list_upcoming_events', 'agent_set_event_answer',
         'agent_update_prospect', 'agent_whoami'],
-  'the agent_ functions in public are exactly the six tools');
+  'the agent_ functions in public are exactly the seven tools');
 select is((select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
             where n.nspname = 'public' and p.proname like 'agent\_%' and p.prosecdef), 0,
   'none of them is SECURITY DEFINER (they run as the person, so row-level security applies)');
@@ -150,6 +150,7 @@ select throws_ok($$select public.agent_list_prospects()$$, '42501', null, 'list_
 select throws_ok($$select public.agent_add_prospect('Sneaky')$$, '42501', null, 'add_prospect');
 select throws_ok($$select public.agent_update_prospect('agp1', '{"notes": "sneaky"}'::jsonb)$$, '42501', null, 'update_prospect');
 select throws_ok($$select public.agent_list_upcoming_events()$$, '42501', null, 'list_upcoming_events');
+select throws_ok($$select public.agent_export_events_ics()$$, '42501', null, 'export_events_ics');
 select throws_ok($$select public.agent_set_event_answer('age1', 'yes')$$, '42501', null, 'set_event_answer');
 -- even with a real connection id of the same login, set by the caller
 select set_config('app.agent_connection_id', pg_temp.conn(1)::text, true);

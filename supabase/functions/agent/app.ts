@@ -43,6 +43,19 @@ export function createHandler(deps: AppDeps): (req: Request) => Promise<Response
   const { db, baseUrl } = deps;
   return async (req) => {
     try {
+      // No browser is a supported client and there are no CORS headers: a request that says it comes
+      // from a web page is refused before anything else, on every route (MCP 2025-11-25, Streamable
+      // HTTP: "servers MUST validate the Origin header ... invalid Origin: 403").
+      if (req.headers.has("origin")) {
+        return json(
+          {
+            error: "origin_not_allowed",
+            message:
+              "This connector is not for web pages: a request with an Origin header is refused.",
+          },
+          403,
+        );
+      }
       if (!db) {
         return json(
           {

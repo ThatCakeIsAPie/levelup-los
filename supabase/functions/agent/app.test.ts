@@ -44,7 +44,7 @@ describe("POST /pair", () => {
       team: WORKSPACE,
     });
     expect(j.urls.mcp).toBe(`${BASE}/mcp`);
-    expect(j.tools.map((t: { name: string }) => t.name)).toHaveLength(6);
+    expect(j.tools.map((t: { name: string }) => t.name)).toHaveLength(7);
     expect(j.setup.claude_code).toContain(`${BASE}/mcp`);
     expect(JSON.stringify(j.setup)).not.toContain(j.connection_key);
     // only the hash of the key reached the database
@@ -226,32 +226,76 @@ describe("authentication", () => {
 });
 
 describe("no browser access", () => {
+  const ORIGIN = { origin: "https://evil.test" };
+
   it("sets no CORS header on any answer, and does not answer preflights", async () => {
     const { db, handle } = setup();
     await db.addConnection(KEY);
     const answers = [
       await handle(
-        req("/pair", {
-          method: "POST",
-          body: { code: "WWWWXXXXYYYYZZZZ", label: "a" },
-          headers: { origin: "https://evil.test" },
-        }),
+        req("/pair", { method: "POST", body: { code: "WWWWXXXXYYYYZZZZ", label: "a" } }),
       ),
-      await handle(req("/tools", { key: KEY, headers: { origin: "https://evil.test" } })),
-      await handle(req("/tools", { headers: { origin: "https://evil.test" } })),
+      await handle(req("/tools", { key: KEY })),
+      await handle(req("/tools")),
+      await handle(req("/pair", { method: "OPTIONS" })),
+      await handle(req("/nothing")),
+      await handle(req("/tools", { key: KEY, headers: ORIGIN })),
       await handle(
         req("/pair", {
           method: "OPTIONS",
-          headers: { origin: "https://evil.test", "access-control-request-method": "POST" },
+          headers: { ...ORIGIN, "access-control-request-method": "POST" },
         }),
       ),
-      await handle(req("/nothing", { headers: { origin: "https://evil.test" } })),
     ];
     for (const r of answers) {
       for (const [k] of r.headers)
         expect(k.toLowerCase().startsWith("access-control-")).toBe(false);
     }
     expect(answers[3].status).toBe(405);
+    expect(answers[6].status).toBe(403);
+  });
+
+  it("refuses any request that carries an Origin header with 403, on every route, before anything else", async () => {
+    const { db, handle } = setup();
+    await db.addConnection(KEY);
+    await db.addPairing("ABCDEFGHJKLMNPQR");
+    const calls: Request[] = [
+      req("/pair", { method: "POST", body: { code: CODE, label: "a" }, headers: ORIGIN }),
+      req("/pair", { method: "GET", headers: ORIGIN }),
+      req("/pair", { method: "OPTIONS", headers: ORIGIN }),
+      req("/tools", { key: KEY, headers: ORIGIN }),
+      req("/tools", { headers: ORIGIN }),
+      req("/tools/whoami", { method: "POST", key: KEY, body: {}, headers: ORIGIN }),
+      req("/mcp", {
+        method: "POST",
+        key: KEY,
+        body: { jsonrpc: "2.0", id: 1, method: "ping" },
+        headers: ORIGIN,
+      }),
+      req("/mcp", { method: "GET", key: KEY, headers: ORIGIN }),
+      req("/nothing", { headers: ORIGIN }),
+      req("/", { headers: { origin: "null" } }),
+    ];
+    for (const c of calls) {
+      const res = await handle(c);
+      expect(res.status, `${c.method} ${new URL(c.url).pathname}`).toBe(403);
+      expect((await res.json()).error).toBe("origin_not_allowed");
+    }
+    // nothing was looked up, redeemed, run or audited
+    expect(db.lookups).toBe(0);
+    expect(db.redeems).toBe(0);
+    expect(db.toolCalls).toHaveLength(0);
+    expect(db.refusals).toHaveLength(0);
+    expect(db.failures).toHaveLength(0);
+    // the code is still good: a request without Origin redeems it
+    const ok = await handle(req("/pair", { method: "POST", body: { code: CODE, label: "a" } }));
+    expect(ok.status).toBe(201);
+  });
+
+  it("refuses an Origin header even when the database secret is missing", async () => {
+    const handle = createHandler({ db: null, baseUrl: BASE });
+    expect((await handle(req("/tools", { headers: ORIGIN }))).status).toBe(403);
+    expect((await handle(req("/tools"))).status).toBe(503);
   });
 });
 
@@ -269,6 +313,7 @@ describe("plain HTTP surface", () => {
       "add_prospect",
       "update_prospect",
       "list_upcoming_events",
+      "export_events_ics",
       "set_event_answer",
     ]);
     expect(j.tools[2]).toMatchObject({ changes_data: true });
@@ -486,6 +531,28 @@ describe("plain HTTP surface", () => {
     expect(await res.json()).toEqual({ error: "server_error" });
   });
 
+  it("returns the export over plain HTTP as text in `result`, and a formatting failure is a 500 without a second audit row", async () => {
+    const { db, handle } = setup();
+    await db.addConnection(KEY, "read");
+    db.toolResult = { timezone: "UTC", events: [], series: [], timezone_definition: null };
+    const res = await handle(
+      req("/tools/export_events_ics", { method: "POST", key: KEY, body: { until: "2026-12-31" } }),
+    );
+    expect(res.status).toBe(200);
+    const j = await res.json();
+    expect(j.ok).toBe(true);
+    expect(j.result).toMatch(/^BEGIN:VCALENDAR\r\n/);
+    expect(db.toolCalls[0].params).toEqual([null, "2026-12-31"]);
+    // a result the formatter cannot write (never produced by the SQL function): logged, answered, not audited again
+    db.toolResult = { nonsense: true };
+    const bad = await handle(
+      req("/tools/export_events_ics", { method: "POST", key: KEY, body: {} }),
+    );
+    expect(bad.status).toBe(500);
+    expect((await bad.json()).error).toBe("The request could not be completed.");
+    expect(db.refusals).toHaveLength(0);
+  });
+
   it("returns 404 for anything else", async () => {
     const { handle } = setup();
     expect((await handle(req("/"))).status).toBe(404);
@@ -546,15 +613,104 @@ describe("MCP", () => {
     expect(j.result.serverInfo.name).toBe("Another Group");
   });
 
-  it("answers notifications with 202 and no body", async () => {
+  it("answers notifications and responses sent by the client with 202 and no body", async () => {
     const { db, handle } = setup();
     await db.addConnection(KEY);
-    const res = await handle(rpc(KEY, { jsonrpc: "2.0", method: "notifications/initialized" }));
-    expect(res.status).toBe(202);
-    expect(await res.text()).toBe("");
+    for (const msg of [
+      { jsonrpc: "2.0", method: "notifications/initialized" },
+      { jsonrpc: "2.0", method: "notifications/cancelled", params: { requestId: 1 } },
+      { jsonrpc: "2.0", id: 7, result: {} },
+      { jsonrpc: "2.0", id: "srv-1", result: { roots: [] } },
+      { jsonrpc: "2.0", id: 8, error: { code: -32601, message: "Method not found" } },
+      { jsonrpc: "2.0", id: null, error: { code: -32700, message: "Parse error" } },
+    ]) {
+      const res = await handle(rpc(KEY, msg));
+      expect(res.status, JSON.stringify(msg)).toBe(202);
+      expect(await res.text()).toBe("");
+    }
+    // a batch of only such messages is 202 too, a mixed one answers the requests only
+    expect((await handle(rpc(KEY, [{ jsonrpc: "2.0", id: 1, result: {} }]))).status).toBe(202);
+    // nothing that is not a response is taken for one
+    for (const bad of [
+      { jsonrpc: "2.0", id: 9 },
+      { jsonrpc: "2.0" },
+      { jsonrpc: "2.0", result: {} },
+      { jsonrpc: "2.0", id: 9, method: 5 },
+    ]) {
+      const res = await handle(rpc(KEY, bad));
+      expect(res.status, JSON.stringify(bad)).toBe(200);
+      expect((await res.json()).error.code).toBe(-32600);
+    }
+    expect(db.toolCalls).toHaveLength(0);
   });
 
-  it("lists the six tools with schemas and read-only hints", async () => {
+  it("refuses a request that names an MCP-Protocol-Version it does not support with 400", async () => {
+    const { db, handle } = setup();
+    await db.addConnection(KEY);
+    const ping = { jsonrpc: "2.0", id: 1, method: "ping" };
+    for (const v of ["1999-01-01", "2025-13-45", "latest", "", "2025-06-18 ", "2025-11-26"]) {
+      const res = await handle(rpc(KEY, ping, { headers: { "mcp-protocol-version": v } }));
+      const expected = v.trim() === "2025-06-18" ? 200 : 400;
+      expect(res.status, JSON.stringify(v)).toBe(expected);
+      if (expected === 400) {
+        const j = await res.json();
+        expect(j.error).toBe("unsupported_protocol_version");
+        expect(j.message).toContain("2025-11-25");
+      }
+    }
+    // notifications are held to it too, and so is GET (400 before 405)
+    expect(
+      (
+        await handle(
+          req("/mcp", {
+            method: "GET",
+            key: KEY,
+            headers: { "mcp-protocol-version": "1999-01-01" },
+          }),
+        )
+      ).status,
+    ).toBe(400);
+    expect(
+      (
+        await handle(
+          rpc(
+            KEY,
+            { jsonrpc: "2.0", method: "notifications/initialized" },
+            {
+              headers: { "mcp-protocol-version": "1999-01-01" },
+            },
+          ),
+        )
+      ).status,
+    ).toBe(400);
+    // the supported ones, and none at all (the spec's default), are fine
+    for (const v of ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05", null]) {
+      const res = await handle(
+        rpc(KEY, ping, { headers: v === null ? {} : { "mcp-protocol-version": v } }),
+      );
+      expect(res.status, String(v)).toBe(200);
+    }
+    // it only applies to /mcp
+    const plain = await handle(
+      req("/tools", { key: KEY, headers: { "mcp-protocol-version": "1999-01-01" } }),
+    );
+    expect(plain.status).toBe(200);
+    expect(db.toolCalls).toHaveLength(0);
+  });
+
+  it("is checked after the key: a bad version without a key is still 401", async () => {
+    const { handle } = setup();
+    const res = await handle(
+      req("/mcp", {
+        method: "POST",
+        body: { jsonrpc: "2.0", id: 1, method: "ping" },
+        headers: { "mcp-protocol-version": "1999-01-01" },
+      }),
+    );
+    expect(res.status).toBe(401);
+  });
+
+  it("lists the seven tools with schemas and read-only hints", async () => {
     const { db, handle } = setup();
     await db.addConnection(KEY);
     const j = await (
@@ -565,10 +721,42 @@ describe("MCP", () => {
       inputSchema: { type: string };
       annotations: { readOnlyHint: boolean };
     }[];
-    expect(tools).toHaveLength(6);
+    expect(tools).toHaveLength(7);
     expect(tools.every((t) => t.inputSchema.type === "object")).toBe(true);
     expect(tools.find((t) => t.name === "whoami")?.annotations.readOnlyHint).toBe(true);
     expect(tools.find((t) => t.name === "add_prospect")?.annotations.readOnlyHint).toBe(false);
+    expect(tools.find((t) => t.name === "export_events_ics")?.annotations.readOnlyHint).toBe(true);
+    expect(tools.find((t) => t.name === "list_upcoming_events")?.annotations.readOnlyHint).toBe(
+      true,
+    );
+  });
+
+  it("returns the export as the .ics text itself, not as quoted JSON", async () => {
+    const { db, handle } = setup();
+    await db.addConnection(KEY, "read");
+    db.toolResult = {
+      timezone: "UTC",
+      events: [],
+      series: [],
+      timezone_definition: null,
+    };
+    const j = await (
+      await handle(
+        rpc(KEY, {
+          jsonrpc: "2.0",
+          id: 4,
+          method: "tools/call",
+          params: { name: "export_events_ics", arguments: { from: "2026-11-01" } },
+        }),
+      )
+    ).json();
+    expect(j.result.isError).toBe(false);
+    expect(j.result.content[0].text).toMatch(/^BEGIN:VCALENDAR\r\nVERSION:2\.0\r\n/);
+    expect(j.result.content[0].text).toMatch(/END:VCALENDAR\r\n$/);
+    expect(db.toolCalls[0]).toMatchObject({
+      sql: "select public.agent_export_events_ics($1::date, $2::date) as r",
+      params: ["2026-11-01", null],
+    });
   });
 
   it("calls a tool through the same path as plain HTTP", async () => {

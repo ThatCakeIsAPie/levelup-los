@@ -15,6 +15,7 @@ export async function runTool(
   name: string,
   rawArgs: unknown,
   log: (msg: string) => void = console.error,
+  now: () => Date = () => new Date(),
 ): Promise<Outcome> {
   const tool = findTool(name);
   if (!tool)
@@ -60,7 +61,15 @@ export async function runTool(
     ) {
       return { ok: false, status: 422, error: (r as { error: string }).error };
     }
-    return { ok: true, result: r };
+    if (!tool.format) return { ok: true, result: r };
+    // Formatting only: the SQL function already audited the call, so a failure here is logged and
+    // answered, without a second audit row.
+    try {
+      return { ok: true, result: tool.format(r, now()) };
+    } catch (e) {
+      log(`tool ${tool.name} could not format its result: ${String(e)}`);
+      return { ok: false, status: 500, error: "The request could not be completed." };
+    }
   } catch (e) {
     const code = e instanceof DbError ? e.code : "";
     const message = e instanceof Error ? e.message : String(e);

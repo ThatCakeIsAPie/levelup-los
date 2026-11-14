@@ -1,4 +1,4 @@
--- Agent connector: how the connector role is confined (migration 20261025000100_agent_connector).
+-- Agent connector: how the connector role is confined (migration 20261105000100_agent_connector).
 -- It can do exactly three things: look a connection up by key hash, redeem a pairing code and record
 -- attempts (SECURITY DEFINER functions in agent_private, executable only by it), and `set role authenticated`.
 -- It owns nothing and holds no table privilege. Self-contained, rolled back.

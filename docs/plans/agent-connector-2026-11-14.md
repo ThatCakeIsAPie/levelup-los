@@ -2,7 +2,7 @@
 
 **Status**
 
-- Phase 1 (database, function, six tools): **BUILT** when the pull request "Agent connector: pairing, connection keys and the first six tools" is merged.
+- Phase 1 (database, function, seven tools): **BUILT** when the pull request "Agent connector: pairing, connection keys and the first seven tools" is merged.
 - Phase 2 (Settings card with the "Add agent" button, connection list, disconnect, activity; the leader's switch in Team settings): **NOT STARTED**. Ask the owner before beginning it.
 - Phase 3 (more tools: pipeline moves short of the registered step, learning log, own profile fields, customers): **NOT STARTED**. Ask the owner before beginning it.
 
@@ -16,9 +16,10 @@ It stays inside Supabase, with nothing extra to run or pay for: one Edge Functio
 
 - **Pairing, not tokens.** The person presses one button and gets a one-time code (ten minutes, single use). They paste a short text with the connector URL and the code to their agent. The agent POSTs the code to the connector and gets its own opaque **connection key** (shown once, stored only as a SHA-256 hash). The person never handles the key; no username is involved (a username in a command would let anyone trigger prompts on someone's screen).
 - **The key is not a JWT.** It means something to one Edge Function only, which looks it up by hash. An agent never holds a Supabase user token: an earlier prototype showed that such a token can reach the auth API (set a password, enrol a factor), which no check in our code can gate. That design is dropped for good.
-- **A whitelist, in one place.** Everything an agent can do is a SQL function named `agent_*` (`supabase/migrations/20261025000200_agent_tools.sql`), SECURITY INVOKER, run as the person (`set local role authenticated` with the person's login in the claims), so the existing row-level security decides what they may see and change. Every call writes an audit row. No deletes, ever; never stage, sponsor, IBO#/LTD# or the business start date.
+- **A whitelist, in one place.** Everything an agent can do is a SQL function named `agent_*` (`supabase/migrations/20261105000200_agent_tools.sql`), SECURITY INVOKER, run as the person (`set local role authenticated` with the person's login in the claims), so the existing row-level security decides what they may see and change. Every call writes an audit row. No deletes, ever; never stage, sponsor, IBO#/LTD# or the business start date.
 - **A least-privilege database role.** The function connects as `agent_connector` (NOLOGIN until a deployment sets its password), which owns nothing, has no table privilege and can only call five `agent_private` functions and `set role authenticated`. The guard checks `session_user`, so an ordinary app session cannot call a tool.
 - **Switch and preview.** The team's leader (or a deputy) switches the feature on (`feature_switches` row `agents`); an app admin may use it before that, like the other switched features. Turning it off, revoking a connection or demoting the person cuts an agent off on its very next call.
+- **What a tool returns follows the receiving standard.** An agent is meant to be a slightly more intelligent proxy than a script, so data maps onto the receiving service's own standard with nothing to guess, and each tool's description names that standard. Events are iCalendar (RFC 5545): `uid`, `summary`, exclusive all-day ends, local time plus the team's zone plus UTC instants, a repeating event as one series with an RRULE (equal to the app's rule date for date) and exceptions that name the slot they replace; `export_events_ics` writes the same window as a file. Timed repeating events are one entry with a VTIMEZONE built from the database's zone data when that can be proven for 31 years, otherwise separate UTC events. Contacts would be vCard and tasks VTODO when those tools come.
 - **Two surfaces over one code path.** MCP over Streamable HTTP (`/mcp`) and plain HTTP (`GET /tools`, `POST /tools/<name>`) for agents that cannot do MCP, both through one `runTool()`.
 - **Apps that only connect through their own sign-in screen** (the Claude and ChatGPT apps) are not served by this flow: that would mean writing an authorization server. Not built unless the owner asks.
 
@@ -26,7 +27,7 @@ How it works, the tables, the role and the per-deployment steps: [`docs/backend.
 
 ## Phase 1: built
 
-Migrations `20261025000100_agent_connector` and `20261025000200_agent_tools`; Edge Function `supabase/functions/agent`; pgTAP `040`–`044`; vitest for the function (`supabase/functions/agent/*.test.ts`) and the integration test `tests/integration/agentConnector.test.ts` over a real login as the connector role; docs.
+Migrations `20261105000100_agent_connector` and `20261105000200_agent_tools` (numbered after everything on `main`, so a database that has applied `main` takes them in order); Edge Function `supabase/functions/agent`; pgTAP `040`–`044` and `046`; vitest for the function (`supabase/functions/agent/*.test.ts`) and the integration test `tests/integration/agentConnector.test.ts` over a real login as the connector role; docs.
 
 Choices worth knowing:
 
@@ -39,7 +40,7 @@ Choices worth knowing:
 
 Run on a throwaway hosted Supabase project (free plan, the real pooler, the real Edge runtime) on 2026-11-14: pairing, row-level security through HTTP and MCP, access levels, cut-off (revoke, team switch, app-admin preview, demotion), the key refused at every other endpoint, audit counts, MCP protocol behaviour, a real client (`claude mcp add --transport http` then `claude mcp list`: connected) and latency (warm about 100 ms per call on a kept-alive connection, 150 ms with a new connection each time, cold first call about 350 ms). Two defects came out of it and are fixed with tests: an argument-rejected call left no audit row, and a refused body over 64 KB left the gateway's connection hanging for the next request.
 
-Known differences from the MCP 2025-11-25 Streamable HTTP text, none of which a client trips over (Claude Code connects): the `MCP-Protocol-Version` header is not checked (the spec says answer 400 for an unsupported one); the `Origin` header is not checked (the spec says 403 for an invalid one; this server has no CORS and needs a bearer key a browser page cannot hold); JSON-RPC batches are accepted (allowed in 2025-03-26, dropped later); a JSON-RPC response sent by a client gets an error instead of 202 (a stateless server never asks the client anything); `Accept` is not enforced; GET and DELETE on `/mcp` answer 405, which the spec allows; a 401 carries no OAuth discovery document (`/.well-known/...` is 404), so a client holding a revoked key reports it needs authentication.
+Protocol hardening after the run: an unsupported `MCP-Protocol-Version` is 400; any request with an `Origin` header is 403 on every route (no browser is a supported client); a JSON-RPC response or notification sent by the client is 202 with no body. Known differences from the MCP 2025-11-25 Streamable HTTP text, none of which a client trips over (Claude Code connects): JSON-RPC batches are accepted (allowed in 2025-03-26, dropped later); `Accept` is not enforced; GET and DELETE on `/mcp` answer 405, which the spec allows; a 401 carries no OAuth discovery document (`/.well-known/...` is 404), so a client holding a revoked key reports it needs authentication.
 
 ## Phase 2: not started
 

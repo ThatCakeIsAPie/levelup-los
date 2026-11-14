@@ -1,4 +1,4 @@
--- Agent connector: the six tools, run the way the Edge Function runs them (migration 20261025000200_agent_tools).
+-- Agent connector: the tools, run the way the Edge Function runs them (migration 20261105000200_agent_tools).
 -- Each call: the login's claims and the connection id in settings, `set local role authenticated`, then the tool.
 -- Row-level security decides what a person sees and changes; the guard refuses read connections, revoked ones,
 -- someone else's, and everything once the team's switch is off. Self-contained (workspace agw), all rolled back.
@@ -200,15 +200,15 @@ select is((select pg_temp.person_row('agp1')), 'Patricia One|~|pat@agent.test|Au
 
 -- Events ---------------------------------------------------------------------------------------------------------
 select pg_temp.as_connector('a', 1);
-select is((select jsonb_agg(x ->> 'id' order by x ->> 'date', x ->> 'id') from jsonb_array_elements(public.agent_list_upcoming_events()) x)::text,
+select is((select jsonb_agg(x ->> 'id' order by x ->> 'start_date', x ->> 'id') from jsonb_array_elements(public.agent_list_upcoming_events() -> 'events') x)::text,
   '["agex", "age2", "age1"]', 'upcoming events: the one running now, the next, the later; not the past one');
-select is(((select public.agent_list_upcoming_events() -> 2) ?& array['id', 'name', 'date', 'end_date', 'category', 'location', 'my_answer']), true,
-  'each has id, name, date, end date, category, location and my answer');
-select is((select public.agent_list_upcoming_events() -> 2 ->> 'category' is not null), true, 'the category is named');
-select is((select public.agent_list_upcoming_events() -> 2 ->> 'my_answer' is null), true, 'no answer yet');
+select is(((select public.agent_list_upcoming_events() -> 'events' -> 2) ?& array['id', 'uid', 'summary', 'location', 'category', 'last_modified', 'all_day', 'start_date', 'end_date_exclusive', 'my_answer', 'partstat']), true,
+  'each has id, uid, summary, location, category, last_modified, all_day, start and end dates, my answer and partstat (the shape is checked in 046)');
+select is((select public.agent_list_upcoming_events() -> 'events' -> 2 ->> 'category' is not null), true, 'the category is named');
+select is((select public.agent_list_upcoming_events() -> 'events' -> 2 ->> 'my_answer' is null), true, 'no answer yet');
 select is((select pg_temp.q('select count(*)::text from public.attendances where workspace_id = ''agw''')), '0', 'there are no attendance rows before');
 select is((select public.agent_set_event_answer('age1', 'yes') ->> 'answer'), 'yes', 'Alex''s agent answers yes');
-select is((select public.agent_list_upcoming_events() -> 2 ->> 'my_answer'), 'yes', 'the list shows it');
+select is((select public.agent_list_upcoming_events() -> 'events' -> 2 ->> 'my_answer'), 'yes', 'the list shows it');
 select is((select pg_temp.q('select count(*)::text from public.attendances where event_id = ''age1''')), '1', 'one attendance row');
 select is((select pg_temp.q('select person_id from public.attendances where event_id = ''age1''')), 'aga', 'his own');
 select is((select public.agent_set_event_answer('age1', 'maybe') ->> 'answer'), 'maybe', 'he changes his mind');
@@ -220,12 +220,12 @@ select is((select public.agent_set_event_answer('nope', 'yes') ->> 'error'), 'No
 select is((select pg_temp.q('select count(*)::text from public.attendances where workspace_id = ''agw''')), '1', 'nothing else was written');
 select is((select pg_temp.q('select count(*)::text from public.attendances where workspace_id = ''agw'' and person_id <> ''aga''')), '0', 'and nobody else''s answer exists');
 select pg_temp.as_connector('b', 3);
-select is((select public.agent_list_upcoming_events() -> 2 ->> 'my_answer' is null), true, 'Bea''s own answer is still empty');
+select is((select public.agent_list_upcoming_events() -> 'events' -> 2 ->> 'my_answer' is null), true, 'Bea''s own answer is still empty');
 
 -- A read connection: reads, never writes ---------------------------------------------------------------------------
 select pg_temp.as_connector('a', 2);
 select is((select jsonb_array_length(public.agent_list_prospects())), 3, 'a read connection lists');
-select is((select jsonb_array_length(public.agent_list_upcoming_events())), 3, 'and reads events');
+select is((select jsonb_array_length(public.agent_list_upcoming_events() -> 'events')), 3, 'and reads events');
 select is((select public.agent_whoami() ->> 'access'), 'read', 'and says it is read-only');
 select throws_ok($$select public.agent_add_prospect('Nope')$$, '42501', 'this connection is read-only', 'it cannot add');
 select throws_ok($$select public.agent_update_prospect('agp2', '{"notes": "x"}'::jsonb)$$, '42501', 'this connection is read-only', 'or update');
