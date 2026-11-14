@@ -100,6 +100,7 @@ export function computeUnlocks(i: UnlockInput): Unlocks {
     chats: admin || !!i.switches.chats,
     library: admin || !!i.switches.library,
     campaigns: admin || !!i.switches.campaigns,
+    agents: admin || !!i.switches.agents,
   };
   // Candidates keep their existing view: themselves on the team pages.
   const team = candidate || sponsor;

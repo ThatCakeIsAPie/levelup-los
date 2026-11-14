@@ -112,7 +112,7 @@ describe("feature switches", () => {
 
   it("the admin sees every feature and every area regardless of switches", () => {
     const x = u({ admin: true });
-    expect(x.feature).toEqual({ chats: true, library: true, campaigns: true });
+    expect(x.feature).toEqual({ chats: true, library: true, campaigns: true, agents: true });
     expect(Object.values(x.can).every(Boolean)).toBe(true);
   });
 });

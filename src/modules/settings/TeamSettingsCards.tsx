@@ -17,8 +17,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
+import { DATA_SOURCE } from "@/lib/config";
 import {
-  FEATURES,
+  featuresFor,
   addDeputy,
   removeDeputy,
   setFeatureSwitch,
@@ -58,7 +59,7 @@ function shortDay(iso?: string): string {
     : d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-/** Chats, Library and Campaigns on or off for the whole team. */
+/** The team's switched features (Chats, Library, Campaigns, AI agents) on or off for the whole team. */
 export function FeatureSwitchesCard() {
   const user = useCurrentUser();
   const switches = useFeatureSwitches();
@@ -74,7 +75,7 @@ export function FeatureSwitchesCard() {
         {user.admin && " Your admin login sees all of them either way."}
       </p>
       <div className="grid">
-        {FEATURES.map((f) => {
+        {featuresFor(DATA_SOURCE).map((f) => {
           const id = `feature-${f.key}`;
           const row = rows.find((r) => r.feature === f.key);
           const by = row?.updatedBy ? nameOf(row.updatedBy) : "";
@@ -89,24 +90,26 @@ export function FeatureSwitchesCard() {
                   className="flex flex-wrap items-center gap-1.5 text-[13px] font-semibold"
                 >
                   {f.label}
-                  <ToneChip tone="neutral">Phase {f.phase}</ToneChip>
+                  {f.phase && <ToneChip tone="neutral">Phase {f.phase}</ToneChip>}
                 </Label>
-                <p id={`${id}-desc`} className="text-xs text-muted-foreground">
-                  {f.description}
-                  {by && (
-                    <>
-                      {" "}
-                      Switched {switches[f.key] ? "on" : "off"} by {by}
-                      {row?.updatedAt ? ` on ${shortDay(row.updatedAt)}` : ""}.
-                    </>
-                  )}
-                </p>
+                {(f.description || by) && (
+                  <p id={`${id}-desc`} className="text-xs text-muted-foreground">
+                    {f.description}
+                    {by && (
+                      <>
+                        {f.description && " "}
+                        Switched {switches[f.key] ? "on" : "off"} by {by}
+                        {row?.updatedAt ? ` on ${shortDay(row.updatedAt)}` : ""}.
+                      </>
+                    )}
+                  </p>
+                )}
               </div>
               <Switch
                 id={id}
                 checked={switches[f.key]}
                 disabled={!canEdit}
-                aria-describedby={`${id}-desc`}
+                aria-describedby={f.description || by ? `${id}-desc` : undefined}
                 onCheckedChange={(on) => {
                   if (setFeatureSwitch(f.key, on))
                     toast.success(`${f.label} is ${on ? "on" : "off"} for the team`);
