@@ -20,7 +20,7 @@
  */
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Plus } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { EmptyState, PhoneInput, RatingPicker } from "@/components/brand";
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,7 @@ import {
   addPerson,
   closeLog,
   completeLibraryItemWithEntry,
+  deleteLearningEntry,
   effectiveBizClass,
   goalUnit,
   latestLearningId,
@@ -207,7 +208,9 @@ const UNIT_FIELD: Record<LearningUnit, string> = {
  * starts with its values (an entry titled "Unnamed" starts with no title, that
  * word stands for none) and saving updates the same entry, never logging a
  * second one. Picking a library item in the title field then only sets the
- * text: nothing is logged and the library is left alone.
+ * text: nothing is logged and the library is left alone. Editing also has
+ * Delete: it removes that one entry (and un-marks the library item it was
+ * logged from), and the toast's Undo puts it back.
  */
 export function LearningForm({ editing }: { editing?: Learning }) {
   const user = useCurrentUser();
@@ -293,6 +296,13 @@ export function LearningForm({ editing }: { editing?: Learning }) {
     });
   };
 
+  const remove = () => {
+    if (!editing) return;
+    const removed = deleteLearningEntry(editing.id);
+    if (!removed) return closeLog();
+    finish({ message: "Learning deleted", undoneMessage: "Delete undone", undo: removed.undo });
+  };
+
   return (
     <form
       className="grid gap-4"
@@ -376,12 +386,21 @@ export function LearningForm({ editing }: { editing?: Learning }) {
           learningTitle={title.trim() || UNNAMED_TITLE}
         />
       )}
-      <SubmitButton
-        disabled={!valid}
-        sharing={win.on && !editing}
-        label={editing ? "Save" : "Log learning"}
-        icon={!editing}
-      />
+      {editing ? (
+        <div className="grid grid-cols-[auto_1fr] gap-2">
+          <Button
+            type="button"
+            variant="destructive"
+            aria-label="Delete this learning entry"
+            onClick={remove}
+          >
+            <Trash2 /> Delete
+          </Button>
+          <SubmitButton disabled={!valid} sharing={false} label="Save" icon={false} />
+        </div>
+      ) : (
+        <SubmitButton disabled={!valid} sharing={win.on} label="Log learning" icon />
+      )}
     </form>
   );
 }

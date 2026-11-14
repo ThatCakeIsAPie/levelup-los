@@ -123,7 +123,8 @@ interface CrmState {
   logContact: (c: Omit<Contact, "id">) => Contact;
   removeSale: (id: string) => void;
   removeContact: (id: string) => void;
-  logLearning: (l: Omit<Learning, "id">) => void;
+  /** `id` is given only by library completions (their row's id is fixed, see `libraryLearningId`). */
+  logLearning: (l: Omit<Learning, "id"> & { id?: string }) => void;
   /**
    * Change an entry in place: its kind, title, amount, unit and date are
    * replaced (no `unit` clears it); id, person and `createdAt` stay. Returns
@@ -131,6 +132,8 @@ interface CrmState {
    */
   updateLearning: (id: string, next: LearningEdit) => Learning | undefined;
   removeLearning: (id: string) => void;
+  /** Put a removed entry back, as it was, at its place in the list. */
+  restoreLearning: (l: Learning, index: number) => void;
   setSettings: (s: Partial<Settings>) => void;
   setLearningGoal: (personId: string, goal: LearningGoal) => void;
   /** Set (or with `null`, clear) a person's PV for a month. */
@@ -202,7 +205,7 @@ export const useCrmStore = create<CrmState>()(
       logLearning: (l) =>
         set({
           learning: [
-            { createdAt: new Date().toISOString(), ...l, id: crypto.randomUUID() },
+            { createdAt: new Date().toISOString(), ...l, id: l.id ?? crypto.randomUUID() },
             ...get().learning,
           ],
         }),
@@ -216,6 +219,11 @@ export const useCrmStore = create<CrmState>()(
         return prev;
       },
       removeLearning: (id) => set({ learning: get().learning.filter((l) => l.id !== id) }),
+      restoreLearning: (l, index) => {
+        const rest = get().learning.filter((x) => x.id !== l.id);
+        rest.splice(Math.max(0, Math.min(index, rest.length)), 0, l);
+        set({ learning: rest });
+      },
       setSettings: (s) => set({ settings: { ...get().settings, ...s } }),
       setLearningGoal: (personId, goal) =>
         set({ goals: { ...get().goals, [personId]: { items: [...goal.items] } } }),
