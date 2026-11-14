@@ -4686,12 +4686,36 @@ export type Database = {
       add_starting_event_categories: { Args: { p_workspace_id: string }; Returns: undefined };
       agent_add_prospect: { Args: { p_name: string; p_phone?: string }; Returns: Json };
       agent_export_events_ics: { Args: { p_from?: string; p_until?: string }; Returns: Json };
-      agent_list_prospects: { Args: { p_limit?: number }; Returns: Json };
+      agent_get_person: { Args: { p_id: string }; Returns: Json };
+      agent_list_customers: {
+        Args: { p_limit?: number; p_mine_only?: boolean; p_offset?: number; p_search?: string };
+        Returns: Json;
+      };
+      agent_list_learning: { Args: { p_from?: string; p_until?: string }; Returns: Json };
+      agent_list_prospects: {
+        Args: { p_limit?: number; p_offset?: number; p_search?: string };
+        Returns: Json;
+      };
+      agent_list_team: {
+        Args: { p_limit?: number; p_offset?: number; p_search?: string };
+        Returns: Json;
+      };
       agent_list_upcoming_events: {
         Args: { p_changed_since?: string; p_from?: string; p_until?: string };
         Returns: Json;
       };
+      agent_log_learning: {
+        Args: {
+          p_amount?: number;
+          p_date?: string;
+          p_kind: string;
+          p_title?: string;
+          p_unit?: string;
+        };
+        Returns: Json;
+      };
       agent_set_event_answer: { Args: { p_answer: string; p_event_id: string }; Returns: Json };
+      agent_update_my_profile: { Args: { p_patch: Json }; Returns: Json };
       agent_update_prospect: { Args: { p_id: string; p_patch: Json }; Returns: Json };
       agent_whoami: { Args: Record<PropertyKey, never>; Returns: Json };
       answer_event_post: { Args: { p_message_id: string }; Returns: string };
