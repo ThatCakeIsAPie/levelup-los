@@ -8,7 +8,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { CrmPerson } from "@/stores/peopleStore";
-import type { CrmEvent } from "@/stores/eventsStore";
+import type { CrmEvent, EventSeries } from "@/stores/eventsStore";
 import type { Attendance, MissedEventNote } from "@/stores/attendanceStore";
 import {
   DEFAULT_SETTINGS,
@@ -93,6 +93,8 @@ export interface CrmSnapshot {
   /** The team's event categories (archived ones too: old events use them). */
   eventCategories: EventCategory[];
   events: CrmEvent[];
+  /** The rules of the repeating events. */
+  series: EventSeries[];
   attendances: Attendance[];
   missedNotes: MissedEventNote[];
   contacts: Contact[];
@@ -168,6 +170,7 @@ export async function fetchCrm(client: SupabaseClient, me: string): Promise<CrmS
     missedNotes,
     homeLayouts,
     eventCategories,
+    series,
   ] = await Promise.all([
     all("people", [["id", true]]),
     all("events", [
@@ -247,6 +250,7 @@ export async function fetchCrm(client: SupabaseClient, me: string): Promise<CrmS
       ["position", true],
       ["id", true],
     ]),
+    all("event_series", [["id", true]]),
   ]);
 
   const costList = costs.map((r) => m.costFromRow(r));
@@ -262,6 +266,7 @@ export async function fetchCrm(client: SupabaseClient, me: string): Promise<CrmS
     people: people.map((r) => m.personFromRow(r)),
     eventCategories: eventCategories.map((r) => m.eventCategoryFromRow(r)),
     events: events.map((r) => m.eventFromRow(r)),
+    series: series.map((r) => m.seriesFromRow(r)),
     attendances: attendances.map((r) => m.attendanceFromRow(r)),
     missedNotes: missedNotes.map((r) => m.missedNoteFromRow(r)),
     contacts: contacts.map((r) => m.contactFromRow(r)),
@@ -635,7 +640,7 @@ export function applyCrm(s: CrmSnapshot): void {
   replaceStore(teamBinding, s.team);
   replaceStore(peopleBinding, { people: s.people });
   replaceStore(eventCategoriesBinding, { categories: s.eventCategories });
-  replaceStore(eventsBinding, { events: s.events });
+  replaceStore(eventsBinding, { events: s.events, series: s.series });
   replaceStore(attendanceBinding, { attendances: s.attendances, missedNotes: s.missedNotes });
   replaceStore(crmBinding, {
     contacts: s.contacts,

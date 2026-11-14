@@ -29,6 +29,55 @@ describe("row mappers", () => {
     }
   });
 
+  it("round-trip an occurrence of a repeating event and its series", () => {
+    const e = {
+      id: "S1-2026-12-08",
+      name: "Info session",
+      categoryId: "w1-info_session",
+      date: "2026-12-08",
+      format: "in_person" as const,
+      seriesId: "S1",
+      seriesDate: "2026-12-08",
+      seriesOverrides: ["date", "name"],
+    };
+    expect(m.eventFromRow(m.eventToRow(e))).toEqual(e);
+    // The database's own row says the same.
+    expect(
+      m.eventFromRow({
+        id: e.id,
+        name: e.name,
+        category_id: e.categoryId,
+        date: e.date,
+        format: "in_person",
+        series_id: "S1",
+        series_date: "2026-12-08",
+        series_overrides: ["date", "name"],
+      } as never),
+    ).toEqual(e);
+    // An event that doesn't repeat has no series columns to send.
+    const plain = m.eventToRow(seedEvents()[0]);
+    expect(plain.series_id).toBeUndefined();
+    expect(m.EVENT_SERVER_COLUMNS).toEqual(["series_id", "series_date", "series_overrides"]);
+    const series = {
+      id: "S1",
+      freq: "monthly_weekday" as const,
+      startsOn: "2026-11-10",
+      endsOn: "2027-02-28",
+      skipped: ["2026-12-08"],
+      createdBy: "1",
+      name: "Info session",
+      categoryId: "w1-info_session",
+      location: "Dallas, TX",
+      format: "in_person" as const,
+      lengthDays: 0,
+    };
+    expect(m.seriesFromRow(m.seriesToRow(series) as never)).toEqual({
+      ...series,
+      notes: undefined,
+      ticketUrl: undefined,
+    });
+  });
+
   it("round-trip sales with PV, monthly PV, milestone marks and history", () => {
     for (const s of seedSales()) expect(m.saleFromRow(m.saleToRow(s))).toEqual(s);
     for (const o of seedPvOverrides()) {
