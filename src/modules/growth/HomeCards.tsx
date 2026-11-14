@@ -20,6 +20,7 @@ import {
   useDownline,
   useMyGrowthPath,
   useUnlocks,
+  visibleMilestones,
   type GrowthPath,
 } from "@/data";
 import { SectionCard, ToneChip, Sensitive } from "@/components/brand";
@@ -36,6 +37,7 @@ import { cn } from "@/lib/utils";
 import { firstName } from "@/modules/people/format";
 import { KeepUpNote, OverrideNote, ProgressBar, ProgressParts } from "./GrowthPath";
 import { isMonthly, monthYear, pv, reachedShort } from "./format";
+import { homeStrip } from "./pathView";
 
 /** What to say under the next milestone's numbers. */
 function nudge(path: GrowthPath): string {
@@ -71,9 +73,12 @@ function nudge(path: GrowthPath): string {
 
 /**
  * Home: the signed-in person's next milestone (the first one not held now:
- * one clear goal) with its real numbers, and the steps just behind and ahead
- * of it. A milestone they had before and lost says when they first hit it;
- * monthly milestones held only through last month get a heads-up.
+ * one clear goal) with its real numbers, and the steps just behind it (and any
+ * already reached ahead of it). This is their own path, so the strip only
+ * holds what `visibleMilestones` shows them: nothing beyond the next one that
+ * they haven't reached. A milestone they had before and lost says when they
+ * first hit it; monthly milestones held only through last month get a
+ * heads-up.
  */
 export function NextMilestoneCard() {
   const me = useCurrentUser();
@@ -106,8 +111,7 @@ export function NextMilestoneCard() {
   const single = monthly && p.parts.length === 1 ? p.parts[0] : null;
   const kind = growthMilestone(next.code).check.kind;
   const days = path.thisMonth.daysLeft;
-  const lo = Math.max(0, path.nextIndex - 2);
-  const strip = path.milestones.slice(lo, Math.min(path.milestones.length, path.nextIndex + 3));
+  const strip = homeStrip(path);
 
   return (
     <SectionCard
@@ -224,7 +228,10 @@ export function FirstSponsorCelebration() {
   const navigate = useNavigate();
   const path = useMyGrowthPath();
   const reachedOn =
-    path?.milestones.find((m) => m.code === "first_sponsor")?.firstReachedOn ?? null;
+    (path &&
+      visibleMilestones(path, { own: true }).find((m) => m.code === "first_sponsor")
+        ?.firstReachedOn) ||
+    null;
   const key = SEEN_KEY(me.personId);
   // "Show me" opens the team view, which First sponsor unlocks (src/data/unlocks.ts).
   const teamUnlocked = useUnlocks().can.team;
