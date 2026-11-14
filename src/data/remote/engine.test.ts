@@ -236,4 +236,27 @@ describe("sync engine: deletes", () => {
     expect(second.calls.map((c) => `${c.kind} ${c.table}`)).toEqual(["update events"]);
     copy.stopEngine();
   });
+
+  it("never sends the columns the database sets itself (serverColumns), on an insert or an update", async () => {
+    const server = { ...spec("events", "events"), serverColumns: ["series_id"] as const };
+    const b: Binding<Toy> = { name: "toy2", store: useToy, specs: [server] };
+    const fake = fakeClient();
+    startEngine({ client: fake.client, me: "1", myName: "Maria" }, [
+      b as unknown as Binding<unknown>,
+    ]);
+    useToy.setState({ events: [{ id: "e1", name: "One", series_id: "S1" } as never] });
+    await whenIdle();
+    expect(fake.calls).toHaveLength(1);
+    expect(fake.calls[0].rows).toEqual([{ id: "e1", name: "One" }]);
+
+    fake.calls.length = 0;
+    // The database moved the event into another series (a server-side change): nothing is sent back ...
+    useToy.setState({ events: [{ id: "e1", name: "One", series_id: "S2" } as never] });
+    await whenIdle();
+    expect(fake.calls).toHaveLength(0);
+    // ... and a real edit sends only what the person changed.
+    useToy.setState({ events: [{ id: "e1", name: "Uno", series_id: "S3" } as never] });
+    await whenIdle();
+    expect(fake.calls.map((c) => c.changes)).toEqual([{ name: "Uno" }]);
+  });
 });

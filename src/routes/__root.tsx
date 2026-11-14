@@ -24,6 +24,7 @@ import { useRemoteStore } from "@/data/remote/extras";
 import { AuthLoading } from "@/modules/login/AuthLayout";
 import { AccountErrorScreen, NoTeamScreen } from "@/modules/login/AccountScreens";
 import { TeamLookHost } from "@/components/shell/TeamLookHost";
+import { SeriesTopUp } from "@/components/shell/SeriesTopUp";
 
 // Real accounts: follow Supabase Auth from the first render (no-op in the
 // browser-storage demo).
@@ -112,6 +113,8 @@ function RootComponent() {
       <AppBackdrop />
       {/* Applies the team's saved look (colours, picture, glass, logo) while someone is signed in. */}
       <TeamLookHost />
+      {/* Keeps repeating events filled ahead while someone is signed in. */}
+      <SeriesTopUp />
       {/* One provider for every Tooltip in the app. */}
       <TooltipProvider delayDuration={200}>
         <SessionGate />

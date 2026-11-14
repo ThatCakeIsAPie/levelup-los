@@ -1288,6 +1288,90 @@ export type Database = {
           },
         ];
       };
+      event_series: {
+        Row: {
+          category_id: string;
+          created_at: string;
+          created_by: string | null;
+          ends_on: string | null;
+          format: string;
+          freq: string;
+          id: string;
+          length_days: number;
+          location: string | null;
+          name: string;
+          notes: string | null;
+          skipped: string[];
+          starts_on: string;
+          ticket_url: string | null;
+          workspace_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          category_id: string;
+          created_at?: string;
+          created_by?: string | null;
+          ends_on?: string | null;
+          format?: string;
+          freq: string;
+          id?: string;
+          length_days?: number;
+          location?: string | null;
+          name: string;
+          notes?: string | null;
+          skipped?: string[];
+          starts_on: string;
+          ticket_url?: string | null;
+          workspace_id?: string;
+        };
+        Update: {
+          category_id?: string;
+          created_at?: string;
+          created_by?: string | null;
+          ends_on?: string | null;
+          format?: string;
+          freq?: string;
+          id?: string;
+          length_days?: number;
+          location?: string | null;
+          name?: string;
+          notes?: string | null;
+          skipped?: string[];
+          starts_on?: string;
+          ticket_url?: string | null;
+          workspace_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "event_series_category_id_fkey";
+            columns: ["category_id"];
+            isOneToOne: false;
+            referencedRelation: "event_categories";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "event_series_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "event_series_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "event_series_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       events: {
         Row: {
           category_id: string;
@@ -1300,6 +1384,9 @@ export type Database = {
           location: string | null;
           name: string;
           notes: string | null;
+          series_date: string | null;
+          series_id: string | null;
+          series_overrides: string[] | null;
           ticket_url: string | null;
           workspace_id: string;
         };
@@ -1315,6 +1402,9 @@ export type Database = {
           location?: string | null;
           name: string;
           notes?: string | null;
+          series_date?: string | null;
+          series_id?: string | null;
+          series_overrides?: string[] | null;
           ticket_url?: string | null;
           workspace_id?: string;
         };
@@ -1329,6 +1419,9 @@ export type Database = {
           location?: string | null;
           name?: string;
           notes?: string | null;
+          series_date?: string | null;
+          series_id?: string | null;
+          series_overrides?: string[] | null;
           ticket_url?: string | null;
           workspace_id?: string;
         };
@@ -1338,6 +1431,13 @@ export type Database = {
             columns: ["category_id"];
             isOneToOne: false;
             referencedRelation: "event_categories";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "events_series_id_fkey";
+            columns: ["series_id"];
+            isOneToOne: false;
+            referencedRelation: "event_series";
             referencedColumns: ["id"];
           },
           {
@@ -4430,6 +4530,7 @@ export type Database = {
       current_workspace_id: { Args: Record<PropertyKey, never>; Returns: string };
       customer_move_is_latest: { Args: { p_move_id: string }; Returns: boolean };
       dashboard_layout_valid: { Args: { p_layout: Json }; Returns: boolean };
+      delete_event_following: { Args: { p_event_id: string }; Returns: Json };
       deputy_leader_ids: { Args: Record<PropertyKey, never>; Returns: string[] };
       dm_open: { Args: { p_conversation_id: string }; Returns: boolean };
       dm_other_person: { Args: { p_conversation_id: string }; Returns: string };
@@ -4449,6 +4550,7 @@ export type Database = {
           stage_key: string;
         }[];
       };
+      event_has_dependents: { Args: { p_event_id: string }; Returns: boolean };
       event_rsvp_counts: {
         Args: Record<PropertyKey, never>;
         Returns: {
@@ -4539,8 +4641,13 @@ export type Database = {
         Args: { p_owner_id: string; p_workspace_id: string };
         Returns: boolean;
       };
+      make_event_repeat: {
+        Args: { p_ends_on: string; p_event_id: string; p_freq: string };
+        Returns: Json;
+      };
       mark_conversation_read: { Args: { p_conversation_id: string }; Returns: string };
       mask_email: { Args: { p_email: string }; Returns: string };
+      may_edit_events: { Args: { p_created_by: string }; Returns: boolean };
       merge_event_categories: { Args: { p_from_id: string; p_into_id: string }; Returns: number };
       message_author_id: { Args: { p_message_id: string }; Returns: string };
       message_conversation_id: { Args: { p_message_id: string }; Returns: string };
@@ -4632,6 +4739,21 @@ export type Database = {
         Returns: undefined;
       };
       reject_announcement: { Args: { p_draft_id: string }; Returns: undefined };
+      series_period_days: { Args: { p_freq: string }; Returns: number };
+      series_nth_date: {
+        Args: { p_anchor: string; p_freq: string; p_n: number };
+        Returns: string;
+      };
+      series_is_slot: {
+        Args: { p_anchor: string; p_date: string; p_freq: string };
+        Returns: boolean;
+      };
+      series_internal_end: { Args: { p_prev: string }; Returns: undefined };
+      series_internal_begin: { Args: Record<PropertyKey, never>; Returns: string };
+      series_fill: {
+        Args: { p_series_id: string; p_today: string };
+        Returns: Database["public"]["Tables"]["events"]["Row"][];
+      };
       set_workspace_appearance: {
         Args: {
           p_background?: string;
@@ -4664,6 +4786,7 @@ export type Database = {
         Args: { p_kind: string; p_path: string; p_workspace: string };
         Returns: boolean;
       };
+      topup_event_series: { Args: Record<PropertyKey, never>; Returns: Json };
       unread_counts: {
         Args: Record<PropertyKey, never>;
         Returns: {
@@ -4671,6 +4794,10 @@ export type Database = {
           last_message_at: string;
           unread: number;
         }[];
+      };
+      update_event_series_following: {
+        Args: { p_event_id: string; p_patch: Json; p_repeat: Json };
+        Returns: Json;
       };
       visible_person_ids: { Args: Record<PropertyKey, never>; Returns: string[] };
       workspace_today: { Args: { p_workspace_id: string }; Returns: string };

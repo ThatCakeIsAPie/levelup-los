@@ -45,6 +45,7 @@ import {
   timingLabel,
 } from "@/modules/events/lib";
 import { EventCategoryChip, EventFormatChip } from "@/modules/events/categoryMeta";
+import { RepeatIcon } from "@/modules/events/RepeatIcon";
 import { categoryIcon } from "@/modules/events/categoryIcons";
 
 /**
@@ -337,6 +338,7 @@ function FeaturedCard({
             >
               {event.name}
             </Link>
+            {event.seriesId && <RepeatIcon className="ml-1.5 align-[-2px]" />}
           </h3>
           <MetaLine event={event} className="mt-0.5" />
         </div>
@@ -464,6 +466,7 @@ function UpcomingCard({ s, candidate }: { s: EventSummary; candidate: boolean })
             >
               {event.name}
             </Link>
+            {event.seriesId && <RepeatIcon className="ml-1.5 align-[-2px]" />}
           </h3>
           <MetaLine event={event} className="mt-0.5" />
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
@@ -539,6 +542,7 @@ function PastRow({ s, candidate }: { s: EventSummary; candidate: boolean }) {
           {event.name}
         </Link>
         <p className="truncate text-xs text-muted-foreground">
+          {event.seriesId && <RepeatIcon className="mr-1 align-[-2px]" />}
           {s.category.name}
           {event.location ? (
             <>

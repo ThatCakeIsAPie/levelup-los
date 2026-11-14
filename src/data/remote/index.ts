@@ -174,7 +174,7 @@ export function closeRemoteSession(cancelLoading = true): void {
   pendingScopes.clear();
   suppressed(() => {
     usePeopleStore.setState({ people: [] });
-    useEventsStore.setState({ events: [] });
+    useEventsStore.setState({ events: [], series: [] });
     useEventCategoriesStore.setState({ categories: [] });
     useAttendanceStore.setState({ attendances: [], missedNotes: [] });
     useCrmStore.setState({

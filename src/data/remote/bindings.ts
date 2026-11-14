@@ -3,7 +3,7 @@
  * (see ./engine.ts). One spec per database table.
  */
 import { usePeopleStore, type CrmPerson } from "@/stores/peopleStore";
-import { useEventsStore, type CrmEvent } from "@/stores/eventsStore";
+import { useEventsStore, type CrmEvent, type EventSeries } from "@/stores/eventsStore";
 import { useEventCategoriesStore } from "@/data/eventCategories/store";
 import type { EventCategoriesData, EventCategory } from "@/data/eventCategories/types";
 import {
@@ -85,6 +85,7 @@ function listSpec<S, T extends object>(o: {
   /** New items go first (newest-first lists). */
   prepend?: boolean;
   insert?: TableSpec<S>["insert"];
+  serverColumns?: TableSpec<S>["serverColumns"];
   update?: boolean;
   delete?: boolean;
   writeInsert?: TableSpec<S>["writeInsert"];
@@ -103,6 +104,7 @@ function listSpec<S, T extends object>(o: {
     table: o.table,
     pk: o.pk,
     insert: o.insert ?? "insert",
+    serverColumns: o.serverColumns,
     update: o.update,
     delete: o.delete,
     writeInsert: o.writeInsert,
@@ -215,6 +217,18 @@ export const eventsBinding: Binding<EventsS> = {
   name: "events",
   store: useEventsStore,
   specs: [
+    // The rules of repeating events: made and changed only by the database's series functions.
+    listSpec<EventsS, EventSeries>({
+      table: "event_series",
+      pk: ["id"],
+      get: (s) => s.series,
+      set: (series) => ({ series }),
+      toRow: m.seriesToRow,
+      fromRow: m.seriesFromRow,
+      insert: false,
+      update: false,
+      delete: false,
+    }),
     listSpec<EventsS, CrmEvent>({
       table: "events",
       pk: ["id"],
@@ -222,6 +236,7 @@ export const eventsBinding: Binding<EventsS> = {
       set: (events) => ({ events }),
       toRow: m.eventToRow,
       fromRow: m.eventFromRow,
+      serverColumns: m.EVENT_SERVER_COLUMNS,
     }),
   ],
 };

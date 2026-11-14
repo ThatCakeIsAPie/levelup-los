@@ -16,7 +16,8 @@
 import { format } from "date-fns";
 import type { Tables } from "./database.types";
 import type { CrmPerson, StageChange } from "@/stores/peopleStore";
-import type { CrmEvent } from "@/stores/eventsStore";
+import type { CrmEvent, EventSeries } from "@/stores/eventsStore";
+import type { RepeatFreq } from "@/data/recurrence/rule";
 import type { CategoryIcon, CategoryTone, EventCategory } from "@/data/eventCategories/types";
 import type { Attendance, MissedEventNote } from "@/stores/attendanceStore";
 import type {
@@ -184,8 +185,14 @@ export function eventFromRow(r: R<"events">): CrmEvent {
     notes: opt(r.notes),
     format: opt(r.format) as CrmEvent["format"],
     ticketUrl: opt(r.ticket_url),
+    seriesId: opt(r.series_id),
+    seriesDate: opt(r.series_date),
+    seriesOverrides: r.series_overrides?.length ? r.series_overrides : undefined,
   };
 }
+
+/** The columns of `events` the database sets itself (see `eventsSpec.serverColumns`). */
+export const EVENT_SERVER_COLUMNS = ["series_id", "series_date", "series_overrides"] as const;
 
 export function eventToRow(e: CrmEvent): Row {
   return {
@@ -198,6 +205,46 @@ export function eventToRow(e: CrmEvent): Row {
     notes: nul(e.notes),
     format: e.format ?? "in_person",
     ticket_url: nul(e.ticketUrl),
+    // Read-only here: the series functions and a trigger in the database own these.
+    series_id: e.seriesId,
+    series_date: e.seriesDate,
+    series_overrides: e.seriesOverrides,
+  };
+}
+
+export function seriesFromRow(r: R<"event_series">): EventSeries {
+  return {
+    id: r.id!,
+    freq: r.freq as RepeatFreq,
+    startsOn: r.starts_on ?? "",
+    endsOn: opt(r.ends_on),
+    skipped: r.skipped ?? [],
+    createdBy: opt(r.created_by),
+    name: r.name ?? "",
+    categoryId: r.category_id ?? "",
+    location: opt(r.location),
+    notes: opt(r.notes),
+    format: opt(r.format) as EventSeries["format"],
+    ticketUrl: opt(r.ticket_url),
+    lengthDays: r.length_days ?? 0,
+  };
+}
+
+export function seriesToRow(x: EventSeries): Row {
+  return {
+    id: x.id,
+    freq: x.freq,
+    starts_on: x.startsOn,
+    ends_on: nul(x.endsOn),
+    skipped: x.skipped,
+    created_by: nul(x.createdBy),
+    name: x.name,
+    category_id: x.categoryId,
+    location: nul(x.location),
+    notes: nul(x.notes),
+    format: x.format ?? "in_person",
+    ticket_url: nul(x.ticketUrl),
+    length_days: x.lengthDays,
   };
 }
 
