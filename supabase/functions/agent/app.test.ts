@@ -44,7 +44,7 @@ describe("POST /pair", () => {
       team: WORKSPACE,
     });
     expect(j.urls.mcp).toBe(`${BASE}/mcp`);
-    expect(j.tools.map((t: { name: string }) => t.name)).toHaveLength(7);
+    expect(j.tools.map((t: { name: string }) => t.name)).toHaveLength(13);
     expect(j.setup.claude_code).toContain(`${BASE}/mcp`);
     expect(JSON.stringify(j.setup)).not.toContain(j.connection_key);
     // only the hash of the key reached the database
@@ -310,13 +310,28 @@ describe("plain HTTP surface", () => {
     expect(j.tools.map((t: { name: string }) => t.name)).toEqual([
       "whoami",
       "list_prospects",
+      "list_team",
+      "list_customers",
+      "get_person",
       "add_prospect",
       "update_prospect",
+      "update_my_profile",
       "list_upcoming_events",
       "export_events_ics",
       "set_event_answer",
+      "log_learning",
+      "list_learning",
     ]);
-    expect(j.tools[2]).toMatchObject({ changes_data: true });
+    const writes = j.tools
+      .filter((t: { changes_data: boolean }) => t.changes_data)
+      .map((t: { name: string }) => t.name);
+    expect(writes).toEqual([
+      "add_prospect",
+      "update_prospect",
+      "update_my_profile",
+      "set_event_answer",
+      "log_learning",
+    ]);
     expect(j.tools[0]).toMatchObject({ changes_data: false });
   });
 
@@ -710,7 +725,7 @@ describe("MCP", () => {
     expect(res.status).toBe(401);
   });
 
-  it("lists the seven tools with schemas and read-only hints", async () => {
+  it("lists the thirteen tools with schemas and read-only hints", async () => {
     const { db, handle } = setup();
     await db.addConnection(KEY);
     const j = await (
@@ -721,10 +736,14 @@ describe("MCP", () => {
       inputSchema: { type: string };
       annotations: { readOnlyHint: boolean };
     }[];
-    expect(tools).toHaveLength(7);
+    expect(tools).toHaveLength(13);
     expect(tools.every((t) => t.inputSchema.type === "object")).toBe(true);
     expect(tools.find((t) => t.name === "whoami")?.annotations.readOnlyHint).toBe(true);
     expect(tools.find((t) => t.name === "add_prospect")?.annotations.readOnlyHint).toBe(false);
+    for (const name of ["update_my_profile", "log_learning"])
+      expect(tools.find((t) => t.name === name)?.annotations.readOnlyHint, name).toBe(false);
+    for (const name of ["list_team", "list_customers", "get_person", "list_learning"])
+      expect(tools.find((t) => t.name === name)?.annotations.readOnlyHint, name).toBe(true);
     expect(tools.find((t) => t.name === "export_events_ics")?.annotations.readOnlyHint).toBe(true);
     expect(tools.find((t) => t.name === "list_upcoming_events")?.annotations.readOnlyHint).toBe(
       true,
@@ -776,8 +795,8 @@ describe("MCP", () => {
     expect(j.result.isError).toBe(false);
     expect(JSON.parse(j.result.content[0].text)).toEqual([{ id: "p1" }]);
     expect(db.toolCalls[0]).toMatchObject({
-      sql: "select public.agent_list_prospects($1::int) as r",
-      params: [5],
+      sql: "select public.agent_list_prospects($1::int, $2::text, $3::int) as r",
+      params: [5, null, 0],
     });
   });
 

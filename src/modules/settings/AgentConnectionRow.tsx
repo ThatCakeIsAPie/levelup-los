@@ -8,7 +8,7 @@ import { fetchActivity, type AgentConnection } from "@/data/agents/api";
 import {
   ACCESS_LABEL,
   dateTime,
-  entryProspectName,
+  entryPersonName,
   isRefusal,
   relativeTime,
   shortDate,
@@ -96,7 +96,7 @@ function AgentActivity({ id, connectionId }: { id: string; connectionId: string 
   return (
     <ul id={id} aria-label="Activity" className="mt-2 ml-[22px] grid gap-2">
       {entries.map((e) => {
-        const name = entryProspectName(e);
+        const name = entryPersonName(e);
         const refused = isRefusal(e.result);
         return (
           <li key={e.id} className="grid min-w-0 gap-0.5 rounded-lg bg-surface-2 px-2.5 py-2">
