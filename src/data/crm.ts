@@ -148,6 +148,8 @@ export function logContact(input: {
  * pages for reading, episodes for podcasts).
  */
 export function logLearning(input: {
+  /** Library completions only: the row's fixed id (otherwise a new one is made). */
+  id?: string;
   kind: LearningKind;
   title: string;
   amount?: number;
@@ -156,6 +158,7 @@ export function logLearning(input: {
   personId?: string;
 }): void {
   useCrmStore.getState().logLearning({
+    ...(input.id ? { id: input.id } : {}),
     personId: input.personId ?? me(),
     kind: input.kind,
     title: input.title,
@@ -182,9 +185,41 @@ export function updateLearning(id: string, next: LearningEdit): Learning | null 
   return useCrmStore.getState().updateLearning(id, next) ?? null;
 }
 
-/** Delete a learning entry. */
+/** Delete a learning entry (any; callers that act for a person use `deleteLearning`). */
 export function removeLearning(id: string): void {
   useCrmStore.getState().removeLearning(id);
+}
+
+/** An entry taken out of the list with its place in it, so `restoreLearning` can put it back exactly. */
+export interface RemovedLearning {
+  entry: Learning;
+  index: number;
+}
+
+/**
+ * Delete one of the current user's own learning entries. Returns the entry
+ * as it was (and where it stood), or null (nothing changed) when there is no
+ * such entry of yours. Removes exactly that one entry.
+ */
+export function deleteLearning(id: string): RemovedLearning | null {
+  const list = useCrmStore.getState().learning;
+  const index = list.findIndex((l) => l.id === id);
+  if (index < 0 || list[index].personId !== me()) return null;
+  const entry = list[index];
+  useCrmStore.getState().removeLearning(id);
+  return { entry, index };
+}
+
+/**
+ * Undo of `deleteLearning`: the same entry back (same id, values and
+ * `createdAt`) in its place. Does nothing and returns false when an entry
+ * with that id exists again meanwhile (so an undo never makes a second one),
+ * or when the entry is not the current user's.
+ */
+export function restoreLearning({ entry, index }: RemovedLearning): boolean {
+  if (entry.personId !== me() || getLearning(entry.id)) return false;
+  useCrmStore.getState().restoreLearning(entry, index);
+  return true;
 }
 
 /**
