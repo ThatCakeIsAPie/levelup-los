@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { CalendarCheck, CalendarPlus, Pencil, Plus } from "lucide-react";
 import {
   assignToEvent,
+  compareStart,
   getPersonShowRate,
   isUpcoming,
   localDate,
@@ -69,10 +70,10 @@ function usePersonEventRows(personId: string) {
     }
     const upcoming = rows
       .filter((r) => isUpcoming(r.ev, today))
-      .sort((x, y) => x.ev.date.localeCompare(y.ev.date));
+      .sort((x, y) => compareStart(x.ev, y.ev));
     const past = rows
       .filter((r) => !isUpcoming(r.ev, today))
-      .sort((x, y) => y.ev.date.localeCompare(x.ev.date));
+      .sort((x, y) => compareStart(y.ev, x.ev));
     const assigned = new Set(rows.map((r) => r.ev.id));
     const unassigned = events.filter((e) => !assigned.has(e.id));
     return { upcoming, past, unassigned, attendances, events };
@@ -735,7 +736,7 @@ function HelpingFor({ person }: { person: CrmPerson }) {
       .filter((a) => a.helperId === person.id)
       .map((a) => ({ a, ev: evs.get(a.eventId), p: ppl.get(a.personId) }))
       .filter((r): r is { a: Attendance; ev: CrmEvent; p: CrmPerson } => !!r.ev && !!r.p)
-      .sort((x, y) => y.ev.date.localeCompare(x.ev.date));
+      .sort((x, y) => compareStart(y.ev, x.ev));
   }, [all, events, people, person.id]);
 
   if (!rows.length) return null;

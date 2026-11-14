@@ -33,6 +33,7 @@ import type { CrmEvent } from "@/stores/eventsStore";
 import type { Attendance, MissedEventNote } from "@/stores/attendanceStore";
 import type { Contact } from "@/stores/crmStore";
 import { effectiveBizClass, type CrmPerson } from "@/stores/peopleStore";
+import { compareStart } from "../eventTimes";
 import { countsForMissed } from "../eventCategories/rules";
 import type { EventCategory } from "../eventCategories/types";
 
@@ -77,8 +78,7 @@ export interface MissedInput {
 }
 
 const lastDay = (e: CrmEvent) => e.endDate ?? e.date;
-const byDate = (a: CrmEvent, b: CrmEvent) =>
-  a.date.localeCompare(b.date) || a.id.localeCompare(b.id);
+const byDate = (a: CrmEvent, b: CrmEvent) => compareStart(a, b) || a.id.localeCompare(b.id);
 
 /**
  * Every current missed streak (handled or not) within the window, per person

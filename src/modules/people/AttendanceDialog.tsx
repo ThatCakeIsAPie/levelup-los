@@ -11,6 +11,7 @@ import {
   type CrmPerson,
   type DesireLevel,
   type AttendMode,
+  withTime,
 } from "@/data";
 import { Button } from "@/components/ui/button";
 import {
@@ -135,7 +136,8 @@ function AttendanceForm({
       <DialogHeader>
         <DialogTitle>{event.name}</DialogTitle>
         <DialogDescription>
-          <Sensitive kind="name">{personName}</Sensitive> · {fmtDate(event.date, { year: true })}
+          <Sensitive kind="name">{personName}</Sensitive> ·{" "}
+          {withTime(fmtDate(event.date, { year: true }), event)}
         </DialogDescription>
       </DialogHeader>
 

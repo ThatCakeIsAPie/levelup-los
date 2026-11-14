@@ -18,6 +18,7 @@ import type { Tables } from "./database.types";
 import type { CrmPerson, StageChange } from "@/stores/peopleStore";
 import type { CrmEvent, EventSeries } from "@/stores/eventsStore";
 import type { RepeatFreq } from "@/data/recurrence/rule";
+import { cleanTime } from "@/data/eventTimes";
 import type { CategoryIcon, CategoryTone, EventCategory } from "@/data/eventCategories/types";
 import type { Attendance, MissedEventNote } from "@/stores/attendanceStore";
 import type {
@@ -181,6 +182,8 @@ export function eventFromRow(r: R<"events">): CrmEvent {
     categoryId: r.category_id ?? "",
     date: r.date ?? "",
     endDate: opt(r.end_date),
+    startTime: cleanTime(r.start_time),
+    endTime: cleanTime(r.end_time),
     location: opt(r.location),
     notes: opt(r.notes),
     format: opt(r.format) as CrmEvent["format"],
@@ -201,6 +204,8 @@ export function eventToRow(e: CrmEvent): Row {
     category_id: e.categoryId,
     date: e.date,
     end_date: nul(e.endDate),
+    start_time: nul(e.startTime),
+    end_time: nul(e.endTime),
     location: nul(e.location),
     notes: nul(e.notes),
     format: e.format ?? "in_person",
@@ -226,6 +231,8 @@ export function seriesFromRow(r: R<"event_series">): EventSeries {
     notes: opt(r.notes),
     format: opt(r.format) as EventSeries["format"],
     ticketUrl: opt(r.ticket_url),
+    startTime: cleanTime(r.start_time),
+    endTime: cleanTime(r.end_time),
     lengthDays: r.length_days ?? 0,
   };
 }
@@ -244,6 +251,8 @@ export function seriesToRow(x: EventSeries): Row {
     notes: nul(x.notes),
     format: x.format ?? "in_person",
     ticket_url: nul(x.ticketUrl),
+    start_time: nul(x.startTime),
+    end_time: nul(x.endTime),
     length_days: x.lengthDays,
   };
 }

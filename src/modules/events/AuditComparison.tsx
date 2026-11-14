@@ -40,6 +40,7 @@ import {
   useVisibleAttendances,
   type AuditDeltaRow,
   type CrmEvent,
+  withTime,
 } from "@/data";
 import { usePeopleMap } from "./hooks";
 import { attendanceStatus } from "./lib";
@@ -183,7 +184,7 @@ export function AuditComparison({ event }: { event: CrmEvent }) {
                         {e.id === event.id ? "This event" : e.name}
                       </span>
                       <span className="block text-[11px] font-normal text-faint">
-                        {format(parseDate(e.date), "MMM d, yyyy")}
+                        {withTime(format(parseDate(e.date), "MMM d, yyyy"), e)}
                       </span>
                     </TableHead>
                   ))}
@@ -321,7 +322,7 @@ function EventPicker({
           <SelectItem value="none">None</SelectItem>
           {events.map((e) => (
             <SelectItem key={e.id} value={e.id}>
-              {e.name} · {format(parseDate(e.date), "MMM d, yyyy")}
+              {e.name} · {withTime(format(parseDate(e.date), "MMM d, yyyy"), e)}
             </SelectItem>
           ))}
         </SelectContent>

@@ -46,6 +46,7 @@ import {
   useCurrentUser,
   useCustomerColumns,
   usePipelineColumns,
+  withTime,
 } from "@/data";
 import { MissedNoteDialog } from "@/modules/events/MissedNoteDialog";
 import { useMoveCard } from "@/modules/pipeline/useMoveCard";
@@ -665,11 +666,11 @@ function TodayRow({
       const { latest, lastAttended, missed } = item.streak;
       title = compact ? p.name : `${p.name} missed ${latest.name}`;
       detail = compact
-        ? `Missed ${categoryOf(latest).name} ${shortDate(latest.date)}`
-        : `${categoryOf(latest).name} ${shortDate(latest.date)} · ${
+        ? `Missed ${categoryOf(latest).name} ${withTime(shortDate(latest.date), latest)}`
+        : `${categoryOf(latest).name} ${withTime(shortDate(latest.date), latest)} · ${
             missed.length > 1
               ? `missed the last ${missed.length}`
-              : `came ${shortDate(lastAttended.date)}`
+              : `came ${withTime(shortDate(lastAttended.date), lastAttended)}`
           }`;
       action = (
         <span className="flex items-center gap-1.5">
