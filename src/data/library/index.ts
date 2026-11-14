@@ -98,6 +98,7 @@ export {
   markLibraryItemDone,
   markLibraryItemNotDone,
   completeLibraryItemWithEntry,
+  deleteLearningEntry,
   type LibraryEntry,
   type SaveResult,
   type ChannelDraft,
