@@ -531,3 +531,192 @@ describe("This and following: delete (requirement D)", () => {
     ).toBe(true);
   });
 });
+
+describe("event times carry through a series", () => {
+  const timed = () => make("weekly", { startTime: "19:00", endTime: "20:30" });
+  const times = (s: SeriesState, date: string) => {
+    const e = at(s, date);
+    return [e.startTime, e.endTime];
+  };
+  // The first Tuesdays of the series: 11-17 is the first occurrence, 12-01 the third, 12-08 the fourth.
+  const FIRST_8 = [
+    "2026-11-17",
+    "2026-11-24",
+    "2026-12-01",
+    "2026-12-08",
+    "2026-12-15",
+    "2026-12-22",
+  ];
+
+  it("a new series takes the event's times and every occurrence it makes carries them", () => {
+    const s = timed();
+    expect(s.series[0]).toMatchObject({ startTime: "19:00", endTime: "20:30" });
+    const mine = s.events.filter((e) => e.seriesId === "S1");
+    expect(mine.length).toBeGreaterThan(6);
+    for (const e of mine) expect([e.startTime, e.endTime]).toEqual(["19:00", "20:30"]);
+  });
+
+  it("an event without times makes occurrences without them (no keys, like before)", () => {
+    const s = make();
+    for (const e of s.events) {
+      expect("startTime" in e).toBe(false);
+      expect("endTime" in e).toBe(false);
+    }
+  });
+
+  it("occurrences made later get the series' current times", () => {
+    const s = timed();
+    const out = outcome(
+      editFollowing(
+        s,
+        at(s, "2026-12-08").id,
+        { startTime: "18:00", endTime: "19:30" },
+        undefined,
+        hooks(),
+      ),
+    );
+    const later = fillSeries(out.state, addDaysTo(TODAY, 28));
+    expect(times(later, "2027-02-02")).toEqual(["18:00", "19:30"]);
+  });
+
+  it("a time changed with This event is remembered as that occurrence's own change", () => {
+    const e = at(timed(), "2026-12-01");
+    expect(markOverrides(e, { startTime: "18:00" })).toEqual({ seriesOverrides: ["start_time"] });
+    expect(markOverrides(e, { startTime: "19:00" })).toEqual({}); // nothing changed
+    expect(markOverrides(e, { startTime: "18:00", endTime: undefined })).toEqual({
+      seriesOverrides: ["end_time", "start_time"],
+    });
+    expect(markOverrides({ ...e, seriesOverrides: ["name"] }, { endTime: "21:00" })).toEqual({
+      seriesOverrides: ["end_time", "name"],
+    });
+    expect(
+      markOverrides({ ...e, startTime: undefined, endTime: undefined }, { startTime: "" }),
+    ).toEqual({});
+  });
+
+  it("This and following from occurrence 4: 4 and later change, 1 to 3 stay, an occurrence with its own time keeps it", () => {
+    const base = timed();
+    const own = at(base, "2026-12-15"); // occurrence 5 changed its start time on its own
+    const s = {
+      ...base,
+      events: base.events.map((e) =>
+        e.id === own.id ? { ...e, startTime: "17:00", seriesOverrides: ["start_time"] } : e,
+      ),
+    };
+    const out = outcome(
+      editFollowing(
+        s,
+        at(s, "2026-12-08").id,
+        { startTime: "18:00", endTime: "19:30" },
+        undefined,
+        hooks(),
+      ),
+    );
+    expect(FIRST_8.slice(0, 3).map((d) => times(out.state, d))).toEqual([
+      ["19:00", "20:30"],
+      ["19:00", "20:30"],
+      ["19:00", "20:30"],
+    ]);
+    expect(times(out.state, "2026-12-08")).toEqual(["18:00", "19:30"]);
+    expect(times(out.state, "2026-12-15")).toEqual(["17:00", "19:30"]); // own start, the series' new end
+    expect(times(out.state, "2026-12-22")).toEqual(["18:00", "19:30"]);
+    expect(out.state.series[0]).toMatchObject({ startTime: "18:00", endTime: "19:30" });
+  });
+
+  it("an edit that starts at the occurrence overwrites its own time", () => {
+    const base = timed();
+    const own = at(base, "2026-12-08");
+    const s = {
+      ...base,
+      events: base.events.map((e) =>
+        e.id === own.id
+          ? {
+              ...e,
+              startTime: "17:00",
+              endTime: "18:00",
+              seriesOverrides: ["end_time", "start_time"],
+            }
+          : e,
+      ),
+    };
+    const out = outcome(
+      editFollowing(s, own.id, { startTime: "18:00", endTime: "19:30" }, undefined, hooks()),
+    );
+    expect(times(out.state, "2026-12-08")).toEqual(["18:00", "19:30"]);
+    expect(at(out.state, "2026-12-08").seriesOverrides).toBeUndefined();
+  });
+
+  it("clearing the times from an occurrence on makes the later ones all-day (an end time never stays alone)", () => {
+    const base = timed();
+    const own = at(base, "2026-12-15"); // its own end time, which would be left with no start time
+    const s = {
+      ...base,
+      events: base.events.map((e) =>
+        e.id === own.id ? { ...e, endTime: "22:00", seriesOverrides: ["end_time"] } : e,
+      ),
+    };
+    const out = outcome(
+      editFollowing(
+        s,
+        at(s, "2026-12-08").id,
+        { startTime: undefined, endTime: undefined },
+        undefined,
+        hooks(),
+      ),
+    );
+    expect(times(out.state, "2026-12-01")).toEqual(["19:00", "20:30"]);
+    for (const d of ["2026-12-08", "2026-12-15", "2026-12-22"])
+      expect(times(out.state, d)).toEqual([undefined, undefined]);
+    expect(out.state.series[0].startTime).toBeUndefined();
+    expect(out.state.series[0].endTime).toBeUndefined();
+  });
+
+  it("drops an end time that no longer fits the occurrence it lands on, and keeps one that does", () => {
+    // Occurrences 5 and 6 each have their own end time (17:00); 6 is also a two-day event of its own.
+    const base = make("weekly", { startTime: "09:00", endTime: "17:00" });
+    const five = at(base, "2026-12-15");
+    const six = at(base, "2026-12-22");
+    const s = {
+      ...base,
+      events: base.events.map((e) =>
+        e.id === five.id
+          ? { ...e, seriesOverrides: ["end_time"] }
+          : e.id === six.id
+            ? { ...e, endDate: "2026-12-23", seriesOverrides: ["end_date", "end_time"] }
+            : e,
+      ),
+    };
+    const out = outcome(
+      editFollowing(
+        s,
+        at(s, "2026-12-08").id,
+        { startTime: "18:00", endTime: "19:00" },
+        undefined,
+        hooks(),
+      ),
+    );
+    expect(times(out.state, "2026-12-08")).toEqual(["18:00", "19:00"]);
+    // 5: one day, so its own end (17:00) would be before the new start: dropped, not made up.
+    expect(times(out.state, "2026-12-15")).toEqual(["18:00", undefined]);
+    // 6: two days, so an end earlier in the day than the start is fine.
+    expect(times(out.state, "2026-12-22")).toEqual(["18:00", "17:00"]);
+  });
+
+  it("refuses times that are not allowed, the way the database does", () => {
+    const s = timed();
+    const from = at(s, "2026-12-08").id;
+    expect(editFollowing(s, from, { endTime: "18:00" }, undefined, hooks())).toEqual({
+      error: "The end time must be after the start time.",
+    });
+    expect(editFollowing(s, from, { startTime: undefined }, undefined, hooks())).toEqual({
+      error: "An end time needs a start time.",
+    });
+  });
+
+  it("times do not change the dates a series makes", () => {
+    const plain = make();
+    const withTimes = timed();
+    const d = (s: SeriesState) => s.events.map((e) => e.date).sort();
+    expect(d(withTimes)).toEqual(d(plain));
+  });
+});

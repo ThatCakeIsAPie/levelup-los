@@ -3,15 +3,22 @@
  * ranges, countdowns, the attendance funnel and the "needs attention" rules.
  */
 import { differenceInCalendarDays, format } from "date-fns";
-import { localDate, parseDate } from "@/data";
+import { localDate, parseDate, spanWithTimes, withTime } from "@/data";
 import type { Attendance, CrmEvent } from "@/data";
 import type { Tone } from "@/components/brand";
 
-/** "Nov 7, 2026", "Nov 7–8, 2026", "Oct 31 – Nov 1, 2026" or across years. */
-export function formatEventRange(e: Pick<CrmEvent, "date" | "endDate">): string {
+/**
+ * "Nov 7, 2026", "Nov 7–8, 2026", "Oct 31 – Nov 1, 2026" or across years. An event with a time adds it:
+ * "Nov 17, 2026 · 7:00 PM", "Nov 17, 2026 · 7:00 – 8:30 PM", "Nov 7, 2026 · 7:00 PM – Nov 9, 2026 · 5:00 PM".
+ */
+export function formatEventRange(
+  e: Pick<CrmEvent, "date" | "endDate" | "startTime" | "endTime">,
+): string {
   const start = parseDate(e.date);
-  if (!e.endDate || e.endDate === e.date) return format(start, "MMM d, yyyy");
+  if (!e.endDate || e.endDate === e.date) return withTime(format(start, "MMM d, yyyy"), e);
   const end = parseDate(e.endDate);
+  if (e.startTime)
+    return spanWithTimes(format(start, "MMM d, yyyy"), format(end, "MMM d, yyyy"), e);
   if (start.getFullYear() !== end.getFullYear())
     return `${format(start, "MMM d, yyyy")} – ${format(end, "MMM d, yyyy")}`;
   if (start.getMonth() !== end.getMonth())

@@ -23,6 +23,7 @@
  *    and are otherwise kept as single events.
  */
 import type { CrmEvent, EventSeries } from "@/stores/eventsStore";
+import { fitEndTime, timesProblem } from "../eventTimes";
 import {
   addDaysTo,
   daysBetween,
@@ -54,6 +55,8 @@ export const SERIES_FIELDS = [
   "ticket_url",
   "date",
   "end_date",
+  "start_time",
+  "end_time",
 ] as const;
 export type SeriesField = (typeof SERIES_FIELDS)[number];
 
@@ -61,7 +64,16 @@ export type SeriesField = (typeof SERIES_FIELDS)[number];
 export type EventPatch = Partial<
   Pick<
     CrmEvent,
-    "name" | "categoryId" | "location" | "notes" | "format" | "ticketUrl" | "date" | "endDate"
+    | "name"
+    | "categoryId"
+    | "location"
+    | "notes"
+    | "format"
+    | "ticketUrl"
+    | "date"
+    | "endDate"
+    | "startTime"
+    | "endTime"
   >
 >;
 const FIELD_OF: Record<keyof EventPatch, SeriesField> = {
@@ -73,6 +85,8 @@ const FIELD_OF: Record<keyof EventPatch, SeriesField> = {
   ticketUrl: "ticket_url",
   date: "date",
   endDate: "end_date",
+  startTime: "start_time",
+  endTime: "end_time",
 };
 
 export type PlanError = { error: string };
@@ -115,6 +129,8 @@ export function occurrenceOf(s: EventSeries, slot: string): CrmEvent {
   if (s.location) e.location = s.location;
   if (s.notes) e.notes = s.notes;
   if (s.ticketUrl) e.ticketUrl = s.ticketUrl;
+  if (s.startTime) e.startTime = s.startTime;
+  if (s.endTime) e.endTime = s.endTime;
   return e;
 }
 
@@ -187,6 +203,8 @@ export function startSeries(
     notes: e.notes,
     format: e.format,
     ticketUrl: e.ticketUrl,
+    startTime: e.startTime,
+    endTime: e.endTime,
     lengthDays: lengthOf(e),
   };
   return fillSeries(
@@ -243,6 +261,10 @@ function templateWith(s: EventSeries, changed: Set<keyof EventPatch>, e: CrmEven
   if (changed.has("notes")) t.notes = e.notes;
   if (changed.has("format")) t.format = e.format;
   if (changed.has("ticketUrl")) t.ticketUrl = e.ticketUrl;
+  if (changed.has("startTime")) t.startTime = e.startTime;
+  if (changed.has("endTime")) t.endTime = e.endTime;
+  // A new length can leave the template's end time with nowhere to be (a one-day event ending before it starts).
+  t.endTime = fitEndTime(len, t.startTime, t.endTime);
   return t;
 }
 
@@ -270,6 +292,8 @@ export function editFollowing(
   const dateChanged = edited.date !== e.date;
   const oldLen = lengthOf(e);
   const newLen = lengthOf(edited);
+  const timeError = timesProblem(edited);
+  if (timeError) return { error: timeError };
 
   const current: Rule = { freq: s.freq, endsOn: s.endsOn };
   const next: Rule | "none" = repeat ?? current;
@@ -303,6 +327,13 @@ export function editFollowing(
     if (newLen !== oldLen && !o.includes("end_date")) {
       if (newLen > 0) y.endDate = addDaysTo(y.date, newLen);
       else delete y.endDate;
+    }
+    // A time that no longer fits the occurrence it lands on (no start time, or an end before the
+    // start on a one-day event) is dropped, never made up: the database does the same.
+    const end = fitEndTime(lengthOf(y), y.startTime, y.endTime);
+    if (end !== y.endTime) {
+      if (end) y.endTime = end;
+      else delete y.endTime;
     }
     return y;
   };

@@ -46,6 +46,7 @@ import {
   type Invoice,
   type Role,
   type SharedCost,
+  withTime,
 } from "@/data";
 import { cn } from "@/lib/utils";
 
@@ -185,7 +186,9 @@ function CostCard({
           <h3 className="text-[13.5px] font-bold">{c.name}</h3>
           {showEvent && (
             <p className="truncate text-xs text-muted-foreground">
-              {event ? `${event.name} · ${shortDate(event.date)}` : "Event removed"}
+              {event
+                ? `${event.name} · ${withTime(shortDate(event.date), event)}`
+                : "Event removed"}
             </p>
           )}
           <p className="text-xs text-muted-foreground">
@@ -520,7 +523,7 @@ function NewCostDialog({
                 >
                   {upcoming.map((e) => (
                     <option key={e.id} value={e.id}>
-                      {e.name} · {shortDate(e.date)}
+                      {e.name} · {withTime(shortDate(e.date), e)}
                     </option>
                   ))}
                 </select>

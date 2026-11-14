@@ -1294,6 +1294,7 @@ export type Database = {
           created_at: string;
           created_by: string | null;
           ends_on: string | null;
+          end_time: string | null;
           format: string;
           freq: string;
           id: string;
@@ -1303,6 +1304,7 @@ export type Database = {
           notes: string | null;
           skipped: string[];
           starts_on: string;
+          start_time: string | null;
           ticket_url: string | null;
           workspace_id: string;
         };
@@ -1312,6 +1314,7 @@ export type Database = {
           created_at?: string;
           created_by?: string | null;
           ends_on?: string | null;
+          end_time?: string | null;
           format?: string;
           freq: string;
           id?: string;
@@ -1329,6 +1332,7 @@ export type Database = {
           created_at?: string;
           created_by?: string | null;
           ends_on?: string | null;
+          end_time?: string | null;
           format?: string;
           freq?: string;
           id?: string;
@@ -1338,6 +1342,7 @@ export type Database = {
           notes?: string | null;
           skipped?: string[];
           starts_on?: string;
+          start_time?: string | null;
           ticket_url?: string | null;
           workspace_id?: string;
         };
@@ -1379,6 +1384,7 @@ export type Database = {
           created_by: string | null;
           date: string;
           end_date: string | null;
+          end_time: string | null;
           format: string;
           id: string;
           location: string | null;
@@ -1387,7 +1393,9 @@ export type Database = {
           series_date: string | null;
           series_id: string | null;
           series_overrides: string[] | null;
+          start_time: string | null;
           ticket_url: string | null;
+          updated_at: string;
           workspace_id: string;
         };
         ComputedFields: never;
@@ -1397,6 +1405,7 @@ export type Database = {
           created_by?: string | null;
           date: string;
           end_date?: string | null;
+          end_time?: string | null;
           format?: string;
           id?: string;
           location?: string | null;
@@ -1405,7 +1414,9 @@ export type Database = {
           series_date?: string | null;
           series_id?: string | null;
           series_overrides?: string[] | null;
+          start_time?: string | null;
           ticket_url?: string | null;
+          updated_at?: string;
           workspace_id?: string;
         };
         Update: {
@@ -1414,6 +1425,7 @@ export type Database = {
           created_by?: string | null;
           date?: string;
           end_date?: string | null;
+          end_time?: string | null;
           format?: string;
           id?: string;
           location?: string | null;
@@ -1422,7 +1434,9 @@ export type Database = {
           series_date?: string | null;
           series_id?: string | null;
           series_overrides?: string[] | null;
+          start_time?: string | null;
           ticket_url?: string | null;
+          updated_at?: string;
           workspace_id?: string;
         };
         Relationships: [
@@ -4551,6 +4565,10 @@ export type Database = {
         }[];
       };
       event_has_dependents: { Args: { p_event_id: string }; Returns: boolean };
+      event_times_ok: {
+        Args: { p_end_time: string; p_length_days: number; p_start_time: string };
+        Returns: boolean;
+      };
       event_rsvp_counts: {
         Args: Record<PropertyKey, never>;
         Returns: {
