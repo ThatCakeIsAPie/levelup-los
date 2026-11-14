@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   removeEvent,
+  removeEventFollowing,
   useAttendancesForEvent,
   useCanManageEvents,
   useUnlocks,
@@ -62,6 +63,8 @@ import { SimpleRoster } from "@/modules/events/SimpleRoster";
 import { ATTENDEE_STAGES } from "@/modules/events/stageFilter";
 import { listParam, parseListParam } from "@/lib/searchList";
 import { EventCategoryChip, EventFormatChip } from "@/modules/events/categoryMeta";
+import { RepeatIcon } from "@/modules/events/RepeatIcon";
+import { SeriesScopeDialog, type SeriesScope } from "@/modules/events/SeriesScopeDialog";
 import { eventTiming, formatEventRange, timingLabel } from "@/modules/events/lib";
 
 type TabKey = "overview" | "attendees" | "travel" | "compare";
@@ -279,13 +282,39 @@ function Hero({ event, manage }: { event: CrmEvent; manage: boolean }) {
   const costCount = useSharedCosts(event.id).length;
   const t = eventTiming(event);
   const navy = t.kind !== "past";
+  const [deleting, setDeleting] = useState(false);
+  const deleteBody = (
+    <>
+      The event disappears for everyone on the team, together with its roster, travel plans and
+      shared costs{costCount > 0 ? " (including sandbox payments)" : ""}. This can't be undone.
+    </>
+  );
+  /** Delete an occurrence of a repeating event: just this one, or this and every later one. */
+  const deleteScoped = async (scope: SeriesScope) => {
+    setDeleting(true);
+    if (scope === "this") removeEvent(event.id);
+    else {
+      const done = await removeEventFollowing(event.id);
+      if (!done.ok) {
+        setDeleting(false);
+        toast.error(done.error);
+        return;
+      }
+    }
+    setDeleting(false);
+    toast.success(scope === "this" ? `${event.name} deleted` : "Events deleted");
+    navigate({ to: "/events" });
+  };
 
   return (
     <SectionCard variant={navy ? "event" : "default"} className="gap-0 sm:py-5">
       <div className="flex items-start gap-3 sm:gap-4">
         <DateBadge date={event.date} className={cn("sm:w-14", navy && "bg-white/10")} />
         <div className="min-w-0 flex-1">
-          <h1 className="text-[19px] font-extrabold leading-tight lg:text-[22px]">{event.name}</h1>
+          <h1 className="text-[19px] font-extrabold leading-tight lg:text-[22px]">
+            {event.name}
+            {event.seriesId && <RepeatIcon className="ml-2 align-[-1px]" />}
+          </h1>
           <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[13px] text-muted-foreground">
             <span>{formatEventRange(event)}</span>
             {event.location && (
@@ -362,31 +391,39 @@ function Hero({ event, manage }: { event: CrmEvent; manage: boolean }) {
       )}
 
       <EventFormDialog open={editOpen} onOpenChange={setEditOpen} event={event} />
-      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <AlertDialogContent className="w-[calc(100%-2rem)] rounded-card">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete {event.name}?</AlertDialogTitle>
-            <AlertDialogDescription>
-              The event disappears for everyone on the team, together with its roster, travel plans
-              and shared costs{costCount > 0 ? " (including sandbox payments)" : ""}. This can't be
-              undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => {
-                removeEvent(event.id);
-                toast.success(`${event.name} deleted`);
-                navigate({ to: "/events" });
-              }}
-            >
-              Delete event
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {event.seriesId ? (
+        <SeriesScopeDialog
+          open={deleteOpen}
+          onOpenChange={setDeleteOpen}
+          title={`Delete ${event.name}?`}
+          description={deleteBody}
+          destructive
+          busy={deleting}
+          onChoose={deleteScoped}
+        />
+      ) : (
+        <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+          <AlertDialogContent className="w-[calc(100%-2rem)] rounded-card">
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete {event.name}?</AlertDialogTitle>
+              <AlertDialogDescription>{deleteBody}</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={() => {
+                  removeEvent(event.id);
+                  toast.success(`${event.name} deleted`);
+                  navigate({ to: "/events" });
+                }}
+              >
+                Delete event
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </SectionCard>
   );
 }

@@ -121,6 +121,20 @@ export {
 export { syncLosEntries, type LosSyncEntry } from "./losSync";
 export { rosterWithout, opsWithoutPerson, opsWithoutEvent } from "./cascade";
 
+// Repeating events (src/data/recurrence)
+export {
+  useEventSeries,
+  useEventSeriesList,
+  makeEventRepeat,
+  saveEventFollowing,
+  removeEventFollowing,
+  topUpSeries,
+  type RepeatChoice,
+  type SeriesResult,
+} from "./recurrence/api";
+export { REPEAT_FREQS, repeatFits, repeatLabel, type RepeatFreq } from "./recurrence/rule";
+export type { EventPatch } from "./recurrence/plan";
+
 // Events + attendance
 export {
   isUpcoming,
@@ -287,7 +301,7 @@ export type {
   PersonPath,
   ApprenticeAlert,
 } from "@/stores/peopleStore";
-export type { CrmEvent, EventFormat } from "@/stores/eventsStore";
+export type { CrmEvent, EventFormat, EventSeries } from "@/stores/eventsStore";
 export type {
   Attendance,
   AttendMode,

@@ -1,25 +1,38 @@
 import { useState, type ReactNode } from "react";
-import { addDays, format } from "date-fns";
 import { toast } from "sonner";
 import {
   MAX_TICKET_URL,
+  REPEAT_FREQS,
   addEvent,
   allowsVirtual,
   cleanTicketUrl,
   eventFormat,
   localDate,
-  parseDate,
+  makeEventRepeat,
+  repeatFits,
+  repeatLabel,
+  saveEventFollowing,
   updateEvent,
   useCategoryOf,
   useEventCategories,
+  useEventSeries,
   type CrmEvent,
   type EventCategory,
   type EventFormat,
+  type EventPatch,
+  type RepeatChoice,
+  type RepeatFreq,
 } from "@/data";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
@@ -32,10 +45,24 @@ import {
 import { Segmented } from "./Segmented";
 import { MODE_ICON } from "./categoryIcons";
 import { CategoryPicker } from "./CategoryPicker";
+import { formatEventRange } from "./lib";
+import { SeriesScopeDialog, type SeriesScope } from "./SeriesScopeDialog";
 import { ActingForBadge } from "@/modules/settings/TeamSettingsCards";
 
 import { sensitive } from "@/lib/sensitive";
 type Draft = Omit<CrmEvent, "id">;
+
+/** The fields of the form that an edit carries to the events that follow. */
+const patchOf = (d: Draft): EventPatch => ({
+  name: d.name,
+  categoryId: d.categoryId,
+  location: d.location,
+  notes: d.notes,
+  format: d.format,
+  ticketUrl: d.ticketUrl,
+  date: d.date,
+  endDate: d.endDate,
+});
 
 /** A new event starts in the team's first category, named after it. */
 const blank = (first: EventCategory | undefined): Draft => ({
@@ -45,15 +72,13 @@ const blank = (first: EventCategory | undefined): Draft => ({
   format: "in_person",
 });
 
-/** Weekly copies when creating ("Repeat every week"): 2 to 12 in all. */
-const MAX_WEEKS = 12;
-
 /**
  * Create (no `event`) or edit (with `event`) an event: category (with "+ New
  * category" for people who may plan events), name, in person and/or virtual
- * (where the category allows it), dates, location and notes. A new event can
- * repeat weekly (Night Owls). Controlled open state so it can be opened from a
- * button or a menu item.
+ * (where the category allows it), dates, whether and how it repeats, location
+ * and notes. Saving a change to an occurrence of a repeating event asks "This
+ * event" or "This and following events". Controlled open state so it can be
+ * opened from a button or a menu item.
  */
 export function EventFormDialog({
   open,
@@ -104,8 +129,13 @@ function EventForm({
   const [touched, setTouched] = useState(false);
   // The name follows the category until the user types their own.
   const [autoName, setAutoName] = useState(!event);
-  const [repeat, setRepeat] = useState(false);
-  const [weeks, setWeeks] = useState("4");
+  // Repeats and Ends (src/data/recurrence): the rule of the series this event belongs to, if any.
+  const series = useEventSeries(event);
+  const [freq, setFreq] = useState<RepeatFreq | "none">(series?.freq ?? "none");
+  const [ends, setEnds] = useState<"never" | "on">(series?.endsOn ? "on" : "never");
+  const [endsOn, setEndsOn] = useState(series?.endsOn ?? "");
+  const [ask, setAsk] = useState<{ patch: EventPatch; repeat: RepeatChoice } | null>(null);
+  const [saving, setSaving] = useState(false);
   const set = (patch: Partial<Draft>) => setForm((f) => ({ ...f, ...patch }));
 
   const pickCategory = (c: EventCategory) =>
@@ -117,7 +147,11 @@ function EventForm({
   const category = categoryOf(form.categoryId);
   const categoryError = touched && !form.categoryId ? "Pick a category." : null;
 
-  const weekCount = Math.min(MAX_WEEKS, Math.max(2, Math.round(Number(weeks)) || 2));
+  // A multi-day event repeats only less often than it is long; the choices that don't fit are off.
+  const fits = (f: RepeatFreq) => repeatFits(f, form.date, form.endDate);
+  const repeatsOff = !REPEAT_FREQS.some(fits);
+  const activeFreq: RepeatFreq | "none" = freq !== "none" && fits(freq) ? freq : "none";
+  const endsBad = activeFreq !== "none" && ends === "on" && (!endsOn || endsOn < form.date);
   const nameError = touched && !form.name.trim() ? "Give the event a name." : null;
   const dateError = !form.date ? "Pick a start date." : null;
   const endError =
@@ -129,9 +163,10 @@ function EventForm({
   const ticketError =
     touched && ticketBad ? "Paste a web link, like https://venmo.com/u/your-name." : null;
 
-  const submit = () => {
+  const submit = async () => {
     setTouched(true);
-    if (!form.categoryId || !form.name.trim() || dateError || endError || ticketBad) return;
+    if (!form.categoryId || !form.name.trim() || dateError || endError || ticketBad || endsBad)
+      return;
     const clean: Draft = {
       ...form,
       name: form.name.trim(),
@@ -141,23 +176,59 @@ function EventForm({
       ticketUrl: ticketUrl ?? undefined,
       format: eventFormat(form, category),
     };
+    const rule =
+      activeFreq === "none"
+        ? null
+        : { freq: activeFreq, endsOn: ends === "on" && endsOn ? endsOn : undefined };
+    if (event?.seriesId) {
+      // An occurrence of a repeating event: ask which events the change is for.
+      const same =
+        activeFreq === (series?.freq ?? "none") &&
+        (rule?.endsOn ?? null) === (series?.endsOn ?? null);
+      setAsk({
+        patch: patchOf(clean),
+        repeat: same ? undefined : rule ? { ...rule } : "none",
+      });
+      return;
+    }
+    setSaving(true);
     if (event) {
       updateEvent(event.id, clean);
-      toast.success("Event updated");
+      const made = rule ? await makeEventRepeat(event.id, rule) : null;
+      setSaving(false);
+      if (made && !made.ok) toast.error(made.error);
+      else toast.success("Event updated");
       onDone();
       return;
     }
     const created = addEvent(clean);
-    if (repeat) {
-      const shift = (d: string | undefined, w: number) =>
-        d ? format(addDays(parseDate(d), 7 * w), "yyyy-MM-dd") : undefined;
-      for (let w = 1; w < weekCount; w++)
-        addEvent({ ...clean, date: shift(clean.date, w)!, endDate: shift(clean.endDate, w) });
-      toast.success(`${created.name} created for the next ${weekCount} weeks`);
-    } else {
-      toast.success(`${created.name} created`);
-    }
+    const made = rule ? await makeEventRepeat(created.id, rule) : null;
+    setSaving(false);
+    if (made && !made.ok) toast.error(made.error);
+    toast.success(`${created.name} created`);
     onDone(created);
+  };
+
+  /** The answer to "This event" / "This and following events". */
+  const choose = async (scope: SeriesScope) => {
+    if (!event || !ask) return;
+    setSaving(true);
+    if (scope === "this") {
+      updateEvent(event.id, ask.patch);
+      setSaving(false);
+      toast.success("Event updated");
+    } else {
+      const done = await saveEventFollowing(event.id, ask.patch, ask.repeat);
+      setSaving(false);
+      if (!done.ok) {
+        toast.error(done.error);
+        setAsk(null);
+        return;
+      }
+      toast.success("Events updated");
+    }
+    setAsk(null);
+    onDone();
   };
 
   const virtualOk = allowsVirtual(category);
@@ -167,7 +238,7 @@ function EventForm({
       className="grid gap-4"
       onSubmit={(e) => {
         e.preventDefault();
-        submit();
+        void submit();
       }}
     >
       <DialogHeader className="text-left">
@@ -260,30 +331,52 @@ function EventForm({
       </div>
       {endError && <p className="-mt-2 text-xs text-bad">{endError}</p>}
 
-      {!event && (
-        <div className="grid gap-2 rounded-lg bg-surface-2 px-3 py-2.5">
-          <div className="flex items-center gap-2">
-            <Checkbox id="ev-repeat" checked={repeat} onCheckedChange={(v) => setRepeat(!!v)} />
-            <Label htmlFor="ev-repeat" className="text-[13px] font-medium">
-              Repeat every week
-            </Label>
+      <div className="grid gap-1.5">
+        <Label htmlFor="ev-repeats">Repeats</Label>
+        <Select
+          value={activeFreq}
+          onValueChange={(v) => setFreq(v as RepeatFreq | "none")}
+          disabled={repeatsOff && activeFreq === "none"}
+        >
+          <SelectTrigger id="ev-repeats">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">Does not repeat</SelectItem>
+            {REPEAT_FREQS.map((f) => (
+              <SelectItem key={f} value={f} disabled={!fits(f)}>
+                {repeatLabel(f, form.date || localDate())}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      {activeFreq !== "none" && (
+        <div className="grid grid-cols-2 gap-3">
+          <div className="grid min-w-0 gap-1.5">
+            <Label htmlFor="ev-ends">Ends</Label>
+            <Select value={ends} onValueChange={(v) => setEnds(v as "never" | "on")}>
+              <SelectTrigger id="ev-ends">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="never">Never</SelectItem>
+                <SelectItem value="on">On a date</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-          {repeat && (
-            <div className="flex flex-wrap items-center gap-2 text-[12.5px] text-muted-foreground">
-              <Label htmlFor="ev-weeks" className="text-[12.5px] font-normal">
-                For
-              </Label>
+          {ends === "on" && (
+            <div className="grid min-w-0 content-end gap-1.5">
               <Input
-                id="ev-weeks"
-                type="number"
-                inputMode="numeric"
-                min={2}
-                max={MAX_WEEKS}
-                className="h-8 w-16"
-                value={weeks}
-                onChange={(e) => setWeeks(e.target.value)}
+                id="ev-ends-on"
+                type="date"
+                aria-label="Ends on"
+                className="min-w-0"
+                min={form.date}
+                value={endsOn}
+                aria-invalid={(touched && endsBad) || undefined}
+                onChange={(e) => setEndsOn(e.target.value)}
               />
-              <span>weeks, starting on the date above</span>
             </div>
           )}
         </div>
@@ -343,10 +436,21 @@ function EventForm({
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
         </Button>
-        <Button type="submit">
-          {event ? "Save changes" : repeat ? `Create ${weekCount} events` : "Create event"}
+        <Button type="submit" disabled={saving}>
+          {event ? "Save changes" : "Create event"}
         </Button>
       </DialogFooter>
+      {event?.seriesId && (
+        <SeriesScopeDialog
+          open={!!ask}
+          onOpenChange={(o) => !o && setAsk(null)}
+          title={`Save changes to ${event.name}?`}
+          description={formatEventRange(event)}
+          thisDisabled={ask?.repeat !== undefined}
+          busy={saving}
+          onChoose={choose}
+        />
+      )}
     </form>
   );
 }
