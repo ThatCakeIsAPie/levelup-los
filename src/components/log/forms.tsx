@@ -35,6 +35,7 @@ import {
   effectiveBizClass,
   goalUnit,
   latestLearningId,
+  learningUnit,
   logContact,
   logLearning,
   logSale,
@@ -49,6 +50,7 @@ import {
   removeSale,
   startPipelineCard,
   unpost,
+  updateLearning,
   useCatalog,
   useCurrentUser,
   useFeature,
@@ -61,6 +63,7 @@ import {
   useVisibleTeam,
   type LearningKind,
   type LearningUnit,
+  type Learning,
   type Message,
   type PodcastUnit,
   type ReadingUnit,
@@ -131,14 +134,17 @@ function SubmitButton({
   disabled,
   sharing,
   label,
+  icon = true,
 }: {
   disabled: boolean;
   sharing: boolean;
   label: string;
+  /** The Plus that goes with logging something new. */
+  icon?: boolean;
 }) {
   return (
     <Button type="submit" disabled={disabled}>
-      <Plus /> {sharing ? `${label} and share` : label}
+      {icon && <Plus />} {sharing ? `${label} and share` : label}
     </Button>
   );
 }
@@ -196,18 +202,34 @@ const UNIT_FIELD: Record<LearningUnit, string> = {
   episodes: "Episodes",
 };
 
-export function LearningForm() {
+/**
+ * Log learning, or with `editing` change that logged entry in place: the form
+ * starts with its values (an entry titled "Unnamed" starts with no title, that
+ * word stands for none) and saving updates the same entry, never logging a
+ * second one. Picking a library item in the title field then only sets the
+ * text: nothing is logged and the library is left alone.
+ */
+export function LearningForm({ editing }: { editing?: Learning }) {
   const user = useCurrentUser();
   // Start in the units the weekly goal counts, so a log moves the goal.
   const goal = useLearningGoal(user.personId);
-  const [kind, setKind] = useState<LearningKind>("pages");
-  const [title, setTitle] = useState("");
-  const [readingUnit, setReadingUnit] = useState<ReadingUnit>(goalUnit(goal, "reading") ?? "pages");
-  const [podcastUnit, setPodcastUnit] = useState<PodcastUnit>(
-    goalUnit(goal, "podcasts") ?? "episodes",
+  const editUnit = editing && learningUnit(editing);
+  const [kind, setKind] = useState<LearningKind>(editing?.kind ?? "pages");
+  const [title, setTitle] = useState(
+    editing && editing.title !== UNNAMED_TITLE ? editing.title : "",
   );
-  const [amounts, setAmounts] = useState<Record<LearningUnit, string>>(UNIT_DEFAULT);
-  const [date, setDate] = useState(localDate());
+  const [readingUnit, setReadingUnit] = useState<ReadingUnit>(
+    (editing?.kind === "pages" ? (editUnit as ReadingUnit) : goalUnit(goal, "reading")) ?? "pages",
+  );
+  const [podcastUnit, setPodcastUnit] = useState<PodcastUnit>(
+    (editing?.kind === "podcast" ? (editUnit as PodcastUnit) : goalUnit(goal, "podcasts")) ??
+      "episodes",
+  );
+  const [amounts, setAmounts] = useState<Record<LearningUnit, string>>(() => ({
+    ...UNIT_DEFAULT,
+    ...(editUnit ? { [editUnit]: String(editing.amount) } : {}),
+  }));
+  const [date, setDate] = useState(editing?.date ?? localDate());
   const [win, setWin] = useWin(false, "");
   // The title dropdown: library items you may open (when the Library is on),
   // then books (or podcasts) you've logged before.
@@ -228,6 +250,31 @@ export function LearningForm() {
     // Typed a library or old title in different case? Log it under that spelling.
     // No title: it goes under "Unnamed".
     const { title: name, itemId } = resolveTitle(options, title, UNNAMED_TITLE);
+    if (editing) {
+      // An entry saved without a unit counts in the default one; keep it that way if unchanged.
+      const implied = !editing.unit && kind === editing.kind && unit === editUnit;
+      const prev = updateLearning(editing.id, {
+        kind,
+        title: name,
+        amount,
+        date,
+        ...(unit && !implied ? { unit } : {}),
+      });
+      if (!prev) return closeLog();
+      finish({
+        message: "Learning updated",
+        undoneMessage: "Update undone",
+        undo: () =>
+          updateLearning(prev.id, {
+            kind: prev.kind,
+            title: prev.title,
+            amount: prev.amount,
+            date: prev.date,
+            unit: prev.unit,
+          }),
+      });
+      return;
+    }
     const entry = { amount, ...(unit ? { unit } : {}), date };
     // A library item not finished yet: finish it in the library, which logs
     // this one entry (with the form's values). Finished before: an ordinary entry.
@@ -320,14 +367,21 @@ export function LearningForm() {
         )}
         <DateField id="log-date" value={date} onChange={setDate} />
       </div>
-      <ShareAsWin
-        id="share-learning"
-        value={win}
-        onChange={setWin}
-        winKind="other"
-        learningTitle={title.trim() || UNNAMED_TITLE}
+      {!editing && (
+        <ShareAsWin
+          id="share-learning"
+          value={win}
+          onChange={setWin}
+          winKind="other"
+          learningTitle={title.trim() || UNNAMED_TITLE}
+        />
+      )}
+      <SubmitButton
+        disabled={!valid}
+        sharing={win.on && !editing}
+        label={editing ? "Save" : "Log learning"}
+        icon={!editing}
       />
-      <SubmitButton disabled={!valid} sharing={win.on} label="Log learning" />
     </form>
   );
 }
