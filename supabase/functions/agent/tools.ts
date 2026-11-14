@@ -133,7 +133,7 @@ export const TOOLS: readonly ToolDef[] = [
   {
     name: "list_upcoming_events",
     description:
-      "Team events that have not ended yet, soonest first: id, name, date, end_date, category, location and my_answer (the connected person's own answer: yes, no, maybe, or null if none yet). Events have dates, no times of day.",
+      "Team events that have not ended yet, soonest first: id, name, date, end_date, category, location and my_answer (the connected person's own answer: yes, no, maybe, or null if none yet). Dates only: an event's start and end times of day are not included.",
     write: false,
     properties: {},
     sql: "select public.agent_list_upcoming_events() as r",
