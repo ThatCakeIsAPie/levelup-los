@@ -18,6 +18,7 @@ import {
   useChatPeople,
   useCurrentUser,
   useGrowthPath,
+  visibleMilestones,
   type CrmPerson,
   type GrowthPath,
   type MilestoneStatus,
@@ -28,6 +29,7 @@ import { cn } from "@/lib/utils";
 import { ApprenticeNotice, BusinessPathCard } from "@/modules/people/BusinessPath";
 import { firstName } from "@/modules/people/format";
 import { CoachSheet, type CoachTarget } from "./CoachSheet";
+import { pathKeyTarget, pathRowView } from "./pathView";
 import {
   countTarget,
   duration,
@@ -45,11 +47,15 @@ import {
 const ITEM = 92;
 
 /**
- * The person profile's path card: the growth path for apprentices and IBOs
- * (your own: what you hold and your next milestone; a downline's: their
- * whole path, with the upline's actions), the stage stepper for prospects.
- * Each milestone is held now (checked), earned before but not held now
- * (hollow with a history badge: "First hit Mar 2026"), or never reached.
+ * The person profile's path card: the growth path for apprentices and IBOs,
+ * the stage stepper for prospects. Which milestones it draws is decided in one
+ * place, `visibleMilestones` (src/data/growth/visible.ts): on your OWN path
+ * the ones you reached or hold plus your next one, and nothing beyond (not
+ * drawn, not named, not reachable by any means); on anyone else's path (an
+ * upline's view of their team, with the upline's actions; a deputy's view of
+ * their leader) the whole path. Each milestone is held now (checked), earned
+ * before but not held now (hollow with a history badge: "First hit Mar
+ * 2026"), or never reached.
  */
 export function ProfilePathCard({
   person,
@@ -80,8 +86,11 @@ function GrowthPathCard({
   const me = useCurrentUser();
   const own = me.personId === person.id;
   const coach = useCanCoach(person.id);
-  const last = path.milestones.length - 1;
-  const [selected, setSelected] = useState(path.nextIndex === -1 ? last : path.nextIndex);
+  // The selected milestone, by its index in the full path; the row and the
+  // panel only ever show one that `visibleMilestones` lets through.
+  // Nothing picked yet: the next milestone, or the last when all are held.
+  const [picked, setSelected] = useState<number | null>(null);
+  const { status } = pathRowView(path, { own, selected: picked ?? path.nextIndex });
   // The sheet keeps its last target while it animates closed.
   const [sheet, setSheet] = useState<{ target: CoachTarget; open: boolean; n: number } | null>(
     null,
@@ -89,13 +98,7 @@ function GrowthPathCard({
   const openSheet = (target: CoachTarget) =>
     setSheet((s) => ({ target, open: true, n: (s?.n ?? 0) + 1 }));
   const name = firstName(person.name);
-  const status = path.milestones[selected];
   const panelId = useId();
-  // The next goal after this one: the first later milestone not held now.
-  const later = path.nextIndex === -1 ? [] : path.milestones.slice(path.nextIndex + 1);
-  const afterAt = later.findIndex((m) => !m.held);
-  const after = afterAt === -1 ? null : later[afterAt];
-  const heldBetween = afterAt === -1 ? [] : later.slice(0, afterAt);
 
   return (
     <SectionCard
@@ -122,9 +125,9 @@ function GrowthPathCard({
     >
       <PathRow
         path={path}
-        selected={selected}
+        selected={status.index}
         onSelect={setSelected}
-        quietAfterNext={own}
+        own={own}
         panelId={panelId}
       />
       <MilestoneDetail
@@ -137,14 +140,6 @@ function GrowthPathCard({
         onCoach={openSheet}
       />
       {status.heldVia !== "last_month" && <KeepUpNote path={path} own={own} name={name} />}
-      {own && path.next && status.code === path.next.code && after && (
-        <p className="text-[12px] text-muted-foreground">
-          After {path.next.label} comes {after.label}
-          {heldBetween.length > 0 &&
-            ` (you hold ${heldBetween.map((m) => m.label).join(" and ")} already)`}
-          .
-        </p>
-      )}
       <ApprenticeNotice person={person} canEdit={canEdit} compact={compact} />
       {coach && (
         <CoachSheet
@@ -165,30 +160,31 @@ function GrowthPathCard({
 // ---------------------------------------------------------------------------
 
 /**
- * One dot per milestone on a line filled up to the one being worked on. Only
- * this row scrolls sideways; the selected dot is kept in view. The dots are
- * tabs: arrow keys, Home and End move between them.
+ * One dot per visible milestone (`visibleMilestones`: on your own path, what
+ * you reached plus your next one; the row ends there) on a line filled up to
+ * the one being worked on. Only this row scrolls sideways; the selected dot is
+ * kept in view. The dots are tabs: arrow keys, Home and End move between the
+ * visible ones. `selected` is an index in the full path.
  */
 export function PathRow({
   path,
   selected,
   onSelect,
-  quietAfterNext,
+  own,
   panelId,
 }: {
   path: GrowthPath;
   selected: number;
   onSelect: (i: number) => void;
-  /** Your own path: milestones after the next one are toned down. */
-  quietAfterNext?: boolean;
+  /** Your own path: milestones beyond the next one that you haven't reached are hidden. */
+  own: boolean;
   panelId: string;
 }) {
   const scroller = useRef<HTMLDivElement>(null);
   const buttons = useRef<(HTMLButtonElement | null)[]>([]);
   const first = useRef(true);
   const selectedRef = useRef(selected);
-  const n = path.milestones.length;
-  const fill = path.nextIndex === -1 ? n - 1 : path.nextIndex;
+  const { list, fillAt } = pathRowView(path, { own, selected });
 
   // Keep the selected dot in view (centred), without moving the page.
   const center = useCallback((smooth: boolean) => {
@@ -211,21 +207,12 @@ export function PathRow({
     return () => clearTimeout(t);
   }, [center]);
 
-  const move = (i: number) => {
-    const next = Math.max(0, Math.min(n - 1, i));
-    onSelect(next);
-    buttons.current[next]?.focus();
-  };
   const onKeyDown = (e: KeyboardEvent) => {
-    const keys: Record<string, number> = {
-      ArrowRight: selected + 1,
-      ArrowLeft: selected - 1,
-      Home: 0,
-      End: n - 1,
-    };
-    if (!(e.key in keys)) return;
+    const to = pathKeyTarget(list, selected, e.key);
+    if (to === null) return;
     e.preventDefault();
-    move(keys[e.key]);
+    onSelect(to);
+    buttons.current[to]?.focus();
   };
 
   return (
@@ -243,18 +230,18 @@ export function PathRow({
         <span
           aria-hidden="true"
           className="absolute top-[17px] h-[3px] rounded-full bg-track"
-          style={{ left: ITEM / 2, width: (n - 1) * ITEM }}
+          style={{ left: ITEM / 2, width: (list.length - 1) * ITEM }}
         />
         <span
           aria-hidden="true"
           className="absolute top-[17px] h-[3px] rounded-full bg-primary transition-[width] duration-500"
-          style={{ left: ITEM / 2, width: fill * ITEM }}
+          style={{ left: ITEM / 2, width: fillAt * ITEM }}
         />
-        {path.milestones.map((m, i) => {
+        {list.map((m) => {
+          const i = m.index;
           const held = m.held;
           const before = m.state === "lost";
           const isNext = i === path.nextIndex;
-          const quiet = quietAfterNext && !held && path.nextIndex !== -1 && i > path.nextIndex;
           const on = i === selected;
           const status = held
             ? m.hold === "permanent"
@@ -289,7 +276,6 @@ export function PathRow({
                   held && "border-primary bg-primary text-primary-foreground",
                   isNext && "border-primary bg-card shadow-[0_0_0_4px_var(--color-primary-soft)]",
                   !held && !isNext && "border-track bg-card",
-                  quiet && "border-dashed",
                 )}
               >
                 {held ? (
@@ -306,7 +292,7 @@ export function PathRow({
               <span
                 className={cn(
                   "text-[11.5px] leading-tight font-semibold",
-                  quiet ? "text-faint" : "text-foreground",
+                  "text-foreground",
                   on && "font-extrabold",
                 )}
               >
@@ -620,7 +606,8 @@ function MilestoneDetail({
             <p className="text-[12.5px]">
               Working on it for{" "}
               <b>{duration(path.workingDays).replace("same day", "less than a day")}</b> (since{" "}
-              {path.milestones[path.nextIndex - 1].label}).
+              {visibleMilestones(path, { own }).find((m) => m.index === path.nextIndex - 1)?.label}
+              ).
             </p>
           )}
           {keepUp && (
