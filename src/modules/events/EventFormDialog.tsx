@@ -68,10 +68,10 @@ const patchOf = (d: Draft): EventPatch => ({
 });
 
 /** A new event starts in the team's first category, named after it. */
-const blank = (first: EventCategory | undefined): Draft => ({
+const blank = (first: EventCategory | undefined, date?: string): Draft => ({
   name: first?.name ?? "",
   categoryId: first?.id ?? "",
-  date: localDate(),
+  date: date ?? localDate(),
   format: "in_person",
 });
 
@@ -87,11 +87,14 @@ export function EventFormDialog({
   open,
   onOpenChange,
   event,
+  date,
   onCreated,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   event?: CrmEvent;
+  /** The first day of a new event (today when not given); ignored when editing. */
+  date?: string;
   onCreated?: (e: CrmEvent) => void;
 }) {
   return (
@@ -101,6 +104,7 @@ export function EventFormDialog({
         {open && (
           <EventForm
             event={event}
+            date={date}
             onDone={(created) => {
               onOpenChange(false);
               if (created) onCreated?.(created);
@@ -115,17 +119,19 @@ export function EventFormDialog({
 
 function EventForm({
   event,
+  date,
   onDone,
   onCancel,
 }: {
   event?: CrmEvent;
+  date?: string;
   onDone: (created?: CrmEvent) => void;
   onCancel: () => void;
 }) {
   const categories = useEventCategories();
   const categoryOf = useCategoryOf();
   const [form, setForm] = useState<Draft>(() => {
-    if (!event) return blank(categories[0]);
+    if (!event) return blank(categories[0], date);
     const { id: _id, ...rest } = event;
     return { ...rest, format: eventFormat(event, categoryOf(event)) };
   });

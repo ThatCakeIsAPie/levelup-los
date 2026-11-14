@@ -1,6 +1,6 @@
 import { pageTitle } from "@/lib/brand";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { AlertTriangle, CalendarDays, CalendarPlus, MapPin, Plus, Ticket } from "lucide-react";
 import {
   DateBadge,
@@ -10,8 +10,10 @@ import {
   SegmentedBar,
   ToneChip,
   Sensitive,
+  useIsDesktop,
 } from "@/components/brand";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   categoryForLegacyType,
   daysFromToday,
@@ -23,6 +25,8 @@ import {
   useCategoryOf,
   useCurrentUser,
   useDoNotContactIds,
+  useEventSeriesList,
+  useEvents,
   usePastEvents,
   useUpcomingEvents,
   useVisibleAttendances,
@@ -36,7 +40,17 @@ import {
 } from "@/data";
 import { cn } from "@/lib/utils";
 import { AvatarStack } from "@/modules/events/AvatarStack";
-import { EventFormTrigger } from "@/modules/events/EventFormDialog";
+import { EventFormDialog, EventFormTrigger } from "@/modules/events/EventFormDialog";
+import { CategoryFilterMenu } from "@/modules/events/CategoryFilterMenu";
+import { EventsCalendar } from "@/modules/events/EventsCalendar";
+import { EventsCalendarCompact } from "@/modules/events/EventsCalendarCompact";
+import {
+  parseView,
+  readStoredView,
+  resolveView,
+  storeView,
+  type EventsView,
+} from "@/modules/events/viewPreference";
 import {
   attendanceStatus,
   attentionItems,
@@ -46,22 +60,24 @@ import {
 } from "@/modules/events/lib";
 import { EventCategoryChip, EventFormatChip } from "@/modules/events/categoryMeta";
 import { RepeatIcon } from "@/modules/events/RepeatIcon";
-import { categoryIcon } from "@/modules/events/categoryIcons";
 
 /**
  * `?category=<id>` shows one category of event. Old links with
  * `?type=night_owls` (the fixed types before categories) still work: they
- * show that starting category.
+ * show that starting category. `?view=calendar|list` picks the view (without it: the person's
+ * last choice, else the calendar on a desktop-width screen and the list below it).
  */
 interface EventsSearch {
   category?: string;
   type?: string;
+  view?: EventsView;
 }
 
 export const Route = createFileRoute("/events/")({
   validateSearch: (search: Record<string, unknown>): EventsSearch => ({
     category: typeof search.category === "string" && search.category ? search.category : undefined,
     type: legacyStarterKey(search.type) ? (search.type as string) : undefined,
+    view: parseView(search.view),
   }),
   head: () => ({ meta: [{ title: pageTitle("Events") }] }),
   component: EventsPage,
@@ -165,6 +181,15 @@ function EventsPage() {
   }, [categories, selected]);
   const manage = useCanManageEvents();
   const candidate = user.role === "candidate";
+  const desktop = useIsDesktop();
+  const view = resolveView({ url: search.view, stored: readStoredView(), desktop });
+  const calendar = view === "calendar";
+  const allEvents = useEvents();
+  const allSeries = useEventSeriesList();
+  const today = localDate();
+  // "Today" scrolls the calendar back to the current week; a day clicked (people who may add events) opens New event on it.
+  const [jump, setJump] = useState({ n: 0, focus: false });
+  const [newOn, setNewOn] = useState<string | null>(null);
 
   // The next event with travel (a conference) gets the navy feature card.
   const featured = upcoming.find((s) => usesTravel(s.category));
@@ -182,109 +207,162 @@ function EventsPage() {
       </EventFormTrigger>
     ) : null;
 
+  const chooseView = (v: string) => {
+    const next = parseView(v);
+    if (!next) return;
+    storeView(next);
+    void navigate({ to: "/events", search: (prev) => ({ ...prev, view: next }), replace: true });
+  };
+  const chooseCategory = (id: string | undefined) =>
+    void navigate({
+      to: "/events",
+      search: (prev) => ({ ...prev, category: id, type: undefined }),
+      replace: true,
+    });
+  // The filter's one button: nothing to choose between with one category or none.
+  const filter = chips.length > 1 && (
+    <CategoryFilterMenu categories={chips} selected={selected} onChoose={chooseCategory} />
+  );
+  // A desktop calendar fills the space under the header and scrolls inside itself.
+  const fill = calendar && desktop;
+
   return (
-    <div className="grid gap-5 px-4 py-5 lg:px-[26px] lg:py-[22px]">
+    <div
+      className={cn(
+        "gap-5 px-4 py-5 lg:px-[26px] lg:py-[22px]",
+        fill ? "flex min-h-0 flex-1 flex-col" : "grid",
+      )}
+    >
       <PageHeader
         title="Events"
         subtitle={`${upcoming.length} upcoming · ${past.length} past`}
         actions={newEvent()}
       />
 
-      {chips.length > 1 && <CategoryFilter categories={chips} value={filterId} />}
-
-      <section aria-labelledby="upcoming-h" className="grid gap-3">
-        <h2 id="upcoming-h" className="text-sm font-bold">
-          Upcoming
-        </h2>
-        {upcoming.length === 0 ? (
-          <EmptyState
-            icon={<CalendarPlus />}
-            title={`No upcoming ${kind}`}
-            body={
-              manage
-                ? "Add the next one so your team can see it and say they're coming."
-                : "When your team adds the next one, it shows up here."
-            }
-            action={newEvent("Add an event")}
-          />
-        ) : (
-          <div className="grid gap-4 lg:grid-cols-2">
-            {featured && (
-              <FeaturedCard s={featured} candidate={candidate} className="lg:col-span-2" />
-            )}
-            {others.map((s, i) => (
-              // A lone card in the last row spans both columns instead of leaving a gap.
-              <div
-                key={s.event.id}
-                className={
-                  others.length % 2 === 1 && i === others.length - 1 ? "grid lg:col-span-2" : "grid"
-                }
-              >
-                <UpcomingCard s={s} candidate={candidate} />
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-
-      <section aria-labelledby="past-h" className="grid gap-3">
-        <h2 id="past-h" className="text-sm font-bold">
-          Past
-        </h2>
-        {past.length === 0 ? (
-          <EmptyState
-            icon={<CalendarDays />}
-            title={`No past ${kind} yet`}
-            body="Finished events move here with who came."
-          />
-        ) : (
-          <SectionCard className="py-2 sm:py-2">
-            <ul>
-              {past.map((s) => (
-                <PastRow key={s.event.id} s={s} candidate={candidate} />
-              ))}
-            </ul>
-          </SectionCard>
-        )}
-      </section>
-    </div>
-  );
-}
-
-/** "All" plus one chip per category. Lives in the URL (`?category=`). */
-function CategoryFilter({ categories, value }: { categories: EventCategory[]; value?: string }) {
-  const chip = (c: EventCategory | undefined, label: string) => {
-    const Icon = c ? categoryIcon(c) : null;
-    const on = value === c?.id;
-    return (
-      <Link
-        key={c?.id ?? "all"}
-        to="/events"
-        search={c ? { category: c.id } : {}}
-        replace
-        aria-current={on ? "page" : undefined}
-        className={cn(
-          "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px] font-semibold leading-none transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
-          on
-            ? "border-foreground bg-foreground text-background"
-            : "border-line text-muted-foreground hover:text-foreground",
-        )}
+      <Tabs
+        value={view}
+        onValueChange={chooseView}
+        className={fill ? "flex min-h-0 min-w-0 flex-1 flex-col gap-5" : "grid min-w-0 gap-5"}
       >
-        {Icon && <Icon className="size-3.5" aria-hidden="true" />}
-        {label}
-      </Link>
-    );
-  };
-  return (
-    <nav
-      aria-label="Show one category of event"
-      className="-mx-4 overflow-x-auto px-4 [scrollbar-width:none] lg:mx-0 lg:px-0 [&::-webkit-scrollbar]:hidden"
-    >
-      <div className="flex w-max gap-1.5 lg:w-auto lg:flex-wrap">
-        {chip(undefined, "All")}
-        {categories.map((c) => chip(c, c.name))}
-      </div>
-    </nav>
+        <div className="flex min-w-0 items-center justify-between gap-2">
+          <TabsList className="h-auto gap-0.5 bg-surface-2 p-1">
+            <TabsTrigger value="calendar" className="px-3 py-1.5 text-[13px] leading-5 sm:px-3.5">
+              Calendar
+            </TabsTrigger>
+            <TabsTrigger value="list" className="px-3 py-1.5 text-[13px] leading-5 sm:px-3.5">
+              List
+            </TabsTrigger>
+          </TabsList>
+          <div className="flex min-w-0 items-center gap-2">
+            {calendar && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={(e) => setJump((j) => ({ n: j.n + 1, focus: e.detail === 0 }))}
+              >
+                Today
+              </Button>
+            )}
+            {filter}
+          </div>
+        </div>
+
+        <TabsContent
+          value="calendar"
+          tabIndex={-1}
+          className={cn("mt-0", fill && "flex min-h-0 flex-1 flex-col")}
+        >
+          {desktop ? (
+            <EventsCalendar
+              events={allEvents}
+              series={allSeries}
+              categories={categories}
+              categoryId={filterId}
+              today={today}
+              jump={jump}
+              onCreate={manage ? setNewOn : undefined}
+            />
+          ) : (
+            <EventsCalendarCompact
+              events={allEvents}
+              series={allSeries}
+              categories={categories}
+              categoryId={filterId}
+              today={today}
+              jump={jump}
+            />
+          )}
+        </TabsContent>
+
+        <TabsContent value="list" tabIndex={-1} className="mt-0 grid gap-5">
+          <section aria-labelledby="upcoming-h" className="grid gap-3">
+            <h2 id="upcoming-h" className="text-sm font-bold">
+              Upcoming
+            </h2>
+            {upcoming.length === 0 ? (
+              <EmptyState
+                icon={<CalendarPlus />}
+                title={`No upcoming ${kind}`}
+                body={
+                  manage
+                    ? "Add the next one so your team can see it and say they're coming."
+                    : "When your team adds the next one, it shows up here."
+                }
+                action={newEvent("Add an event")}
+              />
+            ) : (
+              <div className="grid gap-4 lg:grid-cols-2">
+                {featured && (
+                  <FeaturedCard s={featured} candidate={candidate} className="lg:col-span-2" />
+                )}
+                {others.map((s, i) => (
+                  // A lone card in the last row spans both columns instead of leaving a gap.
+                  <div
+                    key={s.event.id}
+                    className={
+                      others.length % 2 === 1 && i === others.length - 1
+                        ? "grid lg:col-span-2"
+                        : "grid"
+                    }
+                  >
+                    <UpcomingCard s={s} candidate={candidate} />
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section aria-labelledby="past-h" className="grid gap-3">
+            <h2 id="past-h" className="text-sm font-bold">
+              Past
+            </h2>
+            {past.length === 0 ? (
+              <EmptyState
+                icon={<CalendarDays />}
+                title={`No past ${kind} yet`}
+                body="Finished events move here with who came."
+              />
+            ) : (
+              <SectionCard className="py-2 sm:py-2">
+                <ul>
+                  {past.map((s) => (
+                    <PastRow key={s.event.id} s={s} candidate={candidate} />
+                  ))}
+                </ul>
+              </SectionCard>
+            )}
+          </section>
+        </TabsContent>
+      </Tabs>
+
+      <EventFormDialog
+        open={newOn !== null}
+        onOpenChange={(o) => {
+          if (!o) setNewOn(null);
+        }}
+        date={newOn ?? undefined}
+      />
+    </div>
   );
 }
 
