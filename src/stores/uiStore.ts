@@ -9,23 +9,38 @@ export interface LogSheetState {
   tab?: LogTab;
   /** Preselect this person (team member for check-in, customer for contact/sale). */
   personId?: string;
+  /** With the learning tab: change this logged entry (yours) instead of logging a new one. */
+  editLearningId?: string;
+}
+
+interface LogOptions {
+  tab?: LogTab;
+  personId?: string;
+  editLearningId?: string;
 }
 
 interface UiState {
   logSheet: LogSheetState;
-  /** Open the Log sheet, optionally on a tab and/or for a person. */
-  openLog: (opts?: { tab?: LogTab; personId?: string }) => void;
+  /** Open the Log sheet, optionally on a tab and/or for a person (or on a learning entry to edit). */
+  openLog: (opts?: LogOptions) => void;
   closeLog: () => void;
 }
 
 /** Transient UI state (not persisted). */
 export const useUiStore = create<UiState>()((set) => ({
   logSheet: { open: false },
-  openLog: (opts) => set({ logSheet: { open: true, tab: opts?.tab, personId: opts?.personId } }),
+  openLog: (opts) =>
+    set({
+      logSheet: {
+        open: true,
+        tab: opts?.tab,
+        personId: opts?.personId,
+        editLearningId: opts?.editLearningId,
+      },
+    }),
   closeLog: () => set((s) => ({ logSheet: { ...s.logSheet, open: false } })),
 }));
 
 /** Non-hook helpers so any handler can open/close the Log sheet. */
-export const openLog = (opts?: { tab?: LogTab; personId?: string }) =>
-  useUiStore.getState().openLog(opts);
+export const openLog = (opts?: LogOptions) => useUiStore.getState().openLog(opts);
 export const closeLog = () => useUiStore.getState().closeLog();
