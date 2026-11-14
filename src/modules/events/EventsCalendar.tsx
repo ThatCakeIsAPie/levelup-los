@@ -1,4 +1,3 @@
-import { Link } from "@tanstack/react-router";
 import { useEffect, useLayoutEffect, useMemo, useRef, type CSSProperties } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { CrmEvent, EventCategory, EventSeries } from "@/data";
@@ -10,21 +9,10 @@ import {
   weekdayDay,
   WEEKDAY_NAMES,
   weekStartOf,
-  type Segment,
   type WeekLayout,
 } from "./calendar";
-import {
-  categoryIcon,
-  barClass,
-  formatTime,
-  iconTextClass,
-  itemLabel,
-  useCalendarItems,
-  useCategoryMap,
-} from "./calendarHelpers";
-import { ItemRow } from "./calendarParts";
-import { RepeatIcon } from "./RepeatIcon";
-import { timeText } from "@/data";
+import { useCalendarItems, useCategoryMap } from "./calendarHelpers";
+import { EntryView, ItemRow } from "./calendarParts";
 
 const LABEL_H = 24;
 const SLOT_H = 36;
@@ -246,102 +234,5 @@ function MoreButton({
         </ul>
       </PopoverContent>
     </Popover>
-  );
-}
-
-/** One item within one week row: a bar (all-day and multi-day) or a title with its time under it. */
-function EntryView({
-  seg,
-  category,
-  today,
-}: {
-  seg: Segment;
-  category: EventCategory | undefined;
-  today: string;
-}) {
-  const { item } = seg;
-  const Icon = categoryIcon(category);
-  const past = (item.endDate ?? item.date) < today;
-  const bar = seg.multi || !item.startTime;
-  const startText = seg.multi
-    ? !seg.before && item.startTime
-      ? formatTime(item.startTime)
-      : ""
-    : "";
-  const endText = seg.multi ? (!seg.after && item.endTime ? formatTime(item.endTime) : "") : "";
-  const when = seg.multi ? "" : timeText(item);
-  const timeLine = bar ? startText || endText : when;
-  const place: CSSProperties = {
-    gridColumn: `${seg.col0 + 1} / ${seg.col1 + 2}`,
-    gridRow: seg.lane + 2,
-  };
-  const repeat = item.seriesId ? (
-    <RepeatIcon className={cn("[&>svg]:size-3", bar && !item.projected && "text-current")} />
-  ) : null;
-  const title = (
-    <span className="flex min-w-0 items-center gap-1 text-[12px] font-semibold leading-4">
-      <Icon
-        className={cn("size-3 shrink-0", bar ? "" : iconTextClass(category))}
-        aria-hidden="true"
-      />
-      <span className="truncate">{item.name}</span>
-      {repeat}
-    </span>
-  );
-  const body = (
-    <>
-      {title}
-      {timeLine && (
-        <span
-          className={cn(
-            "flex justify-between gap-2 text-[11px] leading-[14px]",
-            bar ? "pl-4" : "pl-4 text-muted-foreground",
-          )}
-        >
-          <span className="truncate">{bar ? startText : when}</span>
-          {bar && endText && <span className="shrink-0">{endText}</span>}
-        </span>
-      )}
-    </>
-  );
-  const className = cn(
-    "relative z-10 flex min-w-0 flex-col justify-center self-start text-left",
-    bar
-      ? cn(
-          timeLine ? "h-[30px]" : "h-[22px]",
-          "px-1.5",
-          item.projected
-            ? "border border-dashed border-line text-muted-foreground"
-            : barClass(category),
-          seg.before ? "rounded-l-none" : "ml-1 rounded-l-md",
-          seg.after ? "rounded-r-none" : "mr-1 rounded-r-md",
-        )
-      : cn(
-          "mx-1 rounded-md px-1 py-0.5",
-          item.projected || past ? "text-muted-foreground" : "text-foreground",
-        ),
-  );
-  if (item.projected)
-    return (
-      <div role="img" aria-label={itemLabel(item)} className={className} style={place}>
-        {body}
-      </div>
-    );
-  return (
-    <Link
-      to="/events/$id"
-      params={{ id: item.eventId! }}
-      aria-label={itemLabel(item)}
-      // The part of a bar that continues from the previous week is the same link again.
-      tabIndex={seg.before ? -1 : undefined}
-      className={cn(
-        className,
-        bar ? "hover:brightness-95" : "hover:bg-surface-2",
-        "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
-      )}
-      style={place}
-    >
-      {body}
-    </Link>
   );
 }

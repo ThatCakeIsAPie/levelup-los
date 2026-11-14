@@ -6,7 +6,9 @@ import { PageHeader, useIsDesktop, Sensitive } from "@/components/brand";
 import {
   useAttendancesForPerson,
   useCategoryOf,
+  resolveLayout,
   useCurrentUser,
+  useHomeLayout,
   useMe,
   useUnlocks,
   useUpcomingEvents,
@@ -17,6 +19,7 @@ import { pickFeaturedEvent } from "@/modules/dashboard/format";
 import { GoalCard, GoalTile, StreakCard, StreakTile } from "@/modules/dashboard/LearningCards";
 import { MyEventsCard, NextEventCard } from "@/modules/dashboard/EventCards";
 import { TodayCard } from "@/modules/dashboard/TodayCard";
+import { WeekAheadCard } from "@/modules/dashboard/WeekAheadCard";
 import { InboxCard } from "@/modules/dashboard/InboxCard";
 import { TeamCard, TeamLearningCard } from "@/modules/dashboard/TeamCards";
 import { MyLearningCard, PathCard } from "@/modules/dashboard/JourneyCards";
@@ -65,6 +68,9 @@ function Dashboard() {
     () => visibleTeam.filter((p) => p.id !== user.personId),
     [visibleTeam, user.personId],
   );
+
+  // The week ahead needs room for seven columns: in the narrow right-hand column it is a list.
+  const weekBeside = resolveLayout(useHomeLayout()).side.has("week");
 
   const now = new Date();
   const first = user.name.split(" ")[0];
@@ -118,6 +124,8 @@ function Dashboard() {
     event,
     inbox: can.inbox ? <InboxCard compact={!desktop} /> : null,
     today,
+    // Everyone who can open the events page; the team's events as the calendar shows them.
+    week: can.events ? <WeekAheadCard compact={!desktop || weekBeside} /> : null,
     myEvents: personalEvents ? <MyEventsCard viewerId={user.personId} /> : null,
     team: personalEvents ? null : <TeamCard team={team} compact={!desktop} />,
     teamLearning: personalEvents ? null : (
