@@ -150,8 +150,8 @@
   --line: #ddd5c0;
   --track: #ddd5c0;
   --fg: #142423;
-  --muted-text: #3d4d47;
-  --faint: #53605a;
+  --muted-text: #364540;
+  --faint: #46534d;
   --primary-base: #1d5546;
   --on-primary: #f8f4ec;
   --primary-soft: #dde8dc;
@@ -163,7 +163,7 @@
   --info-ink: #1d4e72;
   --amber-soft: #fbe2d1;
   --amber-ink: #7a2f0a;
-  --amber-strong: #b84f0a;
+  --amber-strong: #ad4909;
   --danger: #b3122e;
   --danger-soft: #fbe1e5;
   --on-danger: #ffffff;
@@ -208,10 +208,15 @@
   --focus-ring: #8f6b12;
   --progress-fill: #8f6b12;
 
-  /* Glass over the stained-glass picture (light): parchment frosted glass. */
-  --glass-tint: rgba(251, 248, 241, 0.88);
-  --glass-tint-reading: rgba(251, 248, 241, 0.94);
-  --glass-tint-inset: rgba(236, 230, 214, 0.9);
+  /*
+   * The base layer (light): the picture blurred, brightened and veiled in a pale
+   * sage tint, so the page is a light frosted sheet with the art's green and
+   * gold in it. The panels are parchment glass on top of that.
+   */
+  --backdrop-tone: saturate(125%) brightness(150%);
+  --glass-tint: rgba(251, 248, 241, 0.48);
+  --glass-tint-reading: rgba(251, 248, 241, 0.7);
+  --glass-tint-inset: rgba(236, 230, 214, 0.52);
   --glass-tint-side: rgba(9, 18, 17, 0.8);
   --glass-filter: blur(24px) saturate(150%);
   --glass-filter-reading: blur(28px) saturate(150%);
@@ -221,7 +226,7 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.7), inset 0 0 0 1px rgba(255, 255, 255, 0.2);
   --glass-shadow: 0 16px 44px rgba(9, 18, 17, 0.18);
   --glass-sheen: linear-gradient(135deg, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0) 40%);
-  --scrim: rgba(244, 239, 227, 0.78);
+  --scrim: rgba(232, 238, 222, 0.5);
 }
 
 .dark {
@@ -233,7 +238,7 @@
   --track: #2c4a44;
   --fg: #e7dcc6;
   --muted-text: #b3beb7;
-  --faint: #a3afa8;
+  --faint: #adb8b1;
   --primary-base: #e3c271;
   --on-primary: #142423;
   --primary-soft: #2c3b2d;
@@ -270,20 +275,25 @@
 
   --win-line: #e3c271;
 
-  /* Glass over the stained-glass picture (dark): the personal site's recipe. */
-  --glass-tint: rgba(14, 28, 26, 0.84);
-  --glass-tint-reading: rgba(14, 28, 26, 0.9);
-  --glass-tint-inset: rgba(30, 53, 49, 0.84);
+  /*
+   * The base layer (dark): the picture blurred under one sheet of forest-green
+   * glass (--scrim). The panels are darker green glass on top, thin enough for
+   * the art's gold and green to glow through.
+   */
+  --backdrop-tone: saturate(100%);
+  --glass-tint: rgba(14, 32, 28, 0.36);
+  --glass-tint-reading: rgba(14, 32, 28, 0.54);
+  --glass-tint-inset: rgba(30, 53, 49, 0.44);
   --glass-tint-side: rgba(9, 18, 17, 0.62);
-  --glass-filter: blur(24px) saturate(180%) brightness(0.8);
-  --glass-filter-reading: blur(24px) saturate(180%) brightness(0.84);
+  --glass-filter: blur(24px) saturate(170%) brightness(0.95);
+  --glass-filter-reading: blur(24px) saturate(170%) brightness(0.95);
   --glass-border: rgba(231, 220, 198, 0.2);
   --glass-track: rgba(231, 220, 198, 0.12);
   --glass-highlight:
     inset 0 1px 0 rgba(255, 255, 255, 0.18), inset 0 0 0 1px rgba(255, 255, 255, 0.03);
   --glass-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
   --glass-sheen: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0) 40%);
-  --scrim: rgba(9, 18, 17, 0.4);
+  --scrim: rgba(14, 42, 31, 0.6);
 
   color-scheme: dark;
 }
