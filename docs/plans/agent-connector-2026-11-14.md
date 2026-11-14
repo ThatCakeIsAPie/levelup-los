@@ -3,7 +3,7 @@
 **Status**
 
 - Phase 1 (database, function, seven tools): **BUILT** when the pull request "Agent connector: pairing, connection keys and the first seven tools" is merged.
-- Phase 2 (Settings card with the "Add agent" button, connection list, disconnect, activity; the leader's switch in Team settings): **NOT STARTED**. Ask the owner before beginning it.
+- Phase 2 (Settings card with the "Add agent" button, connection list, disconnect, activity; the leader's switch in Team settings): **BUILT** when the pull request "Settings: connect an AI agent" is merged.
 - Phase 3 (more tools: pipeline moves short of the registered step, learning log, own profile fields, customers): **NOT STARTED**. Ask the owner before beginning it.
 
 ## What it is
@@ -34,7 +34,7 @@ Choices worth knowing:
 - The MCP side is a small stateless JSON-RPC handler (initialize, ping, tools/list, tools/call), not an SDK: no extra dependency, nothing to bundle, and it is testable without Deno.
 - Unknown tools (404), unreadable or oversized bodies and unknown keys are refused before the database and not audited (nothing to attribute them to). Invalid arguments (400) for a known tool, including a field outside the whitelist such as `stage` or `sponsor`, ARE audited as a refusal (arguments kept only when small), found by the end-to-end run: an agent trying to change something the connector never changes should leave a trace. Every call that reaches a tool, or is refused for access or argument reasons, writes exactly one audit row.
 - The audit reader is the connected person only. A leader does not read her team's audit rows (they hold people's details).
-- `database.types.ts` was not regenerated in this phase: no app code reads the new tables yet. Run `npm run db:types` with phase 2.
+- `database.types.ts` was not regenerated in this phase: no app code read the new tables yet. Phase 2 adds them to the file by hand (see "Phase 2: built").
 
 ## Phase 1: verified end to end
 
@@ -42,12 +42,16 @@ Run on a throwaway hosted Supabase project (free plan, the real pooler, the real
 
 Protocol hardening after the run: an unsupported `MCP-Protocol-Version` is 400; any request with an `Origin` header is 403 on every route (no browser is a supported client); a JSON-RPC response or notification sent by the client is 202 with no body. Known differences from the MCP 2025-11-25 Streamable HTTP text, none of which a client trips over (Claude Code connects): JSON-RPC batches are accepted (allowed in 2025-03-26, dropped later); `Accept` is not enforced; GET and DELETE on `/mcp` answer 405, which the spec allows; a 401 carries no OAuth discovery document (`/.well-known/...` is 404), so a client holding a revoked key reports it needs authentication.
 
-## Phase 2: not started
+## Phase 2: built
 
-- **Settings card** (for everyone who may use it, from `my_agent_access()`): the **Add agent** button with a choice of "can read and change my CRM data" or "only read my CRM data"; it calls `create_agent_pairing` and shows the text below with a Copy button and the code's expiry; the list of connections (label, access, created, last used, revoked) read from `agent_connections` (named columns), **Disconnect** (`revoke_agent_connection`), and **Activity** (the person's own `agent_audit` rows).
-- **The leader's switch** in Team settings (`feature_switches` 'agents'), beside the existing switches, with `FeatureKey` gaining `agents`.
-- Regenerate `src/data/remote/database.types.ts`.
-- Integration tests for the card against the local stack; the browser-storage demo shows no card (no connector there).
+The app side only: no database or function change. What is in it, and the choices worth knowing (the screen-by-screen description is in [`frontend-guide.md`](../frontend-guide.md), Settings, "AI agents"):
+
+- **Settings card** `AI agents` (`src/modules/settings/AgentsCard.tsx`): shown only with the hosted data source and only when `my_agent_access()` allows the person (team switch on, or an app admin's preview, and a registered person); otherwise nothing at all. One button, `Add agent`, which calls `create_agent_pairing('write')` and opens a dialog with the text above (with the connector URL, the code, the access line and the minutes), a `Copy` button and one `Read only` switch that asks for a new code at the other level. The text is built by `pairingText()` and a test compares it with the block in this file, so the wording cannot drift. The dialog looks for the new connection every 3 seconds (a plain select, stopped when the dialog closes or after 10 minutes) and then shows the agent's label and `Connected`.
+- **The list** under the button: the person's non-revoked connections, newest first (label as plain text, access, created, last used), `Disconnect` behind the app's confirm dialog, and per connection the 20 newest audit rows loaded on expand (tool in plain words, time, result line, a refusal marked, and a prospect's name for the prospect tools, marked as sensitive so feedback snapshots black it out).
+- **The leader's switch**: `agents` joins `FeatureKey` / `FEATURES` with the label `AI agents`, so it appears in the existing switch list in Team settings and works like the others. `FeatureInfo.hosted` marks a feature that needs the hosted data source; `featuresFor(source)` is what Team settings and the admin card list, so the browser-storage demo offers neither the switch nor the card.
+- **No new copy**: no helper text, hints or empty-state lines; the words are the button and dialog labels, the access words, the feature label and accessible names.
+- `src/data/remote/database.types.ts` gained the four tables and the connector's functions by hand (regenerating needs Docker, as before); regenerate it with `npm run db:types` when a local stack is at hand and the diff should be empty.
+- Not built here: integration tests for the card against the local stack (they need Docker, and the pull request changes no database object). The unit tests cover the text, the access gate, the tool labels, the polling and the feature list in both data sources; the card was driven end to end against a throwaway hosted project (pull request description).
 
 ## Phase 3: not started
 

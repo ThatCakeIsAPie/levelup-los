@@ -4,15 +4,24 @@
  * and `deputies` (migration 20261014001500_unlocks_deputies_admin.sql).
  */
 
-/** Features built for later phases, switched off for a team unless a leader turns them on. */
-export type FeatureKey = "chats" | "library" | "campaigns";
+import type { DataSource } from "@/lib/config";
+
+/** Features switched off for a team unless a leader turns them on. */
+export type FeatureKey = "chats" | "library" | "campaigns" | "agents";
 
 export interface FeatureInfo {
   key: FeatureKey;
   label: string;
-  phase: 2 | 3;
-  /** One line for the switch in Team settings. */
-  description: string;
+  /** The later phase it was built in; a feature without one shows no phase chip. */
+  phase?: 2 | 3;
+  /** One line for the switch in Team settings; none, none shown. */
+  description?: string;
+  /**
+   * Needs the hosted data source (a Supabase project): something runs there that the
+   * browser-storage demo has no counterpart for. `featuresFor` leaves it out of the demo,
+   * so its switch is never offered where it could not work.
+   */
+  hosted?: boolean;
 }
 
 export const FEATURES: readonly FeatureInfo[] = [
@@ -34,9 +43,19 @@ export const FEATURES: readonly FeatureInfo[] = [
     phase: 3,
     description: "Messages sent to a group of people at once.",
   },
+  { key: "agents", label: "AI agents", hosted: true },
 ];
 
 export const FEATURE_KEYS: readonly FeatureKey[] = FEATURES.map((f) => f.key);
+
+/**
+ * The features that can work with this data source: all of them with Supabase, all but the
+ * hosted ones in the browser-storage demo. Everything that SHOWS a feature (the switch list in
+ * Team settings, the admin card) asks here; the full `FEATURES` list stays for lookups by key.
+ */
+export function featuresFor(source: DataSource): readonly FeatureInfo[] {
+  return FEATURES.filter((f) => !f.hosted || source === "supabase");
+}
 
 /** One team's switch for one feature (no row means off). */
 export interface FeatureSwitch {

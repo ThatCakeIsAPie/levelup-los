@@ -19,6 +19,7 @@ import { Switch } from "@/components/ui/switch";
 import { effectiveBizClass, logout, roleLabel, useCurrentUser, useMe } from "@/data";
 import { NOTIFY_OPTIONS, usePrefsStore } from "./prefsStore";
 import { AdminDebugCard } from "./AdminDebugCard";
+import { AgentsCard } from "./AgentsCard";
 import { FeedbackInboxCard } from "@/modules/feedback/FeedbackInboxCard";
 
 const PAGE =
@@ -41,6 +42,7 @@ export function SettingsPage() {
         </div>
       </SectionCard>
       <NotificationsCard />
+      <AgentsCard />
       <AdminDebugCard />
       <SectionCard title="Data">
         <div>
