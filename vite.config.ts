@@ -99,7 +99,7 @@ export default defineConfig({
     entries: ["index.html", "src/**/*.{ts,tsx}", "!src/**/*.test.ts"],
   },
   test: {
-    include: ["src/**/*.test.ts"],
+    include: ["src/**/*.test.ts", "supabase/functions/**/*.test.ts"],
     environment: "node",
   },
 });
