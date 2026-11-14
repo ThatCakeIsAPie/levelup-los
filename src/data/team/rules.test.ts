@@ -80,7 +80,12 @@ describe("a deputy's visibility (mirror of visible_person_ids)", () => {
 
 describe("feature switches", () => {
   it("no row means off", () => {
-    expect(switchMap([])).toEqual({ chats: false, library: false, campaigns: false });
+    expect(switchMap([])).toEqual({
+      chats: false,
+      library: false,
+      campaigns: false,
+      agents: false,
+    });
     expect(switchMap([{ workspaceId: "w1", feature: "library", enabled: true }]).library).toBe(
       true,
     );

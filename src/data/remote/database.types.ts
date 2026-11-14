@@ -81,6 +81,208 @@ export type Database = {
           },
         ];
       };
+      agent_audit: {
+        Row: {
+          arguments: Json | null;
+          at: string;
+          connection_id: string;
+          id: number;
+          new_values: Json | null;
+          old_values: Json | null;
+          person_id: string;
+          result: string | null;
+          tool: string;
+          workspace_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          arguments?: Json | null;
+          at?: string;
+          connection_id: string;
+          id?: never;
+          new_values?: Json | null;
+          old_values?: Json | null;
+          person_id: string;
+          result?: string | null;
+          tool: string;
+          workspace_id: string;
+        };
+        Update: {
+          arguments?: Json | null;
+          at?: string;
+          connection_id?: string;
+          id?: never;
+          new_values?: Json | null;
+          old_values?: Json | null;
+          person_id?: string;
+          result?: string | null;
+          tool?: string;
+          workspace_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "agent_audit_connection_id_fkey";
+            columns: ["connection_id"];
+            isOneToOne: false;
+            referencedRelation: "agent_connections";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      agent_connections: {
+        Row: {
+          access: string;
+          created_at: string;
+          id: string;
+          key_hash: string;
+          label: string;
+          last_used_at: string | null;
+          person_id: string;
+          revoked_at: string | null;
+          user_id: string;
+          workspace_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          access: string;
+          created_at?: string;
+          id?: string;
+          key_hash: string;
+          label: string;
+          last_used_at?: string | null;
+          person_id: string;
+          revoked_at?: string | null;
+          user_id: string;
+          workspace_id: string;
+        };
+        Update: {
+          access?: string;
+          created_at?: string;
+          id?: string;
+          key_hash?: string;
+          label?: string;
+          last_used_at?: string | null;
+          person_id?: string;
+          revoked_at?: string | null;
+          user_id?: string;
+          workspace_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "agent_connections_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: false;
+            referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "agent_connections_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "agent_connections_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "agent_connections_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      agent_pair_attempts: {
+        Row: {
+          at: string;
+          id: number;
+          ip_hash: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          at?: string;
+          id?: never;
+          ip_hash: string;
+        };
+        Update: {
+          at?: string;
+          id?: never;
+          ip_hash?: string;
+        };
+        Relationships: [];
+      };
+      agent_pairings: {
+        Row: {
+          access: string;
+          code_hash: string;
+          created_at: string;
+          expires_at: string;
+          id: string;
+          person_id: string;
+          used_at: string | null;
+          user_id: string;
+          workspace_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          access: string;
+          code_hash: string;
+          created_at?: string;
+          expires_at: string;
+          id?: string;
+          person_id: string;
+          used_at?: string | null;
+          user_id: string;
+          workspace_id: string;
+        };
+        Update: {
+          access?: string;
+          code_hash?: string;
+          created_at?: string;
+          expires_at?: string;
+          id?: string;
+          person_id?: string;
+          used_at?: string | null;
+          user_id?: string;
+          workspace_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "agent_pairings_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: false;
+            referencedRelation: "chat_directory";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "agent_pairings_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: false;
+            referencedRelation: "library_people";
+            referencedColumns: ["person_id"];
+          },
+          {
+            foreignKeyName: "agent_pairings_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "agent_pairings_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       announcement_drafts: {
         Row: {
           author_id: string | null;
@@ -4482,6 +4684,16 @@ export type Database = {
       accept_invite: { Args: { p_token: string }; Returns: string };
       acts_as_leader: { Args: Record<PropertyKey, never>; Returns: boolean };
       add_starting_event_categories: { Args: { p_workspace_id: string }; Returns: undefined };
+      agent_add_prospect: { Args: { p_name: string; p_phone?: string }; Returns: Json };
+      agent_export_events_ics: { Args: { p_from?: string; p_until?: string }; Returns: Json };
+      agent_list_prospects: { Args: { p_limit?: number }; Returns: Json };
+      agent_list_upcoming_events: {
+        Args: { p_changed_since?: string; p_from?: string; p_until?: string };
+        Returns: Json;
+      };
+      agent_set_event_answer: { Args: { p_answer: string; p_event_id: string }; Returns: Json };
+      agent_update_prospect: { Args: { p_id: string; p_patch: Json }; Returns: Json };
+      agent_whoami: { Args: Record<PropertyKey, never>; Returns: Json };
       answer_event_post: { Args: { p_message_id: string }; Returns: string };
       answer_stat_request: {
         Args: { p_approve: boolean; p_request_id: string };
@@ -4536,6 +4748,7 @@ export type Database = {
       conversation_workspace: { Args: { p_conversation_id: string }; Returns: string };
       cost_owner: { Args: { p_cost_id: string }; Returns: string };
       cost_workspace: { Args: { p_cost_id: string }; Returns: string };
+      create_agent_pairing: { Args: { p_access?: string }; Returns: Json };
       create_dm:
         | { Args: { p_other_person_id: string }; Returns: string }
         | { Args: { p_conversation_id: string; p_other_person_id: string }; Returns: string };
@@ -4695,6 +4908,7 @@ export type Database = {
         };
         Returns: Json;
       };
+      my_agent_access: { Args: Record<PropertyKey, never>; Returns: Json };
       my_chain_ids: { Args: Record<PropertyKey, never>; Returns: string[] };
       my_conversation_ids: { Args: Record<PropertyKey, never>; Returns: string[] };
       normalize_step_text: { Args: { p_text: string }; Returns: string };
@@ -4746,6 +4960,7 @@ export type Database = {
         Args: { p_person_id: string; p_workspace_id: string };
         Returns: boolean;
       };
+      purge_agent_housekeeping: { Args: Record<PropertyKey, never>; Returns: Json };
       purge_expired_messages: { Args: Record<PropertyKey, never>; Returns: number };
       record_conversation_checkin: {
         Args: {
@@ -4757,6 +4972,7 @@ export type Database = {
         Returns: undefined;
       };
       reject_announcement: { Args: { p_draft_id: string }; Returns: undefined };
+      revoke_agent_connection: { Args: { p_id: string }; Returns: Json };
       series_period_days: { Args: { p_freq: string }; Returns: number };
       series_nth_date: {
         Args: { p_anchor: string; p_freq: string; p_n: number };
