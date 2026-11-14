@@ -11,7 +11,10 @@
  *    candidate's or new apprentice's own cards) are skipped, not lost;
  *  - ids the app doesn't know (a newer version's card) are kept;
  *  - cards missing from a saved layout (added to the app later) are appended
- *    in their default order and column.
+ *    in their default order and column, except the ids in `NEIGHBOUR_PLACED`
+ *    (cards added from now on): those go directly after their default
+ *    neighbour instead, so a person who has rearranged Home still finds a new
+ *    card next to the one it belongs with.
  * No saved layout = the default (`HOME_CARDS`).
  */
 
@@ -23,6 +26,7 @@ export const HOME_CARDS = [
   { id: "event", label: "Next event", side: true },
   { id: "inbox", label: "Inbox", side: false },
   { id: "today", label: "Today", side: false },
+  { id: "week", label: "The week ahead", side: false },
   { id: "myEvents", label: "Your events", side: true },
   { id: "team", label: "Your team", side: true },
   { id: "teamLearning", label: "Team learning", side: true },
@@ -30,6 +34,15 @@ export const HOME_CARDS = [
   { id: "myLearning", label: "Your learning", side: true },
   { id: "myDay", label: "What you did today", side: true },
 ] as const satisfies readonly { id: string; label: string; side: boolean }[];
+
+/**
+ * Cards that, when missing from a saved layout, are inserted directly after the
+ * nearest card before them in `HOME_CARDS` that the layout has (in that card's
+ * column), or first when it has none, instead of at the end. Only ids added to
+ * the app after this rule are listed: every older card keeps being appended, so
+ * nobody's existing layout changes. Add a new card's id here when you add it.
+ */
+export const NEIGHBOUR_PLACED: ReadonlySet<string> = new Set(["week"]);
 
 export type HomeCardId = (typeof HOME_CARDS)[number]["id"];
 export type HomeColumn = "main" | "side";
@@ -67,17 +80,36 @@ export function sanitizeLayout(raw: unknown): HomeLayout | null {
 /**
  * The full layout: the saved order (unknown ids kept), then the known cards
  * missing from it in default order; the right-hand column as saved, plus the
- * appended cards' default column.
+ * appended cards' default column. Cards in `NEIGHBOUR_PLACED` are not appended:
+ * each goes directly after the nearest card before it in `HOME_CARDS` that the
+ * layout has once the others are appended (and into that card's column), or
+ * first (its default column) when none is. No card already in the saved layout
+ * moves relative to another.
  */
-export function resolveLayout(saved?: HomeLayout | null): { order: string[]; side: Set<string> } {
+export function resolveLayout(
+  saved?: HomeLayout | null,
+  cards: readonly { id: string; side: boolean }[] = HOME_CARDS,
+  placed: ReadonlySet<string> = NEIGHBOUR_PLACED,
+): { order: string[]; side: Set<string> } {
   const order = [...(saved?.order ?? [])];
   const has = new Set(order);
   const side = new Set((saved?.side ?? []).filter((id) => has.has(id)));
-  for (const c of HOME_CARDS) {
-    if (has.has(c.id)) continue;
+  for (const c of cards) {
+    if (has.has(c.id) || placed.has(c.id)) continue;
     order.push(c.id);
+    has.add(c.id);
     if (c.side) side.add(c.id);
   }
+  cards.forEach((c, i) => {
+    if (has.has(c.id)) return;
+    const before = cards
+      .slice(0, i)
+      .reverse()
+      .find((b) => has.has(b.id));
+    order.splice(before ? order.indexOf(before.id) + 1 : 0, 0, c.id);
+    has.add(c.id);
+    if (before ? side.has(before.id) : c.side) side.add(c.id);
+  });
   return { order, side };
 }
 
