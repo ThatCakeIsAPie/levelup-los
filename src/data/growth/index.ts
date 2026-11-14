@@ -15,6 +15,7 @@ export {
   growthHold,
   isGrowthCode,
 } from "./milestones";
+export { visibleMilestones } from "./visible";
 export {
   growthPath,
   hasEverReachedMilestone,
