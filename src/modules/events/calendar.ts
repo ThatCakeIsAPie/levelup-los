@@ -188,8 +188,18 @@ export interface WeekLayout {
  * covers; then single-day items fill the lowest free row of their day. A day that has more than
  * `cap` items (or would need a row beyond `cap`) shows `cap - 1` rows and "+N more" on the last;
  * a bar is drawn only if every day it covers has room for it, so one bar is never half hidden.
+ * With `moreBelow` the "+N more" does not take one of the `cap` rows: a day shows up to `cap`
+ * items and, when it has more, "+N more" in one extra row under them (`slots` is `cap + 1` then).
+ *
+ * `start` is any date, not only a Sunday: the seven columns are `start` and the six days after
+ * it (Home's week ahead starts today).
  */
-export function layoutWeek(start: string, items: readonly CalItem[], cap = MAX_SLOTS): WeekLayout {
+export function layoutWeek(
+  start: string,
+  items: readonly CalItem[],
+  cap = MAX_SLOTS,
+  moreBelow = false,
+): WeekLayout {
   const days = weekDays(start);
   const base = dayNumber(start);
   const segs: Segment[] = items.map((item) => {
@@ -237,7 +247,7 @@ export function layoutWeek(start: string, items: readonly CalItem[], cap = MAX_S
       deepest[c] = Math.max(deepest[c], s.lane);
     }
   // How many rows each day can show; a day that hides anything gives its last row to "+N more".
-  const limit = count.map((n, c) => (n <= cap && deepest[c] < cap ? cap : cap - 1));
+  const limit = count.map((n, c) => (moreBelow || (n <= cap && deepest[c] < cap) ? cap : cap - 1));
   let shown: Segment[] = segs;
   for (;;) {
     shown = segs.filter((s) => {
@@ -248,7 +258,7 @@ export function layoutWeek(start: string, items: readonly CalItem[], cap = MAX_S
     for (const s of shown) for (let c = s.col0; c <= s.col1; c++) seen[c]++;
     let changed = false;
     for (let c = 0; c < 7; c++)
-      if (seen[c] < count[c] && limit[c] > cap - 1) {
+      if (!moreBelow && seen[c] < count[c] && limit[c] > cap - 1) {
         limit[c] = cap - 1;
         changed = true;
       }
@@ -264,8 +274,35 @@ export function layoutWeek(start: string, items: readonly CalItem[], cap = MAX_S
 
   const drawn = [...shown].sort((a, b) => a.col0 - b.col0 || a.lane - b.lane);
   const rows = drawn.reduce((m, s) => Math.max(m, s.lane + 1), 0);
-  const slots = hidden.some((h) => h > 0) ? cap : Math.max(rows, MIN_SLOTS);
+  const slots = hidden.some((h) => h > 0)
+    ? moreBelow
+      ? cap + 1
+      : cap
+    : Math.max(rows, moreBelow ? 0 : MIN_SLOTS);
   return { start, days, segments: drawn, hidden, perDay, slots };
+}
+
+/** The items a day of Home's week ahead shows before "+N more". */
+export const WEEK_AHEAD_SHOWN = 3;
+
+/**
+ * Home's week ahead: the seven days starting `today` (not Sunday to Saturday), laid out with the
+ * calendar's own placement. Every stored event that touches those days, and every projected
+ * occurrence of a repeating series (`calendarItems`), in the calendar's same-day order; a
+ * multi-day item keeps one row across the days it covers, and one that began earlier is cut at
+ * today (`before`). All categories: no filter.
+ */
+export function weekAhead(
+  events: readonly CrmEvent[],
+  series: readonly EventSeries[],
+  today: string,
+  shown = WEEK_AHEAD_SHOWN,
+): WeekLayout {
+  const end = addDaysTo(today, 6);
+  const items = calendarItems(events, series, today, end).filter(
+    (i) => i.date <= end && lastDay(i) >= today,
+  );
+  return layoutWeek(today, items, shown, true);
 }
 
 /** The items of one date (a day on the grid, from the grid's own buckets or the whole list). */
