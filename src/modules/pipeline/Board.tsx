@@ -124,7 +124,7 @@ export function BoardView({
   return (
     <>
       {desktop ? (
-        <div ref={scroller} className="overflow-x-auto pb-2" aria-label={label}>
+        <div ref={scroller} className="glass-scrollbar overflow-x-auto pb-2" aria-label={label}>
           <div className="flex w-max items-start gap-3.5">
             {shown.bands.map((band) => (
               <DesktopBand
