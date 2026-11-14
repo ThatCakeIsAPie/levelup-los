@@ -281,7 +281,8 @@ describe("pairing and the tools", () => {
         ev.id,
       ]);
 
-    // exactly one audit row per call that reached a tool (the invalid update was refused before it)
+    // exactly one audit row per call that reached a tool, and one for the update refused for its
+    // arguments (a field outside the whitelist leaves a trace)
     const tools = await admin.unsafe(
       "select tool, result from public.agent_audit where connection_id = $1 order by id",
       [reply.connection.id],
@@ -292,10 +293,12 @@ describe("pairing and the tools", () => {
       "update_prospect",
       "add_prospect",
       "update_prospect",
+      "update_prospect",
       "list_upcoming_events",
       "set_event_answer",
     ]);
     expect(tools[2].result).toMatch(/^refused: no such prospect/);
+    expect(tools[5].result).toMatch(/^refused: Invalid arguments: sponsor_id: not a field/);
     // and Jamal reads them through the Data API, the details included
     const mineAudit = await jamal
       .from("agent_audit")
