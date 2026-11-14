@@ -288,40 +288,65 @@ end
 $$;
 
 -- Every change of a zone's offset from Jan 1 of one year to Dec 31 of another, from the database's own
--- time zone data (a day at a time, then the minute): which one of the year it is (j), its month, weekday,
--- wall-clock time before the change, which weekday of the month it is (n-th, and whether it is the last)
--- and the offsets either side.
+-- time zone data: the offset is read once a week and a week with a different offset at its two ends is
+-- bisected to the second. For each change: which one of its year it is (j), its month, weekday, wall-clock
+-- time before the change, which weekday of the month it is (n-th, and whether it is the last) and the
+-- offsets either side. (Two changes inside one week that cancel out would be missed; they leave a year
+-- with fewer changes than the others, which zone_definition refuses.)
 create function agent_private.zone_transitions(p_zone text, p_from_year integer, p_to_year integer)
 returns table (yr integer, j integer, mon integer, dow integer, tod time, n integer, is_last boolean,
                o0 integer, o1 integer, wall timestamp)
-language sql
+language plpgsql
 stable
 set search_path = ''
 as $$
-  with days as (
-    select (g.ts at time zone 'UTC') as d, agent_private.tz_offset(p_zone, g.ts at time zone 'UTC') as o
-      from generate_series(make_timestamp(p_from_year, 1, 1, 12, 0, 0),
-                           make_timestamp(p_to_year, 12, 31, 12, 0, 0), interval '1 day') g (ts)
-  ), ch as (
-    select d - interval '24 hours' as d0, d as d1, lag(o) over (order by d) as o0, o as o1 from days
-  ), tr as (
-    select c.o0, c.o1,
-           (select min(m) from generate_series(c.d0, c.d1, interval '1 minute') m
-             where agent_private.tz_offset(p_zone, m) = c.o1) as at_utc
-      from ch c where c.o0 is not null and c.o0 <> c.o1
-  ), w as (
-    select t.o0, t.o1, (t.at_utc at time zone 'UTC') + make_interval(secs => t.o0) as wall from tr t
-  )
-  select extract(year from w.wall)::integer,
-         (row_number() over (partition by extract(year from w.wall) order by w.wall))::integer,
-         extract(month from w.wall)::integer,
-         extract(dow from w.wall)::integer,
-         w.wall::time,
-         (extract(day from w.wall)::integer - 1) / 7 + 1,
-         extract(day from w.wall)::integer + 7
-           > extract(day from (date_trunc('month', w.wall) + interval '1 month' - interval '1 day'))::integer,
-         w.o0, w.o1, w.wall
-    from w
+declare
+  v_s bigint := extract(epoch from make_timestamptz(p_from_year, 1, 1, 12, 0, 0, 'UTC'))::bigint;
+  v_end bigint := extract(epoch from make_timestamptz(p_to_year, 12, 31, 12, 0, 0, 'UTC'))::bigint;
+  v_next bigint;
+  v_lo bigint;
+  v_hi bigint;
+  v_mid bigint;
+  v_o0 integer := agent_private.tz_offset(p_zone, to_timestamp(v_s));
+  v_o1 integer;
+  v_wall timestamp;
+  v_last_year integer := 0;
+  v_j integer := 0;
+begin
+  while v_s < v_end loop
+    v_next := least(v_s + 604800, v_end);
+    v_o1 := agent_private.tz_offset(p_zone, to_timestamp(v_next));
+    if v_o1 <> v_o0 then
+      v_lo := v_s;
+      v_hi := v_next;
+      while v_hi - v_lo > 1 loop
+        v_mid := (v_lo + v_hi) / 2;
+        if agent_private.tz_offset(p_zone, to_timestamp(v_mid)) = v_o1 then
+          v_hi := v_mid;
+        else
+          v_lo := v_mid;
+        end if;
+      end loop;
+      v_wall := (to_timestamp(v_hi) at time zone 'UTC') + make_interval(secs => v_o0);
+      yr := extract(year from v_wall)::integer;
+      v_j := case when yr = v_last_year then v_j + 1 else 1 end;
+      v_last_year := yr;
+      j := v_j;
+      mon := extract(month from v_wall)::integer;
+      dow := extract(dow from v_wall)::integer;
+      tod := v_wall::time;
+      n := (extract(day from v_wall)::integer - 1) / 7 + 1;
+      is_last := extract(day from v_wall)::integer + 7
+                 > extract(day from (date_trunc('month', v_wall) + interval '1 month' - interval '1 day'))::integer;
+      o0 := v_o0;
+      o1 := v_o1;
+      wall := v_wall;
+      return next;
+    end if;
+    v_s := v_next;
+    v_o0 := v_o1;
+  end loop;
+end
 $$;
 
 -- What an iCalendar VTIMEZONE needs for a zone: the yearly offset changes (daylight saving) as RRULEs, or
@@ -339,6 +364,7 @@ set search_path = ''
 as $$
 declare
   v_to_year integer := p_from_year + 31;
+  v_tr jsonb;
   v_obs jsonb := '[]'::jsonb;
   v_changes integer;
   v_years_with integer;
@@ -352,13 +378,16 @@ begin
      or not exists (select 1 from pg_catalog.pg_timezone_names z where z.name = p_zone) then
     return null;
   end if;
+  select coalesce(jsonb_agg(to_jsonb(t) order by t.wall), '[]'::jsonb) into v_tr
+    from agent_private.zone_transitions(p_zone, p_from_year, v_to_year) t;
   select coalesce(sum(x.k), 0), count(*), min(x.k), max(x.k) into v_changes, v_years_with, v_min, v_max
     from (select t.yr, count(*) as k
-            from agent_private.zone_transitions(p_zone, p_from_year, v_to_year) t group by t.yr) x;
+            from jsonb_to_recordset(v_tr) as t (yr integer) group by t.yr) x;
   if v_changes = 0 then
-    select min(agent_private.tz_offset(p_zone, g.ts at time zone 'UTC')) into v_const
-      from generate_series(make_timestamp(p_from_year, 1, 1, 12, 0, 0),
-                           make_timestamp(v_to_year, 12, 31, 12, 0, 0), interval '1 day') g (ts);
+    select min(agent_private.tz_offset(p_zone, to_timestamp(g.s))) into v_const
+      from generate_series(extract(epoch from make_timestamptz(p_from_year, 1, 1, 12, 0, 0, 'UTC'))::bigint,
+                           extract(epoch from make_timestamptz(v_to_year, 12, 31, 12, 0, 0, 'UTC'))::bigint,
+                           604800) g (s);
     return jsonb_build_object('tzid', p_zone, 'from_year', p_from_year, 'observances', jsonb_build_array(
       jsonb_build_object('kind', 'STANDARD', 'from', agent_private.fmt_offset(v_const),
                          'to', agent_private.fmt_offset(v_const), 'dtstart', '19700101T000000')));
@@ -370,7 +399,8 @@ begin
     select t.j, count(distinct (t.mon, t.dow, t.tod, t.o0, t.o1)) as patterns, count(distinct t.n) as ns,
            bool_and(t.is_last) as always_last, min(t.n) as n, min(t.mon) as mon, min(t.dow) as dow,
            min(t.o0) as o0, min(t.o1) as o1, min(t.wall) as first_wall
-      from agent_private.zone_transitions(p_zone, p_from_year, v_to_year) t
+      from jsonb_to_recordset(v_tr) as t (yr integer, j integer, mon integer, dow integer, tod time, n integer,
+                                          is_last boolean, o0 integer, o1 integer, wall timestamp)
      group by t.j order by t.j
   loop
     if r.patterns <> 1 then
