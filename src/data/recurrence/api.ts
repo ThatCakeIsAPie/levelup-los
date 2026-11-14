@@ -143,6 +143,8 @@ const COLUMN: Record<keyof EventPatch, string> = {
   ticketUrl: "ticket_url",
   date: "date",
   endDate: "end_date",
+  startTime: "start_time",
+  endTime: "end_time",
 };
 const patchJson = (patch: EventPatch) =>
   Object.fromEntries(

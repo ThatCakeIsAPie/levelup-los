@@ -135,6 +135,19 @@ export {
 export { REPEAT_FREQS, repeatFits, repeatLabel, type RepeatFreq } from "./recurrence/rule";
 export type { EventPatch } from "./recurrence/plan";
 
+// Event start and end times (src/data/eventTimes) and the team's time zone
+export {
+  cleanTime,
+  compareStart,
+  formatTime,
+  formatTimeSpan,
+  spanWithTimes,
+  timeText,
+  timesProblem,
+  withTime,
+} from "./eventTimes";
+export { getWorkspaceTimezone, useWorkspaceTimezone } from "./workspaceTimezone";
+
 // Events + attendance
 export {
   isUpcoming,

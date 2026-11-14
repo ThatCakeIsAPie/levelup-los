@@ -32,6 +32,7 @@ import type { EventCategory } from "@/data/eventCategories/types";
 import type { HomeLayout } from "@/data/homeLayout";
 import { fetchTeamLook } from "@/data/teamLook/remote";
 import { useTeamLookStore } from "@/data/teamLook/store";
+import { setWorkspaceTimezone } from "@/data/workspaceTimezone";
 import type { TeamLook } from "@/data/teamLook/types";
 import { sanitizeEntries, useStageNamesStore } from "@/data/stageNames/store";
 import { isStageKey, isStagePipeline, type StageNameEntry } from "@/data/stageNames/rules";
@@ -116,7 +117,7 @@ export interface CrmSnapshot {
   /** Your Home card layout (RLS: only your own row), by person id. */
   homeLayouts: Record<string, HomeLayout>;
   /** The team's look (the leader's background, glass, logo and colours); null when the workspace row is not readable. */
-  look: { workspaceId: string; look: TeamLook } | null;
+  look: { workspaceId: string; look: TeamLook; timezone: string } | null;
 }
 
 export interface LibrarySnapshot {
@@ -663,6 +664,7 @@ export function applyCrm(s: CrmSnapshot): void {
   replaceStore(homeLayoutBinding, { layouts: s.homeLayouts });
   // The team's look is not written by the sync engine (only set_workspace_appearance() writes it).
   if (s.look) useTeamLookStore.setState({ look: s.look.look, workspaceId: s.look.workspaceId });
+  setWorkspaceTimezone(s.look?.timezone);
 }
 
 /**

@@ -25,6 +25,7 @@ import {
   useVisibleCustomers,
   useVisibleTeam,
   type AttendMode,
+  withTime,
 } from "@/data";
 import { Segmented } from "@/modules/events/Segmented";
 import { MODE_ICON } from "@/modules/events/categoryIcons";
@@ -112,7 +113,7 @@ export function AttendanceForm({ initialPersonId }: { initialPersonId?: string }
                 {e.name}
                 <span className="ml-2 text-xs text-muted-foreground">
                   {e.name === categoryOf(e).name ? "" : `${categoryOf(e).name} · `}
-                  {format(parseDate(e.date), "EEE, MMM d")}
+                  {withTime(format(parseDate(e.date), "EEE, MMM d"), e)}
                 </span>
               </SelectItem>
             ))}

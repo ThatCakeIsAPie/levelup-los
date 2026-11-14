@@ -60,6 +60,7 @@ import {
   useUpcomingEvents,
   useVisibleAttendances,
   type CrmPerson,
+  withTime,
 } from "@/data";
 import { toastWithUndo } from "@/components/log/quickLog";
 import { exportRowsCsv } from "./exportCsv";
@@ -592,7 +593,7 @@ function AssignDialog({ open, onOpenChange, rows, onDone }: DialogProps) {
               <SelectContent>
                 {events.map((e) => (
                   <SelectItem key={e.id} value={e.id}>
-                    {e.name} · {shortDate(e.date)}
+                    {e.name} · {withTime(shortDate(e.date), e)}
                   </SelectItem>
                 ))}
               </SelectContent>

@@ -262,3 +262,82 @@ export const RULE_CASES: readonly RuleCase[] = [
     expected: "2026-12-23",
   },
 ];
+
+/**
+ * The one table of start and end time cases (src/data/eventTimes.ts). `eventTimes.test.ts` runs it against
+ * `timesOk` and `fitEndTime` (TypeScript) and `supabase/tests/050_event_times.test.sql` runs the same rows
+ * against `public.event_times_ok()` (the rule the `events` and `event_series` check constraints use) and
+ * the end time a later occurrence can keep; `eventTimes.test.ts` also checks that the two tables are
+ * identical.
+ *
+ * Each row: a name, how many days the event runs past its first day (0 = a one-day event), the start time,
+ * the end time (null = none), whether that pair is allowed, and the end time that stays on an occurrence
+ * when the pair is applied to it (null = none stays).
+ */
+export interface TimeCase {
+  name: string;
+  lengthDays: number;
+  start: string | null;
+  end: string | null;
+  ok: boolean;
+  fit: string | null;
+}
+
+export const TIME_CASES: readonly TimeCase[] = [
+  { name: "all-day", lengthDays: 0, start: null, end: null, ok: true, fit: null },
+  { name: "all-day, multi-day", lengthDays: 2, start: null, end: null, ok: true, fit: null },
+  { name: "start time only", lengthDays: 0, start: "19:00", end: null, ok: true, fit: null },
+  { name: "start and end", lengthDays: 0, start: "19:00", end: "20:30", ok: true, fit: "20:30" },
+  {
+    name: "end after start by a minute",
+    lengthDays: 0,
+    start: "19:00",
+    end: "19:01",
+    ok: true,
+    fit: "19:01",
+  },
+  {
+    name: "end equals start, one day",
+    lengthDays: 0,
+    start: "19:00",
+    end: "19:00",
+    ok: false,
+    fit: null,
+  },
+  {
+    name: "end before start, one day",
+    lengthDays: 0,
+    start: "19:00",
+    end: "18:00",
+    ok: false,
+    fit: null,
+  },
+  { name: "end without start", lengthDays: 0, start: null, end: "20:30", ok: false, fit: null },
+  { name: "midnight start", lengthDays: 0, start: "00:00", end: "00:30", ok: true, fit: "00:30" },
+  { name: "end at 23:59", lengthDays: 0, start: "23:00", end: "23:59", ok: true, fit: "23:59" },
+  {
+    name: "multi-day, end earlier than start",
+    lengthDays: 1,
+    start: "19:00",
+    end: "11:00",
+    ok: true,
+    fit: "11:00",
+  },
+  {
+    name: "multi-day, end equals start",
+    lengthDays: 2,
+    start: "09:00",
+    end: "09:00",
+    ok: true,
+    fit: "09:00",
+  },
+  { name: "multi-day, start only", lengthDays: 2, start: "09:00", end: null, ok: true, fit: null },
+  {
+    name: "multi-day, end without start",
+    lengthDays: 1,
+    start: null,
+    end: "11:00",
+    ok: false,
+    fit: null,
+  },
+];

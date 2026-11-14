@@ -12,6 +12,7 @@ import {
   repeatFits,
   repeatLabel,
   saveEventFollowing,
+  timesProblem,
   updateEvent,
   useCategoryOf,
   useEventCategories,
@@ -62,6 +63,8 @@ const patchOf = (d: Draft): EventPatch => ({
   ticketUrl: d.ticketUrl,
   date: d.date,
   endDate: d.endDate,
+  startTime: d.startTime,
+  endTime: d.endTime,
 });
 
 /** A new event starts in the team's first category, named after it. */
@@ -158,6 +161,7 @@ function EventForm({
     form.endDate && form.date && form.endDate < form.date
       ? "The end date can't be before the start date."
       : null;
+  const timeError = timesProblem(form);
   const ticketUrl = cleanTicketUrl(form.ticketUrl);
   const ticketBad = !!form.ticketUrl?.trim() && !ticketUrl;
   const ticketError =
@@ -165,12 +169,22 @@ function EventForm({
 
   const submit = async () => {
     setTouched(true);
-    if (!form.categoryId || !form.name.trim() || dateError || endError || ticketBad || endsBad)
+    if (
+      !form.categoryId ||
+      !form.name.trim() ||
+      dateError ||
+      endError ||
+      timeError ||
+      ticketBad ||
+      endsBad
+    )
       return;
     const clean: Draft = {
       ...form,
       name: form.name.trim(),
       endDate: form.endDate && form.endDate !== form.date ? form.endDate : undefined,
+      startTime: form.startTime || undefined,
+      endTime: form.endTime || undefined,
       location: form.location?.trim() || undefined,
       notes: form.notes?.trim() || undefined,
       ticketUrl: ticketUrl ?? undefined,
@@ -330,6 +344,35 @@ function EventForm({
         </div>
       </div>
       {endError && <p className="-mt-2 text-xs text-bad">{endError}</p>}
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="grid min-w-0 gap-1.5">
+          <Label htmlFor="ev-start-time">
+            Start time <span className="font-normal text-faint">(optional)</span>
+          </Label>
+          <Input
+            id="ev-start-time"
+            type="time"
+            className="min-w-0"
+            value={form.startTime ?? ""}
+            onChange={(e) => set({ startTime: e.target.value || undefined })}
+          />
+        </div>
+        <div className="grid min-w-0 gap-1.5">
+          <Label htmlFor="ev-end-time">
+            End time <span className="font-normal text-faint">(optional)</span>
+          </Label>
+          <Input
+            id="ev-end-time"
+            type="time"
+            className="min-w-0"
+            value={form.endTime ?? ""}
+            aria-invalid={!!timeError || undefined}
+            onChange={(e) => set({ endTime: e.target.value || undefined })}
+          />
+        </div>
+      </div>
+      {timeError && <p className="-mt-2 text-xs text-bad">{timeError}</p>}
 
       <div className="grid gap-1.5">
         <Label htmlFor="ev-repeats">Repeats</Label>
