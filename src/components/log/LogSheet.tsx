@@ -30,6 +30,7 @@ import { useIsDesktop } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
 import { EventFormDialog } from "@/modules/events/EventFormDialog";
 import {
+  getLearning,
   getTeamChatId,
   openLog,
   sendMessage,
@@ -126,7 +127,7 @@ const SELL: Option<Sell>[] = [
  * phones.
  */
 export function LogSheet() {
-  const { open, tab, personId } = useUiStore((s) => s.logSheet);
+  const { open, tab, personId, editLearningId } = useUiStore((s) => s.logSheet);
   const closeLog = useUiStore((s) => s.closeLog);
   const desktop = useIsDesktop();
   const navigate = useNavigate();
@@ -182,9 +183,10 @@ export function LogSheet() {
           {/* Remount each time the sheet opens so it starts at the requested step. */}
           {open && (
             <LogFlow
-              key={`${tab ?? ""}:${personId ?? ""}`}
+              key={`${tab ?? ""}:${personId ?? ""}:${editLearningId ?? ""}`}
               tab={tab}
               personId={personId}
+              editLearningId={editLearningId}
               onNewEvent={() => {
                 closeLog();
                 setEventOpen(true);
@@ -201,15 +203,23 @@ export function LogSheet() {
 function LogFlow({
   tab,
   personId,
+  editLearningId,
   onNewEvent,
 }: {
   tab?: LogTab;
   personId?: string;
+  editLearningId?: string;
   onNewEvent: () => void;
 }) {
   const user = useCurrentUser();
+  // Editing a logged entry: the sheet is only that form (no other tabs, no way
+  // back to the menu), and the entry is read once, as it was when opened.
+  const [editing] = useState(() => {
+    const found = editLearningId ? getLearning(editLearningId) : undefined;
+    return found?.personId === user.personId ? found : undefined;
+  });
   const candidate = user.role === "candidate";
-  const [step, setStep] = useState<Step>(() => initialStep(tab));
+  const [step, setStep] = useState<Step>(() => (editing ? { view: "learning" } : initialStep(tab)));
   const manage = useCanManageEvents();
   // Recruiting unlocks with the recruiting pipeline (First sponsor); before
   // that, Activity is selling only.
@@ -221,7 +231,9 @@ function LogFlow({
       : ROOT.map((o) => (o.value === "activity" ? SELLING_ROOT : o));
   const eventOptions = manage ? EVENTS : EVENTS.filter((o) => o.value !== "new");
 
-  const crumbs: { label: string; to?: Step }[] = [{ label: "Log", to: { view: "menu" } }];
+  const crumbs: { label: string; to?: Step }[] = editing
+    ? []
+    : [{ label: "Log", to: { view: "menu" } }];
   if (
     recruiting &&
     (step.view === "activity" || step.view === "recruiting" || step.view === "selling")
@@ -339,7 +351,7 @@ function LogFlow({
         <AttendanceForm initialPersonId={tab === "attendance" ? personId : undefined} />
       )}
 
-      {step.view === "learning" && <LearningForm />}
+      {step.view === "learning" && <LearningForm editing={editing} />}
       {step.view === "checkin" && (
         <ContactForm kind="team" initialPersonId={tab === "checkin" ? personId : undefined} />
       )}

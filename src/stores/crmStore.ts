@@ -81,6 +81,8 @@ export interface Learning {
   /** When it was logged (ISO); missing on older and seeded rows. */
   createdAt?: string;
 }
+/** The fields of a learning entry that can be edited after it is logged. */
+export type LearningEdit = Pick<Learning, "kind" | "title" | "amount" | "date" | "unit">;
 export interface Settings {
   customerDays: number;
   teamDays: number;
@@ -122,6 +124,12 @@ interface CrmState {
   removeSale: (id: string) => void;
   removeContact: (id: string) => void;
   logLearning: (l: Omit<Learning, "id">) => void;
+  /**
+   * Change an entry in place: its kind, title, amount, unit and date are
+   * replaced (no `unit` clears it); id, person and `createdAt` stay. Returns
+   * the entry as it was, or undefined (nothing changed) when there is none.
+   */
+  updateLearning: (id: string, next: LearningEdit) => Learning | undefined;
   removeLearning: (id: string) => void;
   setSettings: (s: Partial<Settings>) => void;
   setLearningGoal: (personId: string, goal: LearningGoal) => void;
@@ -198,6 +206,15 @@ export const useCrmStore = create<CrmState>()(
             ...get().learning,
           ],
         }),
+      updateLearning: (id, next) => {
+        const prev = get().learning.find((l) => l.id === id);
+        if (!prev) return undefined;
+        const { unit: _unit, ...rest } = prev;
+        const { unit, ...fields } = next;
+        const updated: Learning = { ...rest, ...fields, ...(unit ? { unit } : {}) };
+        set({ learning: get().learning.map((l) => (l.id === id ? updated : l)) });
+        return prev;
+      },
       removeLearning: (id) => set({ learning: get().learning.filter((l) => l.id !== id) }),
       setSettings: (s) => set({ settings: { ...get().settings, ...s } }),
       setLearningGoal: (personId, goal) =>
