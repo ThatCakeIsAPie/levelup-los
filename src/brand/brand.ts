@@ -23,7 +23,7 @@ export const brand = {
    */
   storagePrefix: "heroes",
   /** Browser chrome colour: `initial` is the static <meta theme-color>, light/dark match --app-bg. */
-  themeColor: { initial: "#142423", light: "#F4EFE3", dark: "#0E1C1A" },
+  themeColor: { initial: "#142423", light: "#D3E6D7", dark: "#0E1C1A" },
   /**
    * Fixed background picture, as a file name in src/brand/public (served from the
    * site's base path). The picture never moves; the app scrolls in front of it.

@@ -1,7 +1,7 @@
 /*
  * Brand tokens: every raw colour value and the wordmark font.
  * ===========================================================
- * Heroes: deep green and gold, on parchment in the light theme and on the
+ * Heroes: deep green and gold, on light sage green glass in the light theme and on the
  * green scale in the dark theme. The raw palette is the Team Heroes site's:
  *   greens  #091211 deepest, #0e1c1a deep, #142423 base, #1e3531 raised, #2c4a44 line
  *   golds   #c6a04a deep, #e3c271 gold, #f1d690 light
@@ -35,7 +35,7 @@
  *
  * Surfaces: --app-bg is the page, --surface cards/inputs/sheets, --surface-2
  * subtle fills (KPI tiles, hover rows), --line hairlines, --track the empty
- * part of progress bars. Light theme: parchment (page) with lighter cream
+ * part of progress bars. Light theme: pale sage (page) with lighter green-white
  * cards. Dark theme: --app-bg #0e1c1a, --surface #142423, --surface-2 #1e3531.
  *
  * Contrast rules (WCAG AA, checked in BOTH themes):
@@ -86,7 +86,7 @@
  *
  * The logo mark (BrandMark.tsx) is one gold shape. --brand-mark-accent is the
  * gold on the dark sidebar and sign-in panel; in the light theme it is the
- * deeper #c6a04a so the mark still reads on the occasional parchment surface.
+ * deeper #c6a04a so the mark still reads on the occasional light surface.
  *
  * The wordmark font (--font-wordmark, utility font-wordmark) is Cinzel,
  * vendored in ./fonts with its licence (SIL OFL) next to it.
@@ -143,19 +143,19 @@
   --brand-mark-ring: var(--brand-mark-accent);
   --brand-mark-accent: #c6a04a;
 
-  /* Surfaces (light: parchment) */
-  --app-bg: #f4efe3;
-  --surface: #fbf8f1;
-  --surface-2: #ece6d6;
+  /* Surfaces (light: pale sage page, green-white cards) */
+  --app-bg: #d3e6d7;
+  --surface: #f6f9f3;
+  --surface-2: #e6eee3;
   --line: #ddd5c0;
   --track: #ddd5c0;
   --fg: #142423;
-  --muted-text: #364540;
-  --faint: #46534d;
+  --muted-text: #283733;
+  --faint: #3e4b46;
   --primary-base: #1d5546;
   --on-primary: #f8f4ec;
   --primary-soft: #dde8dc;
-  --primary-ink: #174236;
+  --primary-ink: #10362b;
   --prospect-soft: #e8e4d8;
   --prospect-ink: #44504a;
   --info: #2f6f9a;
@@ -163,8 +163,8 @@
   --info-ink: #1d4e72;
   --amber-soft: #fbe2d1;
   --amber-ink: #7a2f0a;
-  --amber-strong: #ad4909;
-  --danger: #b3122e;
+  --amber-strong: #9a4007;
+  --danger: #a50f29;
   --danger-soft: #fbe1e5;
   --on-danger: #ffffff;
   --ok: #17512c;
@@ -209,24 +209,25 @@
   --progress-fill: #8f6b12;
 
   /*
-   * The base layer (light): the picture blurred, brightened and veiled in a pale
-   * sage tint, so the page is a light frosted sheet with the art's green and
-   * gold in it. The panels are parchment glass on top of that.
+   * The base layer (light): the picture blurred and veiled in a light green
+   * tint, so the page is one sheet of pale green glass with the art's green and
+   * gold glowing in it. The tint does the lightening (a strong brightness()
+   * would bleach it to grey-white). The panels are green-white glass on top.
    */
-  --backdrop-tone: saturate(125%) brightness(150%);
-  --glass-tint: rgba(251, 248, 241, 0.48);
-  --glass-tint-reading: rgba(251, 248, 241, 0.7);
-  --glass-tint-inset: rgba(236, 230, 214, 0.52);
+  --backdrop-tone: saturate(128%) brightness(130%);
+  --glass-tint: rgba(238, 249, 240, 0.42);
+  --glass-tint-reading: rgba(241, 250, 243, 0.66);
+  --glass-tint-inset: rgba(206, 230, 212, 0.5);
   --glass-tint-side: rgba(9, 18, 17, 0.8);
   --glass-filter: blur(24px) saturate(150%);
   --glass-filter-reading: blur(28px) saturate(150%);
-  --glass-border: rgba(20, 36, 35, 0.18);
+  --glass-border: rgba(18, 50, 40, 0.2);
   --glass-track: rgba(20, 36, 35, 0.16);
   --glass-highlight:
     inset 0 1px 0 rgba(255, 255, 255, 0.7), inset 0 0 0 1px rgba(255, 255, 255, 0.2);
   --glass-shadow: 0 16px 44px rgba(9, 18, 17, 0.18);
   --glass-sheen: linear-gradient(135deg, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0) 40%);
-  --scrim: rgba(232, 238, 222, 0.5);
+  --scrim: rgba(158, 208, 172, 0.62);
 }
 
 .dark {
