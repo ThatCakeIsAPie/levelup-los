@@ -11,7 +11,13 @@
 import { useSessionStore } from "@/stores/sessionStore";
 import { effectiveBizClass, usePeopleStore } from "@/stores/peopleStore";
 import { useChatStore } from "@/data/chat/store";
-import { logLearning, removeLearning } from "@/data/crm";
+import {
+  deleteLearning,
+  getLearning,
+  logLearning,
+  removeLearning,
+  restoreLearning,
+} from "@/data/crm";
 import type { LearningUnit } from "@/stores/crmStore";
 import { IS_SUPABASE } from "@/lib/config";
 import { localDate } from "@/lib/dates";
@@ -473,15 +479,20 @@ function applyProgressWith(
       if (entry) add();
       else serverSide(add);
     } else {
-      logLearning({
-        kind,
-        title: item.title,
-        amount,
-        ...(entry?.unit ? { unit: entry.unit } : {}),
-        ...(entry ? { date: entry.date } : {}),
-        personId: v.personId,
-      });
-      learningId = useCrmStore.getState().learning.find((l) => l.personId === v.personId)?.id;
+      // The same id the database gives the row, so the entry can be told from
+      // any other later (deleting it un-marks the item, `deleteLearningEntry`).
+      const id = libraryLearningId(v.personId, item.id);
+      learningId = id;
+      if (!getLearning(id))
+        logLearning({
+          id,
+          kind,
+          title: item.title,
+          amount,
+          ...(entry?.unit ? { unit: entry.unit } : {}),
+          ...(entry ? { date: entry.date } : {}),
+          personId: v.personId,
+        });
     }
   }
   updateLibrary((s) => ({
@@ -528,9 +539,11 @@ function restoreProgress(personId: string, itemId: string, prev: LibraryProgress
   const same = (p: LibraryProgress) => p.personId === personId && p.itemId === itemId;
   if (!IS_SUPABASE) {
     updateLibrary((s) => ({
-      progress: prev
-        ? s.progress.map((p) => (same(p) ? prev : p))
-        : s.progress.filter((p) => !same(p)),
+      progress: !prev
+        ? s.progress.filter((p) => !same(p))
+        : s.progress.some(same)
+          ? s.progress.map((p) => (same(p) ? prev : p))
+          : [...s.progress, prev],
     }));
     return;
   }
@@ -539,6 +552,49 @@ function restoreProgress(personId: string, itemId: string, prev: LibraryProgress
   // when there was one, put it back as a separate write (an insert starts unlogged).
   updateLibrary((s) => ({ progress: s.progress.filter((p) => !same(p)) }));
   if (prev) queueMicrotask(() => updateLibrary((s) => ({ progress: [...s.progress, prev] })));
+}
+
+/**
+ * Delete one of the current user's own learning entries (exactly that one).
+ * When the entry is the one a library completion logged (its id is
+ * `libraryLearningId`, in the demo and in the database alike), the item is
+ * un-marked too: the same two halves the library's own Undo reverses. The
+ * item goes back to not finished and never logged, so finishing it again
+ * logs again; where they stopped stays. "Mark as not done" is unchanged.
+ *
+ * The returned `undo` puts back the entry (same id, values and `createdAt`)
+ * and, for a linked one, the item's progress as it was. It does nothing when
+ * an entry with that id exists again meanwhile, so it never makes a second
+ * one. With real accounts the entry is written first and the database's
+ * progress trigger then finds it there (`on conflict do nothing`), so
+ * finishing the item again through the progress row logs no second entry.
+ *
+ * Returns null (nothing changed) when there is no such entry of yours.
+ */
+export function deleteLearningEntry(id: string): { undo: () => void } | null {
+  const removed = deleteLearning(id);
+  if (!removed) return null;
+  const { personId } = removed.entry;
+  const link = library().progress.find(
+    (p) =>
+      p.personId === personId &&
+      libraryLearningId(personId, p.itemId) === id &&
+      (p.completedAt || p.loggedAt),
+  );
+  if (link) {
+    // Nothing left of it but where they stopped: as if never finished.
+    const reset: LibraryProgress | undefined =
+      link.positionSec > 0
+        ? { ...link, completedAt: null, loggedAt: null, updatedAt: nowIso() }
+        : undefined;
+    restoreProgress(personId, link.itemId, reset);
+  }
+  return {
+    undo: () => {
+      if (!restoreLearning(removed)) return;
+      if (link) restoreProgress(personId, link.itemId, link);
+    },
+  };
 }
 
 /** Save where the current user is in an audio/video (finishing ≥ 90% marks it done and logs it). */
