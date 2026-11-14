@@ -31,9 +31,15 @@ Migrations `20261025000100_agent_connector` and `20261025000200_agent_tools`; Ed
 Choices worth knowing:
 
 - The MCP side is a small stateless JSON-RPC handler (initialize, ping, tools/list, tools/call), not an SDK: no extra dependency, nothing to bundle, and it is testable without Deno.
-- Invalid arguments (400) and unknown tools (404) are refused before the database and not audited; every call that reaches a tool, or is refused for access reasons, writes exactly one audit row.
+- Unknown tools (404), unreadable or oversized bodies and unknown keys are refused before the database and not audited (nothing to attribute them to). Invalid arguments (400) for a known tool, including a field outside the whitelist such as `stage` or `sponsor`, ARE audited as a refusal (arguments kept only when small), found by the end-to-end run: an agent trying to change something the connector never changes should leave a trace. Every call that reaches a tool, or is refused for access or argument reasons, writes exactly one audit row.
 - The audit reader is the connected person only. A leader does not read her team's audit rows (they hold people's details).
 - `database.types.ts` was not regenerated in this phase: no app code reads the new tables yet. Run `npm run db:types` with phase 2.
+
+## Phase 1: verified end to end
+
+Run on a throwaway hosted Supabase project (free plan, the real pooler, the real Edge runtime) on 2026-11-14: pairing, row-level security through HTTP and MCP, access levels, cut-off (revoke, team switch, app-admin preview, demotion), the key refused at every other endpoint, audit counts, MCP protocol behaviour, a real client (`claude mcp add --transport http` then `claude mcp list`: connected) and latency (warm about 100 ms per call on a kept-alive connection, 150 ms with a new connection each time, cold first call about 350 ms). Two defects came out of it and are fixed with tests: an argument-rejected call left no audit row, and a refused body over 64 KB left the gateway's connection hanging for the next request.
+
+Known differences from the MCP 2025-11-25 Streamable HTTP text, none of which a client trips over (Claude Code connects): the `MCP-Protocol-Version` header is not checked (the spec says answer 400 for an unsupported one); the `Origin` header is not checked (the spec says 403 for an invalid one; this server has no CORS and needs a bearer key a browser page cannot hold); JSON-RPC batches are accepted (allowed in 2025-03-26, dropped later); a JSON-RPC response sent by a client gets an error instead of 202 (a stateless server never asks the client anything); `Accept` is not enforced; GET and DELETE on `/mcp` answer 405, which the spec allows; a 401 carries no OAuth discovery document (`/.well-known/...` is 404), so a client holding a revoked key reports it needs authentication.
 
 ## Phase 2: not started
 

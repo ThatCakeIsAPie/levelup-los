@@ -343,6 +343,94 @@ describe("plain HTTP surface", () => {
     ).toBe(200);
   });
 
+  it("reads a refused (too large) body to its end instead of cancelling it, so the gateway's connection is not left hanging", async () => {
+    const { db, handle } = setup();
+    await db.addConnection(KEY);
+    for (const [path, chunks] of [
+      ["/tools/add_prospect", 40], // 40 x 4 KB = 160 KB, no content-length: refused while reading
+      ["/mcp", 40],
+      ["/pair", 40],
+    ] as const) {
+      let pulled = 0;
+      let cancelled = false;
+      const body = new ReadableStream<Uint8Array>({
+        pull(controller) {
+          if (pulled === chunks) return controller.close();
+          pulled++;
+          controller.enqueue(new Uint8Array(4096).fill(120));
+        },
+        cancel() {
+          cancelled = true;
+        },
+      });
+      const res = await handle(
+        new Request(`${BASE}${path}`, {
+          method: "POST",
+          headers: { authorization: `Bearer ${KEY}`, "content-type": "application/json" },
+          body,
+          // @ts-expect-error Node's fetch needs this for a streamed request body
+          duplex: "half",
+        }),
+      );
+      expect(res.status, path).toBe(413);
+      expect(pulled, path).toBe(chunks);
+      expect(cancelled, path).toBe(false);
+    }
+    expect(db.toolCalls).toHaveLength(0);
+  });
+
+  it("audits a call refused for its arguments (a field outside the whitelist leaves a trace), over HTTP and MCP", async () => {
+    const { db, handle } = setup();
+    const c = await db.addConnection(KEY);
+    const res = await handle(
+      req("/tools/update_prospect", {
+        method: "POST",
+        key: KEY,
+        body: { id: "p1", stage: "ibo", notes: "x" },
+      }),
+    );
+    expect(res.status).toBe(400);
+    expect(db.toolCalls).toHaveLength(0);
+    expect(db.refusals).toHaveLength(1);
+    expect(db.refusals[0]).toMatchObject({
+      connectionId: c.id,
+      tool: "update_prospect",
+      args: { id: "p1", stage: "ibo", notes: "x" },
+    });
+    expect(db.refusals[0].result).toMatch(/^refused: Invalid arguments: stage: not a field/);
+
+    const viaMcp = await handle(
+      req("/mcp", {
+        method: "POST",
+        key: KEY,
+        body: {
+          jsonrpc: "2.0",
+          id: 1,
+          method: "tools/call",
+          params: { name: "set_event_answer", arguments: { event_id: "e1", answer: "perhaps" } },
+        },
+      }),
+    );
+    expect((await viaMcp.json()).result.isError).toBe(true);
+    expect(db.refusals).toHaveLength(2);
+    expect(db.refusals[1]).toMatchObject({ tool: "set_event_answer" });
+    expect(db.refusals[1].result).toContain("answer: must be one of");
+
+    // an oversized argument object is not copied into the audit row
+    await handle(
+      req("/tools/update_prospect", {
+        method: "POST",
+        key: KEY,
+        body: { id: "p1", stage: "x".repeat(5000) },
+      }),
+    );
+    expect(db.refusals[2].args).toMatchObject({ truncated: true });
+    expect(db.refusals[2].result.length).toBeLessThanOrEqual(500);
+    // an unknown tool is not audited (nothing to attribute it to)
+    await handle(req("/tools/nope", { method: "POST", key: KEY, body: {} }));
+    expect(db.refusals).toHaveLength(3);
+  });
+
   it("turns a tool's own refusal into 422", async () => {
     const { db, handle } = setup();
     await db.addConnection(KEY);

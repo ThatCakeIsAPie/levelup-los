@@ -19,19 +19,29 @@ export async function runTool(
   const tool = findTool(name);
   if (!tool)
     return { ok: false, status: 404, error: `Unknown tool '${name}'. GET /tools lists them.` };
-  const v = validateArgs(tool, rawArgs);
-  if (!v.ok) return { ok: false, status: 400, error: v.error };
-
-  const audit = async (result: string) => {
+  const audit = async (result: string, args: unknown) => {
     try {
-      await db.recordRefusal(conn.id, tool.name, v.args, result);
+      await db.recordRefusal(conn.id, tool.name, args, result);
     } catch (e) {
       log(`audit of a refusal failed: ${String(e)}`);
     }
   };
 
+  const v = validateArgs(tool, rawArgs);
+  if (!v.ok) {
+    // Refused before the database: still one audit row, so an attempt to change a field the
+    // connector never changes (stage, sponsor, ...) leaves a trace. The arguments are kept only
+    // when small (the body may be up to 64 KB).
+    const raw = JSON.stringify(rawArgs ?? null) ?? "null";
+    await audit(
+      `refused: ${v.error}`.slice(0, 500),
+      raw.length <= 2000 ? rawArgs : { truncated: true, characters: raw.length },
+    );
+    return { ok: false, status: 400, error: v.error };
+  }
+
   if (tool.write && conn.access !== "write") {
-    await audit("refused: read-only connection");
+    await audit("refused: read-only connection", v.args);
     return {
       ok: false,
       status: 403,
@@ -55,7 +65,7 @@ export async function runTool(
     const code = e instanceof DbError ? e.code : "";
     const message = e instanceof Error ? e.message : String(e);
     if (code === "42501" || code === "28000") {
-      await audit(`refused: ${message}`.slice(0, 500));
+      await audit(`refused: ${message}`.slice(0, 500), v.args);
       return {
         ok: false,
         status: 403,
@@ -63,7 +73,7 @@ export async function runTool(
       };
     }
     log(`tool ${tool.name} failed: ${code} ${message}`);
-    await audit("failed: the request could not be completed");
+    await audit("failed: the request could not be completed", v.args);
     return { ok: false, status: 500, error: "The request could not be completed." };
   }
 }
