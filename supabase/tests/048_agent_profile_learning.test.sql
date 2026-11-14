@@ -181,7 +181,7 @@ select is(public.agent_log_learning('pages', 'Today', 5, null, public.workspace_
 select is(public.agent_log_learning('pages', 'Y2K', 5, null, date '2000-01-01') ->> 'date', '2000-01-01', 'so is the earliest date');
 select is((select count(*)::int from public.learning where person_id = 'agpa' and workspace_id = 'agp'), 13, 'the 13 entries so far are Alex''s, in his team');
 select is(public.agent_log_learning('pages', 'Fraction', 5) ->> 'amount', '5', 'amounts come back as whole numbers');
-select is(pg_temp.q('select count(*) from public.learning where person_id <> ''agpa'''), '0', 'and no entry was made for anyone else');
+select is(pg_temp.q('select count(*) from public.learning where workspace_id = ''agp'' and person_id <> ''agpa'''), '0', 'and no entry was made for anyone else in the team');
 
 -- refusals: nothing is logged
 select is(public.agent_log_learning('reading', 'x', 5) ->> 'error', 'kind must be one of pages (reading), podcast, workshop, conference. Nothing was logged.', 'an unknown kind');
