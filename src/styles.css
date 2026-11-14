@@ -460,12 +460,13 @@ html[data-glass="on"]
  * black, noise. A brand's picture is tuned by hand; this one is not, so the
  * scrim and every tint are denser, built from the page and surface colours of
  * the current theme (the brand's own, or the team's derived ones), so text on
- * a panel keeps 4.5:1 over the brightest or darkest picture there is. Light
- * theme: the worst picture is black; dark theme: white. The sidebar and the
+ * a panel, and text that stands directly on the blurred base (titles, the
+ * subtitle line, tab strips), keeps 4.5:1 over the brightest or darkest picture
+ * there is. Light theme: the worst picture is black; dark theme: white. The sidebar and the
  * event card are dark glass in both themes and get a dense tint in both.
  */
 html[data-backdrop-source="team"] {
-  --scrim: color-mix(in srgb, var(--app-bg) 80%, transparent);
+  --scrim: color-mix(in srgb, var(--app-bg) 93%, transparent);
   --glass-tint: color-mix(in srgb, var(--surface) 88%, transparent);
   --glass-tint-reading: color-mix(in srgb, var(--surface) 95%, transparent);
   --glass-tint-inset: color-mix(in srgb, var(--surface-2) 90%, transparent);
@@ -473,7 +474,7 @@ html[data-backdrop-source="team"] {
   --glass-track: var(--track);
 }
 html.dark[data-backdrop-source="team"] {
-  --scrim: color-mix(in srgb, var(--app-bg) 76%, transparent);
+  --scrim: color-mix(in srgb, var(--app-bg) 86%, transparent);
   --glass-tint-side: color-mix(in srgb, var(--side) 92%, transparent);
 }
 /*
