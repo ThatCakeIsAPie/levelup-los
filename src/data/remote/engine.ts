@@ -57,6 +57,11 @@ export interface TableSpec<S> {
   normalize(dbRow: Row): Row;
   /** How new rows are written (false: never written by the client). */
   insert?: "insert" | "ignore" | "upsert" | false;
+  /**
+   * Columns the database sets itself: they are read into the store and compared like any other, but
+   * never sent (not on an insert, not in an update).
+   */
+  serverColumns?: readonly string[];
   update?: boolean;
   delete?: boolean;
   /** Custom writers (throw on failure). */
@@ -75,6 +80,8 @@ export const TABLE_ORDER = [
   "people",
   // Categories before the events that use them.
   "event_categories",
+  // Series before the events that belong to them (read-only here, the order only matters for deletes).
+  "event_series",
   "events",
   "attendances",
   "missed_event_notes",
@@ -371,6 +378,7 @@ export function flush(): void {
           ops.push({ spec, binding: b, kind: "insert", key, row });
         } else if (prev !== row && json(prev) !== json(row)) {
           const changes = changedColumns(prev, row);
+          for (const c of spec.serverColumns ?? []) delete changes[c];
           if (Object.keys(changes).length)
             ops.push({ spec, binding: b, kind: "update", key, row, prev, changes });
         }
@@ -486,7 +494,12 @@ function fail(error: { message: string; code?: string } | null, what: string): v
 
 async function writeInserts(ops: Op[], c: SyncContext): Promise<void> {
   const spec = ops[0].spec;
-  const rows = ops.map((o) => o.row);
+  const server = spec.serverColumns;
+  const rows = ops.map((o) =>
+    server?.length
+      ? Object.fromEntries(Object.entries(o.row).filter(([k]) => !server.includes(k)))
+      : o.row,
+  );
   if (spec.writeInsert) return spec.writeInsert(rows, c);
   const q = c.client.from(spec.table);
   const onConflict = spec.pk.join(",");
