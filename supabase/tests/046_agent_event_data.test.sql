@@ -7,7 +7,7 @@
 -- the audit rows. Self-contained (workspaces agw and agy), all rolled back.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(137);
+select plan(141);
 
 -- Test team agw (America/Chicago): leader Lena (agl), apprentice Alex (aga), IBO Bea (agb). A second team agy
 -- has an event of its own. Connections: 1 Alex write, 2 Alex read, 3 Bea write, 4 Lena write.
@@ -189,6 +189,10 @@ select 'agr-' || d, 'agw', 'Relative ' || d, 'agw-conference', public.workspace_
        case when d = 0 then public.workspace_today('agw') + 1 end
   from unnest(array[-3, 0, 1, 56, 57, 182, 183]) d;
 
+-- A busy window: more than 500 events are cut at 500 and the result says so.
+insert into public.events (id, workspace_id, name, category_id, date)
+select 'agbig-' || k, 'agw', 'Bulk ' || k, 'agw-conference', date '2030-01-01' + (k % 100) from generate_series(1, 505) k;
+
 -- Repeating events. The guard trigger lets a series' own functions write the series columns; so does this.
 select set_config('app.series_internal', 'on', true);
 insert into public.event_series (id, workspace_id, freq, starts_on, ends_on, skipped, name, category_id, location, notes, length_days, start_time, end_time) values
@@ -325,6 +329,10 @@ select is(pg_temp.ids(pg_temp.lst('2026-11-01', '2026-12-31'), 'series'),
 select is(pg_temp.ids(pg_temp.lst('2026-06-01', '2026-06-20'), 'series'), 'agsm@series.invalid,agso@series.invalid', 'a series that is still running (first date past, no end yet or not yet reached) is listed for a window with no occurrence of it in the database; one that starts later is not');
 
 -- The window ---------------------------------------------------------------------------------------------------
+select is(jsonb_array_length(pg_temp.lst('2030-01-01', '2030-06-30') -> 'events'), 500, 'more than 500 events in a window: the first 500');
+select is(pg_temp.lst('2030-01-01', '2030-06-30') ->> 'truncated', 'true', 'and truncated says so');
+select is(pg_temp.lst('2030-01-01', '2030-06-30') -> 'events' -> 0 ->> 'id', 'agbig-100', 'in date order (then id)');
+select is(pg_temp.lst('2026-11-01', '2026-12-31') ->> 'truncated', 'false', 'an ordinary window is not truncated');
 select is(pg_temp.lst(null, null) ->> 'from', public.workspace_today('agw')::text, 'from defaults to the team''s today');
 select is(pg_temp.lst(null, null) ->> 'until', (public.workspace_today('agw') + 56)::text, 'until to 8 weeks after it');
 select is(pg_temp.lst(null, null) ->> 'capped', 'false', 'not capped');
