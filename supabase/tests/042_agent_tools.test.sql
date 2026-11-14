@@ -108,17 +108,17 @@ create function pg_temp.person_row(p_id text) returns text language sql as $$
 
 -- Who sees which prospects --------------------------------------------------------------------
 select pg_temp.as_connector('a', 1);
-select is((select jsonb_agg(x ->> 'id' order by x ->> 'id') from jsonb_array_elements(public.agent_list_prospects()) x)::text,
+select is((select jsonb_agg(x ->> 'id' order by x ->> 'id') from jsonb_array_elements(public.agent_list_prospects() -> 'prospects') x)::text,
   '["agp1", "agp2"]', 'Alex''s agent sees his two prospects, not Bea''s');
 select pg_temp.as_connector('b', 3);
-select is((select jsonb_agg(x ->> 'id' order by x ->> 'id') from jsonb_array_elements(public.agent_list_prospects()) x)::text,
+select is((select jsonb_agg(x ->> 'id' order by x ->> 'id') from jsonb_array_elements(public.agent_list_prospects() -> 'prospects') x)::text,
   '["agp3"]', 'Bea''s agent sees only hers: not Alex''s, who is on the same level');
 select pg_temp.as_connector('l', 4);
-select is((select jsonb_agg(x ->> 'id' order by x ->> 'id') from jsonb_array_elements(public.agent_list_prospects()) x)::text,
+select is((select jsonb_agg(x ->> 'id' order by x ->> 'id') from jsonb_array_elements(public.agent_list_prospects() -> 'prospects') x)::text,
   '["agd", "agp1", "agp2", "agp3"]', 'the leader''s agent sees her whole team''s prospects (Dana, a prospect who has a login, among them)');
-select is((select jsonb_array_length(public.agent_list_prospects(1))), 1, 'a limit is honoured');
-select is(((select public.agent_list_prospects() -> 0) ?& array['id', 'name', 'phone', 'email', 'location', 'notes']), true,
-  'each prospect has id, name, phone, email, location and notes');
+select is((select jsonb_array_length(public.agent_list_prospects(1) -> 'prospects')), 1, 'a limit is honoured');
+select is(((select public.agent_list_prospects() -> 'prospects' -> 0) ?& array['id', 'full_name', 'phone', 'email', 'location', 'notes']), true,
+  'each prospect has id, full_name, phone, email, location and notes (047 checks the rest of the shape)');
 select pg_temp.as_connector('a', 1);
 select is((select count(*)::int from public.people where id in ('agl', 'agb', 'agp3', 'agd')), 0,
   'Alex sees neither his leader, nor Bea, nor Bea''s prospect: row-level security, the tools add nothing');
@@ -224,7 +224,7 @@ select is((select public.agent_list_upcoming_events() -> 'events' -> 2 ->> 'my_a
 
 -- A read connection: reads, never writes ---------------------------------------------------------------------------
 select pg_temp.as_connector('a', 2);
-select is((select jsonb_array_length(public.agent_list_prospects())), 3, 'a read connection lists');
+select is((select jsonb_array_length(public.agent_list_prospects() -> 'prospects')), 3, 'a read connection lists');
 select is((select jsonb_array_length(public.agent_list_upcoming_events() -> 'events')), 3, 'and reads events');
 select is((select public.agent_whoami() ->> 'access'), 'read', 'and says it is read-only');
 select throws_ok($$select public.agent_add_prospect('Nope')$$, '42501', 'this connection is read-only', 'it cannot add');

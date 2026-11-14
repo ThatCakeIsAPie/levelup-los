@@ -1,6 +1,6 @@
 /**
  * THE WHITELIST: everything an agent can do. One entry per `public.agent_<name>` SQL function
- * (supabase/migrations/20261105000200_agent_tools.sql); nothing else is reachable. To add a tool:
+ * (supabase/migrations/20261105000200_agent_tools.sql and 20261106000100_agent_people_tools.sql); nothing else is reachable. To add a tool:
  *   1. a SECURITY INVOKER `agent_<name>` function that starts with `agent_private.ctx()` and
  *      writes one audit row (a new migration),
  *   2. one entry below (arguments, description, whether it changes data),
@@ -17,12 +17,12 @@ export type Json = null | boolean | number | string | Json[] | { [k: string]: Js
 
 interface FieldSpec {
   /** `date`: a calendar date "YYYY-MM-DD"; `timestamp`: an ISO 8601 time WITH an offset or Z. */
-  type: "string" | "integer" | "date" | "timestamp";
+  type: "string" | "integer" | "boolean" | "date" | "timestamp";
   description: string;
   /** string: length in characters; integer: value */
   min?: number;
   max?: number;
-  default?: number;
+  default?: number | boolean;
   enum?: readonly string[];
   nullable?: boolean;
   required?: boolean;
@@ -38,11 +38,40 @@ export interface ToolDef {
   sql: string;
   /** The SQL parameters, from validated arguments. */
   params: (args: Record<string, Json>) => unknown[];
+  /** A patch tool: the call must carry at least one of these fields (the tool's own message names them). */
+  requireOneOf?: readonly string[];
   /** Turns what the SQL function returned into what the caller gets (formatting only; no data of its own). */
   format?: (raw: unknown, now: Date) => unknown;
 }
 
 const PATCH_FIELDS = ["name", "phone", "email", "location", "notes"] as const;
+const PROFILE_FIELDS = ["full_name", "phone", "email", "location"] as const;
+
+/** Contact fields in the terms of vCard (RFC 6350): said once, in every description that has them. */
+const VCARD =
+  "Contact fields follow vCard (RFC 6350): full_name (FN), phone (TEL), email (EMAIL), location (ADR locality and region as one text), notes (NOTE).";
+
+const LIST_FIELDS = (noun: string): Record<string, FieldSpec> => ({
+  search: {
+    type: "string",
+    description: `Only ${noun} whose name contains this text (case-insensitive, plain text).`,
+    max: 100,
+  },
+  limit: {
+    type: "integer",
+    description: "How many to return, 1 to 200 (default 50).",
+    min: 1,
+    max: 200,
+    default: 50,
+  },
+  offset: {
+    type: "integer",
+    description:
+      "How many to skip, for the next page (default 0). `total` says how many there are.",
+    min: 0,
+    max: 100000,
+  },
+});
 
 const EVENT_WINDOW_PROPERTIES = (withChangedSince: boolean): Record<string, FieldSpec> => ({
   from: {
@@ -88,7 +117,7 @@ export const TOOLS: readonly ToolDef[] = [
   {
     name: "whoami",
     description:
-      "Who the connected person is: their name, stage and role, their team, today's date for the team, and what this connection may do (read or write). Call it first.",
+      "Who the connected person is: their name, stage and role, their team, today's date for the team, what this connection may do (access: read or write), `can` (the tool names this connection may call) and `team_size` (how many registered people are in their downline, the count list_team lists). Call it first.",
     write: false,
     properties: {},
     sql: "select public.agent_whoami() as r",
@@ -96,20 +125,70 @@ export const TOOLS: readonly ToolDef[] = [
   },
   {
     name: "list_prospects",
-    description:
-      "List the prospects the connected person can see: their own and their downline's. Each has id, name, phone, email, location, notes and sponsor_id.",
+    description: [
+      "List the connected person's prospects: people who are not registered yet, their own and their downline's. The registered team (apprentices and IBOs under them) is in list_team, and customers are in list_customers.",
+      VCARD,
+      "Each prospect: id, full_name, phone, email, location, notes, sponsor_id and sponsor_name (whose prospect it is: the connected person, or a member of their downline).",
+      "Result: {total (all matches), limit, offset, prospects, note}; ordered by name. `note` is present only when the list is empty and says why and what to do (use add_prospect to add one).",
+    ].join(" "),
+    write: false,
+    properties: LIST_FIELDS("prospects"),
+    sql: "select public.agent_list_prospects($1::int, $2::text, $3::int) as r",
+    params: (a) => [a.limit ?? 50, a.search ?? null, a.offset ?? 0],
+  },
+  {
+    name: "list_team",
+    description: [
+      "List the connected person's TEAM: their downline, the registered people (apprentices and IBOs) below them on the sponsor line that they can see, never themselves. Prospects are in list_prospects and customers in list_customers.",
+      VCARD,
+      "Each person: id, full_name, stage (apprentice or ibo: the effective stage, so an apprentice past their first contract year is an ibo), sponsor_id, sponsor_name (null when the connected person cannot see the sponsor), level (1 = sponsored by the connected person, 2 = their downline's, and so on), phone, email, location and business_start_date (YYYY-MM-DD, ISO 8601).",
+      "Result: {total (all matches), limit, offset, team, note}; ordered by level, then name. `note` is present only when the list is empty and says why (for example: You have no registered team members under you yet).",
+    ].join(" "),
+    write: false,
+    properties: LIST_FIELDS("team members"),
+    sql: "select public.agent_list_team($1::text, $2::int, $3::int) as r",
+    params: (a) => [a.search ?? null, a.limit ?? 50, a.offset ?? 0],
+  },
+  {
+    name: "list_customers",
+    description: [
+      "List the connected person's customers. Customers are private to their owner: the app and the database show a person only their own, a leader included, so this is the connected person's own customers; mine_only=false asks for every customer they can see, which is the same list.",
+      VCARD,
+      "Each customer: id, full_name, phone, email, location, owner_id and owner_name.",
+      "Result: {total (all matches), limit, offset, customers, note}; ordered by name. `note` is present only when the list is empty and says why.",
+    ].join(" "),
     write: false,
     properties: {
-      limit: {
-        type: "integer",
-        description: "How many to return, 1 to 200 (default 50).",
+      mine_only: {
+        type: "boolean",
+        description: "Only the connected person's own customers (default true).",
+        default: true,
+      },
+      ...LIST_FIELDS("customers"),
+    },
+    sql: "select public.agent_list_customers($1::boolean, $2::text, $3::int, $4::int) as r",
+    params: (a) => [a.mine_only ?? true, a.search ?? null, a.limit ?? 50, a.offset ?? 0],
+  },
+  {
+    name: "get_person",
+    description: [
+      "One person the connected person can see, by id (from list_team, list_prospects or list_customers; their own id is in whoami).",
+      VCARD,
+      "Result: id, kind (self, team, prospect or customer), full_name, phone, email, location, notes; for self and team also stage (the effective stage) and business_start_date (YYYY-MM-DD); for a team member their level below the connected person (as in list_team); sponsor {id, name} (a customer has owner {id, name} instead), null when the connected person cannot see that person.",
+      "A person they cannot see, and an id that does not exist, get the same refusal.",
+    ].join(" "),
+    write: false,
+    properties: {
+      id: {
+        type: "string",
+        description: "The person's id.",
         min: 1,
-        max: 200,
-        default: 50,
+        max: 100,
+        required: true,
       },
     },
-    sql: "select public.agent_list_prospects($1::int) as r",
-    params: (a) => [a.limit ?? 50],
+    sql: "select public.agent_get_person($1::text) as r",
+    params: (a) => [a.id],
   },
   {
     name: "add_prospect",
@@ -134,6 +213,7 @@ export const TOOLS: readonly ToolDef[] = [
     description:
       "Change a prospect's name, phone, email, location or notes. Send the id and only the fields to change; null clears a field (not the name). Nothing else about a person can be changed through this connector, and a field outside that list is refused.",
     write: true,
+    requireOneOf: PATCH_FIELDS,
     properties: {
       id: {
         type: "string",
@@ -176,6 +256,45 @@ export const TOOLS: readonly ToolDef[] = [
     },
   },
   {
+    name: "update_my_profile",
+    description: [
+      "Change the connected person's OWN contact details, never anyone else's. Send only the fields to change; null clears phone, email or location (not full_name).",
+      "Fields follow vCard (RFC 6350): full_name (FN), phone (TEL), email (EMAIL), location (ADR locality and region as one text).",
+      "The e-mail here is contact information shown in the CRM; it does not change the address used to sign in.",
+      "Nothing else about a person can be changed through this connector (stage, sponsor, IBO and LTD numbers, business start date, notes and the rest); such a field is refused by name and nothing changes.",
+      "Result: the stored id, full_name, phone, email, location.",
+    ].join(" "),
+    write: true,
+    requireOneOf: PROFILE_FIELDS,
+    properties: {
+      full_name: { type: "string", description: "New full name.", min: 1, max: 120 },
+      phone: {
+        type: "string",
+        description: "New phone number, or null to clear.",
+        max: 40,
+        nullable: true,
+      },
+      email: {
+        type: "string",
+        description: "New contact e-mail address, or null to clear.",
+        max: 200,
+        nullable: true,
+      },
+      location: {
+        type: "string",
+        description: "New location (for example: Austin, TX), or null to clear.",
+        max: 200,
+        nullable: true,
+      },
+    },
+    sql: "select public.agent_update_my_profile($1::text::jsonb) as r", // ::text::jsonb: postgres.js double-encodes a string bound as jsonb
+    params: (a) => {
+      const patch: Record<string, Json> = {};
+      for (const k of PROFILE_FIELDS) if (k in a) patch[k] = a[k];
+      return [JSON.stringify(patch)];
+    },
+  },
+  {
     name: "list_upcoming_events",
     description: LIST_EVENTS_DESCRIPTION,
     write: false,
@@ -214,6 +333,68 @@ export const TOOLS: readonly ToolDef[] = [
     },
     sql: "select public.agent_set_event_answer($1::text, $2::text) as r",
     params: (a) => [a.event_id, a.answer],
+  },
+  {
+    name: "log_learning",
+    description: [
+      "Log ONE learning entry for the connected person (never for anyone else), as the app's Log learning form does. Dates are ISO 8601 (YYYY-MM-DD); there is no external standard for the rest.",
+      "kind: pages (reading), podcast, workshop or conference.",
+      "unit: only reading and podcasts take one: reading in minutes, pages (default) or chapters; a podcast in minutes or episodes (default). A workshop or conference takes no unit and counts as one entry (leave amount out).",
+      "amount: required for reading and a podcast, a whole number from 1 to 100000 in the unit.",
+      "title: optional (the book, the show); empty is stored as Unnamed, as the app does.",
+      "date: default the team's today; not in the future, not before 2000-01-01.",
+      "Result: the stored entry {id, kind, title, amount, unit, date, created_at}. It is not deduplicated: logging the same thing twice makes two entries, so do not retry a call that succeeded.",
+    ].join(" "),
+    write: true,
+    properties: {
+      kind: {
+        type: "string",
+        description: "pages (reading), podcast, workshop or conference.",
+        enum: ["pages", "podcast", "workshop", "conference"],
+        required: true,
+      },
+      title: {
+        type: "string",
+        description: "What it was (a book, a show, an event); empty means Unnamed.",
+        max: 200,
+        nullable: true,
+      },
+      amount: {
+        type: "integer",
+        description:
+          "How much, in the unit: a whole number from 1 to 100000. Not for a workshop or conference.",
+        min: 1,
+        max: 100000,
+      },
+      unit: {
+        type: "string",
+        description:
+          "Reading: minutes, pages (default) or chapters. Podcast: minutes or episodes (default). None for a workshop or conference.",
+        enum: ["minutes", "pages", "chapters", "episodes"],
+      },
+      date: {
+        type: "date",
+        description:
+          "The day it happened, YYYY-MM-DD (default the team's today; not in the future).",
+      },
+    },
+    sql: "select public.agent_log_learning($1::text, $2::text, $3::int, $4::text, $5::date) as r",
+    params: (a) => [a.kind, a.title ?? null, a.amount ?? null, a.unit ?? null, a.date ?? null],
+  },
+  {
+    name: "list_learning",
+    description: [
+      "The connected person's OWN learning entries (never their team's) from a date to a date, newest first, with totals per kind for the window. Dates are ISO 8601 (YYYY-MM-DD); there is no external standard for the rest.",
+      "Arguments: from and until, both days inclusive (default the last 30 days, ending on the team's today; at most 367 days).",
+      "Result: {from, until, truncated (true when more than 500 entries matched; the totals still count them all), entries, totals}. Each entry: id, kind, title, amount, unit (an entry stored without one shows the unit the app counts it in: pages for reading, episodes for a podcast), date. Each total: kind, unit, entries (how many), amount (their sum); minutes and pages are never added together, so a kind can have several totals.",
+    ].join(" "),
+    write: false,
+    properties: {
+      from: { type: "date", description: "First day, YYYY-MM-DD (default 29 days before until)." },
+      until: { type: "date", description: "Last day, YYYY-MM-DD (default the team's today)." },
+    },
+    sql: "select public.agent_list_learning($1::date, $2::date) as r",
+    params: (a) => [a.from ?? null, a.until ?? null],
   },
 ];
 
@@ -334,18 +515,17 @@ export function validateArgs(t: ToolDef, raw: unknown): Validated {
       else if (f.max !== undefined && chars(v) > f.max)
         problems.push(`${k}: at most ${f.max} characters`);
       else args[k] = v;
+    } else if (f.type === "boolean") {
+      if (typeof v !== "boolean") problems.push(`${k}: must be true or false`);
+      else args[k] = v;
     } else if (typeof v !== "number" || !Number.isInteger(v)) {
       problems.push(`${k}: must be a whole number`);
     } else if ((f.min !== undefined && v < f.min) || (f.max !== undefined && v > f.max)) {
       problems.push(`${k}: must be between ${f.min} and ${f.max}`);
     } else args[k] = v;
   }
-  if (
-    t.name === "update_prospect" &&
-    problems.length === 0 &&
-    !PATCH_FIELDS.some((k) => k in args)
-  ) {
-    problems.push("nothing to change: give at least one of " + PATCH_FIELDS.join(", "));
+  if (t.requireOneOf && problems.length === 0 && !t.requireOneOf.some((k) => k in args)) {
+    problems.push("nothing to change: give at least one of " + t.requireOneOf.join(", "));
   }
   if (problems.length) return { ok: false, error: "Invalid arguments: " + problems.join("; ") };
   return { ok: true, args };

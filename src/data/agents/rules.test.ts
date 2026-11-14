@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   agentCardVisible,
-  entryProspectName,
+  entryPersonName,
   isRefusal,
   parseAgentAccess,
   relativeTime,
@@ -68,6 +68,12 @@ describe("activity entries", () => {
     expect(toolLabel("list_upcoming_events")).toBe("Listed upcoming events");
     expect(toolLabel("export_events_ics")).toBe("Exported events");
     expect(toolLabel("set_event_answer")).toBe("Answered an event");
+    expect(toolLabel("list_team")).toBe("Listed the team");
+    expect(toolLabel("list_customers")).toBe("Listed customers");
+    expect(toolLabel("get_person")).toBe("Looked up a person");
+    expect(toolLabel("update_my_profile")).toBe("Changed own profile");
+    expect(toolLabel("log_learning")).toBe("Logged learning");
+    expect(toolLabel("list_learning")).toBe("Listed learning");
     expect(toolLabel("send_carrier_pigeon")).toBe("send_carrier_pigeon");
     // A name that is an Object.prototype key is not "known".
     expect(toolLabel("constructor")).toBe("constructor");
@@ -85,17 +91,26 @@ describe("activity entries", () => {
     ...over,
   });
 
+  it("shows a looked-up person's name from the audit row, and nothing for a refused lookup", () => {
+    expect(entryPersonName(entry({ tool: "get_person", newName: "Bea Ibo" }))).toBe("Bea Ibo");
+    expect(entryPersonName(entry({ tool: "get_person", newName: "  " }))).toBeNull();
+    // a refused lookup carries no new values; the id it sent is not a name
+    expect(entryPersonName(entry({ tool: "get_person", argsName: "agxx" }))).toBeNull();
+    for (const tool of ["list_team", "list_customers", "update_my_profile", "log_learning"])
+      expect(entryPersonName(entry({ tool, newName: "Not Shown" })), tool).toBeNull();
+  });
+
   it("shows a prospect's name only for the prospect tools", () => {
-    expect(entryProspectName(entry({ newName: "Zed Added", argsName: "zed" }))).toBe("Zed Added");
-    expect(entryProspectName(entry({ argsName: "Sent Name" }))).toBe("Sent Name");
+    expect(entryPersonName(entry({ newName: "Zed Added", argsName: "zed" }))).toBe("Zed Added");
+    expect(entryPersonName(entry({ argsName: "Sent Name" }))).toBe("Sent Name");
     expect(
-      entryProspectName(entry({ tool: "update_prospect", oldName: "Old", newName: "New" })),
+      entryPersonName(entry({ tool: "update_prospect", oldName: "Old", newName: "New" })),
     ).toBe("New");
-    expect(entryProspectName(entry({ tool: "update_prospect", oldName: "Old" }))).toBe("Old");
+    expect(entryPersonName(entry({ tool: "update_prospect", oldName: "Old" }))).toBe("Old");
     // A refused change to someone outside the person's view has no name to show.
-    expect(entryProspectName(entry({ tool: "update_prospect", argsName: "ignored" }))).toBeNull();
-    expect(entryProspectName(entry({ tool: "list_prospects", newName: "No" }))).toBeNull();
-    expect(entryProspectName(entry({ newName: "  ", argsName: null }))).toBeNull();
+    expect(entryPersonName(entry({ tool: "update_prospect", argsName: "ignored" }))).toBeNull();
+    expect(entryPersonName(entry({ tool: "list_prospects", newName: "No" }))).toBeNull();
+    expect(entryPersonName(entry({ newName: "  ", argsName: null }))).toBeNull();
   });
 
   it("marks refused and failed calls", () => {

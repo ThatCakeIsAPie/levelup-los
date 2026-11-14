@@ -9,7 +9,7 @@
 -- condition under PostgREST too, so nothing is pretended in this file.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(29);
+select plan(39);
 
 -- The test team: workspace agw. Leader Lena (agl), apprentice Alex (aga), IBO Bea (agb) and a
 -- candidate Dana (agd: a prospect with a login). Alex sponsors prospects agp1 and agp2, Bea sponsors
@@ -106,9 +106,10 @@ insert into public.agent_connections (id, user_id, person_id, workspace_id, labe
 -- The whitelist -----------------------------------------------------------------------------------
 select is((select array_agg(p.proname::text order by p.proname) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
             where n.nspname = 'public' and p.proname like 'agent\_%'),
-  array['agent_add_prospect', 'agent_export_events_ics', 'agent_list_prospects', 'agent_list_upcoming_events', 'agent_set_event_answer',
-        'agent_update_prospect', 'agent_whoami'],
-  'the agent_ functions in public are exactly the seven tools');
+  array['agent_add_prospect', 'agent_export_events_ics', 'agent_get_person', 'agent_list_customers', 'agent_list_learning',
+        'agent_list_prospects', 'agent_list_team', 'agent_list_upcoming_events', 'agent_log_learning', 'agent_set_event_answer',
+        'agent_update_my_profile', 'agent_update_prospect', 'agent_whoami'],
+  'the agent_ functions in public are exactly the thirteen tools');
 select is((select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
             where n.nspname = 'public' and p.proname like 'agent\_%' and p.prosecdef), 0,
   'none of them is SECURITY DEFINER (they run as the person, so row-level security applies)');
@@ -152,15 +153,25 @@ select throws_ok($$select public.agent_update_prospect('agp1', '{"notes": "sneak
 select throws_ok($$select public.agent_list_upcoming_events()$$, '42501', null, 'list_upcoming_events');
 select throws_ok($$select public.agent_export_events_ics()$$, '42501', null, 'export_events_ics');
 select throws_ok($$select public.agent_set_event_answer('age1', 'yes')$$, '42501', null, 'set_event_answer');
+select throws_ok($$select public.agent_list_team()$$, '42501', null, 'list_team');
+select throws_ok($$select public.agent_list_customers()$$, '42501', null, 'list_customers');
+select throws_ok($$select public.agent_get_person('agp1')$$, '42501', null, 'get_person');
+select throws_ok($$select public.agent_update_my_profile('{"phone": "1"}'::jsonb)$$, '42501', null, 'update_my_profile');
+select throws_ok($$select public.agent_log_learning('pages', 'x', 5)$$, '42501', null, 'log_learning');
+select throws_ok($$select public.agent_list_learning()$$, '42501', null, 'list_learning');
 -- even with a real connection id of the same login, set by the caller
 select set_config('app.agent_connection_id', pg_temp.conn(1)::text, true);
 select throws_ok($$select public.agent_whoami()$$, '42501', null, 'with a live connection id set by the caller: whoami');
 select throws_ok($$select public.agent_add_prospect('Sneaky')$$, '42501', null, 'add_prospect');
 select throws_ok($$select public.agent_update_prospect('agp1', '{"notes": "sneaky"}'::jsonb)$$, '42501', null, 'update_prospect');
 select throws_ok($$select public.agent_set_event_answer('age1', 'yes')$$, '42501', null, 'set_event_answer');
+select throws_ok($$select public.agent_update_my_profile('{"phone": "sneaky"}'::jsonb)$$, '42501', null, 'update_my_profile');
+select throws_ok($$select public.agent_log_learning('pages', 'sneaky', 5)$$, '42501', null, 'log_learning');
+select throws_ok($$select public.agent_list_team()$$, '42501', null, 'list_team');
 select pg_temp.as_postgres();
 select is((select count(*)::int from public.agent_audit), 0, 'none of it wrote an audit row');
 select is((select notes from public.people where id = 'agp1'), 'first note', 'or changed a prospect');
+select is((select count(*)::int from public.people where phone = 'sneaky') + (select count(*)::int from public.learning where title = 'sneaky'), 0, 'or a profile or a learning entry');
 select is((select count(*)::int from public.people where name = 'Sneaky'), 0, 'or added one');
 
 -- The anonymous role cannot even call them
