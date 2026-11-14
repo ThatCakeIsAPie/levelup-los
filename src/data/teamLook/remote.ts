@@ -13,10 +13,10 @@ import type { TeamLook } from "./types";
 /** The look of the caller's workspace (RLS: members of it), or null when the row cannot be read. */
 export async function fetchTeamLook(
   client: SupabaseClient,
-): Promise<{ workspaceId: string; look: TeamLook } | null> {
+): Promise<{ workspaceId: string; look: TeamLook; timezone: string } | null> {
   const { data, error } = await client
     .from("workspaces")
-    .select("id, background_mode, background_path, glass, logo_path, colors")
+    .select("id, timezone, background_mode, background_path, glass, logo_path, colors")
     .limit(1)
     .maybeSingle();
   if (error) throw new Error(`load team look: ${error.message}`);
@@ -24,6 +24,8 @@ export async function fetchTeamLook(
   const id = String(data.id);
   return {
     workspaceId: id,
+    // The zone an event's start and end time are in (src/data/workspaceTimezone.ts).
+    timezone: String(data.timezone ?? ""),
     look: parseLook(
       {
         background: data.background_mode,

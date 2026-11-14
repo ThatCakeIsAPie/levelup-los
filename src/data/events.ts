@@ -9,17 +9,19 @@ import { useDoNotContactIds } from "./customerPipeline/hooks";
 import { useCategoryOf } from "./eventCategories/hooks";
 import { usesTickets } from "./eventCategories/rules";
 import { localDate } from "@/lib/dates";
+import { compareStart } from "./eventTimes";
 import { filterAttendances } from "./access";
 import { useVisibleIds } from "./people";
 
-const byDateAsc = (a: CrmEvent, b: CrmEvent) => a.date.localeCompare(b.date);
+// Same-day events by start time, all-day ones first.
+const byDateAsc = compareStart;
 
 /** Whether an event has not finished yet (its last day is today or later). */
 export function isUpcoming(e: CrmEvent, today = localDate()): boolean {
   return (e.endDate ?? e.date) >= today;
 }
 
-/** Every event (all roles see the list), oldest first. */
+/** Every event (all roles see the list), oldest first (same day: by start time, all-day first). */
 export function useEvents(): CrmEvent[] {
   const events = useEventsStore((s) => s.events);
   return useMemo(() => [...events].sort(byDateAsc), [events]);

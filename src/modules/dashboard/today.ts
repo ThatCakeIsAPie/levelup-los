@@ -41,6 +41,7 @@ import {
   localDate,
   parseDate,
   categoryLookup,
+  compareStart,
   startingCategories,
   welcomesCustomers,
   type ApprenticeAlert,
@@ -424,7 +425,7 @@ function inviteItems(input: TodayInput, now: Date, today: string): TodayItem[] {
         !input.dismissedInvites?.has(e.id)
       );
     })
-    .sort((a, b) => a.date.localeCompare(b.date) || a.name.localeCompare(b.name));
+    .sort((a, b) => compareStart(a, b) || a.name.localeCompare(b.name));
   const out: TodayItem[] = [];
   for (const event of soon) {
     if (out.length >= MAX_INVITES) break;

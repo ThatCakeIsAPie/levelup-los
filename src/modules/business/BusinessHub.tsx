@@ -32,6 +32,7 @@ import {
   useStageNames,
   useUnlocks,
   type CrmEvent,
+  withTime,
 } from "@/data";
 import {
   STAGES,
@@ -404,7 +405,7 @@ function EventTile({ candidate, viewerId }: { candidate: boolean; viewerId: stri
     <span className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
       <span className="min-w-0 text-[13.5px] font-bold lg:text-[14.5px]">{event.name}</span>
       <span className="text-[11.5px] text-event-muted">
-        {when(event)} · {format(parseDate(event.date), "MMM d")}
+        {when(event)} · {withTime(format(parseDate(event.date), "MMM d"), event)}
       </span>
     </span>
   );
