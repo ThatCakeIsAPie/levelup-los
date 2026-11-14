@@ -9,12 +9,23 @@ const allSql = readdirSync(migrations)
   .map((f) => readFileSync(join(migrations, f), "utf8"))
   .join("\n");
 
+/** The `public.agent_<name>` functions the migrations leave in place: created (or replaced) and not dropped after. */
+function toolsInMigrations(): string[] {
+  const state = new Map<string, boolean>();
+  for (const m of allSql.matchAll(
+    /(create (?:or replace )?|drop )function public\.agent_([a-z_]+)\(/g,
+  ))
+    state.set(m[2], m[1].startsWith("create"));
+  return [...state]
+    .filter(([, live]) => live)
+    .map(([name]) => name)
+    .sort();
+}
+
 describe("the registry and the migrations agree", () => {
   it("has one entry for each public.agent_<name> function and no other", () => {
-    const inSql = [...allSql.matchAll(/create (?:or replace )?function public\.agent_([a-z_]+)\(/g)]
-      .map((m) => m[1])
-      .sort();
-    expect(TOOLS.map((t) => t.name).sort()).toEqual(inSql);
+    expect(TOOLS.map((t) => t.name).sort()).toEqual(toolsInMigrations());
+    expect(new Set(TOOLS.map((t) => t.name)).size).toBe(TOOLS.length);
   });
 
   it("calls exactly its own function, with numbered parameters and explicit casts", () => {
@@ -35,11 +46,17 @@ describe("the registry and the migrations agree", () => {
 
   it("marks as writing exactly the tools whose SQL function asks for write access", () => {
     for (const t of TOOLS) {
-      const m = new RegExp(
-        `function public\\.agent_${t.name}\\([\\s\\S]*?agent_private\\.ctx\\((true|false)\\)`,
-      ).exec(allSql);
-      expect(m, t.name).not.toBeNull();
-      expect(m![1] === "true", t.name).toBe(t.write);
+      // the last definition counts (a tool replaced in a later migration)
+      const all = [
+        ...allSql.matchAll(
+          new RegExp(
+            `create (?:or replace )?function public\\.agent_${t.name}\\([\\s\\S]*?agent_private\\.ctx\\((true|false)\\)`,
+            "g",
+          ),
+        ),
+      ];
+      expect(all.length, t.name).toBeGreaterThan(0);
+      expect(all[all.length - 1][1] === "true", t.name).toBe(t.write);
     }
   });
 
@@ -296,6 +313,310 @@ describe("validateArgs", () => {
         ok: false,
       });
     }
+  });
+
+  describe("the people tools", () => {
+    it("pages list_team, list_prospects and list_customers the same way", () => {
+      for (const name of ["list_team", "list_prospects", "list_customers"]) {
+        expect(validateArgs(t(name), {}), name).toMatchObject({ ok: true });
+        expect(
+          validateArgs(t(name), { search: "al", limit: 200, offset: 400 }),
+          name,
+        ).toMatchObject({ ok: true });
+        for (const bad of [
+          { limit: 0 },
+          { limit: 201 },
+          { offset: -1 },
+          { offset: 1.5 },
+          { offset: "1" },
+          { search: 5 },
+          { search: "x".repeat(101) },
+          { search: null },
+          { extra: 1 },
+        ])
+          expect(validateArgs(t(name), bad), `${name} ${JSON.stringify(bad)}`).toMatchObject({
+            ok: false,
+          });
+        expect(t(name).write, name).toBe(false);
+      }
+      expect(validateArgs(t("list_team"), {})).toEqual({ ok: true, args: { limit: 50 } });
+      expect(t("list_team").sql).toBe(
+        "select public.agent_list_team($1::text, $2::int, $3::int) as r",
+      );
+      expect(t("list_team").params({ search: "al", limit: 5, offset: 10 })).toEqual(["al", 5, 10]);
+      expect(t("list_team").params({})).toEqual([null, 50, 0]);
+      expect(t("list_prospects").params({ limit: 20, search: "pat", offset: 40 })).toEqual([
+        20,
+        "pat",
+        40,
+      ]);
+      expect(t("list_prospects").params({})).toEqual([50, null, 0]);
+    });
+
+    it("keeps every argument list_prospects had", () => {
+      expect(validateArgs(t("list_prospects"), { limit: 5 })).toEqual({
+        ok: true,
+        args: { limit: 5 },
+      });
+      expect(Object.keys(t("list_prospects").properties)).toEqual(["search", "limit", "offset"]);
+    });
+
+    it("takes mine_only as a boolean that defaults to true", () => {
+      expect(validateArgs(t("list_customers"), {})).toEqual({
+        ok: true,
+        args: { mine_only: true, limit: 50 },
+      });
+      expect(validateArgs(t("list_customers"), { mine_only: false })).toMatchObject({
+        ok: true,
+        args: { mine_only: false },
+      });
+      for (const bad of ["false", 0, null, "yes"])
+        expect(validateArgs(t("list_customers"), { mine_only: bad }), String(bad)).toMatchObject({
+          ok: false,
+        });
+      expect(
+        t("list_customers").params({ mine_only: false, search: "c", limit: 3, offset: 6 }),
+      ).toEqual([false, "c", 3, 6]);
+      expect(t("list_customers").params({})).toEqual([true, null, 50, 0]);
+      expect(t("list_customers").sql).toBe(
+        "select public.agent_list_customers($1::boolean, $2::text, $3::int, $4::int) as r",
+      );
+      expect(inputSchema(t("list_customers")).properties.mine_only).toMatchObject({
+        type: "boolean",
+        default: true,
+      });
+    });
+
+    it("needs an id for get_person", () => {
+      expect(validateArgs(t("get_person"), { id: "p1" })).toEqual({ ok: true, args: { id: "p1" } });
+      for (const bad of [{}, { id: "" }, { id: 5 }, { id: "x".repeat(101) }, { id: "p1", x: 1 }])
+        expect(validateArgs(t("get_person"), bad), JSON.stringify(bad)).toMatchObject({
+          ok: false,
+        });
+      expect(t("get_person").write).toBe(false);
+      expect(t("get_person").params({ id: "p1" })).toEqual(["p1"]);
+    });
+  });
+
+  describe("update_my_profile", () => {
+    const tool = () => t("update_my_profile");
+
+    it("takes only full_name, phone, email and location, and says which field is refused", () => {
+      expect(tool().write).toBe(true);
+      expect(Object.keys(tool().properties)).toEqual(["full_name", "phone", "email", "location"]);
+      expect(
+        validateArgs(tool(), {
+          full_name: "Alexa A",
+          phone: null,
+          email: "a@b.test",
+          location: "Austin, TX",
+        }),
+      ).toEqual({
+        ok: true,
+        args: { full_name: "Alexa A", phone: null, email: "a@b.test", location: "Austin, TX" },
+      });
+      for (const field of [
+        "id",
+        "name",
+        "notes",
+        "stage",
+        "biz_class",
+        "sponsor_id",
+        "owner_id",
+        "ibo_number",
+        "ltd_number",
+        "business_start_date",
+        "pipeline_stage",
+        "stage_history",
+        "tags",
+        "monthly_volume",
+        "workspace_id",
+        "person_id",
+      ]) {
+        const r = validateArgs(tool(), { phone: "1", [field]: "x" });
+        expect(r, field).toMatchObject({ ok: false });
+        expect((r as { error: string }).error, field).toContain(
+          `${field}: not a field of update_my_profile (allowed: full_name, phone, email, location)`,
+        );
+      }
+    });
+
+    it("refuses nothing-to-change and bad values", () => {
+      const r = validateArgs(tool(), {});
+      expect(r).toMatchObject({ ok: false });
+      expect((r as { error: string }).error).toContain(
+        "give at least one of full_name, phone, email, location",
+      );
+      for (const bad of [
+        { full_name: "" },
+        { full_name: "  " },
+        { full_name: null },
+        { full_name: 5 },
+        { full_name: "x".repeat(121) },
+        { phone: "1".repeat(41) },
+        { email: "e".repeat(201) },
+        { location: "l".repeat(201) },
+        { phone: 5 },
+      ])
+        expect(validateArgs(tool(), bad), JSON.stringify(bad).slice(0, 40)).toMatchObject({
+          ok: false,
+        });
+    });
+
+    it("sends only the patch, as JSON text cast to jsonb", () => {
+      expect(tool().sql).toBe("select public.agent_update_my_profile($1::text::jsonb) as r");
+      expect(tool().params({ phone: null, full_name: "N" })).toEqual([
+        '{"full_name":"N","phone":null}',
+      ]);
+    });
+
+    it("says the e-mail is contact information and names vCard", () => {
+      expect(tool().description).toContain("does not change the address used to sign in");
+      for (const w of ["vCard", "RFC 6350", "FN", "TEL", "EMAIL", "ADR"])
+        expect(tool().description, w).toContain(w);
+    });
+  });
+
+  describe("the learning tools", () => {
+    it("checks log_learning's arguments", () => {
+      const ok = (a: Record<string, unknown>) => validateArgs(t("log_learning"), a);
+      expect(
+        ok({ kind: "pages", amount: 30, unit: "minutes", title: "A book", date: "2026-11-10" }),
+      ).toEqual({
+        ok: true,
+        args: { kind: "pages", amount: 30, unit: "minutes", title: "A book", date: "2026-11-10" },
+      });
+      expect(ok({ kind: "workshop" })).toEqual({ ok: true, args: { kind: "workshop" } });
+      expect(ok({ kind: "podcast", title: null, amount: 1 })).toMatchObject({ ok: true });
+      expect(ok({ kind: "conference", title: "" })).toMatchObject({ ok: true });
+      for (const bad of [
+        {},
+        { kind: "reading" },
+        { kind: "Pages" },
+        { kind: null },
+        { kind: "pages", amount: 0 },
+        { kind: "pages", amount: -1 },
+        { kind: "pages", amount: 1.5 },
+        { kind: "pages", amount: "5" },
+        { kind: "pages", amount: 100001 },
+        { kind: "pages", unit: "hours" },
+        { kind: "pages", unit: null },
+        { kind: "pages", date: "2026-02-30" },
+        { kind: "pages", date: "11/10/2026" },
+        { kind: "pages", date: "2026-11-10T10:00:00Z" },
+        { kind: "pages", title: "t".repeat(201) },
+        { kind: "pages", person_id: "p2" },
+        { kind: "pages", workspace_id: "w1" },
+      ])
+        expect(ok(bad), JSON.stringify(bad)).toMatchObject({ ok: false });
+      expect(t("log_learning").write).toBe(true);
+      expect(t("log_learning").sql).toBe(
+        "select public.agent_log_learning($1::text, $2::text, $3::int, $4::text, $5::date) as r",
+      );
+      expect(t("log_learning").params({ kind: "workshop" })).toEqual([
+        "workshop",
+        null,
+        null,
+        null,
+        null,
+      ]);
+      expect(
+        t("log_learning").params({
+          kind: "pages",
+          title: "B",
+          amount: 3,
+          unit: "chapters",
+          date: "2026-11-01",
+        }),
+      ).toEqual(["pages", "B", 3, "chapters", "2026-11-01"]);
+    });
+
+    it("offers the kinds and units of the app, and only those", () => {
+      const p = t("log_learning").properties;
+      expect(p.kind.enum).toEqual(["pages", "podcast", "workshop", "conference"]);
+      expect(p.unit.enum).toEqual(["minutes", "pages", "chapters", "episodes"]);
+      expect(inputSchema(t("log_learning")).required).toEqual(["kind"]);
+    });
+
+    it("tells the agent the rules in the description", () => {
+      const d = t("log_learning").description;
+      for (const w of [
+        "Unnamed",
+        "not in the future",
+        "2000-01-01",
+        "ISO 8601",
+        "one entry",
+        "two entries",
+      ])
+        expect(d, w).toContain(w);
+    });
+
+    it("lists the caller's own entries in a window", () => {
+      expect(t("list_learning").write).toBe(false);
+      expect(validateArgs(t("list_learning"), {})).toEqual({ ok: true, args: {} });
+      expect(validateArgs(t("list_learning"), { from: "2026-10-01", until: "2026-10-31" })).toEqual(
+        {
+          ok: true,
+          args: { from: "2026-10-01", until: "2026-10-31" },
+        },
+      );
+      for (const bad of [{ from: "yesterday" }, { until: 5 }, { from: null }, { kind: "pages" }])
+        expect(validateArgs(t("list_learning"), bad), JSON.stringify(bad)).toMatchObject({
+          ok: false,
+        });
+      expect(t("list_learning").sql).toBe(
+        "select public.agent_list_learning($1::date, $2::date) as r",
+      );
+      expect(t("list_learning").params({ until: "2026-10-31" })).toEqual([null, "2026-10-31"]);
+      expect(t("list_learning").description).toContain("OWN");
+    });
+  });
+
+  it("names the receiving standard in the description of every tool that returns or takes a person", () => {
+    for (const name of [
+      "list_team",
+      "list_prospects",
+      "list_customers",
+      "get_person",
+      "update_my_profile",
+    ]) {
+      const d = t(name).description;
+      for (const w of ["vCard (RFC 6350)", "full_name (FN)", "phone (TEL)", "email (EMAIL)"])
+        expect(d, `${name}: ${w}`).toContain(w);
+    }
+    for (const name of ["list_team", "list_prospects", "list_customers", "get_person"])
+      expect(t(name).description, name).toContain("location (ADR locality and region as one text)");
+    for (const name of ["list_prospects", "list_customers", "get_person"])
+      expect(t(name).description, name).toContain("notes (NOTE)");
+  });
+
+  it("sends agents to the right list, and whoami says what it adds", () => {
+    expect(t("list_prospects").description).toContain("not registered yet");
+    expect(t("list_prospects").description).toContain("list_team");
+    expect(t("list_team").description).toContain("downline");
+    expect(t("list_team").description).toContain("list_prospects");
+    expect(t("whoami").description).toContain("`can`");
+    expect(t("whoami").description).toContain("`team_size`");
+  });
+
+  it("never mentions the IBO or LTD number except to say it cannot be changed", () => {
+    for (const tool of TOOLS) {
+      const text = JSON.stringify(inputSchema(tool)) + tool.description;
+      if (tool.name === "update_my_profile") continue;
+      expect(text, tool.name).not.toMatch(/ibo[_ ]?(number|#)|ltd[_ ]?(number|#)/i);
+    }
+    expect(JSON.stringify(inputSchema(t("update_my_profile")))).not.toMatch(/ibo|ltd/i);
+  });
+
+  it("changes data in exactly the tools that write", () => {
+    expect(TOOLS.filter((x) => x.write).map((x) => x.name)).toEqual([
+      "add_prospect",
+      "update_prospect",
+      "update_my_profile",
+      "set_event_answer",
+      "log_learning",
+    ]);
+    expect(TOOLS.map((x) => x.name)).toHaveLength(13);
   });
 
   it("does not look names up on the prototype chain", () => {

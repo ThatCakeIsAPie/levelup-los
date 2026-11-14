@@ -4,7 +4,8 @@
 
 - Phase 1 (database, function, seven tools): **BUILT** when the pull request "Agent connector: pairing, connection keys and the first seven tools" is merged.
 - Phase 2 (Settings card with the "Add agent" button, connection list, disconnect, activity; the leader's switch in Team settings): **BUILT** when the pull request "Settings: connect an AI agent" is merged.
-- Phase 3 (more tools: pipeline moves short of the registered step, learning log, own profile fields, customers): **NOT STARTED**. Ask the owner before beginning it.
+- Phase 3a (the people and personal tools: `list_team`, `list_customers`, `get_person`, `update_my_profile`, `log_learning`, `list_learning`, and `list_prospects` / `whoami` extended): **BUILT** when the pull request "Agent connector: team, customers, profile and learning tools" is merged.
+- Phase 3b (pipeline moves short of the registered step, customers add and update, check-ins): **NOT STARTED**. Ask the owner before beginning it.
 
 ## What it is
 
@@ -53,9 +54,25 @@ The app side only: no database or function change. What is in it, and the choice
 - `src/data/remote/database.types.ts` gained the four tables and the connector's functions by hand (regenerating needs Docker, as before); regenerate it with `npm run db:types` when a local stack is at hand and the diff should be empty.
 - Not built here: integration tests for the card against the local stack (they need Docker, and the pull request changes no database object). The unit tests cover the text, the access gate, the tool labels, the polling and the feature list in both data sources; the card was driven end to end against a throwaway hosted project (pull request description).
 
-## Phase 3: not started
+## Phase 3a: built
 
-More tools, each one function + one registry entry + tests (see "Adding a tool"): pipeline moves short of the registered step (through `move_pipeline_card`, never the Registered stage), the learning log (through the existing finish-an-item path so it logs once), the person's own profile fields (never stage, sponsor, IBO#/LTD#, business start date), customers. Before any tool that writes beyond what phase 1 does, the owner decides.
+Why: the owner's first agent paired, called `whoami`, called `list_prospects` three times (no prospects yet, only registered members) and told him it could not see his downline, because there was no tool for the team. Migration `20261106000100_agent_people_tools`, registry entries in `supabase/functions/agent/tools.ts`, pgTAP `047`-`049` (`042` and `043` updated), vitest, the integration test, and two small app changes (plain-word labels for the new tool names in `src/data/agents/rules.ts`; the activity row shows the name for `get_person`, marked sensitive like the prospect tools'). The tool list and what each returns: [`backend.md`](../backend.md), "Agent connector".
+
+Choices worth knowing:
+
+- **Contacts are vCard.** `full_name` (FN), `phone` (TEL), `email` (EMAIL), `location` (ADR locality and region as one text), `notes` (NOTE), in every tool that has them; each description says so in one clause. `add_prospect` and `update_prospect` keep their `name` argument (they are unchanged; renaming would break an agent that saved the old call).
+- **Never exposed.** IBO and LTD numbers are in no result and no write (no query selects them; a test looks for the fixture values in every answer and audit row). Never writable: stage, sponsor, owner, business start date, pipeline stage, stage history, tags, monthly volume. `update_my_profile` refuses every other field by name (also in SQL, whatever the function checked first). No deletes.
+- **Customers are private to their owner**, leaders included (`visible_person_ids()`, `visibleCustomers()` in the app). `list_customers(mine_only)` is therefore the same list either way; the argument exists because the brief asked for it, and the description says so. If the rule ever changes, the argument starts to mean something.
+- **Empty lists explain themselves** in `note` ("You have no registered team members under you yet.", "No prospects yet. Use add_prospect to add one; registered team members are in list_team."), because an empty list with no explanation made the first agent retry. A search with no match and an offset past the end have their own notes.
+- **Learning follows the app's form** (kinds, units, amount a whole number, `Unnamed`) and the table's constraint, and a pgTAP case table proves the tool and `learning_unit_fits_kind` agree on every kind and unit. The app's form puts no limit on the date; the tool refuses the future (against the team's today) and anything before 2000-01-01 (a typo guard), and an amount above 100000 (the weekly goal's own cap). Not deduplicated: two calls make two entries.
+- **`list_learning` shows the caller's own entries** although row-level security lets a person read their downline's; the window defaults to the last 30 days.
+- **One query for the team, no N+1** (`agent_private.team()`); numbers in the backend guide.
+- **Replaced, not edited.** The shipped connector migrations are untouched; `agent_list_prospects(int)` is dropped and replaced by a three-argument function, `agent_whoami()` by `create or replace`. A function deployed before the migration, or the migration before the function, makes `list_prospects` fail until both are in place (see the per-deployment steps in the pull request).
+- **Not built here:** a duplicate guard for `log_learning`; any write for a customer, prospect pipeline stage or contact log (3b).
+
+## Phase 3b: not started
+
+Pipeline moves short of the registered step (through `move_pipeline_card`, never the Registered stage), customers (add and update), check-ins (through the existing contact log). Before any tool that writes beyond what phases 1 and 3a do, the owner decides.
 
 ## The text the button will show (final wording)
 

@@ -51,6 +51,12 @@ const TOOL_LABEL: Record<string, string> = {
   list_upcoming_events: "Listed upcoming events",
   export_events_ics: "Exported events",
   set_event_answer: "Answered an event",
+  list_team: "Listed the team",
+  list_customers: "Listed customers",
+  get_person: "Looked up a person",
+  update_my_profile: "Changed own profile",
+  log_learning: "Logged learning",
+  list_learning: "Listed learning",
 };
 
 /** A short label for a tool; a name that is not known is shown as it is. */
@@ -64,21 +70,23 @@ export interface AuditEntry {
   tool: string;
   result: string;
   at: string;
-  /** `arguments ->> name`, `new_values ->> name`, `old_values ->> name`: a prospect's name. */
+  /** `arguments ->> name`, `new_values ->> name`, `old_values ->> name`: the name of the person the call was about. */
   argsName: string | null;
   newName: string | null;
   oldName: string | null;
 }
 
 /**
- * The prospect's name for the prospect tools, nothing for any other tool: an added prospect by
- * the name that was sent (or stored), a changed one by its stored name (the new one, else the one
- * it had). A refused change to a prospect the person cannot see has no name to show.
+ * The person's name for the tools that are about one person, nothing for any other tool: an added
+ * prospect by the name that was sent (or stored), a changed one by its stored name (the new one, else
+ * the one it had), a looked-up person by the name the tool recorded. A refused call about a person
+ * the caller cannot see has no name to show.
  */
-export function entryProspectName(e: AuditEntry): string | null {
+export function entryPersonName(e: AuditEntry): string | null {
   const clean = (s: string | null) => (s && s.trim() ? s : null);
   if (e.tool === "add_prospect") return clean(e.newName) ?? clean(e.argsName);
   if (e.tool === "update_prospect") return clean(e.newName) ?? clean(e.oldName);
+  if (e.tool === "get_person") return clean(e.newName);
   return null;
 }
 
