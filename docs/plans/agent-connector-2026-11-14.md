@@ -70,7 +70,7 @@ Choices worth knowing:
 - **Replaced, not edited.** The shipped connector migrations are untouched; `agent_list_prospects(int)` is dropped and replaced by a three-argument function, `agent_whoami()` by `create or replace`. A function deployed before the migration, or the migration before the function, makes `list_prospects` fail until both are in place (see the per-deployment steps in the pull request).
 - **Not built here:** a duplicate guard for `log_learning`; any write for a customer, prospect pipeline stage or contact log (3b).
 
-## Phase 4: card tasks and notes (part 1 BUILT when merged; part 2 NOT STARTED)
+## Phase 4: card tasks and notes (part 1 BUILT when merged; part 2 BUILT when merged)
 
 Why: the owner wants a card to work like a Basecamp card: a checklist of tasks with due dates (for example "Text Nik to confirm the Nov 19 info session"), a running log of notes with timestamps, tasks assignable to a person, on every pipeline card on both boards, reachable by the connected agent. Migration `20261108000100_card_tasks`, registry entries in `supabase/functions/agent/tools.ts`, pgTAP `051` and `052` (`043` and `047` updated), vitest, the integration test, and the seven plain-word tool labels in `src/data/agents/rules.ts`. The tables, the rules and the tool list: [`backend.md`](../backend.md), "Card tasks and notes" and "Agent connector".
 
@@ -85,7 +85,7 @@ Choices worth knowing:
 - **Rows can be written without a signed-in person** (part 2's migration copies existing bookings and card notes into `card_tasks` and `card_notes` as the migration role): `created_by`, `done_by`, `assignee_id` and `author_id` are nullable, and the guard triggers skip the who-may-do-what checks for a writer that is not `authenticated`; pgTAP `051` proves both that insert and its refusal for a signed-in person who cannot edit the card.
 - **Not built here**: `changed_since` reports changed tasks only, not deleted ones (no deletion log, and a new table was not worth it); no tool for reordering tasks.
 
-Part 1 is the database and the connector. **Part 2: NOT STARTED** (needs the owner's say-so before it is begun): the app (tasks count, earliest open due date, notes count and assignee on each card's face on both boards; tasks and notes in the card sheet; tasks due in Home's Today card; a notification when a task is assigned to you) AND removing the booked next step (each existing booking copied into a card task, the old columns kept unused).
+Part 1 is the database and the connector. **Part 2: BUILT when merged**: the app (every card on both boards, the card panels, the profile's Pipeline card and Home's Today card show and edit tasks and notes; the card face's meta line shows the done count, the earliest open due date, the notes count and another assignee) and the removal of the booked next step (the booking fields, the booked-step line, Home's step items, the cancel dialog and the code behind them are gone, the card's single note box is replaced by the notes log, and "Move to…" is gone from the board and from both panels: a card moves by drag and drop, and "Move to…" stays on the profile's Pipeline card and in the Log sheet's move field). Migration `20261109000100_card_followups_conversion.sql` copies each stored booking into an open task and each card note into the first note (the old columns are kept, unused); browser-storage data is converted once while it loads. Not built: a notification when a task is assigned to you.
 
 ## Phase 3b: not started
 
