@@ -91,6 +91,7 @@ import type {
 } from "@/data/customerPipeline/types";
 import type { Deputy, FeatureKey, FeatureSwitch } from "@/data/team/types";
 import { asRating } from "@/data/rating";
+import type { CardNote, CardTask } from "@/data/cardTasks/types";
 
 export type Row = Record<string, unknown>;
 type R<T extends keyof import("./database.types").Database["public"]["Tables"]> = Partial<
@@ -1443,6 +1444,80 @@ export function customerCardToRow(c: CustomerCard): Row {
     next_step_date: c.nextStepDate,
     next_step_time: c.nextStepTime,
     note: c.note,
+  };
+}
+
+/** The database's own columns on a task: read, never sent (`CARD_TASK_SERVER_COLUMNS`). */
+export const CARD_TASK_SERVER_COLUMNS = [
+  "done_at",
+  "done_by",
+  "created_by",
+  "created_at",
+  "updated_at",
+];
+
+/** `due_time` comes back as "HH:MM:SS": the app keeps "HH:mm". */
+export function cardTaskFromRow(r: R<"card_tasks">): CardTask {
+  return {
+    id: r.id!,
+    personId: r.person_id ?? null,
+    entryId: r.entry_id ?? null,
+    title: r.title ?? "",
+    done: !!r.done,
+    doneAt: iso(r.done_at),
+    doneBy: r.done_by ?? null,
+    dueDate: r.due_date ?? null,
+    dueTime: hhmm(r.due_time),
+    assigneeId: r.assignee_id ?? null,
+    position: r.position ?? 0,
+    createdBy: r.created_by ?? null,
+    createdAt: isoOr(r.created_at),
+    updatedAt: isoOr(r.updated_at),
+  };
+}
+
+/** `workspace_id` is left to its default (the caller's team). */
+export function cardTaskToRow(t: CardTask): Row {
+  return {
+    id: t.id,
+    person_id: t.personId,
+    entry_id: t.entryId,
+    title: t.title,
+    done: t.done,
+    done_at: iso(t.doneAt),
+    done_by: t.doneBy,
+    due_date: t.dueDate,
+    due_time: t.dueTime,
+    assignee_id: t.assigneeId,
+    position: t.position,
+    created_by: t.createdBy,
+    created_at: iso(t.createdAt),
+    updated_at: iso(t.updatedAt),
+  };
+}
+
+/** `author_id` and `created_at` are the database's on a client write: read, never sent. */
+export const CARD_NOTE_SERVER_COLUMNS = ["author_id", "created_at"];
+
+export function cardNoteFromRow(r: R<"card_notes">): CardNote {
+  return {
+    id: r.id!,
+    personId: r.person_id ?? null,
+    entryId: r.entry_id ?? null,
+    authorId: r.author_id ?? null,
+    body: r.body ?? "",
+    createdAt: isoOr(r.created_at),
+  };
+}
+
+export function cardNoteToRow(n: CardNote): Row {
+  return {
+    id: n.id,
+    person_id: n.personId,
+    entry_id: n.entryId,
+    author_id: n.authorId,
+    body: n.body,
+    created_at: iso(n.createdAt),
   };
 }
 

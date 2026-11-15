@@ -49,6 +49,8 @@ import { ageLong, bookingState } from "@/modules/pipeline/format";
 import { BookingFields, NoteField } from "@/modules/pipeline/BookingFields";
 import { BookedStep } from "@/modules/pipeline/BookedStep";
 import { ReferralsBlock } from "@/modules/pipeline/Referrals";
+import { CardFollowups } from "@/modules/pipeline/CardFollowups";
+import { keepEscapeInTaskTitle } from "@/modules/pipeline/taskEscape";
 
 /** A customer card's details: where it is, move it, next step, warm/hot, the people it became. */
 export function CustomerCardSheet({
@@ -71,6 +73,7 @@ export function CustomerCardSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side={desktop ? "right" : "bottom"}
+        onEscapeKeyDown={keepEscapeInTaskTitle}
         className={cn(
           "flex flex-col gap-0 p-0",
           desktop ? "w-full sm:max-w-md" : "max-h-[92dvh] rounded-t-card pb-safe",
@@ -251,6 +254,7 @@ function Details({
           board="customer"
           source={card.cardColumn === REFERRAL_SOURCE}
         />
+        <CardFollowups card={{ board: "customer", id: card.personId }} />
         <BookedStep
           board="customer"
           cardId={card.personId}

@@ -15,6 +15,7 @@ import { normalizePhone } from "@/lib/phone";
 import { serverSide } from "../remote";
 import { useRemoteStore } from "../remote/extras";
 import { addPerson, removePerson } from "../people";
+import { removeCardFollowups } from "../cardTasks/mutations";
 import { removeContact, removeSale } from "../crm";
 import { useCrmStore } from "@/stores/crmStore";
 import { getViewer } from "../session";
@@ -217,6 +218,9 @@ export function removeListEntry(id: string): void {
     entries: s.entries.filter((e) => e.id !== id),
     cards: s.cards.filter((c) => c.entryId !== id),
   }));
+  // Its tasks and notes go with it. Real accounts: the database cascades them with the name.
+  if (IS_SUPABASE) serverSide(() => removeCardFollowups({ entryId: id }));
+  else removeCardFollowups({ entryId: id });
 }
 
 // ---------------------------------------------------------------------------

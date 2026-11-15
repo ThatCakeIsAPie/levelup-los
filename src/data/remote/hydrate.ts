@@ -27,6 +27,7 @@ import type { LibraryData } from "@/data/library/types";
 import { useLibraryExtras, type ChannelTeaser, type LibraryExtras } from "@/data/library/extras";
 import type { PipelineData } from "@/data/pipeline/types";
 import type { CustomerPipelineData } from "@/data/customerPipeline/types";
+import type { CardTasksData } from "@/data/cardTasks/types";
 import type { TeamData } from "@/data/team/types";
 import type { EventCategory } from "@/data/eventCategories/types";
 import type { HomeLayout } from "@/data/homeLayout";
@@ -49,6 +50,7 @@ import {
   peopleBinding,
   pipelineBinding,
   customerPipelineBinding,
+  cardTasksBinding,
   teamBinding,
   homeLayoutBinding,
   stageNamesBinding,
@@ -129,6 +131,8 @@ export interface PipelineSnapshot {
   data: PipelineData;
   /** Your list and the customer pipeline (the same refresh as the recruiting board). */
   customer: CustomerPipelineData;
+  /** Tasks and notes on the cards of both boards (the same refresh). */
+  cardTasks: CardTasksData;
   /** sponsor_chain(me): root first, the signed-in person last. */
   chain: ChainEntry[];
   /** Pipeline stage names: your own rows, and the ones set above you (RLS: only your own rows). */
@@ -512,6 +516,7 @@ export async function fetchPipeline(client: SupabaseClient, me: string): Promise
     cancellations,
     chain,
     customer,
+    cardTasks,
     ownNames,
     inheritedNames,
   ] = await Promise.all([
@@ -543,6 +548,7 @@ export async function fetchPipeline(client: SupabaseClient, me: string): Promise
     ]),
     client.rpc("sponsor_chain", { p_person_id: me }),
     fetchCustomerPipeline(client),
+    fetchCardTasks(client),
     all("stage_names", [
       ["person_id", true],
       ["pipeline", true],
@@ -566,6 +572,7 @@ export async function fetchPipeline(client: SupabaseClient, me: string): Promise
       cancellations: cancellations.map((r) => m.stepCancellationFromRow(r)),
     },
     customer,
+    cardTasks,
     chain: ((chain.data ?? []) as Row[]).map((r) => ({
       personId: String(r.person_id),
       name: String(r.name ?? ""),
@@ -616,6 +623,25 @@ export async function fetchCustomerPipeline(client: SupabaseClient): Promise<Cus
     hides: hides.map((r) => m.customerHideFromRow(r)),
     cards: cards.map((r) => m.customerCardFromRow(r)),
     moves: moves.map((r) => m.customerMoveFromRow(r)),
+  };
+}
+
+/** The tasks and notes on the cards the caller may see (the database's row-level security decides). */
+export async function fetchCardTasks(client: SupabaseClient): Promise<CardTasksData> {
+  const all = (t: string, order: Order[]) => fetchAll(client, t, order);
+  const [tasks, notes] = await Promise.all([
+    all("card_tasks", [
+      ["position", true],
+      ["id", true],
+    ]),
+    all("card_notes", [
+      ["created_at", true],
+      ["id", true],
+    ]),
+  ]);
+  return {
+    tasks: tasks.map((r) => m.cardTaskFromRow(r)),
+    notes: notes.map((r) => m.cardNoteFromRow(r)),
   };
 }
 
@@ -695,6 +721,7 @@ export function applyPipeline(s: PipelineSnapshot): void {
   useRemoteStore.setState({ chain: s.chain });
   replaceStore(pipelineBinding, s.data);
   replaceStore(customerPipelineBinding, s.customer);
+  replaceStore(cardTasksBinding, s.cardTasks);
   replaceStore(stageNamesBinding, { entries: s.stageNames.own });
   useInheritedStageNames.setState({ rows: s.stageNames.inherited });
 }

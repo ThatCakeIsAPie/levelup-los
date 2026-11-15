@@ -9,6 +9,10 @@
  *      Booked pipeline steps due today or overdue (own cards)  750 + days late
  *      (both boards; src/data/pipeline/booking.ts dueBookings, "Do not
  *      contact" left out; Done moves the card, Reschedule, Cancel)
+ *      Card tasks due today or overdue (assigned to you, or    750 + days late
+ *      unassigned on a card you own; both boards; the team's
+ *      calendar, src/data/cardTasks dueTasksFor; "Do not contact"
+ *      and off-board cards left out; tick it, or open the card)
  *   3. Apprentices at their IBO anniversary (due / 30 days)    700 / 500
  *      Missed an event they came to last time (uplines)       650 - days since
  *      (src/data/eventTypes/missed.ts; cleared for every upline by a
@@ -25,11 +29,12 @@
  * their effective stage, not by where the item came from:
  *   - team:      registered people (apprentices and IBOs, you included):
  *                check-ins, IBO anniversaries. A prospect is never here.
- *   - customers: your customers: contact reminders, booked steps on names that
- *                already buy (a reorder, On Ditto).
+ *   - customers: your customers: contact reminders, booked steps and card tasks
+ *                on names that already buy (a reorder, On Ditto).
  *   - pipeline:  people still in progress, in two sub-sections (`TodaySub`):
- *                recruiting (prospects: check-ins, booked steps) and customer
- *                (names on your customer pipeline: booked steps).
+ *                recruiting (prospects: check-ins, booked steps, card tasks) and
+ *                customer (names on your customer pipeline: booked steps, card
+ *                tasks).
  *   - events:    tickets, RSVP follow-ups (customers on the list too), missed
  *                events (team members and customers), and inviting your
  *                customers.
@@ -49,6 +54,7 @@ import {
   type CrmEvent,
   type CrmPerson,
   type DueBooking,
+  type DueTask,
   type EventCategory,
   type MissedStreak,
   type ReferralReminder,
@@ -115,6 +121,11 @@ export type TodayItem =
       booking: DueBooking;
     })
   | (Base & {
+      kind: "task";
+      /** An open card task due today or overdue (the team's calendar) that is the viewer's. */
+      task: DueTask;
+    })
+  | (Base & {
       /** "Ask Sarah for names": a referral source of the viewer's with nobody referred yet. */
       kind: "referral";
       reminder: ReferralReminder;
@@ -171,6 +182,11 @@ export interface TodayInput {
    * boards (`useDueBookings()`, "Do not contact" already left out).
    */
   bookings?: DueBooking[];
+  /**
+   * Open card tasks due today or overdue that are the viewer's (`useDueTasks()`, both boards; cards
+   * off the board and in "Do not contact" already left out).
+   */
+  tasks?: DueTask[];
   /**
    * The viewer's referral sources (both boards) who've passed on no names
    * after a week (`useReferralReminders()`, "Do not contact" already left out).
@@ -295,6 +311,35 @@ export function buildTodayItems(input: TodayInput): TodayItem[] {
         ...base,
         filter: "pipeline",
         sub: b.board === "customer" ? "customer" : "recruiting",
+      });
+  }
+
+  // Card tasks that are due (assigned to the viewer, or unassigned on a card they own).
+  for (const t of input.tasks ?? []) {
+    // A list name isn't a person: stand in with its name (the row opens the card on the board).
+    const person: CrmPerson =
+      (t.board === "recruiting" ? everyone.get(t.cardId) : undefined) ??
+      ({
+        id: t.cardId,
+        name: t.name,
+        bizClass: t.board === "customer" ? "customer" : "prospect",
+      } as CrmPerson);
+    if (skip?.has(person.id)) continue;
+    const base = {
+      key: `task:${t.taskId}`,
+      kind: "task" as const,
+      person,
+      self: false,
+      task: t,
+      score: 750 + Math.min(49, t.daysLate),
+    };
+    // A name that already buys is your customer (a reorder, On Ditto).
+    if (t.board === "customer" && t.customerId) items.push({ ...base, filter: "customers" });
+    else
+      items.push({
+        ...base,
+        filter: "pipeline",
+        sub: t.board === "customer" ? "customer" : "recruiting",
       });
   }
 

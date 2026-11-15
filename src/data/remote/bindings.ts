@@ -60,6 +60,8 @@ import type {
   CustomerStep,
   ListEntry,
 } from "@/data/customerPipeline/types";
+import { useCardTasksStore } from "@/data/cardTasks/store";
+import type { CardNote, CardTask, CardTasksData } from "@/data/cardTasks/types";
 import { useTeamStore } from "@/data/team/store";
 import { useHomeLayoutStore, type HomeLayoutState } from "@/data/homeLayoutStore";
 import type { HomeLayout } from "@/data/homeLayout";
@@ -1189,6 +1191,41 @@ export const customerPipelineBinding: Binding<CustS> = {
 };
 
 // ---------------------------------------------------------------------------
+// Tasks and notes on pipeline cards, both boards (src/data/cardTasks). The rows point at the
+// prospect or the list name, so a task works for a card that was never moved; the database stamps
+// done_at / done_by / created_by / author_id and the times, and cascades them with the card's subject.
+// ---------------------------------------------------------------------------
+
+type TaskS = CardTasksData;
+
+export const cardTasksBinding: Binding<TaskS> = {
+  name: "cardTasks",
+  store: useCardTasksStore,
+  specs: [
+    listSpec<TaskS, CardTask>({
+      table: "card_tasks",
+      pk: ["id"],
+      get: (s) => s.tasks,
+      set: (tasks) => ({ tasks }),
+      toRow: m.cardTaskToRow,
+      fromRow: m.cardTaskFromRow,
+      serverColumns: m.CARD_TASK_SERVER_COLUMNS,
+    }),
+    // Added and removed, never edited; an author deletes their own.
+    listSpec<TaskS, CardNote>({
+      table: "card_notes",
+      pk: ["id"],
+      get: (s) => s.notes,
+      set: (notes) => ({ notes }),
+      toRow: m.cardNoteToRow,
+      fromRow: m.cardNoteFromRow,
+      serverColumns: m.CARD_NOTE_SERVER_COLUMNS,
+      update: false,
+    }),
+  ],
+};
+
+// ---------------------------------------------------------------------------
 // Team settings: deputies and feature switches (src/data/team)
 // ---------------------------------------------------------------------------
 
@@ -1273,6 +1310,7 @@ export const ALL_BINDINGS = [
   libraryBinding,
   pipelineBinding,
   customerPipelineBinding,
+  cardTasksBinding,
   teamBinding,
   homeLayoutBinding,
   stageNamesBinding,

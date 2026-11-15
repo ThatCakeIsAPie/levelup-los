@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import {
   parseDate,
   restorePipelineCard,
+  useCardSummary,
   useProspectPipeline,
   useStageNames,
   type CrmPerson,
@@ -15,6 +16,8 @@ import { MoveMenu } from "@/modules/pipeline/moveCard";
 import { useMoveCard } from "@/modules/pipeline/useMoveCard";
 import { ageLong } from "@/modules/pipeline/format";
 import { BookedStep } from "@/modules/pipeline/BookedStep";
+import { CardFollowups } from "@/modules/pipeline/CardFollowups";
+import { CardMeta } from "@/modules/pipeline/CardMeta";
 
 const LINK =
   "rounded-sm text-primary hover:underline focus-visible:outline-2 focus-visible:outline-ring";
@@ -28,6 +31,7 @@ export function PipelineCard({ person }: { person: CrmPerson }) {
   const p = useProspectPipeline(person.id);
   const names = useStageNames("recruiting");
   const { move, dialog } = useMoveCard(p?.columns ?? []);
+  const summary = useCardSummary({ board: "recruiting", id: person.id });
   const [all, setAll] = useState(false);
   if (!p) return null;
   const history = all ? p.history : p.history.slice(0, 4);
@@ -58,6 +62,7 @@ export function PipelineCard({ person }: { person: CrmPerson }) {
           <span className="text-[12px] text-muted-foreground">
             {p.days === 0 ? "Moved here today" : `Here for ${ageLong(p.days)}`}
           </span>
+          <CardMeta summary={summary} ownerId={person.sponsorId ?? null} />
           {p.booking && (
             <BookedStep
               board="recruiting"
@@ -86,6 +91,7 @@ export function PipelineCard({ person }: { person: CrmPerson }) {
           </MoveMenu>
         </div>
       )}
+      {p.onBoard && p.column && <CardFollowups card={{ board: "recruiting", id: person.id }} />}
       {p.dropped && (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-[10px] bg-surface-2 px-3.5 py-3 text-[13px]">
           <span className="text-muted-foreground">Taken off the board for now.</span>

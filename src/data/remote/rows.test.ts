@@ -278,4 +278,65 @@ describe("weekly goal row mappers", () => {
       { kind: "contacts", target: 5 },
     ]);
   });
+
+  it("round-trips card tasks and notes, keeping a time as HH:mm", () => {
+    const row = {
+      id: "t1",
+      person_id: "9",
+      entry_id: null,
+      title: "Call Carlos",
+      done: true,
+      done_at: "2026-11-14T15:00:00+00:00",
+      done_by: "4",
+      due_date: "2026-11-19",
+      due_time: "09:00:00",
+      assignee_id: "4",
+      position: 2,
+      created_by: "1",
+      created_at: "2026-11-01T10:00:00+00:00",
+      updated_at: "2026-11-14T15:00:00+00:00",
+    };
+    const task = m.cardTaskFromRow(row as never);
+    expect(task).toMatchObject({
+      dueTime: "09:00",
+      doneAt: "2026-11-14T15:00:00.000Z",
+      entryId: null,
+    });
+    expect(m.cardTaskToRow(task)).toMatchObject({
+      id: "t1",
+      due_time: "09:00",
+      position: 2,
+      done: true,
+    });
+    expect(m.cardTaskToRow(m.cardTaskFromRow(m.cardTaskToRow(task) as never))).toEqual(
+      m.cardTaskToRow(task),
+    );
+    // the row the app sends has no workspace: the database defaults it to the caller's team
+    expect(m.cardTaskToRow(task)).not.toHaveProperty("workspace_id");
+    const note = m.cardNoteFromRow({
+      id: "n1",
+      entry_id: "le-1",
+      person_id: null,
+      author_id: "1",
+      body: "Hello",
+      created_at: "2026-11-01T10:00:00+00:00",
+    } as never);
+    expect(note).toEqual({
+      id: "n1",
+      personId: null,
+      entryId: "le-1",
+      authorId: "1",
+      body: "Hello",
+      createdAt: "2026-11-01T10:00:00.000Z",
+    });
+    expect(m.cardNoteToRow(note)).not.toHaveProperty("workspace_id");
+    expect(m.CARD_TASK_SERVER_COLUMNS).toEqual([
+      "done_at",
+      "done_by",
+      "created_by",
+      "created_at",
+      "updated_at",
+    ]);
+    expect(m.CARD_NOTE_SERVER_COLUMNS).toEqual(["author_id", "created_at"]);
+  });
 });

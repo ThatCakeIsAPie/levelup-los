@@ -13,7 +13,11 @@
 import { addDays, getDate, startOfMonth, subMonths } from "date-fns";
 import { localDate } from "@/lib/dates";
 import type { CrmPerson } from "@/stores/peopleStore";
+import type { SeedFollowup } from "../cardTasks/types";
+import { chainOf, columnsFor } from "../pipeline/rules";
+import type { BoardDef, PipelineColumn } from "../pipeline/types";
 import {
+  CUSTOMER_BOARD,
   CUSTOMER_MILESTONES,
   REFERRAL_SOURCE,
   STARTER_CUSTOMER_STEPS,
@@ -256,7 +260,20 @@ function pathTo(column: string, bandOf: (c: string) => CustomerBand): CustomerBa
 }
 
 export function seedCustomerPipeline(people: CrmPerson[], now = new Date()): CustomerPipelineData {
+  return buildCustomerSeed(people, now).data;
+}
+
+/** What the demo's customer cards carry beyond the board: tasks and notes (src/data/cardTasks/seed.ts). */
+export function seedCustomerFollowups(people: CrmPerson[], now = new Date()): SeedFollowup[] {
+  return buildCustomerSeed(people, now).followups;
+}
+
+function buildCustomerSeed(
+  people: CrmPerson[],
+  now: Date,
+): { data: CustomerPipelineData; followups: SeedFollowup[] } {
   const rng = makeRng(20261014);
+  const followups: SeedFollowup[] = [];
   const exists = new Set(people.map((p) => p.id));
   const stamp = (daysAgo: number, hour = 11) => {
     const d = addDays(now, -daysAgo);
@@ -274,6 +291,20 @@ export function seedCustomerPipeline(people: CrmPerson[], now = new Date()): Cus
     position: (pos[s.band] = (pos[s.band] ?? -1) + 1),
     createdAt: created,
   }));
+  const colCache = new Map<string, PipelineColumn<string>[]>();
+  const columnsOf = (ownerId: string) => {
+    let c = colCache.get(ownerId);
+    if (!c) {
+      c = columnsFor(
+        chainOf(people, ownerId),
+        steps,
+        [],
+        CUSTOMER_BOARD as BoardDef<string>,
+      ) as PipelineColumn<string>[];
+      colCache.set(ownerId, c);
+    }
+    return c;
+  };
   const stepBand = new Map(steps.map((s) => [s.id, s.band as CustomerBand]));
   const bandOf = (c: string): CustomerBand => {
     if (c === "not_contacted") return "start";
@@ -350,6 +381,16 @@ export function seedCustomerPipeline(people: CrmPerson[], now = new Date()): Cus
       note: note ?? null,
       updatedAt: enteredAt,
     });
+    const col = next ? columnsOf(ownerId).find((c) => c.id === next) : undefined;
+    followups.push({
+      cardId: id,
+      ownerId,
+      title: col?.label ?? (next ? "Next step" : null),
+      dueDate: next && nextIn !== undefined ? localDate(addDays(now, nextIn)) : null,
+      dueTime: (next && nextIn !== undefined && TIMES[name]) || null,
+      note: note ?? null,
+      noteAt: enteredAt,
+    });
   };
   /** The links of a name in REFERRED_BY (its referrer is earlier on the same list). */
   const referredBy = (ownerId: string, name: string) => {
@@ -404,5 +445,5 @@ export function seedCustomerPipeline(people: CrmPerson[], now = new Date()): Cus
     specs.forEach((spec, i) => addSpec(ownerId, spec, start + i));
   }
 
-  return { entries, steps, hides: [], cards, moves };
+  return { data: { entries, steps, hides: [], cards, moves }, followups };
 }

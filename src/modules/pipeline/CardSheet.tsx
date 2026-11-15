@@ -42,6 +42,8 @@ import { ageLong, bookingState } from "./format";
 import { BookingFields, NoteField } from "./BookingFields";
 import { BookedStep } from "./BookedStep";
 import { ReferralsBlock } from "./Referrals";
+import { CardFollowups } from "./CardFollowups";
+import { keepEscapeInTaskTitle } from "./taskEscape";
 
 import { sensitive } from "@/lib/sensitive";
 /** A card's details: where it is, move it, next step, hot, where you met, take it off the board. */
@@ -63,6 +65,7 @@ export function CardSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side={desktop ? "right" : "bottom"}
+        onEscapeKeyDown={keepEscapeInTaskTitle}
         className={cn(
           "flex flex-col gap-0 p-0",
           desktop ? "w-full sm:max-w-md" : "max-h-[92dvh] rounded-t-card pb-safe",
@@ -188,6 +191,7 @@ function CardDetails({
           board="recruiting"
           source={card.cardColumn === REFERRAL_SOURCE}
         />
+        <CardFollowups card={{ board: "recruiting", id: card.personId }} />
         <BookedStep
           board="recruiting"
           cardId={card.personId}

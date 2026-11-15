@@ -4,7 +4,9 @@ import {
   CalendarClock,
   CalendarDays,
   Check,
+  ArrowUpRight,
   CircleCheck,
+  ListChecks,
   MessageCircle,
   NotebookPen,
   Settings2,
@@ -36,6 +38,7 @@ import {
   bookingLabel,
   effectiveBizClass,
   removeContact,
+  setTaskDone,
   openLog,
   rescheduleBookedStep,
   rescheduleChoices,
@@ -55,6 +58,7 @@ import { CancelStepDialog } from "@/modules/pipeline/CancelStepDialog";
 import { timeText, whenText } from "@/modules/pipeline/format";
 import { AddAttendeeDialog } from "@/modules/events/AddAttendeeDialog";
 import { ReferralTodayRow } from "@/modules/pipeline/Referrals";
+import { requestOpenCard } from "@/modules/pipeline/openCard";
 import { plural, relativeDay, shortDate } from "./format";
 import { useInvitesOff } from "./hooks";
 import {
@@ -97,11 +101,13 @@ const ICON: Record<TodayItem["kind"], { icon: typeof Ticket; tone: IconTone }> =
   prospect: { icon: MessageCircle, tone: "primary" },
   missed: { icon: UserX, tone: "warn" },
   step: { icon: CalendarClock, tone: "primary" },
+  task: { icon: ListChecks, tone: "primary" },
   invite: { icon: UserPlus, tone: "info" },
   referral: { icon: Users, tone: "info" },
 };
 
 type StepItem = Extract<TodayItem, { kind: "step" }>;
+type TaskItem = Extract<TodayItem, { kind: "task" }>;
 type InviteItem = Extract<TodayItem, { kind: "invite" }>;
 
 /**
@@ -147,8 +153,26 @@ export function TodayCard({
     const index = list.findIndex((i) => i.key === item.key);
     setDone((m) => new Map(m).set(item.key, { item, index, contactId, toastId, at: Date.now() }));
   };
+  // Ticking a task here: it stays in place as "Done · Undo" like a check-in, and the toast undoes it too.
+  const tick = (item: TaskItem) => {
+    const undoTick = setTaskDone(item.task.taskId, true);
+    if (!undoTick) return;
+    const index = list.findIndex((i) => i.key === item.key);
+    const toastId = toastWithUndo(
+      "Task done",
+      () => {
+        undoTick();
+        forget(item.key);
+      },
+      { undoneMessage: "Task reopened" },
+    );
+    setDone((m) =>
+      new Map(m).set(item.key, { item, index, taskId: item.task.taskId, toastId, at: Date.now() }),
+    );
+  };
   const undo = (d: DoneEntry) => {
-    removeContact(d.contactId);
+    if (d.taskId) setTaskDone(d.taskId, false);
+    else if (d.contactId) removeContact(d.contactId);
     toast.dismiss(d.toastId);
     forget(d.item.key);
   };
@@ -203,6 +227,7 @@ export function TodayCard({
         compact={compact}
         onCheckIn={checkIn}
         onAccept={accept}
+        onTick={tick}
         onPutOff={invites.putOff}
       />
     );
@@ -435,7 +460,10 @@ interface DoneEntry {
   item: TodayItem;
   /** Position in the list when it was checked off. */
   index: number;
-  contactId: string;
+  /** A check-in: the contact it logged. */
+  contactId?: string;
+  /** A ticked task: the task. */
+  taskId?: string;
   toastId: string | number;
   at: number;
 }
@@ -455,6 +483,37 @@ function DoneRow({
 }) {
   const p = entry.item.person;
   const customer = entry.item.kind === "customer";
+  if (entry.item.kind === "task") {
+    const t = entry.item.task;
+    return (
+      <ActionRow
+        icon={CircleCheck}
+        iconTone="good"
+        title={
+          <span className="text-muted-foreground">
+            <Sensitive kind="name">{p.name}</Sensitive> —{" "}
+            <Sensitive kind="note">{t.title}</Sensitive>
+          </span>
+        }
+        link={taskLink(entry.item)}
+        meta={<span className="font-semibold text-good">Done</span>}
+        action={
+          <Button
+            size="sm"
+            variant="ghost"
+            autoFocus
+            aria-label={`Undo: ${t.title}`}
+            onClick={() => {
+              if (Date.now() - entry.at >= UNDO_GUARD_MS) onUndo();
+            }}
+          >
+            <Undo2 /> Undo
+          </Button>
+        }
+        className={cn(compact && "gap-2.5 py-[9px]")}
+      />
+    );
+  }
   return (
     <ActionRow
       icon={CircleCheck}
@@ -489,12 +548,14 @@ function TodayRow({
   compact,
   onCheckIn: checkIn,
   onAccept,
+  onTick,
   onPutOff,
 }: {
   item: TodayItem;
   compact: boolean;
   onCheckIn: (item: TodayItem) => void;
   onAccept: (item: StepItem) => void;
+  onTick: (item: TaskItem) => void;
   /** "Not now" on an invite suggestion. */
   onPutOff: (eventId: string) => void;
 }) {
@@ -506,7 +567,8 @@ function TodayRow({
   const p = item.person;
   const first = p.name.split(" ")[0];
   const stage =
-    item.kind === "customer" || (item.kind === "step" && item.filter === "customers")
+    item.kind === "customer" ||
+    ((item.kind === "step" || item.kind === "task") && item.filter === "customers")
       ? "customer"
       : effectiveBizClass(p);
   let title: ReactNode;
@@ -589,6 +651,59 @@ function TodayRow({
             name={p.name}
             stepLabel={label}
           />
+        </span>
+      );
+      break;
+    }
+    case "task": {
+      const t = item.task;
+      const when =
+        t.daysLate > 0
+          ? `${plural(t.daysLate, "day")} overdue`
+          : `today${t.dueTime ? ` ${timeText(t.dueTime)}` : ""}`;
+      if (t.state === "overdue") tone = "warn";
+      title = (
+        <>
+          <Sensitive kind="name">{p.name}</Sensitive> — <Sensitive kind="note">{t.title}</Sensitive>
+          {!compact && ` (${when})`}
+        </>
+      );
+      detail = compact
+        ? when
+        : t.board === "customer"
+          ? "Customer pipeline"
+          : "Recruiting pipeline";
+      action = (
+        <span className="flex items-center gap-1.5">
+          {compact ? (
+            <Button
+              size="icon"
+              variant="soft"
+              className="size-8"
+              aria-label={`Done: ${t.title}`}
+              onClick={() => onTick(item)}
+            >
+              <Check />
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              variant="soft"
+              aria-label={`Done: ${t.title}`}
+              onClick={() => onTick(item)}
+            >
+              <Check /> Done
+            </Button>
+          )}
+          <Button asChild size="icon" variant="outline" className="size-8" title="Open card">
+            <Link
+              to={t.board === "customer" ? "/customers" : "/pipeline"}
+              aria-label={`Open card: ${p.name}`}
+              onClick={() => requestOpenCard({ board: t.board, id: t.cardId })}
+            >
+              <ArrowUpRight />
+            </Link>
+          </Button>
         </span>
       );
       break;
@@ -727,20 +842,28 @@ function TodayRow({
     );
   }
 
-  const boardRow = item.kind === "step" && item.booking.board === "customer";
+  const boardRow =
+    (item.kind === "step" && item.booking.board === "customer") ||
+    (item.kind === "task" && item.task.board === "customer");
   return (
     <ActionRow
       icon={icon}
       iconTone={tone}
       title={
-        item.kind === "ticket" && item.self ? title : <Sensitive kind="name">{title}</Sensitive>
+        (item.kind === "ticket" && item.self) || item.kind === "task" ? (
+          title
+        ) : (
+          <Sensitive kind="name">{title}</Sensitive>
+        )
       }
       link={
         (item.kind === "ticket" || item.kind === "followup") && item.self
           ? { to: "/events/$id", params: { id: item.event.id } }
-          : boardRow
-            ? { to: "/customers" }
-            : { to: "/people/$id", params: { id: p.id } }
+          : item.kind === "task"
+            ? taskLink(item)
+            : boardRow
+              ? { to: "/customers" }
+              : { to: "/people/$id", params: { id: p.id } }
       }
       meta={
         boardRow ? (
@@ -760,6 +883,15 @@ function TodayRow({
       className={cn(compact && "gap-2.5 py-[9px]")}
     />
   );
+}
+
+/** Where a task row goes: the person's profile (recruiting), the customer board (a list name). */
+function taskLink(
+  item: TaskItem,
+): { to: "/people/$id"; params: { id: string } } | { to: "/customers" } {
+  return item.task.board === "customer"
+    ? { to: "/customers" }
+    : { to: "/people/$id", params: { id: item.person.id } };
 }
 
 /** "Reschedule" a booked step: tomorrow, next week, or a day of your choice. */

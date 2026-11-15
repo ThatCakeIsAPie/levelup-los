@@ -60,6 +60,12 @@ export function bookingText(b: BookingView | null, today = localDate()): string 
   return when ? `${bookingLabel(b.column)} · ${when}` : bookingLabel(b.column);
 }
 
+/** "Nov 19" or "Nov 19 9am": a task's due date, with its time when it has one. */
+export function dueText(day: string, time: string | null): string {
+  const t = timeText(time);
+  return t ? `${shortDate(day)} ${t}` : shortDate(day);
+}
+
 /** The editable booking behind a card's booking view. */
 export function bookingState(b: BookingView | null): Booking {
   if (!b) return NO_BOOKING;

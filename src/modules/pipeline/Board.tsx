@@ -10,8 +10,10 @@ import {
   monthOf,
   localDate,
   useBoardDef,
+  useCardSummaries,
   useCurrentUser,
   type BoardBand,
+  type CardSummary,
   type BoardCard,
   type BoardColumn,
   type BoardDef,
@@ -24,6 +26,8 @@ import { MoveMenu } from "./moveCard";
 import { useMoveCard } from "./useMoveCard";
 import { useBoardDrag, type DragInfo } from "./useBoardDrag";
 import { CardReferralLines } from "./Referrals";
+import { CardMeta } from "./CardMeta";
+import { useOpenCardRequest } from "./openCard";
 import { ageLong, ageShort, bookingText, bookingTone, ownCards, shortDate, stepBy } from "./format";
 
 import { sensitive } from "@/lib/sensitive";
@@ -112,12 +116,32 @@ export function BoardView({
     setOpenId(personId);
     setSheetOpen(true);
   };
+  // Home's "open the card" lands here.
+  useOpenCardRequest(
+    def.kind === "customer" ? "customer" : "recruiting",
+    (id) => cards.has(id),
+    (id) => {
+      setOpenId(id);
+      setSheetOpen(true);
+    },
+  );
   const markMine = useMemo(() => ownCards(board, me).mixed, [board, me]);
   const isMine = (ownerId: string) => markMine && ownerId === me;
   // On a mixed board your own cards come first in every column (otherwise in
   // the usual order: hot, then newest in the column).
   const shown = useMemo(() => (markMine ? mineFirst(board, me) : board), [board, me, markMine]);
-  const ctx: CardCtx = { columns: board.columns, def, drag, start, open, move, markMine, isMine };
+  const summaries = useCardSummaries(def.kind === "customer" ? "customer" : "recruiting");
+  const ctx: CardCtx = {
+    columns: board.columns,
+    def,
+    drag,
+    start,
+    open,
+    move,
+    markMine,
+    isMine,
+    summaries,
+  };
   const isThisMonth = monthOf(localDate()) === month;
   const label = def.kind === "customer" ? "Customer pipeline board" : "Pipeline board";
 
@@ -200,6 +224,8 @@ interface CardCtx {
   markMine: boolean;
   /** A card of yours on a mixed board (always false otherwise). */
   isMine: (ownerId: string) => boolean;
+  /** Tasks and notes: a summary for every card that has any (the card's own id as the key). */
+  summaries: ReadonlyMap<string, CardSummary>;
 }
 
 const bandDef = (def: BoardDef<string>, id: string) => def.bands.find((b) => b.id === id);
@@ -515,6 +541,7 @@ function DesktopCard({ card, ctx }: { card: BoardCard; ctx: CardCtx }) {
           </div>
         )
       )}
+      <CardMeta summary={ctx.summaries.get(card.personId)} ownerId={card.ownerId} />
       {card.note && (
         <div className="truncate text-[10.5px] text-muted-foreground" title={card.note}>
           <Sensitive kind="note">{card.note}</Sensitive>
@@ -767,6 +794,11 @@ function PhoneRow({ card, ctx }: { card: BoardCard; ctx: CardCtx }) {
         </div>
         <CardReferralLines card={card} />
         {card.booking && <BookingLine card={card} phone />}
+        <CardMeta
+          summary={ctx.summaries.get(card.personId)}
+          ownerId={card.ownerId}
+          className="mt-0.5"
+        />
         {card.note && (
           <div className="truncate text-[10.5px] text-muted-foreground">
             <Sensitive kind="note">{card.note}</Sensitive>
