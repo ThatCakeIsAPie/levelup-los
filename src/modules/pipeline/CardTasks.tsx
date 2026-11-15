@@ -30,6 +30,7 @@ import {
   type CardTask,
 } from "@/data";
 import { dueText } from "./format";
+import { UndoButton, useUndoSlot, type Undoable } from "./UndoSlot";
 
 const NOBODY = "nobody";
 
@@ -47,6 +48,7 @@ export function CardTasks({ card }: { card: CardRef }) {
   // After an Undo the restored task takes the focus back.
   const [refocus, setRefocus] = useState<string | null>(null);
   const root = useRef<HTMLUListElement>(null);
+  const undoSlot = useUndoSlot(root, () => add.current?.focus());
   useEffect(() => {
     if (!refocus) return;
     const box = root.current?.querySelector<HTMLElement>(
@@ -86,11 +88,15 @@ export function CardTasks({ card }: { card: CardRef }) {
             key={t.id}
             task={t}
             card={card}
-            onDeleted={() => add.current?.focus()}
-            onRestored={() => setRefocus(t.id)}
+            onDeleted={undoSlot.offer}
+            onRestored={() => {
+              undoSlot.clear();
+              setRefocus(t.id);
+            }}
           />
         ))}
       </ul>
+      <UndoButton slot={undoSlot.slot} button={undoSlot.button} />
       <Input
         ref={add}
         value={draft}
@@ -114,7 +120,7 @@ function TaskRow({
 }: {
   task: CardTask;
   card: CardRef;
-  onDeleted: () => void;
+  onDeleted: (u: Undoable) => void;
   onRestored: () => void;
 }) {
   const [editing, setEditing] = useState(false);
@@ -126,15 +132,12 @@ function TaskRow({
   const remove = () => {
     const undo = removeCardTask(task.id);
     if (!undo) return;
-    onDeleted();
-    toastWithUndo(
-      "Task deleted",
-      () => {
-        undo();
-        onRestored();
-      },
-      { undoneMessage: "Task restored" },
-    );
+    const restore = () => {
+      undo();
+      onRestored();
+    };
+    onDeleted({ label: task.title, restore });
+    toastWithUndo("Task deleted", restore, { undoneMessage: "Task restored" });
   };
 
   return (
@@ -146,7 +149,7 @@ function TaskRow({
         checked={task.done}
         onCheckedChange={(v) => tick(v === true)}
         aria-label={`Done: ${task.title}`}
-        className="mt-[5px]"
+        className="relative mt-[5px] before:absolute before:-inset-2.5 before:content-['']"
       />
       <div className="min-w-0 flex-1 pt-px">
         {editing ? (
@@ -181,7 +184,7 @@ function TaskRow({
         type="button"
         variant="ghost"
         size="icon"
-        className="size-7 shrink-0 text-faint hover:text-foreground"
+        className="size-7 shrink-0 text-faint hover:text-foreground pointer-coarse:size-9"
         aria-label={`Delete task: ${task.title}`}
         onClick={remove}
       >
@@ -239,7 +242,7 @@ function DuePicker({ task }: { task: CardTask }) {
           variant="ghost"
           size="sm"
           className={cn(
-            "h-7 shrink-0 gap-1 px-1.5 text-[11.5px] font-semibold",
+            "h-7 shrink-0 gap-1 px-1.5 text-[11.5px] font-semibold pointer-coarse:h-9",
             task.dueDate ? "text-foreground" : "text-faint hover:text-foreground",
           )}
           aria-label={task.dueDate ? `Due ${dueText(task.dueDate, task.dueTime)}` : "Due date"}
@@ -252,7 +255,7 @@ function DuePicker({ task }: { task: CardTask }) {
         <Input
           type="date"
           aria-label="Due date"
-          className="h-8 w-auto min-w-0"
+          className="h-8 w-auto min-w-0 pointer-coarse:h-10"
           value={task.dueDate ?? ""}
           onChange={(e) => {
             const r = updateCardTask(task.id, { dueDate: e.target.value || null });
@@ -262,7 +265,7 @@ function DuePicker({ task }: { task: CardTask }) {
         <Input
           type="time"
           aria-label="Time"
-          className="h-8 w-auto min-w-0"
+          className="h-8 w-auto min-w-0 pointer-coarse:h-10"
           disabled={!task.dueDate}
           value={task.dueTime ?? ""}
           onChange={(e) => {
@@ -274,7 +277,7 @@ function DuePicker({ task }: { task: CardTask }) {
           type="button"
           variant="ghost"
           size="icon"
-          className="size-8 shrink-0"
+          className="size-8 shrink-0 pointer-coarse:size-10"
           aria-label="Clear due date"
           disabled={!task.dueDate}
           onClick={() => {
@@ -305,7 +308,7 @@ function AssigneePicker({ task, card }: { task: CardTask; card: CardRef }) {
           type="button"
           variant="ghost"
           size="icon"
-          className="size-7 shrink-0"
+          className="size-7 shrink-0 pointer-coarse:size-9"
           aria-label={current ? `Assignee: ${current.name}` : "Assignee"}
         >
           {current ? (

@@ -1,5 +1,4 @@
 import { useRef, useState, type KeyboardEvent } from "react";
-import { format } from "date-fns";
 import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Sensitive } from "@/components/brand";
@@ -18,16 +17,19 @@ import {
   type CardNote,
   type CardRef,
 } from "@/data";
+import { UndoButton, useUndoSlot, type Undoable } from "./UndoSlot";
 
 /**
- * A card's Notes: a running log, newest first, each with who wrote it and when (relative; the exact
- * time on hover). Enter adds a note, Shift+Enter is a new line. Your own notes can be deleted, with
+ * A card's Notes: a running log, newest first, each with who wrote it and when (relative). Enter adds
+ * a note, Shift+Enter is a new line. Your own notes can be deleted, with
  * Undo on the toast; nobody edits one.
  */
 export function CardNotes({ card }: { card: CardRef }) {
   const notes = useCardNotes(card);
   const [draft, setDraft] = useState("");
   const field = useRef<HTMLTextAreaElement>(null);
+  const root = useRef<HTMLElement>(null);
+  const undoSlot = useUndoSlot(root, () => field.current?.focus());
 
   const submit = () => {
     if (!draft.trim()) return;
@@ -46,7 +48,7 @@ export function CardNotes({ card }: { card: CardRef }) {
   };
 
   return (
-    <section className="grid gap-1.5" aria-labelledby={`notes-${card.id}`}>
+    <section ref={root} className="grid gap-1.5" aria-labelledby={`notes-${card.id}`}>
       <h3 id={`notes-${card.id}`} className="text-[12px] font-bold text-muted-foreground">
         Notes
       </h3>
@@ -62,10 +64,19 @@ export function CardNotes({ card }: { card: CardRef }) {
         onChange={(e) => setDraft(e.target.value)}
         onKeyDown={onKey}
       />
+      <UndoButton slot={undoSlot.slot} button={undoSlot.button} />
       {notes.length > 0 && (
         <ul className="grid">
           {notes.map((n) => (
-            <NoteRow key={n.id} note={n} onDeleted={() => field.current?.focus()} />
+            <NoteRow
+              key={n.id}
+              note={n}
+              onDeleted={undoSlot.offer}
+              onRestored={() => {
+                undoSlot.clear();
+                field.current?.focus();
+              }}
+            />
           ))}
         </ul>
       )}
@@ -73,7 +84,15 @@ export function CardNotes({ card }: { card: CardRef }) {
   );
 }
 
-function NoteRow({ note, onDeleted }: { note: CardNote; onDeleted: () => void }) {
+function NoteRow({
+  note,
+  onDeleted,
+  onRestored,
+}: {
+  note: CardNote;
+  onDeleted: (u: Undoable) => void;
+  onRestored: () => void;
+}) {
   const me = useCurrentUser().personId;
   const who = usePersonLookup();
   const author = who(note.authorId);
@@ -81,8 +100,12 @@ function NoteRow({ note, onDeleted }: { note: CardNote; onDeleted: () => void })
   const remove = () => {
     const undo = removeCardNote(note.id);
     if (!undo) return;
-    onDeleted();
-    toastWithUndo("Note deleted", undo, { undoneMessage: "Note restored" });
+    const restore = () => {
+      undo();
+      onRestored();
+    };
+    onDeleted({ label: "note", restore });
+    toastWithUndo("Note deleted", restore, { undoneMessage: "Note restored" });
   };
   return (
     <li className="grid gap-0.5 border-t border-line py-2 first:border-t-0">
@@ -94,19 +117,14 @@ function NoteRow({ note, onDeleted }: { note: CardNote; onDeleted: () => void })
             </b>
           )}
           {author && " · "}
-          <time
-            dateTime={note.createdAt}
-            title={format(new Date(note.createdAt), "MMM d, yyyy 'at' h:mm a")}
-          >
-            {relativeTime(note.createdAt)}
-          </time>
+          <time dateTime={note.createdAt}>{relativeTime(note.createdAt)}</time>
         </span>
         {mine && (
           <Button
             type="button"
             variant="ghost"
             size="icon"
-            className="-my-1 size-7 shrink-0 text-faint hover:text-foreground"
+            className="-my-1 size-7 shrink-0 text-faint hover:text-foreground pointer-coarse:-my-1.5 pointer-coarse:size-9"
             aria-label="Delete note"
             onClick={remove}
           >
