@@ -104,12 +104,13 @@ insert into public.agent_connections (id, user_id, person_id, workspace_id, labe
   (pg_temp.conn(5), '00000000-0000-4000-8000-0000000a9002', 'aga', 'agw', 'Alex old', pg_temp.hash('key-5'), 'write', now() - interval '1 day');
 
 -- The whitelist -----------------------------------------------------------------------------------
-select is((select array_agg(p.proname::text order by p.proname) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+select is((select array_agg(p.proname::text order by p.proname::text collate "C") from pg_proc p join pg_namespace n on n.oid = p.pronamespace
             where n.nspname = 'public' and p.proname like 'agent\_%'),
-  array['agent_add_prospect', 'agent_export_events_ics', 'agent_get_person', 'agent_list_customers', 'agent_list_learning',
-        'agent_list_prospects', 'agent_list_team', 'agent_list_upcoming_events', 'agent_log_learning', 'agent_set_event_answer',
-        'agent_update_my_profile', 'agent_update_prospect', 'agent_whoami'],
-  'the agent_ functions in public are exactly the thirteen tools');
+  array['agent_add_card_note', 'agent_add_card_task', 'agent_add_prospect', 'agent_complete_card_task', 'agent_export_events_ics',
+        'agent_get_card', 'agent_get_person', 'agent_list_card_tasks', 'agent_list_cards', 'agent_list_customers',
+        'agent_list_learning', 'agent_list_prospects', 'agent_list_team', 'agent_list_upcoming_events', 'agent_log_learning',
+        'agent_set_event_answer', 'agent_update_card_task', 'agent_update_my_profile', 'agent_update_prospect', 'agent_whoami'],
+  'the agent_ functions in public are exactly the twenty tools');
 select is((select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
             where n.nspname = 'public' and p.proname like 'agent\_%' and p.prosecdef), 0,
   'none of them is SECURITY DEFINER (they run as the person, so row-level security applies)');

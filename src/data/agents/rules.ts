@@ -57,6 +57,13 @@ const TOOL_LABEL: Record<string, string> = {
   update_my_profile: "Changed own profile",
   log_learning: "Logged learning",
   list_learning: "Listed learning",
+  list_cards: "Listed cards",
+  get_card: "Looked up a card",
+  list_card_tasks: "Listed card tasks",
+  add_card_task: "Added a card task",
+  update_card_task: "Changed a card task",
+  complete_card_task: "Ticked a card task",
+  add_card_note: "Added a card note",
 };
 
 /** A short label for a tool; a name that is not known is shown as it is. */

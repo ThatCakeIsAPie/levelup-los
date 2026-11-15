@@ -245,15 +245,15 @@ select is(pg_temp.learning_rows('agpl'), 0, 'and Lena has nothing logged');
 select pg_temp.as_postgres();
 delete from public.learning;
 insert into public.learning (id, workspace_id, person_id, kind, title, amount, unit, date, created_at) values
-  ('l1', 'agp', 'agpa', 'pages',      'Book A', 30, 'minutes',  current_date,       now() - interval '1 hour'),
-  ('l2', 'agp', 'agpa', 'pages',      'Book A', 15, 'minutes',  current_date - 1,   now() - interval '2 hours'),
-  ('l3', 'agp', 'agpa', 'pages',      'Book B', 20, 'pages',    current_date - 5,   now() - interval '3 hours'),
-  ('l4', 'agp', 'agpa', 'podcast',    'Show C',  2, 'episodes', current_date - 10,  now() - interval '4 hours'),
-  ('l5', 'agp', 'agpa', 'podcast',    'Show C', 45, 'minutes',  current_date - 20,  now() - interval '5 hours'),
-  ('l6', 'agp', 'agpa', 'workshop',   'Old workshop', 1, null,  current_date - 40,  now() - interval '6 hours'),
-  ('l7', 'agp', 'agpa', 'conference', 'Edge day', 1, null,      current_date - 30,  now() - interval '7 hours'),
-  ('library:x:agpa', 'agp', 'agpa', 'pages', 'From the library', 12, null, current_date - 3, now() - interval '8 hours'),
-  ('l9', 'agp', 'agpb', 'pages',      'Bea''s book', 99, 'pages', current_date,     now() - interval '9 hours');
+  ('l1', 'agp', 'agpa', 'pages',      'Book A', 30, 'minutes',  public.workspace_today('agp'),       now() - interval '1 hour'),
+  ('l2', 'agp', 'agpa', 'pages',      'Book A', 15, 'minutes',  public.workspace_today('agp') - 1,   now() - interval '2 hours'),
+  ('l3', 'agp', 'agpa', 'pages',      'Book B', 20, 'pages',    public.workspace_today('agp') - 5,   now() - interval '3 hours'),
+  ('l4', 'agp', 'agpa', 'podcast',    'Show C',  2, 'episodes', public.workspace_today('agp') - 10,  now() - interval '4 hours'),
+  ('l5', 'agp', 'agpa', 'podcast',    'Show C', 45, 'minutes',  public.workspace_today('agp') - 20,  now() - interval '5 hours'),
+  ('l6', 'agp', 'agpa', 'workshop',   'Old workshop', 1, null,  public.workspace_today('agp') - 40,  now() - interval '6 hours'),
+  ('l7', 'agp', 'agpa', 'conference', 'Edge day', 1, null,      public.workspace_today('agp') - 30,  now() - interval '7 hours'),
+  ('library:x:agpa', 'agp', 'agpa', 'pages', 'From the library', 12, null, public.workspace_today('agp') - 3, now() - interval '8 hours'),
+  ('l9', 'agp', 'agpb', 'pages',      'Bea''s book', 99, 'pages', public.workspace_today('agp'),     now() - interval '9 hours');
 select pg_temp.as_connector(2, 2);
 select is((select count(*)::int from public.learning), 9, 'row-level security lets Alex see his downline''s entries too (9 in all)');
 select is((select string_agg(x ->> 'id', ',' order by n) from jsonb_array_elements(public.agent_list_learning() -> 'entries') with ordinality t (x, n)),
@@ -266,21 +266,21 @@ select is(public.agent_list_learning() -> 'totals',
     {"kind": "podcast", "unit": "episodes", "entries": 1, "amount": 2},
     {"kind": "podcast", "unit": "minutes", "entries": 1, "amount": 45}]'::jsonb,
   'totals per kind and unit (never adding minutes to pages); an entry with no unit counts in pages');
-select is(public.agent_list_learning() -> 'entries' -> 2, ('{"id": "library:x:agpa", "kind": "pages", "title": "From the library", "amount": 12, "unit": "pages", "date": "' || (current_date - 3) || '"}')::jsonb,
+select is(public.agent_list_learning() -> 'entries' -> 2, ('{"id": "library:x:agpa", "kind": "pages", "title": "From the library", "amount": 12, "unit": "pages", "date": "' || (public.workspace_today('agp') - 3) || '"}')::jsonb,
   'an entry with no unit shows the unit the app counts it in; fields are id, kind, title, amount, unit, date');
 select is(public.agent_list_learning() ->> 'truncated', 'false', 'not truncated');
-select is(jsonb_array_length(public.agent_list_learning(current_date - 45, current_date) -> 'entries'), 8, 'a wider window takes in the older ones: all 8 of his');
-select is(public.agent_list_learning(current_date - 45, current_date) -> 'entries' -> 7 ->> 'id', 'l6', 'oldest last');
-select is(jsonb_array_length(public.agent_list_learning(current_date - 45, current_date) -> 'totals'), 6, 'six kind and unit totals');
-select is(jsonb_array_length(public.agent_list_learning(current_date - 1, current_date - 1) -> 'entries'), 1, 'one day: from and until are inclusive');
-select is(jsonb_array_length(public.agent_list_learning(current_date - 5) -> 'entries'), 4, 'only from: until is today (l1, l2, library, l3)');
-select is(public.agent_list_learning(null, current_date - 10) ->> 'from', (current_date - 39)::text, 'only until: from is 29 days before it');
-select is(public.agent_list_learning(null, current_date - 10) -> 'entries' -> 0 ->> 'id', 'l4', 'and newest first within it');
-select is(public.agent_list_learning(current_date + 5) ->> 'until', (current_date + 5)::text, 'a window in the future is allowed, and empty');
-select is(public.agent_list_learning(current_date + 5) -> 'entries', '[]'::jsonb, 'no entries');
-select is(public.agent_list_learning(current_date + 5) -> 'totals', '[]'::jsonb, 'no totals');
-select is(public.agent_list_learning(current_date, current_date - 1) ->> 'error', 'until must not be before from.', 'until before from is refused');
-select is(public.agent_list_learning(current_date - 400, current_date) ->> 'error', 'the window can be at most 367 days.', 'a window over 367 days is refused');
+select is(jsonb_array_length(public.agent_list_learning(public.workspace_today('agp') - 45, public.workspace_today('agp')) -> 'entries'), 8, 'a wider window takes in the older ones: all 8 of his');
+select is(public.agent_list_learning(public.workspace_today('agp') - 45, public.workspace_today('agp')) -> 'entries' -> 7 ->> 'id', 'l6', 'oldest last');
+select is(jsonb_array_length(public.agent_list_learning(public.workspace_today('agp') - 45, public.workspace_today('agp')) -> 'totals'), 6, 'six kind and unit totals');
+select is(jsonb_array_length(public.agent_list_learning(public.workspace_today('agp') - 1, public.workspace_today('agp') - 1) -> 'entries'), 1, 'one day: from and until are inclusive');
+select is(jsonb_array_length(public.agent_list_learning(public.workspace_today('agp') - 5) -> 'entries'), 4, 'only from: until is today (l1, l2, library, l3)');
+select is(public.agent_list_learning(null, public.workspace_today('agp') - 10) ->> 'from', (public.workspace_today('agp') - 39)::text, 'only until: from is 29 days before it');
+select is(public.agent_list_learning(null, public.workspace_today('agp') - 10) -> 'entries' -> 0 ->> 'id', 'l4', 'and newest first within it');
+select is(public.agent_list_learning(public.workspace_today('agp') + 5) ->> 'until', (public.workspace_today('agp') + 5)::text, 'a window in the future is allowed, and empty');
+select is(public.agent_list_learning(public.workspace_today('agp') + 5) -> 'entries', '[]'::jsonb, 'no entries');
+select is(public.agent_list_learning(public.workspace_today('agp') + 5) -> 'totals', '[]'::jsonb, 'no totals');
+select is(public.agent_list_learning(public.workspace_today('agp'), public.workspace_today('agp') - 1) ->> 'error', 'until must not be before from.', 'until before from is refused');
+select is(public.agent_list_learning(public.workspace_today('agp') - 400, public.workspace_today('agp')) ->> 'error', 'the window can be at most 367 days.', 'a window over 367 days is refused');
 select is(public.agent_list_learning(date '1999-01-01', date '1999-02-01') ->> 'error', 'from and until must be dates between 2000-01-01 and 2100-01-01.', 'a date before 2000');
 select is(pg_temp.last_result(2), 'refused: from and until must be dates between 2000-01-01 and 2100-01-01.', 'refusals are audited');
 select pg_temp.as_connector(3, 4);
