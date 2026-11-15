@@ -74,6 +74,13 @@ describe("activity entries", () => {
     expect(toolLabel("update_my_profile")).toBe("Changed own profile");
     expect(toolLabel("log_learning")).toBe("Logged learning");
     expect(toolLabel("list_learning")).toBe("Listed learning");
+    expect(toolLabel("list_cards")).toBe("Listed cards");
+    expect(toolLabel("get_card")).toBe("Looked up a card");
+    expect(toolLabel("list_card_tasks")).toBe("Listed card tasks");
+    expect(toolLabel("add_card_task")).toBe("Added a card task");
+    expect(toolLabel("update_card_task")).toBe("Changed a card task");
+    expect(toolLabel("complete_card_task")).toBe("Ticked a card task");
+    expect(toolLabel("add_card_note")).toBe("Added a card note");
     expect(toolLabel("send_carrier_pigeon")).toBe("send_carrier_pigeon");
     // A name that is an Object.prototype key is not "known".
     expect(toolLabel("constructor")).toBe("constructor");

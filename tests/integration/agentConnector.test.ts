@@ -153,6 +153,13 @@ describe("an ordinary signed-in session", () => {
       ["agent_list_upcoming_events", {}],
       ["agent_export_events_ics", {}],
       ["agent_set_event_answer", { p_event_id: "x", p_answer: "yes" }],
+      ["agent_list_cards", {}],
+      ["agent_get_card", { p_person_id: "x" }],
+      ["agent_list_card_tasks", {}],
+      ["agent_add_card_task", { p_person_id: "x", p_title: "Sneaky" }],
+      ["agent_update_card_task", { p_task_id: "x", p_patch: { title: "n" } }],
+      ["agent_complete_card_task", { p_task_id: "x" }],
+      ["agent_add_card_note", { p_person_id: "x", p_body: "Sneaky" }],
     ] as const) {
       const { error } = await jamal.rpc(fn, args);
       expect(error?.code, fn).toBe("42501");
@@ -543,6 +550,145 @@ describe("pairing and the tools", () => {
     expect(rows[2].result).toBe("refused: read-only connection");
     expect(rows[3].result).toBe("refused: read-only connection");
     expect(rows[4].result).toMatch(/ rows$/);
+  });
+
+  it("adds, lists, ticks and notes card tasks as Jamal, on his own prospect, and a read connection only reads", async () => {
+    const { key, id } = await connect("write", "Card agent");
+    const added = await (
+      await post("/tools/add_prospect", { name: "Card Integration Prospect" }, key)
+    ).json();
+    addedPeople.push(added.result.id);
+    const cards = () =>
+      count(
+        "select count(*)::int as n from public.card_tasks where person_id = $1",
+        added.result.id,
+      );
+    const notes = () =>
+      count(
+        "select count(*)::int as n from public.card_notes where person_id = $1",
+        added.result.id,
+      );
+    expect(await cards()).toBe(0);
+
+    // one read tool and one write tool, counts before and after
+    const task = await (
+      await post(
+        "/tools/add_card_task",
+        {
+          person_id: added.result.id,
+          title: "Text to confirm",
+          due_date: "2026-11-19",
+          due_time: "09:00",
+        },
+        key,
+      )
+    ).json();
+    expect(task.ok).toBe(true);
+    expect(await cards()).toBe(1);
+    expect(task.result.task).toMatchObject({
+      summary: "Text to confirm",
+      status: "NEEDS-ACTION",
+      due: "2026-11-19T09:00:00",
+    });
+    expect(typeof task.result.task.timezone).toBe("string");
+    expect(task.result).toMatchObject({
+      tasks_total: 1,
+      tasks_done: 0,
+      next_due: "2026-11-19T09:00:00",
+    });
+
+    const listed = (
+      await (
+        await post("/tools/list_card_tasks", { person_id: added.result.id, status: "all" }, key)
+      ).json()
+    ).result;
+    expect(listed.total).toBe(1);
+    expect(listed.tasks[0].id).toBe(task.result.task.id);
+
+    const ticked = (
+      await (await post("/tools/complete_card_task", { task_id: task.result.task.id }, key)).json()
+    ).result;
+    expect(ticked.task.status).toBe("COMPLETED");
+    expect(ticked.tasks_done).toBe(1);
+    expect(await cards()).toBe(1);
+
+    const note = await (
+      await post(
+        "/tools/add_card_note",
+        { person_id: added.result.id, body: "Called, will confirm" },
+        key,
+      )
+    ).json();
+    expect(note.result.notes_count).toBe(1);
+    expect(await notes()).toBe(1);
+    const card = (await (await post("/tools/get_card", { person_id: added.result.id }, key)).json())
+      .result;
+    expect(card.notes).toHaveLength(1);
+    expect(card.tasks).toHaveLength(1);
+    expect(Object.keys(card)).not.toContain("next_column");
+
+    // refused in words, and nothing changes: a patch key outside the list, a time with no date
+    const bad = await post(
+      "/tools/update_card_task",
+      { task_id: ticked.task.id, done: false },
+      key,
+    );
+    expect(bad.status).toBe(400);
+    expect((await bad.json()).error).toContain("done: not a field of update_card_task");
+    const noDate = await post(
+      "/tools/update_card_task",
+      { task_id: ticked.task.id, due_date: null },
+      key,
+    );
+    expect(noDate.status).toBe(422);
+    expect(await cards()).toBe(1);
+
+    // Jamal sees the same task through his own session (the Data API and the tools follow one rule)
+    const mine = await jamal
+      .from("card_tasks")
+      .select("id, title, done")
+      .eq("person_id", added.result.id);
+    expect(mine.data).toEqual([{ id: task.result.task.id, title: "Text to confirm", done: true }]);
+    expect(
+      (await jamal.from("card_tasks").delete().eq("id", task.result.task.id)).error,
+    ).toBeNull();
+    expect(await cards()).toBe(0);
+
+    // a read connection reads, and every write tool is refused
+    const reader = await connect("read", "Card reader");
+    expect((await post("/tools/list_cards", {}, reader.key)).status).toBe(200);
+    for (const [name, args] of [
+      ["add_card_task", { person_id: added.result.id, title: "No" }],
+      ["add_card_note", { person_id: added.result.id, body: "No" }],
+      ["complete_card_task", { task_id: "x" }],
+      ["update_card_task", { task_id: "x", title: "No" }],
+    ] as const)
+      expect((await post(`/tools/${name}`, args, reader.key)).status, name).toBe(403);
+    expect(await cards()).toBe(0);
+    expect(await notes()).toBe(1);
+
+    // one audit row per call; a card tool records the card's person where add_prospect records its prospect
+    const rows = await admin.unsafe(
+      "select tool, new_values ->> 'name' as name from public.agent_audit where connection_id = $1 order by id",
+      [id],
+    );
+    expect(rows.map((r) => r.tool)).toEqual([
+      "add_prospect",
+      "add_card_task",
+      "list_card_tasks",
+      "complete_card_task",
+      "add_card_note",
+      "get_card",
+      "update_card_task",
+      "update_card_task",
+    ]);
+    expect(rows[1].name).toBe("Card Integration Prospect");
+    expect(
+      await count(
+        "select count(*)::int as n from public.agent_audit where connection_id = $1",
+        reader.id,
+      ),
+    ).toBe(5);
   });
 
   it("is cut off on the next call when the person revokes it, and when the team switches agents off", async () => {
