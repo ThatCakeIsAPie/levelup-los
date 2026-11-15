@@ -4,9 +4,10 @@
  * (the same rules as the database's `convert_card_followups()`, migration 20261109000100).
  *
  * `convertLegacyCards` is pure. The pipeline stores call it while they load (they own the cards)
- * and hand the result to the card tasks store through `stashLegacy`; the old fields are dropped
- * from the cards, so a second load finds nothing left to convert.
+ * and put the result into the card tasks store with `saveConverted`; the old fields are dropped
+ * from the cards (and written back at once), so a second load finds nothing left to convert.
  */
+import { useCardTasksStore } from "./store";
 import type { CardBoard, CardNote, CardRef, CardTask } from "./types";
 
 /** What an old card carried. */
@@ -118,31 +119,11 @@ export function convertLegacyCards<C extends object>(
   return { cards: out, tasks, notes, found };
 }
 
-// ---------------------------------------------------------------------------
-// The hand-over from the pipeline stores to the card tasks store
-// ---------------------------------------------------------------------------
-
-const pending: { found: boolean; tasks: CardTask[]; notes: CardNote[] } = {
-  found: false,
-  tasks: [],
-  notes: [],
-};
-
-/** Called by a pipeline store when it converted saved cards. */
-export function stashLegacy(c: { found: boolean; tasks: CardTask[]; notes: CardNote[] }): void {
-  pending.found ||= c.found;
-  pending.tasks.push(...c.tasks);
-  pending.notes.push(...c.notes);
-}
-
-/** Whether saved cards of the old shape were found (without taking what they made). */
-export const legacyFound = (): boolean => pending.found;
-
-/** What the stores' load made, handed over once. */
-export function takeLegacy(): { found: boolean; tasks: CardTask[]; notes: CardNote[] } {
-  const out = { found: pending.found, tasks: [...pending.tasks], notes: [...pending.notes] };
-  pending.found = false;
-  pending.tasks = [];
-  pending.notes = [];
-  return out;
+/** Put what a conversion made into the card tasks store (called while a pipeline store loads). */
+export function saveConverted(c: { tasks: CardTask[]; notes: CardNote[] }): void {
+  if (!c.tasks.length && !c.notes.length) return;
+  useCardTasksStore.setState((s) => ({
+    tasks: [...s.tasks, ...c.tasks.filter((t) => !s.tasks.some((x) => x.id === t.id))],
+    notes: [...s.notes, ...c.notes.filter((n) => !s.notes.some((x) => x.id === n.id))],
+  }));
 }

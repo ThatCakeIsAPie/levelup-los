@@ -178,6 +178,23 @@ describe("customer pipeline row mappers", () => {
   });
 });
 
+describe("card rows leave the removed booking and note alone", () => {
+  const GONE = ["next_column", "next_step_date", "next_step_time", "note"];
+
+  it("never carry a booking column or the card's note, so a card update cannot overwrite them", async () => {
+    const { seedCustomerPipeline } = await import("@/data/customerPipeline/seed");
+    const { seedPipeline } = await import("@/data/pipeline/seed");
+    const people = seedPeople();
+    const cards = seedPipeline(people).cards;
+    const customerCards = seedCustomerPipeline(people).cards;
+    expect(cards.length).toBeGreaterThan(0);
+    expect(customerCards.length).toBeGreaterThan(0);
+    for (const c of cards) for (const k of GONE) expect(k in m.cardToRow(c)).toBe(false);
+    for (const c of customerCards)
+      for (const k of GONE) expect(k in m.customerCardToRow(c)).toBe(false);
+  });
+});
+
 describe("weekly goal row mappers", () => {
   const legacyRow = {
     person_id: "2",

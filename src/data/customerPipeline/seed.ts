@@ -375,10 +375,6 @@ function buildCustomerSeed(
       entryId: id,
       column,
       enteredAt,
-      nextColumn: next ?? null,
-      nextStepDate: next && nextIn !== undefined ? localDate(addDays(now, nextIn)) : null,
-      nextStepTime: (next && TIMES[name]) || null,
-      note: note ?? null,
       updatedAt: enteredAt,
     });
     const col = next ? columnsOf(ownerId).find((c) => c.id === next) : undefined;

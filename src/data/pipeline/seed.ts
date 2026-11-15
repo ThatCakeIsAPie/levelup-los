@@ -269,10 +269,6 @@ function buildPipelineSeed(
       personId: person.id,
       column: referral ? REFERRAL_SOURCE : cols[idx].id,
       enteredAt,
-      nextColumn: nextCol?.id ?? null,
-      nextStepDate: nextCol && pl.next ? localDate(addDays(now, pl.next.inDays)) : null,
-      nextStepTime: (nextCol && pl.next?.time) || null,
-      note: pl.note ?? null,
       rating: pl.rating ?? null,
       source: pl.source ?? null,
       droppedAt: null,
@@ -432,7 +428,6 @@ function buildPipelineSeed(
       settings: seedSettings(),
       shares: seedShares(),
       requests: seedRequests(),
-      cancellations: [],
     },
     followups,
   };

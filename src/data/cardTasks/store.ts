@@ -28,11 +28,17 @@ function fresh(): CardTasksData {
   return IS_SUPABASE ? emptyCardTasks() : seedCardTasks(seedPeople());
 }
 
-/** Saved demo data exists, so the seed needn't be built. */
+/**
+ * Saved demo data exists, so the seed needn't be built: this store's own, or the pipeline boards'
+ * (a visitor whose boards were saved before tasks and notes existed keeps their own cards, and
+ * their booked steps and notes are converted into tasks and notes as the boards load, see legacy.ts).
+ */
 const hasSaved = (() => {
   if (IS_SUPABASE) return false;
   try {
-    return localStorage.getItem(CARD_TASKS_STORAGE_KEY) !== null;
+    return [CARD_TASKS_STORAGE_KEY, storageKey("pipeline"), storageKey("customerPipeline")].some(
+      (k) => localStorage.getItem(k) !== null,
+    );
   } catch {
     return false;
   }

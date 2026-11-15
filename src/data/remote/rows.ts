@@ -69,7 +69,6 @@ import type {
   Speaker,
 } from "@/data/library/types";
 import type {
-  CancelReason,
   MilestoneCode,
   PipelineCard,
   PipelineMove,
@@ -77,7 +76,6 @@ import type {
   StatRequest,
   StatShare,
   StepBand,
-  StepCancellation,
   StepHide,
   TeamSetting,
 } from "@/data/pipeline/types";
@@ -1188,10 +1186,6 @@ export function cardFromRow(r: R<"pipeline_cards">): PipelineCard {
     personId: r.person_id!,
     column: r.column_id ?? "contact",
     enteredAt: isoOr(r.entered_at),
-    nextColumn: r.next_column ?? null,
-    nextStepDate: r.next_step_date ?? null,
-    nextStepTime: hhmm(r.next_step_time),
-    note: r.note ?? null,
     rating: asRating(r.rating) ?? (r.hot ? "hot" : null),
     source: r.source ?? null,
     droppedAt: iso(r.dropped_at),
@@ -1205,10 +1199,6 @@ export function cardToRow(c: PipelineCard): Row {
     person_id: c.personId,
     column_id: c.column,
     entered_at: iso(c.enteredAt),
-    next_column: c.nextColumn,
-    next_step_date: c.nextStepDate,
-    next_step_time: c.nextStepTime,
-    note: c.note,
     rating: c.rating,
     // Kept in step with the rating (the move RPC and older clients use it).
     hot: c.rating === "hot",
@@ -1245,39 +1235,6 @@ export function moveToRow(m: PipelineMove): Row {
 
 /** Postgres `time` ("19:00:00") as the app keeps it ("19:00"). */
 export const hhmm = (v: string | null | undefined): string | null => (v ? v.slice(0, 5) : null);
-
-export function stepCancellationFromRow(r: R<"pipeline_step_cancellations">): StepCancellation {
-  return {
-    id: r.id!,
-    board: r.board === "customer" ? "customer" : "recruiting",
-    cardId: r.card_id!,
-    ownerId: r.owner_id ?? "",
-    column: r.column_id!,
-    bookedDate: r.booked_date ?? null,
-    bookedTime: hhmm(r.booked_time),
-    reason: r.reason as CancelReason,
-    reasonText: r.reason_text ?? null,
-    cancelledAt: isoOr(r.cancelled_at),
-    cancelledBy: r.cancelled_by ?? "",
-  };
-}
-
-export function stepCancellationToRow(c: StepCancellation): Row {
-  return {
-    id: c.id,
-    board: c.board,
-    card_id: c.cardId,
-    owner_id: c.ownerId || null,
-    column_id: c.column,
-    booked_date: c.bookedDate,
-    booked_time: c.bookedTime,
-    reason: c.reason,
-    reason_text: c.reasonText,
-    cancelled_at: iso(c.cancelledAt),
-    cancelled_by: c.cancelledBy || null,
-  };
-}
-
 export function teamSettingFromRow(r: R<"pipeline_team_settings">): TeamSetting {
   const t1 = r.target_contact_to_meeting;
   return {
@@ -1426,10 +1383,6 @@ export function customerCardFromRow(r: R<"customer_cards">): CustomerCard {
     entryId: r.entry_id!,
     column: r.column_id ?? "not_contacted",
     enteredAt: isoOr(r.entered_at),
-    nextColumn: r.next_column ?? null,
-    nextStepDate: r.next_step_date ?? null,
-    nextStepTime: hhmm(r.next_step_time),
-    note: r.note ?? null,
     updatedAt: isoOr(r.updated_at),
   };
 }
@@ -1440,10 +1393,6 @@ export function customerCardToRow(c: CustomerCard): Row {
     entry_id: c.entryId,
     column_id: c.column,
     entered_at: iso(c.enteredAt),
-    next_column: c.nextColumn,
-    next_step_date: c.nextStepDate,
-    next_step_time: c.nextStepTime,
-    note: c.note,
   };
 }
 

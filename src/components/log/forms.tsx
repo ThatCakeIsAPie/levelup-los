@@ -85,7 +85,7 @@ import { useCanShareWins } from "./canShareWins";
 import { BoardMoveField, BoardNote } from "./PipelineMoveField";
 import { TitleCombobox } from "./TitleCombobox";
 import { libraryTitles, mergeTitles, pastTitles, resolveTitle } from "./titleSuggestions";
-import { boardTarget, meetingBooking, movesToPlan } from "./pipelineMove";
+import { boardTarget, movesToPlan } from "./pipelineMove";
 
 import { sensitive } from "@/lib/sensitive";
 // ---------------------------------------------------------------------------
@@ -813,12 +813,11 @@ export function RecruitTouchForm({ kind }: { kind: RecruitTouch }) {
     });
     const name = options.find((p) => p.id === personId)?.name ?? "";
     const target = kind === "meeting" ? boardTarget(board, boardPick) : null;
-    const booking = target ? meetingBooking(board, target, meetingDate) : null;
     const moved =
       kind === "plan"
         ? recordShowedPlan(personId)
         : target
-          ? movePipelineCard(personId, target, booking ? { booking } : {})
+          ? movePipelineCard(personId, target)
           : null;
     finish({
       message: `${label} with ${name} logged`,

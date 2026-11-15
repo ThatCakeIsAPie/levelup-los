@@ -1,8 +1,6 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import {
-  CalendarClock,
-  CalendarDays,
   Check,
   ArrowUpRight,
   CircleCheck,
@@ -35,27 +33,19 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { quickCheckIn, toastWithUndo } from "@/components/log/quickLog";
 import {
-  bookingLabel,
   effectiveBizClass,
   removeContact,
   setTaskDone,
   openLog,
-  rescheduleBookedStep,
-  rescheduleChoices,
   setContactSettings,
   useAttendancesForEvent,
   useCategoryOf,
   useContactSettings,
   useCurrentUser,
-  useCustomerColumns,
-  usePipelineColumns,
   withTime,
 } from "@/data";
 import { MissedNoteDialog } from "@/modules/events/MissedNoteDialog";
-import { useMoveCard } from "@/modules/pipeline/useMoveCard";
-import { useCustomerMove } from "@/modules/customers/useCustomerMove";
-import { CancelStepDialog } from "@/modules/pipeline/CancelStepDialog";
-import { timeText, whenText } from "@/modules/pipeline/format";
+import { timeText } from "@/modules/pipeline/format";
 import { AddAttendeeDialog } from "@/modules/events/AddAttendeeDialog";
 import { ReferralTodayRow } from "@/modules/pipeline/Referrals";
 import { requestOpenCard } from "@/modules/pipeline/openCard";
@@ -100,13 +90,11 @@ const ICON: Record<TodayItem["kind"], { icon: typeof Ticket; tone: IconTone }> =
   team: { icon: MessageCircle, tone: "primary" },
   prospect: { icon: MessageCircle, tone: "primary" },
   missed: { icon: UserX, tone: "warn" },
-  step: { icon: CalendarClock, tone: "primary" },
   task: { icon: ListChecks, tone: "primary" },
   invite: { icon: UserPlus, tone: "info" },
   referral: { icon: Users, tone: "info" },
 };
 
-type StepItem = Extract<TodayItem, { kind: "step" }>;
 type TaskItem = Extract<TodayItem, { kind: "task" }>;
 type InviteItem = Extract<TodayItem, { kind: "invite" }>;
 
@@ -176,18 +164,7 @@ export function TodayCard({
     toast.dismiss(d.toastId);
     forget(d.item.key);
   };
-  // "Done" on a booked step moves the card into the booked column through the
-  // boards' own movers (Registered and First sale ask first, the sale form
-  // opens, the move is recorded and the toast can undo it).
   const user = useCurrentUser();
-  const me = candidate ? undefined : user.personId;
-  const recruiting = useMoveCard(usePipelineColumns(me));
-  const customer = useCustomerMove(useCustomerColumns(me));
-  const accept = (item: StepItem) => {
-    const b = item.booking;
-    if (b.board === "customer") customer.move(b.cardId, b.name, b.column.id);
-    else recruiting.move(b.cardId, b.name, b.column.id);
-  };
 
   const invites = useInvitesOff(user.personId);
 
@@ -226,7 +203,6 @@ export function TodayCard({
         item={item}
         compact={compact}
         onCheckIn={checkIn}
-        onAccept={accept}
         onTick={tick}
         onPutOff={invites.putOff}
       />
@@ -264,7 +240,7 @@ export function TodayCard({
           body={
             candidate
               ? "Event follow-ups and ticket reminders show up here when they're due."
-              : "Check-ins, customer contacts, booked pipeline steps, event follow-ups and IBO anniversaries show up here when they're due."
+              : "Check-ins, customer contacts, card tasks, event follow-ups and IBO anniversaries show up here when they're due."
           }
         />
       ) : shown.length === 0 ? (
@@ -343,8 +319,6 @@ export function TodayCard({
           Show fewer
         </button>
       )}
-      {recruiting.dialog}
-      {customer.dialog}
     </section>
   );
 }
@@ -547,14 +521,12 @@ function TodayRow({
   item,
   compact,
   onCheckIn: checkIn,
-  onAccept,
   onTick,
   onPutOff,
 }: {
   item: TodayItem;
   compact: boolean;
   onCheckIn: (item: TodayItem) => void;
-  onAccept: (item: StepItem) => void;
   onTick: (item: TaskItem) => void;
   /** "Not now" on an invite suggestion. */
   onPutOff: (eventId: string) => void;
@@ -563,12 +535,10 @@ function TodayRow({
   let tone = ICON[item.kind].tone;
   const [noteOpen, setNoteOpen] = useState(false);
   const categoryOf = useCategoryOf();
-  const [cancelOpen, setCancelOpen] = useState(false);
   const p = item.person;
   const first = p.name.split(" ")[0];
   const stage =
-    item.kind === "customer" ||
-    ((item.kind === "step" || item.kind === "task") && item.filter === "customers")
+    item.kind === "customer" || (item.kind === "task" && item.filter === "customers")
       ? "customer"
       : effectiveBizClass(p);
   let title: ReactNode;
@@ -598,63 +568,6 @@ function TodayRow({
     );
 
   switch (item.kind) {
-    case "step": {
-      const b = item.booking;
-      const label = bookingLabel(b.column);
-      const when =
-        b.due === "today"
-          ? `today${b.time ? ` ${timeText(b.time)}` : ""}`
-          : `${plural(b.daysLate, "day")} overdue`;
-      if (b.due === "overdue") tone = "warn";
-      title = compact ? `${p.name} — ${label}` : `${p.name} — ${label} (${when})`;
-      detail = compact
-        ? when
-        : `${b.board === "customer" ? "Customer pipeline" : "Recruiting pipeline"} · moves to ${b.column.label}`;
-      action = (
-        <span className="flex items-center gap-1.5">
-          {compact ? (
-            <Button
-              size="icon"
-              variant="soft"
-              className="size-8"
-              aria-label={`Done: move ${p.name} to ${b.column.label}`}
-              onClick={() => onAccept(item)}
-            >
-              <Check />
-            </Button>
-          ) : (
-            <Button
-              size="sm"
-              variant="soft"
-              aria-label={`Done: move ${p.name} to ${b.column.label}`}
-              onClick={() => onAccept(item)}
-            >
-              <Check /> Done
-            </Button>
-          )}
-          <Reschedule item={item} label={label} />
-          <Button
-            size="icon"
-            variant="outline"
-            className="size-8"
-            aria-label={`Cancel ${label} with ${p.name}`}
-            title="Cancel"
-            onClick={() => setCancelOpen(true)}
-          >
-            <X />
-          </Button>
-          <CancelStepDialog
-            open={cancelOpen}
-            onOpenChange={setCancelOpen}
-            board={b.board}
-            cardId={b.cardId}
-            name={p.name}
-            stepLabel={label}
-          />
-        </span>
-      );
-      break;
-    }
     case "task": {
       const t = item.task;
       const when =
@@ -842,9 +755,7 @@ function TodayRow({
     );
   }
 
-  const boardRow =
-    (item.kind === "step" && item.booking.board === "customer") ||
-    (item.kind === "task" && item.task.board === "customer");
+  const boardRow = item.kind === "task" && item.task.board === "customer";
   return (
     <ActionRow
       icon={icon}
@@ -892,72 +803,6 @@ function taskLink(
   return item.task.board === "customer"
     ? { to: "/customers" }
     : { to: "/people/$id", params: { id: item.person.id } };
-}
-
-/** "Reschedule" a booked step: tomorrow, next week, or a day of your choice. */
-function Reschedule({ item, label }: { item: StepItem; label: string }) {
-  const b = item.booking;
-  const [open, setOpen] = useState(false);
-  const [day, setDay] = useState("");
-  const move = (date: string) => {
-    const r = rescheduleBookedStep(b.board, b.cardId, date);
-    if (!r.ok) {
-      toast.error(r.error);
-      return;
-    }
-    setOpen(false);
-    toastWithUndo(`${label} with ${b.name} moved to ${whenText(date, b.time)}`, r.undo, {
-      undoneMessage: "Back on the old day",
-    });
-  };
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          size="icon"
-          variant="outline"
-          className="size-8"
-          aria-label={`Reschedule ${label} with ${b.name}`}
-          title="Reschedule"
-        >
-          <CalendarDays />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent align="end" className="grid w-64 gap-2.5">
-        <p className="text-sm font-bold">Move {label} to…</p>
-        <div className="grid grid-cols-2 gap-2">
-          {rescheduleChoices().map((c) => (
-            <Button key={c.label} size="sm" variant="soft" onClick={() => move(c.date)}>
-              {c.label}
-            </Button>
-          ))}
-        </div>
-        <form
-          className="flex items-end gap-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (day) move(day);
-          }}
-        >
-          <div className="grid min-w-0 flex-1 gap-1">
-            <Label htmlFor={`resched-${b.board}-${b.cardId}`} className="text-[12px]">
-              Another day
-            </Label>
-            <Input
-              id={`resched-${b.board}-${b.cardId}`}
-              type="date"
-              className="h-8 min-w-0"
-              value={day}
-              onChange={(e) => setDay(e.target.value)}
-            />
-          </div>
-          <Button type="submit" size="sm" disabled={!day}>
-            Move
-          </Button>
-        </form>
-      </PopoverContent>
-    </Popover>
-  );
 }
 
 /**

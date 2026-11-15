@@ -46,7 +46,6 @@ import type {
   PipelineData,
   PipelineMove,
   PipelineStep,
-  StepCancellation,
   StatRequest,
   StatShare,
   StepHide,
@@ -954,11 +953,8 @@ export const pipelineBinding: Binding<PipeS> = {
             p_person_id: r.person_id as string,
             p_to: r.to_column as string,
             p_move_id: r.id as string,
-            // The booking the app worked out (kept, cleared or new); the
-            // database applies the same rule when none is sent.
-            p_next_column: card?.nextColumn ?? undefined,
-            p_next_step_date: card?.nextStepDate ?? undefined,
-            p_next_step_time: card?.nextStepTime ?? undefined,
+            // No booking is sent: the app no longer books next steps. A booking already
+            // stored on the card is kept or cleared by the database's own rule.
             p_source: card?.source ?? undefined,
             p_hot: card ? card.rating === "hot" : undefined,
             // A new card's rating comes back on the RPC's row (it's shown as is).
@@ -1042,17 +1038,6 @@ export const pipelineBinding: Binding<PipeS> = {
         if (data) queueMicrotask(() => applyRemote("stat_requests", [data as unknown as Row]));
       },
     }),
-    // Added (cancel) and removed (undo), never edited; the database writes the
-    // activity entry.
-    listSpec<PipeS, StepCancellation>({
-      table: "pipeline_step_cancellations",
-      pk: ["id"],
-      get: (s) => s.cancellations,
-      set: (cancellations) => ({ cancellations }),
-      toRow: m.stepCancellationToRow,
-      fromRow: m.stepCancellationFromRow,
-      update: false,
-    }),
     listSpec<PipeS, StatShare>({
       table: "stat_shares",
       pk: ["owner_id", "viewer_id"],
@@ -1124,17 +1109,11 @@ export const customerPipelineBinding: Binding<CustS> = {
           String(a.moved_at).localeCompare(String(b.moved_at)),
         );
         for (const r of sorted) {
-          const card = useCustomerPipelineStore
-            .getState()
-            .cards.find((x) => x.entryId === r.entry_id);
           const { data, error } = await c.client.rpc("move_customer_card", {
             p_entry_id: r.entry_id as string,
             p_to: r.to_column as string,
             p_move_id: r.id as string,
             p_customer_id: (r.created_customer_id as string | null) ?? undefined,
-            p_next_column: card?.nextColumn ?? undefined,
-            p_next_step_date: card?.nextStepDate ?? undefined,
-            p_next_step_time: card?.nextStepTime ?? undefined,
           });
           if (error) throw rpcError("move_customer_card", error);
           const out = (data ?? {}) as { move?: Row; card?: Row };

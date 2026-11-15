@@ -74,7 +74,6 @@ import {
 import { columnsFor } from "./rules";
 import { useBoardDef, useStageNames } from "../stageNames/hooks";
 import { ratingRank, type ContactRating } from "../rating";
-import { bookingOf, bookingView, type BookingView } from "./booking";
 import { useReferralIndex } from "../referrals/hooks";
 import { referralSourcesByStep } from "../referrals/rules";
 
@@ -225,10 +224,6 @@ export interface BoardCard {
   stale: boolean;
   /** Hot / Warm / Cold, or not rated. */
   rating: ContactRating | null;
-  /** The booked next step, named as the owner's board names it (null: nothing booked). */
-  booking: BookingView | null;
-  /** The card's note. */
-  note: string | null;
   source: string | null;
   enteredAt: string;
   /** Customer board: still on the list (not contacted yet), so no age. */
@@ -280,26 +275,12 @@ export function usePipelineBoard(scope: PipelineScope, month: string): PipelineB
   const data = usePipelineStore();
   const lastContact = useLastContactMap();
   const columns = usePipelineColumns(opt?.leaderId);
-  const uplines = useUplines();
   const refs = useReferralIndex();
-  const def = useBoardDef("recruiting");
   const today = localDate();
   return useMemo(() => {
     if (!opt) return null;
     const byId = new Map(people.map((p) => [p.id, p]));
     const colIds = new Set(columns.map((c) => c.id));
-    const ownerCols = new Map<string, PipelineColumn[]>();
-    const boardOf = (ownerId: string) => {
-      let c = ownerCols.get(ownerId);
-      if (!c) {
-        c =
-          ownerId === opt.leaderId
-            ? columns
-            : columnsFor(chainOf(people, ownerId, uplines), data.steps, data.hides, def);
-        ownerCols.set(ownerId, c);
-      }
-      return c;
-    };
     const stepById = new Map(data.steps.map((s) => [s.id, s]));
     const owner = (p: CrmPerson) => (p.sponsorId ? byId.get(p.sponsorId) : undefined);
     const prospects = people.filter(
@@ -328,8 +309,6 @@ export function usePipelineBoard(scope: PipelineScope, month: string): PipelineB
         stale: isMilestoneBand(band) && isStale(card.enteredAt, lastContact.get(person.id), today),
         rating: card.rating,
         dim: band === "out" && card.column !== REFERRAL_SOURCE,
-        booking: bookingView(bookingOf(card), boardOf(person.sponsorId!), today),
-        note: card.note,
         source: card.source,
         enteredAt: card.enteredAt,
         referredBy: refs.referrerOf({ kind: "person", id: person.id })?.name ?? null,
@@ -389,7 +368,7 @@ export function usePipelineBoard(scope: PipelineScope, month: string): PipelineB
       registered: { cards: regCards, total: regReaches.length },
       inProgress,
     };
-  }, [opt, people, ids, data, lastContact, columns, month, today, uplines, refs, def]);
+  }, [opt, people, ids, data, lastContact, columns, month, today, refs]);
 }
 
 // ---------------------------------------------------------------------------
@@ -711,10 +690,6 @@ export interface ProspectPipeline {
   }[];
   /** The viewer's board columns (for "Move to…"). */
   columns: PipelineColumn[];
-  /** The booked next step, as the owner's board names it. */
-  booking: BookingView | null;
-  /** The owner's board (what a booking may pick from). */
-  ownerColumns: PipelineColumn[];
   ownerId: string | null;
 }
 
@@ -776,20 +751,9 @@ export function useProspectPipeline(personId: string | undefined): ProspectPipel
         by: name(m.movedBy),
       })),
       columns,
-      ...(() => {
-        const ownerId = person.sponsorId ?? null;
-        const ownerColumns =
-          !ownerId || ownerId === viewer.personId
-            ? columns
-            : columnsFor(chainOf(people, ownerId, uplines), data.steps, data.hides, def);
-        return {
-          ownerId,
-          ownerColumns,
-          booking: card ? bookingView(bookingOf(card), ownerColumns, today) : null,
-        };
-      })(),
+      ownerId: person.sponsorId ?? null,
     };
-  }, [viewer, personId, ids, people, data, columns, lastContact, today, name, uplines, def]);
+  }, [viewer, personId, ids, people, data, columns, lastContact, today, name]);
 }
 
 // ---------------------------------------------------------------------------

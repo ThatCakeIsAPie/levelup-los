@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { format } from "date-fns";
-import { ClockAlert, MoveRight, StickyNote, Undo2 } from "lucide-react";
+import { ClockAlert, MoveRight, Undo2 } from "lucide-react";
 import { RatingChip, SectionCard, ToneChip, Sensitive } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,7 +15,6 @@ import {
 import { MoveMenu } from "@/modules/pipeline/moveCard";
 import { useMoveCard } from "@/modules/pipeline/useMoveCard";
 import { ageLong } from "@/modules/pipeline/format";
-import { BookedStep } from "@/modules/pipeline/BookedStep";
 import { CardFollowups } from "@/modules/pipeline/CardFollowups";
 import { CardMeta } from "@/modules/pipeline/CardMeta";
 
@@ -63,22 +62,6 @@ export function PipelineCard({ person }: { person: CrmPerson }) {
             {p.days === 0 ? "Moved here today" : `Here for ${ageLong(p.days)}`}
           </span>
           <CardMeta summary={summary} ownerId={person.sponsorId ?? null} />
-          {p.booking && (
-            <BookedStep
-              board="recruiting"
-              cardId={person.id}
-              name={person.name}
-              booking={p.booking}
-            />
-          )}
-          {p.card?.note && (
-            <p className="flex items-start gap-1.5 whitespace-pre-line text-[12.5px] text-muted-foreground">
-              <StickyNote className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-              <span className="min-w-0">
-                <Sensitive kind="note">{p.card.note}</Sensitive>
-              </span>
-            </p>
-          )}
           <MoveMenu
             columns={p.columns}
             current={p.column.id}

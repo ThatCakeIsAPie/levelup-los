@@ -4,8 +4,7 @@
  *
  *  - check-ins and contacts you logged (`Contact.byId`, by hand)
  *  - sales you logged (whose PV it is: you), learning you logged
- *  - recruiting and customer pipeline moves you made (`movedBy`), booked steps
- *    you cancelled (`StepCancellation.cancelledBy`)
+ *  - recruiting and customer pipeline moves you made (`movedBy`)
  *  - names you added to a list (`ListEntry.addedBy`), "already handled" notes
  *  - the activity timeline's entries by you ("You"): people added, removed or
  *    edited, events created, people added to events, tickets, attendance,
@@ -37,8 +36,7 @@ import { useStageNames } from "./stageNames/hooks";
 import { defaultStageNames, type StageNames } from "./stageNames/names";
 import { usePipelineStore } from "./pipeline/store";
 import { usePipelineColumns } from "./pipeline/hooks";
-import { bookingLabel, cancelSummary } from "./pipeline/booking";
-import type { PipelineColumn, PipelineMove, StepCancellation } from "./pipeline/types";
+import type { PipelineColumn, PipelineMove } from "./pipeline/types";
 import { saleSellerId } from "./growth/engine";
 import { useViewer } from "./session";
 
@@ -48,7 +46,6 @@ export type MyDayKind =
   | "learning"
   | "pipeline"
   | "customer_pipeline"
-  | "step"
   | "list"
   | "person"
   | "event"
@@ -79,7 +76,6 @@ export interface MyDayInput {
   sales: readonly Sale[];
   learning: readonly Learning[];
   pipelineMoves: readonly PipelineMove[];
-  cancellations: readonly StepCancellation[];
   customerMoves: readonly CustomerMove[];
   entries: readonly ListEntry[];
   missedNotes: readonly MissedEventNote[];
@@ -201,24 +197,6 @@ export function myDayItems(input: MyDayInput): MyDayItem[] {
     });
   }
 
-  // Booked steps you cancelled.
-  for (const c of input.cancellations) {
-    if (c.cancelledBy !== me || !isToday(c.cancelledAt)) continue;
-    const name =
-      c.board === "customer"
-        ? (entries.get(c.cardId)?.name ?? "a name on your list")
-        : nameOf(c.cardId, "a prospect");
-    const col = (c.board === "customer" ? customerCols : recruitingCols).get(c.column);
-    const step = col ? bookingLabel(col) : "Next step";
-    push({
-      id: `cancel:${c.id}`,
-      kind: "step",
-      text: `${name}: ${cancelSummary(step, c.reason, c.reasonText)}`,
-      at: c.cancelledAt,
-      personId: c.board === "recruiting" ? c.cardId : undefined,
-    });
-  }
-
   // Names you added to a list (yours or a downline's).
   for (const e of input.entries) {
     if (e.addedBy !== me || !isToday(e.createdAt)) continue;
@@ -330,7 +308,7 @@ function fromActivity(
         personId,
       };
     case "note":
-      // Cancelled steps come from the cancellations themselves.
+      // A cancelled booked step (a removed feature's entry) is not shown.
       if (a.meta?.cancellationId) return null;
       return { kind: "note", text: a.summary, personId };
   }
@@ -348,7 +326,6 @@ export function useMyDay(): MyDayItem[] {
   const sales = useCrmStore((s) => s.sales);
   const learning = useCrmStore((s) => s.learning);
   const pipelineMoves = usePipelineStore((s) => s.moves);
-  const cancellations = usePipelineStore((s) => s.cancellations);
   const customerMoves = useCustomerPipelineStore((s) => s.moves);
   const entries = useCustomerPipelineStore((s) => s.entries);
   const missedNotes = useAttendanceStore((s) => s.missedNotes);
@@ -371,7 +348,6 @@ export function useMyDay(): MyDayItem[] {
             sales,
             learning,
             pipelineMoves,
-            cancellations,
             customerMoves,
             entries,
             missedNotes,
@@ -391,7 +367,6 @@ export function useMyDay(): MyDayItem[] {
       sales,
       learning,
       pipelineMoves,
-      cancellations,
       customerMoves,
       entries,
       missedNotes,

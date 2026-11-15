@@ -139,8 +139,6 @@ export const TABLE_ORDER = [
   // Tasks and notes on both boards' cards (after the people and list names they belong to).
   "card_tasks",
   "card_notes",
-  // Cancelled next steps (after the cards whose booking they clear).
-  "pipeline_step_cancellations",
   // Team settings (after the people a deputy row names).
   "deputies",
   "feature_switches",

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { seedPeople } from "@/data/seed";
 import { seedPipeline } from "../pipeline/seed";
 import { seedCustomerPipeline } from "../customerPipeline/seed";
+import { dueTasksFor } from "./rules";
 import { seedCardTasks } from "./seed";
 
 const NOW = new Date("2026-11-14T18:00:00Z");
@@ -59,5 +60,21 @@ describe("the card tasks demo seed", () => {
     for (const n of data.notes)
       perCard.set(n.personId ?? n.entryId!, (perCard.get(n.personId ?? n.entryId!) ?? 0) + 1);
     expect([...perCard.values()].some((c) => c > 1)).toBe(true);
+  });
+
+  it("gives Maria, Anita, Jamal and Tasha tasks due today or overdue on their own cards", () => {
+    const cards = new Map<string, { ownerId: string; name: string; customerId?: string | null }>();
+    for (const c of pipeline.cards) {
+      const p = people.find((x) => x.id === c.personId);
+      if (p?.sponsorId) cards.set(`recruiting:${p.id}`, { ownerId: p.sponsorId, name: p.name });
+    }
+    for (const e of lists.entries)
+      cards.set(`customer:${e.id}`, { ownerId: e.ownerId, name: e.name });
+    for (const me of ["1", "2", "4", "700"]) {
+      const due = dueTasksFor(data.tasks, me, cards, { now: NOW, timeZone: "UTC" }).filter(
+        (t) => cards.get(`${t.board}:${t.cardId}`)?.ownerId === me,
+      );
+      expect(due.length, me).toBeGreaterThan(0);
+    }
   });
 });
