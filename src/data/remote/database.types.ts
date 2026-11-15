@@ -674,6 +674,164 @@ export type Database = {
           },
         ];
       };
+      card_notes: {
+        Row: {
+          author_id: string | null;
+          body: string;
+          created_at: string;
+          entry_id: string | null;
+          id: string;
+          person_id: string | null;
+          workspace_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          author_id?: string | null;
+          body: string;
+          created_at?: string;
+          entry_id?: string | null;
+          id?: string;
+          person_id?: string | null;
+          workspace_id?: string;
+        };
+        Update: {
+          author_id?: string | null;
+          body?: string;
+          created_at?: string;
+          entry_id?: string | null;
+          id?: string;
+          person_id?: string | null;
+          workspace_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "card_notes_author_id_fkey";
+            columns: ["author_id"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "card_notes_entry_id_fkey";
+            columns: ["entry_id"];
+            isOneToOne: false;
+            referencedRelation: "list_entries";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "card_notes_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "card_notes_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      card_tasks: {
+        Row: {
+          assignee_id: string | null;
+          created_at: string;
+          created_by: string | null;
+          done: boolean;
+          done_at: string | null;
+          done_by: string | null;
+          due_date: string | null;
+          due_time: string | null;
+          entry_id: string | null;
+          id: string;
+          person_id: string | null;
+          position: number;
+          title: string;
+          updated_at: string;
+          workspace_id: string;
+        };
+        ComputedFields: never;
+        Insert: {
+          assignee_id?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          done?: boolean;
+          done_at?: string | null;
+          done_by?: string | null;
+          due_date?: string | null;
+          due_time?: string | null;
+          entry_id?: string | null;
+          id?: string;
+          person_id?: string | null;
+          position?: number;
+          title: string;
+          updated_at?: string;
+          workspace_id?: string;
+        };
+        Update: {
+          assignee_id?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          done?: boolean;
+          done_at?: string | null;
+          done_by?: string | null;
+          due_date?: string | null;
+          due_time?: string | null;
+          entry_id?: string | null;
+          id?: string;
+          person_id?: string | null;
+          position?: number;
+          title?: string;
+          updated_at?: string;
+          workspace_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "card_tasks_assignee_id_fkey";
+            columns: ["assignee_id"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "card_tasks_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "card_tasks_done_by_fkey";
+            columns: ["done_by"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "card_tasks_entry_id_fkey";
+            columns: ["entry_id"];
+            isOneToOne: false;
+            referencedRelation: "list_entries";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "card_tasks_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: false;
+            referencedRelation: "people";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "card_tasks_workspace_id_fkey";
+            columns: ["workspace_id"];
+            isOneToOne: false;
+            referencedRelation: "workspaces";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       contact_settings: {
         Row: {
           customer_days: number;
@@ -4684,9 +4842,55 @@ export type Database = {
       accept_invite: { Args: { p_token: string }; Returns: string };
       acts_as_leader: { Args: Record<PropertyKey, never>; Returns: boolean };
       add_starting_event_categories: { Args: { p_workspace_id: string }; Returns: undefined };
+      agent_add_card_note: {
+        Args: { p_body: string; p_board?: string; p_person_id: string };
+        Returns: Json;
+      };
+      agent_add_card_task: {
+        Args: {
+          p_assignee_id?: string;
+          p_board?: string;
+          p_due_date?: string;
+          p_due_time?: string;
+          p_person_id: string;
+          p_title: string;
+        };
+        Returns: Json;
+      };
       agent_add_prospect: { Args: { p_name: string; p_phone?: string }; Returns: Json };
+      agent_complete_card_task: { Args: { p_done?: boolean; p_task_id: string }; Returns: Json };
       agent_export_events_ics: { Args: { p_from?: string; p_until?: string }; Returns: Json };
+      agent_get_card: { Args: { p_board?: string; p_person_id: string }; Returns: Json };
       agent_get_person: { Args: { p_id: string }; Returns: Json };
+      agent_list_card_tasks: {
+        Args: {
+          p_assigned?: string;
+          p_changed_since?: string;
+          p_due_from?: string;
+          p_due_until?: string;
+          p_limit?: number;
+          p_offset?: number;
+          p_overdue?: boolean;
+          p_person_id?: string;
+          p_status?: string;
+        };
+        Returns: Json;
+      };
+      agent_list_cards: {
+        Args: {
+          p_board?: string;
+          p_due_from?: string;
+          p_due_until?: string;
+          p_has_open_tasks?: boolean;
+          p_limit?: number;
+          p_mine_only?: boolean;
+          p_offset?: number;
+          p_overdue?: boolean;
+          p_person_id?: string;
+          p_search?: string;
+        };
+        Returns: Json;
+      };
       agent_list_customers: {
         Args: { p_limit?: number; p_mine_only?: boolean; p_offset?: number; p_search?: string };
         Returns: Json;
@@ -4715,6 +4919,7 @@ export type Database = {
         Returns: Json;
       };
       agent_set_event_answer: { Args: { p_answer: string; p_event_id: string }; Returns: Json };
+      agent_update_card_task: { Args: { p_patch: Json; p_task_id: string }; Returns: Json };
       agent_update_my_profile: { Args: { p_patch: Json }; Returns: Json };
       agent_update_prospect: { Args: { p_id: string; p_patch: Json }; Returns: Json };
       agent_whoami: { Args: Record<PropertyKey, never>; Returns: Json };
@@ -4766,6 +4971,12 @@ export type Database = {
       can_pin_conversation: { Args: { p_conversation_id: string }; Returns: boolean };
       can_invite_person: { Args: { p_person_id: string }; Returns: boolean };
       can_see_person: { Args: { p_person_id: string }; Returns: boolean };
+      card_entry_ids: { Args: Record<PropertyKey, never>; Returns: string[] };
+      card_notes_guard: { Args: Record<PropertyKey, never>; Returns: unknown };
+      card_owner: { Args: { p_entry_id: string; p_person_id: string }; Returns: string };
+      card_task_registered: { Args: { p_person_id: string }; Returns: boolean };
+      card_tasks_guard: { Args: Record<PropertyKey, never>; Returns: unknown };
+      card_upline_ids: { Args: Record<PropertyKey, never>; Returns: string[] };
       chat_eligible: { Args: { p_person_id: string }; Returns: boolean };
       conversation_kind: { Args: { p_conversation_id: string }; Returns: string };
       conversation_role: { Args: { p_conversation_id: string }; Returns: string };

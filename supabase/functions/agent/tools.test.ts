@@ -37,7 +37,15 @@ describe("the registry and the migrations agree", () => {
       const args = Object.fromEntries(
         Object.entries(t.properties).map(([k, f]) => [
           k,
-          f.enum ? f.enum[0] : f.type === "integer" ? 1 : f.type === "date" ? "2026-11-14" : "x",
+          f.enum
+            ? f.enum[0]
+            : f.type === "integer"
+              ? 1
+              : f.type === "date"
+                ? "2026-11-14"
+                : f.type === "time"
+                  ? "09:00"
+                  : "x",
         ]),
       );
       expect(t.params(args as never).length, t.name).toBe(used.size);
@@ -597,6 +605,233 @@ describe("validateArgs", () => {
     expect(t("list_team").description).toContain("list_prospects");
     expect(t("whoami").description).toContain("`can`");
     expect(t("whoami").description).toContain("`team_size`");
+    expect(t("whoami").description).toContain("`open_tasks`");
+  });
+
+  describe("card tasks and notes", () => {
+    const CARD = [
+      "list_cards",
+      "get_card",
+      "list_card_tasks",
+      "add_card_task",
+      "update_card_task",
+      "complete_card_task",
+      "add_card_note",
+    ];
+
+    it("has the seven tools, the first three reading and the rest writing", () => {
+      expect(CARD.map((n) => [n, t(n).write])).toEqual([
+        ["list_cards", false],
+        ["get_card", false],
+        ["list_card_tasks", false],
+        ["add_card_task", true],
+        ["update_card_task", true],
+        ["complete_card_task", true],
+        ["add_card_note", true],
+      ]);
+    });
+
+    it("says in every description what a card's tasks are called by others, and what the due date of a card is", () => {
+      for (const n of ["list_cards", "get_card", "add_card_task", "add_card_note"])
+        expect(t(n).description, n).toContain("follow-ups or to-dos");
+      for (const n of ["list_card_tasks", "add_card_task"])
+        expect(t(n).description, n).toContain("follow-up");
+      for (const n of ["list_cards", "get_card", "add_card_task", "add_card_note"])
+        expect(t(n).description, n).toContain("The card's due date is `next_due`");
+    });
+
+    it("names iCalendar VTODO for every tool that returns tasks", () => {
+      for (const n of [
+        "get_card",
+        "list_card_tasks",
+        "add_card_task",
+        "update_card_task",
+        "complete_card_task",
+      ]) {
+        const d = t(n).description;
+        for (const w of [
+          "iCalendar VTODO (RFC 5545)",
+          "NEEDS-ACTION",
+          "COMPLETED",
+          "uid",
+          "summary",
+        ])
+          expect(d, `${n}: ${w}`).toContain(w);
+      }
+      for (const n of ["list_card_tasks", "add_card_task", "update_card_task"])
+        expect(t(n).description, n).toContain("timezone");
+    });
+
+    it("never exposes the booked next step or the card's old note box", () => {
+      for (const n of CARD) {
+        const text = JSON.stringify(inputSchema(t(n))) + t(n).description + t(n).sql;
+        expect(text, n).not.toMatch(/next_column|next_step|booked|booking/i);
+        expect(Object.keys(t(n).properties), n).not.toContain("note");
+      }
+    });
+
+    it("validates list_cards and sends ten typed parameters with the defaults", () => {
+      expect(validateArgs(t("list_cards"), {})).toEqual({
+        ok: true,
+        args: { mine_only: true, limit: 50, offset: 0 },
+      });
+      expect(t("list_cards").params({ mine_only: true, limit: 50, offset: 0 })).toEqual([
+        "all",
+        null,
+        true,
+        null,
+        null,
+        null,
+        false,
+        null,
+        50,
+        0,
+      ]);
+      expect(validateArgs(t("list_cards"), { board: "both" })).toMatchObject({ ok: false });
+      expect(validateArgs(t("list_cards"), { due_from: "2026-02-30" })).toMatchObject({
+        ok: false,
+      });
+      expect(validateArgs(t("list_cards"), { limit: 201 })).toMatchObject({ ok: false });
+      expect(validateArgs(t("list_cards"), { stage: "x" })).toMatchObject({ ok: false });
+      expect(
+        validateArgs(t("list_cards"), { board: "customer", has_open_tasks: false }),
+      ).toMatchObject({ ok: true });
+    });
+
+    it("validates add_card_task: a title, a real date, a time of day", () => {
+      const ok = validateArgs(t("add_card_task"), {
+        person_id: "p1",
+        title: "Text Nik to confirm",
+        due_date: "2026-11-19",
+        due_time: "09:00",
+      });
+      expect(ok).toEqual({
+        ok: true,
+        args: {
+          person_id: "p1",
+          title: "Text Nik to confirm",
+          due_date: "2026-11-19",
+          due_time: "09:00",
+        },
+      });
+      if (ok.ok)
+        expect(t("add_card_task").params(ok.args)).toEqual([
+          "p1",
+          "Text Nik to confirm",
+          "recruiting",
+          "2026-11-19",
+          "09:00",
+          null,
+        ]);
+      for (const bad of [
+        { title: "x" },
+        { person_id: "p1" },
+        { person_id: "p1", title: "   " },
+        { person_id: "p1", title: "x".repeat(201) },
+        { person_id: "p1", title: "x", due_time: "9:00" },
+        { person_id: "p1", title: "x", due_time: "24:00" },
+        { person_id: "p1", title: "x", due_time: "09:00:00" },
+        { person_id: "p1", title: "x", due_date: "19/11/2026" },
+        { person_id: "p1", title: "x", board: "all" },
+        { person_id: "p1", title: "x", done: true },
+        { person_id: "p1", title: "x", created_by: "someone" },
+      ])
+        expect(validateArgs(t("add_card_task"), bad), JSON.stringify(bad)).toMatchObject({
+          ok: false,
+        });
+    });
+
+    it("update_card_task takes only title, due_date, due_time and assignee_id, and null clears", () => {
+      const u = t("update_card_task");
+      expect(validateArgs(u, { task_id: "t1" })).toMatchObject({
+        ok: false,
+        error: expect.stringContaining(
+          "nothing to change: give at least one of title, due_date, due_time, assignee_id",
+        ),
+      });
+      for (const k of [
+        "done",
+        "done_at",
+        "person_id",
+        "card_id",
+        "position",
+        "created_by",
+        "status",
+      ])
+        expect(validateArgs(u, { task_id: "t1", [k]: "x" }), k).toMatchObject({
+          ok: false,
+          error: expect.stringContaining(`${k}: not a field of update_card_task`),
+        });
+      const v = validateArgs(u, {
+        task_id: "t1",
+        due_date: null,
+        due_time: null,
+        assignee_id: null,
+      });
+      expect(v).toMatchObject({ ok: true });
+      if (v.ok)
+        expect(u.params(v.args)).toEqual([
+          "t1",
+          '{"due_date":null,"due_time":null,"assignee_id":null}',
+        ]);
+      expect(u.sql).toBe("select public.agent_update_card_task($1::text, $2::text::jsonb) as r");
+      expect(validateArgs(u, { task_id: "t1", title: null })).toMatchObject({ ok: false });
+      expect(validateArgs(u, { task_id: "t1", due_time: "25:61" })).toMatchObject({ ok: false });
+    });
+
+    it("complete_card_task ticks by default, and add_card_note takes a body of 1 to 2000 characters", () => {
+      const c = validateArgs(t("complete_card_task"), { task_id: "t1" });
+      expect(c).toEqual({ ok: true, args: { task_id: "t1", done: true } });
+      if (c.ok) expect(t("complete_card_task").params(c.args)).toEqual(["t1", true]);
+      expect(t("complete_card_task").params({ task_id: "t1", done: false })).toEqual(["t1", false]);
+      expect(validateArgs(t("complete_card_task"), { task_id: "t1", done: "yes" })).toMatchObject({
+        ok: false,
+      });
+      expect(
+        validateArgs(t("add_card_note"), { person_id: "p1", body: "x".repeat(2000) }),
+      ).toMatchObject({ ok: true });
+      expect(
+        validateArgs(t("add_card_note"), { person_id: "p1", body: "x".repeat(2001) }),
+      ).toMatchObject({ ok: false });
+      expect(validateArgs(t("add_card_note"), { person_id: "p1", body: "" })).toMatchObject({
+        ok: false,
+      });
+    });
+
+    it("lists tasks with status open and assigned me unless told otherwise", () => {
+      expect(validateArgs(t("list_card_tasks"), {})).toMatchObject({ ok: true });
+      expect(t("list_card_tasks").params({})).toEqual([
+        "open",
+        null,
+        null,
+        false,
+        "me",
+        null,
+        null,
+        50,
+        0,
+      ]);
+      expect(validateArgs(t("list_card_tasks"), { status: "later" })).toMatchObject({ ok: false });
+      expect(validateArgs(t("list_card_tasks"), { assigned: "everyone" })).toMatchObject({
+        ok: false,
+      });
+      expect(
+        validateArgs(t("list_card_tasks"), { changed_since: "2026-11-14T18:00:00" }),
+      ).toMatchObject({ ok: false });
+      expect(
+        validateArgs(t("list_card_tasks"), { changed_since: "2026-11-14T18:00:00Z" }),
+      ).toMatchObject({ ok: true });
+    });
+
+    it("describes a time as an HH:MM pattern in the JSON schema", () => {
+      expect(inputSchema(t("add_card_task")).properties.due_time).toMatchObject({
+        type: "string",
+        pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+      });
+      expect(inputSchema(t("update_card_task")).properties.due_time).toMatchObject({
+        type: ["string", "null"],
+      });
+    });
   });
 
   it("never mentions the IBO or LTD number except to say it cannot be changed", () => {
@@ -615,8 +850,12 @@ describe("validateArgs", () => {
       "update_my_profile",
       "set_event_answer",
       "log_learning",
+      "add_card_task",
+      "update_card_task",
+      "complete_card_task",
+      "add_card_note",
     ]);
-    expect(TOOLS.map((x) => x.name)).toHaveLength(13);
+    expect(TOOLS.map((x) => x.name)).toHaveLength(20);
   });
 
   it("does not look names up on the prototype chain", () => {
