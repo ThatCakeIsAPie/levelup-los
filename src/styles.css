@@ -399,13 +399,30 @@ html[data-glass="on"] {
  * pseudo-elements, so they go to browsers without them only (Firefox).
  * The grip floats: no track is drawn, and the grip is thinner than the strip it
  * sits in (a transparent border, so the strip stays easy to grab) and fills
- * out a little on hover. --scrollbar-thumb is the grip, --scrollbar-track the
- * strip behind it (transparent); a brand may set either in :root / .dark (the
- * :where() here has no specificity).
+ * out a little on hover. It is hidden until it is needed: it fades in while
+ * the pointer (or a touch) is on the scroller or the keyboard focus is inside
+ * it, and out again afterwards; the strip keeps its place, so nothing moves.
+ * The fade runs on --scrollbar-show, a registered number the scrollbar parts
+ * inherit (their own colours cannot be transitioned). --scrollbar-thumb is
+ * the grip, --scrollbar-track the strip behind it (transparent); a brand may
+ * set either in :root / .dark (the :where() here has no specificity).
  */
+@property --scrollbar-show {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 1;
+}
 :where(html[data-glass="on"]) {
   --scrollbar-track: transparent;
   --scrollbar-thumb: color-mix(in srgb, var(--primary-base) 70%, var(--fg));
+}
+html[data-glass="on"] .glass-scrollbar {
+  --scrollbar-show: 0;
+  transition: --scrollbar-show 0.25s ease-out;
+}
+html[data-glass="on"] .glass-scrollbar:is(:hover, :active, :focus-within) {
+  --scrollbar-show: 1;
+  transition-duration: 0.12s;
 }
 html[data-glass="on"] .glass-scrollbar::-webkit-scrollbar {
   height: 10px;
@@ -417,7 +434,11 @@ html[data-glass="on"] .glass-scrollbar::-webkit-scrollbar-track {
 }
 html[data-glass="on"] .glass-scrollbar::-webkit-scrollbar-thumb {
   border: 3px solid transparent;
-  background-color: var(--scrollbar-thumb);
+  background-color: color-mix(
+    in srgb,
+    var(--scrollbar-thumb) calc(var(--scrollbar-show) * 100%),
+    transparent
+  );
   background-clip: padding-box;
   border-radius: 9999px;
 }
@@ -432,7 +453,12 @@ html[data-glass="on"] .glass-scrollbar::-webkit-scrollbar-corner {
 }
 @supports not selector(::-webkit-scrollbar) {
   html[data-glass="on"] .glass-scrollbar {
-    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+    scrollbar-color: color-mix(
+        in srgb,
+        var(--scrollbar-thumb) calc(var(--scrollbar-show) * 100%),
+        transparent
+      )
+      var(--scrollbar-track);
   }
 }
 
