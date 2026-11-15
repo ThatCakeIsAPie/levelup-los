@@ -69,7 +69,6 @@ import type {
   Speaker,
 } from "@/data/library/types";
 import type {
-  CancelReason,
   MilestoneCode,
   PipelineCard,
   PipelineMove,
@@ -77,7 +76,6 @@ import type {
   StatRequest,
   StatShare,
   StepBand,
-  StepCancellation,
   StepHide,
   TeamSetting,
 } from "@/data/pipeline/types";
@@ -91,6 +89,7 @@ import type {
 } from "@/data/customerPipeline/types";
 import type { Deputy, FeatureKey, FeatureSwitch } from "@/data/team/types";
 import { asRating } from "@/data/rating";
+import type { CardNote, CardTask } from "@/data/cardTasks/types";
 
 export type Row = Record<string, unknown>;
 type R<T extends keyof import("./database.types").Database["public"]["Tables"]> = Partial<
@@ -1187,10 +1186,6 @@ export function cardFromRow(r: R<"pipeline_cards">): PipelineCard {
     personId: r.person_id!,
     column: r.column_id ?? "contact",
     enteredAt: isoOr(r.entered_at),
-    nextColumn: r.next_column ?? null,
-    nextStepDate: r.next_step_date ?? null,
-    nextStepTime: hhmm(r.next_step_time),
-    note: r.note ?? null,
     rating: asRating(r.rating) ?? (r.hot ? "hot" : null),
     source: r.source ?? null,
     droppedAt: iso(r.dropped_at),
@@ -1204,10 +1199,6 @@ export function cardToRow(c: PipelineCard): Row {
     person_id: c.personId,
     column_id: c.column,
     entered_at: iso(c.enteredAt),
-    next_column: c.nextColumn,
-    next_step_date: c.nextStepDate,
-    next_step_time: c.nextStepTime,
-    note: c.note,
     rating: c.rating,
     // Kept in step with the rating (the move RPC and older clients use it).
     hot: c.rating === "hot",
@@ -1244,39 +1235,6 @@ export function moveToRow(m: PipelineMove): Row {
 
 /** Postgres `time` ("19:00:00") as the app keeps it ("19:00"). */
 export const hhmm = (v: string | null | undefined): string | null => (v ? v.slice(0, 5) : null);
-
-export function stepCancellationFromRow(r: R<"pipeline_step_cancellations">): StepCancellation {
-  return {
-    id: r.id!,
-    board: r.board === "customer" ? "customer" : "recruiting",
-    cardId: r.card_id!,
-    ownerId: r.owner_id ?? "",
-    column: r.column_id!,
-    bookedDate: r.booked_date ?? null,
-    bookedTime: hhmm(r.booked_time),
-    reason: r.reason as CancelReason,
-    reasonText: r.reason_text ?? null,
-    cancelledAt: isoOr(r.cancelled_at),
-    cancelledBy: r.cancelled_by ?? "",
-  };
-}
-
-export function stepCancellationToRow(c: StepCancellation): Row {
-  return {
-    id: c.id,
-    board: c.board,
-    card_id: c.cardId,
-    owner_id: c.ownerId || null,
-    column_id: c.column,
-    booked_date: c.bookedDate,
-    booked_time: c.bookedTime,
-    reason: c.reason,
-    reason_text: c.reasonText,
-    cancelled_at: iso(c.cancelledAt),
-    cancelled_by: c.cancelledBy || null,
-  };
-}
-
 export function teamSettingFromRow(r: R<"pipeline_team_settings">): TeamSetting {
   const t1 = r.target_contact_to_meeting;
   return {
@@ -1425,10 +1383,6 @@ export function customerCardFromRow(r: R<"customer_cards">): CustomerCard {
     entryId: r.entry_id!,
     column: r.column_id ?? "not_contacted",
     enteredAt: isoOr(r.entered_at),
-    nextColumn: r.next_column ?? null,
-    nextStepDate: r.next_step_date ?? null,
-    nextStepTime: hhmm(r.next_step_time),
-    note: r.note ?? null,
     updatedAt: isoOr(r.updated_at),
   };
 }
@@ -1439,10 +1393,80 @@ export function customerCardToRow(c: CustomerCard): Row {
     entry_id: c.entryId,
     column_id: c.column,
     entered_at: iso(c.enteredAt),
-    next_column: c.nextColumn,
-    next_step_date: c.nextStepDate,
-    next_step_time: c.nextStepTime,
-    note: c.note,
+  };
+}
+
+/** The database's own columns on a task: read, never sent (`CARD_TASK_SERVER_COLUMNS`). */
+export const CARD_TASK_SERVER_COLUMNS = [
+  "done_at",
+  "done_by",
+  "created_by",
+  "created_at",
+  "updated_at",
+];
+
+/** `due_time` comes back as "HH:MM:SS": the app keeps "HH:mm". */
+export function cardTaskFromRow(r: R<"card_tasks">): CardTask {
+  return {
+    id: r.id!,
+    personId: r.person_id ?? null,
+    entryId: r.entry_id ?? null,
+    title: r.title ?? "",
+    done: !!r.done,
+    doneAt: iso(r.done_at),
+    doneBy: r.done_by ?? null,
+    dueDate: r.due_date ?? null,
+    dueTime: hhmm(r.due_time),
+    assigneeId: r.assignee_id ?? null,
+    position: r.position ?? 0,
+    createdBy: r.created_by ?? null,
+    createdAt: isoOr(r.created_at),
+    updatedAt: isoOr(r.updated_at),
+  };
+}
+
+/** `workspace_id` is left to its default (the caller's team). */
+export function cardTaskToRow(t: CardTask): Row {
+  return {
+    id: t.id,
+    person_id: t.personId,
+    entry_id: t.entryId,
+    title: t.title,
+    done: t.done,
+    done_at: iso(t.doneAt),
+    done_by: t.doneBy,
+    due_date: t.dueDate,
+    due_time: t.dueTime,
+    assignee_id: t.assigneeId,
+    position: t.position,
+    created_by: t.createdBy,
+    created_at: iso(t.createdAt),
+    updated_at: iso(t.updatedAt),
+  };
+}
+
+/** `author_id` and `created_at` are the database's on a client write: read, never sent. */
+export const CARD_NOTE_SERVER_COLUMNS = ["author_id", "created_at"];
+
+export function cardNoteFromRow(r: R<"card_notes">): CardNote {
+  return {
+    id: r.id!,
+    personId: r.person_id ?? null,
+    entryId: r.entry_id ?? null,
+    authorId: r.author_id ?? null,
+    body: r.body ?? "",
+    createdAt: isoOr(r.created_at),
+  };
+}
+
+export function cardNoteToRow(n: CardNote): Row {
+  return {
+    id: n.id,
+    person_id: n.personId,
+    entry_id: n.entryId,
+    author_id: n.authorId,
+    body: n.body,
+    created_at: iso(n.createdAt),
   };
 }
 

@@ -7,7 +7,9 @@ import { useCallback, useEffect, useRef, useState, type RefObject } from "react"
  *    the board as usual. While dragging, page scrolling is blocked.
  * Columns are found under the pointer by their `data-drop-column` attribute.
  * Near the scroller's left or right edge the board scrolls (one column at a
- * time on phones). Escape cancels. Keyboard users use the "Move to…" menu.
+ * time on phones). Escape cancels. The board has no other way to move a card;
+ * without a pointer, "Move to…" on a person's profile (Pipeline card) and the
+ * Log sheet's move field move a card.
  */
 export interface DragInfo {
   personId: string;

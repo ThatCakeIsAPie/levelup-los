@@ -3,7 +3,6 @@ import { Link } from "@tanstack/react-router";
 import {
   BookOpen,
   CalendarCheck,
-  CalendarX,
   ClipboardList,
   Goal,
   KanbanSquare,
@@ -23,7 +22,6 @@ const ICON: Record<MyDayKind, { icon: ComponentType<{ className?: string }>; ton
   learning: { icon: BookOpen, tone: "info" },
   pipeline: { icon: KanbanSquare, tone: "primary" },
   customer_pipeline: { icon: KanbanSquare, tone: "warn" },
-  step: { icon: CalendarX, tone: "neutral" },
   list: { icon: ClipboardList, tone: "neutral" },
   person: { icon: UserPlus, tone: "primary" },
   event: { icon: CalendarCheck, tone: "info" },

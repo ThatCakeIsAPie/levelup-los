@@ -2,7 +2,7 @@ import { useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { format } from "date-fns";
 import { useNavigate } from "@tanstack/react-router";
-import { CalendarClock, ClockAlert, Flag, GripVertical, MoreHorizontal, X } from "lucide-react";
+import { ClockAlert, Flag, X } from "lucide-react";
 import { PersonAvatar, RatingChip, useIsDesktop, Sensitive } from "@/components/brand";
 import { cn } from "@/lib/utils";
 import {
@@ -10,8 +10,10 @@ import {
   monthOf,
   localDate,
   useBoardDef,
+  useCardSummaries,
   useCurrentUser,
   type BoardBand,
+  type CardSummary,
   type BoardCard,
   type BoardColumn,
   type BoardDef,
@@ -20,17 +22,15 @@ import {
   type RegisteredCard,
 } from "@/data";
 import { CardSheet } from "./CardSheet";
-import { MoveMenu } from "./moveCard";
 import { useMoveCard } from "./useMoveCard";
 import { useBoardDrag, type DragInfo } from "./useBoardDrag";
 import { CardReferralLines } from "./Referrals";
-import { ageLong, ageShort, bookingText, bookingTone, ownCards, shortDate, stepBy } from "./format";
+import { CardMeta } from "./CardMeta";
+import { useOpenCardRequest } from "./openCard";
+import { ageLong, ageShort, ownCards, shortDate, stepBy } from "./format";
 
 import { sensitive } from "@/lib/sensitive";
 const SHOW = 5;
-
-/** Menus render in a portal, but React events still bubble to the card: stop them here. */
-const stop = (e: React.SyntheticEvent) => e.stopPropagation();
 
 /** The recruiting board (prospects, with the Register confirmation and the card sheet). */
 export function Board({ board, month }: { board: PipelineBoard; month: string }) {
@@ -43,13 +43,7 @@ export function Board({ board, month }: { board: PipelineBoard; month: string })
       def={def as BoardDef<string>}
       move={move}
       sheet={({ card, open, onOpenChange }) => (
-        <CardSheet
-          card={card}
-          columns={board.columns}
-          open={open}
-          onOpenChange={onOpenChange}
-          onMove={move}
-        />
+        <CardSheet card={card} columns={board.columns} open={open} onOpenChange={onOpenChange} />
       )}
     >
       {dialog}
@@ -62,9 +56,11 @@ export function Board({ board, month }: { board: PipelineBoard; month: string })
  * customer layout; `def` is the layout with the viewer's stage names): its bands side by side, each with its milestone column and
  * the leader steps after it (the customer board adds fixed start and outcome
  * columns). Desktop: bands side by side, scrolling sideways when wider than
- * the screen; drag a card (or use its "Move to…" menu). Phones: one full
- * column at a time with the next one peeking in; hold a card to drag it, or
- * tap the grip for "Move to…".
+ * the screen; a card moves by dragging it. Phones: one full column at a
+ * time with the next one peeking in; hold a card to drag it. The board has no
+ * "Move to…" menu: moving a card is dragging it. Without a pointer the way to
+ * move a card is "Move to…" on the person's profile (the Pipeline card) and the
+ * Log sheet's move field (src/components/log/PipelineMoveField.tsx).
  */
 export function BoardView({
   board,
@@ -112,12 +108,30 @@ export function BoardView({
     setOpenId(personId);
     setSheetOpen(true);
   };
+  // Home's "open the card" lands here.
+  useOpenCardRequest(
+    def.kind === "customer" ? "customer" : "recruiting",
+    (id) => cards.has(id),
+    (id) => {
+      setOpenId(id);
+      setSheetOpen(true);
+    },
+  );
   const markMine = useMemo(() => ownCards(board, me).mixed, [board, me]);
   const isMine = (ownerId: string) => markMine && ownerId === me;
   // On a mixed board your own cards come first in every column (otherwise in
   // the usual order: hot, then newest in the column).
   const shown = useMemo(() => (markMine ? mineFirst(board, me) : board), [board, me, markMine]);
-  const ctx: CardCtx = { columns: board.columns, def, drag, start, open, move, markMine, isMine };
+  const summaries = useCardSummaries(def.kind === "customer" ? "customer" : "recruiting");
+  const ctx: CardCtx = {
+    def,
+    drag,
+    start,
+    open,
+    markMine,
+    isMine,
+    summaries,
+  };
   const isThisMonth = monthOf(localDate()) === month;
   const label = def.kind === "customer" ? "Customer pipeline board" : "Pipeline board";
 
@@ -190,16 +204,16 @@ function mineFirst<B extends string>(board: PipelineBoard<B>, me: string): Pipel
 }
 
 interface CardCtx {
-  columns: PipelineColumn<string>[];
   def: BoardDef<string>;
   drag: DragInfo | null;
   start: ReturnType<typeof useBoardDrag>["start"];
   open: (personId: string) => void;
-  move: (personId: string, name: string, to: string) => void;
   /** The board mixes your cards with other people's, so yours are marked. */
   markMine: boolean;
   /** A card of yours on a mixed board (always false otherwise). */
   isMine: (ownerId: string) => boolean;
+  /** Tasks and notes: a summary for every card that has any (the card's own id as the key). */
+  summaries: ReadonlyMap<string, CardSummary>;
 }
 
 const bandDef = (def: BoardDef<string>, id: string) => def.bands.find((b) => b.id === id);
@@ -470,7 +484,7 @@ function DesktopCard({ card, ctx }: { card: BoardCard; ctx: CardCtx }) {
         dragging && "opacity-40",
       )}
     >
-      <div className="flex items-baseline justify-between gap-1.5 pr-5">
+      <div className="flex items-baseline justify-between gap-1.5">
         <button
           type="button"
           onClick={(e) => {
@@ -505,38 +519,13 @@ function DesktopCard({ card, ctx }: { card: BoardCard; ctx: CardCtx }) {
         </div>
       )}
       <CardReferralLines card={card} />
-      {card.booking ? (
-        <BookingLine card={card} />
-      ) : (
-        card.stale && (
-          <div className="flex items-center gap-1.5 text-[11px] font-semibold text-warn-ink">
-            <ClockAlert className="size-3.5 shrink-0" aria-hidden="true" />
-            No movement in {ageLong(card.days)}
-          </div>
-        )
-      )}
-      {card.note && (
-        <div className="truncate text-[10.5px] text-muted-foreground" title={card.note}>
-          <Sensitive kind="note">{card.note}</Sensitive>
+      {card.stale && (
+        <div className="flex items-center gap-1.5 text-[11px] font-semibold text-warn-ink">
+          <ClockAlert className="size-3.5 shrink-0" aria-hidden="true" />
+          No movement in {ageLong(card.days)}
         </div>
       )}
-      <span data-no-drag className="absolute right-1 top-1" onClick={stop} onPointerDown={stop}>
-        <MoveMenu
-          columns={ctx.columns}
-          bands={ctx.def.bands}
-          current={card.column}
-          onMove={(to) => ctx.move(card.personId, card.name, to)}
-        >
-          <button
-            type="button"
-            aria-label={`Move ${card.name} to…`}
-            onClick={(e) => e.stopPropagation()}
-            className="grid size-6 place-items-center rounded-md text-faint opacity-0 transition-opacity hover:bg-surface-2 hover:text-foreground focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-ring group-hover:opacity-100 data-[state=open]:opacity-100"
-          >
-            <MoreHorizontal className="size-4" />
-          </button>
-        </MoveMenu>
-      </span>
+      <CardMeta summary={ctx.summaries.get(card.personId)} ownerId={card.ownerId} />
     </div>
   );
 }
@@ -733,7 +722,7 @@ function PhoneRow({ card, ctx }: { card: BoardCard; ctx: CardCtx }) {
       onClick={() => ctx.open(card.personId)}
       onContextMenu={(e) => e.preventDefault()}
       className={cn(
-        "grid select-none grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-2.5 border-t border-line py-2 text-[12.5px] [-webkit-touch-callout:none] first-of-type:border-t-0",
+        "grid select-none grid-cols-[32px_minmax(0,1fr)] items-center gap-2.5 border-t border-line py-2 text-[12.5px] [-webkit-touch-callout:none] first-of-type:border-t-0",
         card.dim && "opacity-70",
         dragging && "opacity-40",
       )}
@@ -760,69 +749,16 @@ function PhoneRow({ card, ctx }: { card: BoardCard; ctx: CardCtx }) {
           )}
         >
           <Whose ownerName={card.ownerName} mine={mine}>
-            {card.stale && !card.booking
-              ? `no movement in ${ageLong(card.days)}`
-              : sub.filter(Boolean).join(" · ")}
+            {card.stale ? `no movement in ${ageLong(card.days)}` : sub.filter(Boolean).join(" · ")}
           </Whose>
         </div>
         <CardReferralLines card={card} />
-        {card.booking && <BookingLine card={card} phone />}
-        {card.note && (
-          <div className="truncate text-[10.5px] text-muted-foreground">
-            <Sensitive kind="note">{card.note}</Sensitive>
-          </div>
-        )}
+        <CardMeta
+          summary={ctx.summaries.get(card.personId)}
+          ownerId={card.ownerId}
+          className="mt-0.5"
+        />
       </div>
-      <span data-no-drag onClick={stop} onPointerDown={stop}>
-        <MoveMenu
-          columns={ctx.columns}
-          bands={ctx.def.bands}
-          current={card.column}
-          onMove={(to) => ctx.move(card.personId, card.name, to)}
-        >
-          <button
-            type="button"
-            aria-label={`Move ${card.name} to…`}
-            onClick={(e) => e.stopPropagation()}
-            className="-mr-1 grid size-9 place-items-center rounded-lg text-faint focus-visible:outline-2 focus-visible:outline-ring"
-          >
-            <GripVertical className="size-4" />
-          </button>
-        </MoveMenu>
-      </span>
-    </div>
-  );
-}
-
-/**
- * A card's booked next step: "MG1 · Sat". Due today stands out (primary),
- * overdue and a removed step read in warn.
- */
-function BookingLine({ card, phone }: { card: BoardCard; phone?: boolean }) {
-  const b = card.booking;
-  const text = bookingText(b);
-  if (!b || !text) return null;
-  const hot = b.removed || b.due === "overdue" || b.due === "today";
-  return (
-    <div
-      className={cn(
-        "flex min-w-0 items-center gap-1.5 text-[11px] font-semibold",
-        phone ? "mt-0.5" : "",
-        bookingTone(b),
-      )}
-    >
-      <CalendarClock className="size-3.5 shrink-0" aria-hidden="true" />
-      <span
-        className={cn(
-          "truncate",
-          hot && "rounded px-1",
-          hot && (b.removed || b.due === "overdue" ? "bg-warn-soft" : "bg-primary-soft"),
-        )}
-      >
-        <span className="sr-only">Next step: </span>
-        {text}
-        {b.due === "overdue" && !b.removed && <span className="sr-only"> (overdue)</span>}
-      </span>
     </div>
   );
 }

@@ -6,6 +6,7 @@
  *   - library: src/data/library/seed.ts seedLibrary() (catalog, channels, progress)
  *   - pipeline: src/data/pipeline/seed.ts seedPipeline() (steps, cards, moves,
  *     goals, stat shares and requests)
+ *   - card tasks and notes: src/data/cardTasks/seed.ts seedCardTasks()
  * plus the local demo logins. Also generates the visibility-parity pgTAP test
  * (supabase/tests/001_visibility_parity.test.sql) from src/data/access.ts.
  *
@@ -39,6 +40,7 @@ import { seedChat } from "@/data/chat/seed";
 import { seedLibrary } from "@/data/library/seed";
 import { seedPipeline } from "@/data/pipeline/seed";
 import { seedCustomerPipeline } from "@/data/customerPipeline/seed";
+import { seedCardTasks } from "@/data/cardTasks/seed";
 import { seedDeputies, seedFeatureSwitches } from "@/data/team/seed";
 import { deputyOfIds } from "@/data/team/rules";
 import { visibleEntries } from "@/data/customerPipeline/rules";
@@ -182,6 +184,7 @@ const chat = seedChat(people, NOW);
 const library = seedLibrary(new Date(NOW));
 const pipeline = seedPipeline(people, new Date(NOW));
 const customerPipeline = seedCustomerPipeline(people, new Date(NOW));
+const cardTasks = seedCardTasks(people, new Date(NOW));
 
 // Workspace members: the chat seed's members (apprentices, IBOs, the leader)
 // plus any demo user who isn't one (Beau, the candidate: can sign in, no chat).
@@ -866,10 +869,6 @@ emit(
       ["workspace_id", "text"],
       ["column_id", "text"],
       ["entered_at", "ts"],
-      ["next_column", "text"],
-      ["next_step_date", "date"],
-      ["next_step_time", "text"],
-      ["note", "text"],
       ["hot", "bool"],
       ["rating", "text"],
       ["source", "text"],
@@ -881,10 +880,6 @@ emit(
       WORKSPACE_ID,
       c.column,
       c.enteredAt,
-      c.nextColumn,
-      c.nextStepDate,
-      timeLit(c.nextStepTime),
-      c.note,
       c.rating === "hot",
       c.rating,
       c.source,
@@ -1072,10 +1067,6 @@ emit(
       ["workspace_id", "text"],
       ["column_id", "text"],
       ["entered_at", "ts"],
-      ["next_column", "text"],
-      ["next_step_date", "date"],
-      ["next_step_time", "text"],
-      ["note", "text"],
       ["updated_at", "ts"],
     ],
     customerPipeline.cards.map((c) => [
@@ -1083,10 +1074,6 @@ emit(
       WORKSPACE_ID,
       c.column,
       c.enteredAt,
-      c.nextColumn,
-      c.nextStepDate,
-      timeLit(c.nextStepTime),
-      c.note,
       c.updatedAt,
     ]),
   ),
@@ -1119,6 +1106,70 @@ emit(
       m.movedBy,
       m.createdCustomerId,
       m.setDitto,
+    ]),
+  ),
+);
+
+section("Card tasks and notes (seedCardTasks, row for row)");
+emit(
+  insert(
+    "public.card_tasks",
+    [
+      ["id", "text"],
+      ["workspace_id", "text"],
+      ["person_id", "text"],
+      ["entry_id", "text"],
+      ["title", "text"],
+      ["done", "bool"],
+      ["done_at", "ts"],
+      ["done_by", "text"],
+      ["due_date", "date"],
+      ["due_time", "text"],
+      ["assignee_id", "text"],
+      ["position", "num"],
+      ["created_by", "text"],
+      ["created_at", "ts"],
+      ["updated_at", "ts"],
+    ],
+    cardTasks.tasks.map((t) => [
+      t.id,
+      WORKSPACE_ID,
+      t.personId,
+      t.entryId,
+      t.title,
+      t.done,
+      t.doneAt,
+      t.doneBy,
+      t.dueDate,
+      timeLit(t.dueTime),
+      t.assigneeId,
+      t.position,
+      t.createdBy,
+      t.createdAt,
+      t.updatedAt,
+    ]),
+  ),
+);
+emit(
+  insert(
+    "public.card_notes",
+    [
+      ["id", "text"],
+      ["workspace_id", "text"],
+      ["person_id", "text"],
+      ["entry_id", "text"],
+      ["author_id", "text"],
+      ["body", "text"],
+      ["created_at", "ts"],
+    ],
+    cardTasks.notes.map((n) => [
+      n.id,
+      WORKSPACE_ID,
+      n.personId,
+      n.entryId,
+      n.authorId,
+      n.body,
+      n.createdAt,
     ]),
   ),
 );

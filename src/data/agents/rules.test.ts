@@ -120,6 +120,24 @@ describe("activity entries", () => {
     expect(entryPersonName(entry({ newName: "  ", argsName: null }))).toBeNull();
   });
 
+  it("shows the card's person for the card tools, and nothing for the listing tools", () => {
+    for (const tool of [
+      "get_card",
+      "add_card_task",
+      "update_card_task",
+      "complete_card_task",
+      "add_card_note",
+    ])
+      expect(entryPersonName(entry({ tool, newName: "Pat Card" })), tool).toBe("Pat Card");
+    expect(entryPersonName(entry({ tool: "update_card_task", oldName: "Old Card" }))).toBe(
+      "Old Card",
+    );
+    // a refused call carries no stored values; the argument it sent is an id, not a name
+    expect(entryPersonName(entry({ tool: "add_card_task", argsName: "p1" }))).toBeNull();
+    for (const tool of ["list_cards", "list_card_tasks"])
+      expect(entryPersonName(entry({ tool, newName: "Not Shown" })), tool).toBeNull();
+  });
+
   it("marks refused and failed calls", () => {
     expect(isRefusal("refused: no such prospect among the visible ones")).toBe(true);
     expect(isRefusal("failed: the request could not be completed")).toBe(true);

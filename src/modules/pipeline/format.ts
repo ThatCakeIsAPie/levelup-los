@@ -1,14 +1,5 @@
 import { differenceInCalendarDays, format } from "date-fns";
-import {
-  NO_BOOKING,
-  bookingLabel,
-  localDate,
-  parseDate,
-  type Booking,
-  type BookingView,
-  type PipelineBoard,
-  type PipelineColumn,
-} from "@/data";
+import { localDate, parseDate, type PipelineBoard, type PipelineColumn } from "@/data";
 
 export const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
@@ -17,21 +8,6 @@ export const ageShort = (days: number) => (days === 0 ? "today" : `${days}d`);
 
 /** "today", "1 day", "16 days". */
 export const ageLong = (days: number) => (days === 0 ? "today" : plural(days, "day"));
-
-/**
- * A next-step date relative to today: "today", "tomorrow", "Thu" (this week),
- * "Nov 8"; past dates read "was Mon" / "was Sep 30".
- */
-export function relDay(day: string, today = localDate()): string {
-  const d = parseDate(day);
-  const diff = differenceInCalendarDays(d, parseDate(today));
-  if (diff === 0) return "today";
-  if (diff === 1) return "tomorrow";
-  if (diff === -1) return "was yesterday";
-  if (diff > 1 && diff < 7) return format(d, "EEE");
-  if (diff < 0 && diff > -7) return `was ${format(d, "EEE")}`;
-  return diff < 0 ? `was ${format(d, "MMM d")}` : format(d, "MMM d");
-}
 
 /** "7pm", "6:30pm" from "19:00", "18:30". */
 export function timeText(t: string | null): string {
@@ -42,36 +18,13 @@ export function timeText(t: string | null): string {
   return `${h12}${m ? `:${String(m).padStart(2, "0")}` : ""}${ap}`;
 }
 
-/** "Sat", "today 7pm", "was Mon" for a booked day and time. */
-export function whenText(day: string | null, time: string | null, today = localDate()): string {
-  if (!day) return "";
+/** "Oct 9" for a registration day. */
+export const shortDate = (day: string) => format(parseDate(day), "MMM d");
+
+/** "Nov 19" or "Nov 19 9am": a task's due date, with its time when it has one. */
+export function dueText(day: string, time: string | null): string {
   const t = timeText(time);
-  return t ? `${relDay(day, today)} ${t}` : relDay(day, today);
-}
-
-/**
- * A card's booked next step: "MG1 · Sat", "Info 2 · today 7pm"; "Next step
- * removed" when the booked column is gone. Null when nothing is booked.
- */
-export function bookingText(b: BookingView | null, today = localDate()): string | null {
-  if (!b) return null;
-  if (b.removed || !b.column) return "Next step removed · rebook";
-  const when = whenText(b.date, b.time, today);
-  return when ? `${bookingLabel(b.column)} · ${when}` : bookingLabel(b.column);
-}
-
-/** The editable booking behind a card's booking view. */
-export function bookingState(b: BookingView | null): Booking {
-  if (!b) return NO_BOOKING;
-  return { nextColumn: b.columnId, nextStepDate: b.date, nextStepTime: b.time };
-}
-
-/** Tone classes for a booked step: due today stands out, overdue in warn. */
-export function bookingTone(b: BookingView | null): string {
-  if (!b) return "";
-  if (b.removed || b.due === "overdue") return "text-warn-ink";
-  if (b.due === "today") return "text-primary-ink";
-  return "text-muted-foreground";
+  return t ? `${shortDate(day)} ${t}` : shortDate(day);
 }
 
 /** "Maria's step" / "Your step". */
@@ -87,9 +40,6 @@ export function deltaText(change: number | null): string {
   if (change === 0) return "same";
   return change > 0 ? `+${change}%` : `−${Math.abs(change)}%`;
 }
-
-/** "Oct 9" for a registration day. */
-export const shortDate = (day: string) => format(parseDate(day), "MMM d");
 
 /**
  * Your share of a board: how many cards in progress are `me`'s, and whether

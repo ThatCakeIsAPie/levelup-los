@@ -136,8 +136,9 @@ export const TABLE_ORDER = [
   "customer_step_hides",
   "customer_moves",
   "customer_cards",
-  // Cancelled next steps (after the cards whose booking they clear).
-  "pipeline_step_cancellations",
+  // Tasks and notes on both boards' cards (after the people and list names they belong to).
+  "card_tasks",
+  "card_notes",
   // Team settings (after the people a deputy row names).
   "deputies",
   "feature_switches",

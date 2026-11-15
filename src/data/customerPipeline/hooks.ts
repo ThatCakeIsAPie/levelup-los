@@ -35,7 +35,6 @@ import {
 } from "../pipeline/rules";
 import { MIN_SAMPLE, type PipelineColumn, type PipelineScope } from "../pipeline/types";
 import { usePipelineStore } from "../pipeline/store";
-import { bookingOf, bookingView } from "../pipeline/booking";
 import { ratingRank } from "../rating";
 import { useReferralIndex } from "../referrals/hooks";
 import { newReferralSources } from "../referrals/rules";
@@ -262,26 +261,12 @@ export function useCustomerBoard(
   const data = useCustomerPipelineStore();
   const people = usePeopleStore((s) => s.people);
   const columns = useCustomerColumns(opt?.leaderId);
-  const uplines = usePipelineUplines();
   const refs = useReferralIndex();
-  const def = useBoardDef("customer");
   const today = localDate();
   return useMemo(() => {
     if (!opt) return null;
     const byId = new Map(people.map((p) => [p.id, p]));
     const colIds = new Set(columns.map((c) => c.id));
-    const ownerCols = new Map<string, PipelineColumn<CustomerBand>[]>();
-    const boardOf = (ownerId: string) => {
-      let c = ownerCols.get(ownerId);
-      if (!c) {
-        c =
-          ownerId === opt.leaderId
-            ? columns
-            : columnsFor(chainOf(people, ownerId, uplines), data.steps, data.hides, def);
-        ownerCols.set(ownerId, c);
-      }
-      return c;
-    };
     const stepById = new Map(data.steps.map((s) => [s.id, s]));
     const byColumn = new Map<string, BoardCard[]>(columns.map((c) => [c.id, []]));
     const mine = entries.filter((e) => opt.owners.has(e.ownerId));
@@ -308,8 +293,6 @@ export function useCustomerBoard(
         rating: entry.rating,
         listed: !stored || card.column === NOT_CONTACTED,
         dim: band === "out" && card.column !== REFERRAL_SOURCE,
-        booking: bookingView(bookingOf(card), boardOf(entry.ownerId), today),
-        note: card.note,
         source: entry.howKnown,
         enteredAt: card.enteredAt,
         referredBy: refs.referrerOf({ kind: "entry", id: entry.id })?.name ?? null,
@@ -342,7 +325,7 @@ export function useCustomerBoard(
       return { milestone: b, columns: cols, count };
     });
     return { columns, bands, registered: { cards: [], total: 0 }, inProgress };
-  }, [opt, entries, data, people, columns, month, today, uplines, refs, def]);
+  }, [opt, entries, data, people, columns, month, today, refs]);
 }
 
 /**
