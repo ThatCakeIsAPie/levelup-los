@@ -26,6 +26,7 @@ import {
 export * from "./types";
 export { feedbackMessageError, nextStatus } from "./rules";
 export { captureSnapshot } from "./capture";
+export { FEEDBACK_GITHUB_REPO, buildIssueUrl } from "./github";
 
 /** True in the demo: reports stay in this browser because there is no server. */
 export const FEEDBACK_LOCAL_ONLY = !IS_SUPABASE;

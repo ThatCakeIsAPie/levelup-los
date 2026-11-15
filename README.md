@@ -39,3 +39,11 @@ More detail: `docs/frontend-guide.md` (code layout, page conventions, design tok
 - To start a new brand, branch from `main` and replace the files in `src/brand/` (name, colours, logo mark, wordmark font, favicon, storage prefix). `src/brand/README.md` describes each file.
 
 The deploy workflow (`.github/workflows/pages.yml`) publishes each brand's demo when its branch is pushed; its comments list where each one goes and how to add another.
+
+## Running a fork
+
+1. Fork `https://github.com/ThatCakeIsAPie/levelup-los` onto your account.
+2. Press "Sync fork" on GitHub from time to time to pull in upstream changes.
+3. Keep Sync fork conflict-free: don't edit shared files you don't own. Put your own settings (Supabase URL and keys, site URL, and so on) in env vars and CI secrets, not in committed files. A brand goes in `src/brand/**` only (see above).
+4. Host from the fork: follow "Hosting" in `docs/frontend-guide.md` and "Moving to hosted Supabase" in `docs/backend.md`.
+5. The in-app Feedback button saves the report in your own deployment (your admins read it in Settings > Feedback) and then offers a prefilled GitHub issue on `ThatCakeIsAPie/levelup-los`, even when the app runs from your fork. It uses no token: the person submits the issue form on GitHub. To send it to another repo, build with `VITE_FEEDBACK_GITHUB_REPO=owner/repo` (or `off` to skip the GitHub step).
