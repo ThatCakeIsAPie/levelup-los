@@ -52,6 +52,7 @@ as $$
   select exists (
     select 1 from public.people p
      where p.id = p_person_id
+       and p.workspace_id = public.current_workspace_id()
        and (public.effective_biz_class(p.biz_class, p.business_start_date) in ('apprentice', 'ibo')
             or exists (select 1 from public.members m
                         where m.person_id = p.id and m.workspace_id = p.workspace_id and m.role = 'leader')))
@@ -75,8 +76,10 @@ create function public.card_owner(p_person_id text, p_entry_id text) returns tex
 language sql stable security definer set search_path = ''
 as $$
   select case when p_person_id is not null
-              then (select p.sponsor_id from public.people p where p.id = p_person_id)
-              else (select e.owner_id from public.list_entries e where e.id = p_entry_id) end
+              then (select p.sponsor_id from public.people p
+                     where p.id = p_person_id and p.id in (select public.visible_person_ids()))
+              else (select e.owner_id from public.list_entries e
+                     where e.id = p_entry_id and e.id in (select public.card_entry_ids())) end
 $$;
 
 revoke all on function
