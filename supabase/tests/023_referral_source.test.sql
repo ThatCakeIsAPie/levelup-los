@@ -7,8 +7,8 @@
 --
 -- Seed facts (src/data/seed.ts, src/data/pipeline/seed.ts,
 -- src/data/customerPipeline/seed.ts): Carlos (9) and Andre (21) are Jamal's
--- prospects; Carlos's card is in first_plan with First plan's next step (F1)
--- booked. Jamal (4) is under Anita (2) under Maria (1); David (3) is Anita's
+-- prospects; Carlos's card is in first_plan (the demo seed books no steps any more:
+-- this file books First plan's next step, F1, in the "Fixture" line below). Jamal (4) is under Anita (2) under Maria (1); David (3) is Anita's
 -- crossline. le-4-1..3 are names on Jamal's list, le-3-1 on David's; c8 is
 -- Jamal's customer (private: Anita doesn't see it).
 begin;
@@ -40,6 +40,9 @@ begin
 end $$;
 
 -- The column ------------------------------------------------------------------
+-- Fixture: Carlos has a step booked (a stored booking, as the app no longer makes them).
+update public.pipeline_cards set next_column = 's-f1', next_step_date = public.workspace_today('w1') + 2
+  where person_id = '9';
 select pg_temp.login('4');
 select is((select c.next_column from public.pipeline_cards c where c.person_id = '9'), 's-f1',
   'Carlos has a step booked');

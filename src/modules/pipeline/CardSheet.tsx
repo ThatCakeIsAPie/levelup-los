@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { ArrowUpRight, ClockAlert, MoveRight, UserMinus } from "lucide-react";
-import { toast } from "sonner";
+import { ArrowUpRight, ClockAlert, UserMinus } from "lucide-react";
 import {
   PersonAvatar,
   RatingChip,
@@ -23,46 +22,37 @@ import {
 import { toastWithUndo } from "@/components/log/quickLog";
 import { cn } from "@/lib/utils";
 import {
-  RECRUITING_BOARD,
   REFERRAL_SOURCE,
-  bookNextStep,
-  bookableColumns,
-  bookingError,
-  sameBooking,
   dropPipelineCard,
   updatePipelineCard,
-  useBoardDef,
-  usePipelineColumns,
   useStageNames,
   type BoardCard,
   type PipelineColumn,
 } from "@/data";
-import { MoveMenu } from "./moveCard";
-import { ageLong, bookingState } from "./format";
-import { BookingFields, NoteField } from "./BookingFields";
-import { BookedStep } from "./BookedStep";
+import { ageLong } from "./format";
 import { ReferralsBlock } from "./Referrals";
+import { CardFollowups } from "./CardFollowups";
+import { keepEscapeInTaskTitle } from "./taskEscape";
 
 import { sensitive } from "@/lib/sensitive";
-/** A card's details: where it is, move it, next step, hot, where you met, take it off the board. */
+/** A card's details: where it is, its tasks and notes, hot, where you met, take it off the board. */
 export function CardSheet({
   card,
   columns,
   open,
   onOpenChange,
-  onMove,
 }: {
   card: BoardCard | null;
   columns: PipelineColumn[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onMove: (personId: string, name: string, to: string) => void;
 }) {
   const desktop = useIsDesktop();
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side={desktop ? "right" : "bottom"}
+        onEscapeKeyDown={keepEscapeInTaskTitle}
         className={cn(
           "flex flex-col gap-0 p-0",
           desktop ? "w-full sm:max-w-md" : "max-h-[92dvh] rounded-t-card pb-safe",
@@ -73,7 +63,6 @@ export function CardSheet({
             key={card.personId}
             card={card}
             columns={columns}
-            onMove={onMove}
             onClose={() => onOpenChange(false)}
           />
         )}
@@ -85,41 +74,19 @@ export function CardSheet({
 function CardDetails({
   card,
   columns,
-  onMove,
   onClose,
 }: {
   card: BoardCard;
   columns: PipelineColumn[];
-  onMove: (personId: string, name: string, to: string) => void;
   onClose: () => void;
 }) {
   const col = columns.find((c) => c.id === card.column);
   const names = useStageNames("recruiting");
-  const def = useBoardDef("recruiting");
-  const ownerColumns = usePipelineColumns(card.ownerId);
-  const bookable = bookableColumns(ownerColumns, card.cardColumn, RECRUITING_BOARD, card.band);
-  const initial = bookingState(card.booking);
-  const [booking, setBooking] = useState(initial);
-  const [note, setNote] = useState(card.note ?? "");
   const [source, setSource] = useState(card.source ?? "");
-  const [error, setError] = useState<string | null>(null);
-  const bookingChanged = !sameBooking(booking, initial);
-  const dirty = bookingChanged || note !== (card.note ?? "") || source !== (card.source ?? "");
+  const dirty = source !== (card.source ?? "");
 
   const save = () => {
-    if (bookingChanged) {
-      const err = bookingError(booking, bookable);
-      if (err) {
-        setError(err);
-        return;
-      }
-      const r = bookNextStep("recruiting", card.personId, booking);
-      if (!r.ok) {
-        toast.error(r.error);
-        return;
-      }
-    }
-    updatePipelineCard(card.personId, { note, source: source.trim() || null });
+    updatePipelineCard(card.personId, { source: source.trim() || null });
     onClose();
   };
 
@@ -166,19 +133,6 @@ function CardDetails({
               </>
             )}
           </span>
-          <MoveMenu
-            columns={columns}
-            current={card.column}
-            align="start"
-            onMove={(to) => {
-              onMove(card.personId, card.name, to);
-              onClose();
-            }}
-          >
-            <Button variant="soft" size="sm" className="justify-self-start">
-              <MoveRight /> Move to…
-            </Button>
-          </MoveMenu>
         </div>
 
         <ReferralsBlock
@@ -188,13 +142,7 @@ function CardDetails({
           board="recruiting"
           source={card.cardColumn === REFERRAL_SOURCE}
         />
-        <BookedStep
-          board="recruiting"
-          cardId={card.personId}
-          name={card.name}
-          booking={card.booking}
-          onCancelled={onClose}
-        />
+        <CardFollowups card={{ board: "recruiting", id: card.personId }} />
         <form
           className="grid gap-3"
           onSubmit={(e) => {
@@ -202,22 +150,6 @@ function CardDetails({
             save();
           }}
         >
-          <BookingFields
-            id="card-booking"
-            columns={bookable}
-            bands={def.bands}
-            value={booking}
-            onChange={(b) => {
-              setBooking(b);
-              setError(null);
-            }}
-          />
-          {error && (
-            <p className="text-[12.5px] font-semibold text-bad" role="alert">
-              {error}
-            </p>
-          )}
-          <NoteField id="card-note" value={note} onChange={setNote} />
           <div className="grid gap-1.5">
             <Label htmlFor="card-source" className="text-[12px] text-muted-foreground">
               Where you met

@@ -42,7 +42,6 @@ export {
   moveCustomerCard,
   startListEntry,
   addCustomerContact,
-  updateCustomerCard,
   addEntryToRecruiting,
   getListEntry,
   type ListEntryInput,

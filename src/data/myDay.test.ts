@@ -35,7 +35,6 @@ const base = (over: Partial<MyDayInput> = {}): MyDayInput => ({
   sales: [],
   learning: [],
   pipelineMoves: [],
-  cancellations: [],
   customerMoves: [],
   entries: [],
   missedNotes: [],
@@ -130,7 +129,7 @@ describe("myDayItems", () => {
     ]);
   });
 
-  it("covers people, events, goals, lists, cancelled steps and handled notes", () => {
+  it("covers people, events, goals, lists and handled notes", () => {
     const items = myDayItems(
       base({
         activity: [
@@ -140,19 +139,9 @@ describe("myDayItems", () => {
           act({ kind: "updated", relatedPersonId: "me", entityId: "me", summary: "Edited weekly goal", meta: { goal: true }, timestamp: at(11) }), // prettier-ignore
           act({ kind: "updated", summary: "Edited phone", timestamp: at(12) }),
           act({ kind: "updated", summary: "Change undone", timestamp: at(12, 30) }),
+          // A cancelled booked step (a removed feature) is not shown.
           act({ kind: "note", summary: "MG1 cancelled · No-show", meta: { cancellationId: "x1" }, timestamp: at(13) }), // prettier-ignore
           act({ kind: "created", entityType: "event", entityId: "e1", relatedPersonId: undefined, relatedEventId: "e1", summary: "Created event Night Owls", timestamp: at(14) }), // prettier-ignore
-        ],
-        cancellations: [
-          { id: "x1", board: "recruiting", cardId: "p1", ownerId: "me", column: "first_meeting", bookedDate: today, bookedTime: null, reason: "no_show", reasonText: null, cancelledAt: at(13), cancelledBy: "me" }, // prettier-ignore
-        ],
-        recruitingColumns: [
-          {
-            id: "first_meeting",
-            band: "first_meeting",
-            kind: "milestone",
-            label: "First meeting (MG1)",
-          },
         ],
         entries: [
           { id: "le1", ownerId: "me", name: "Jay Holloway", howKnown: null, phone: null, email: null, notes: null, rating: null, customerId: null, prospectId: null, addedBy: "me", createdAt: at(15), updatedAt: at(15) } as never, // prettier-ignore
@@ -175,7 +164,6 @@ describe("myDayItems", () => {
       "Added Kim Bray to Jamal Brown's list",
       "Added Jay Holloway to your list",
       "Created event Night Owls",
-      "Grace Kim: MG1 cancelled · No-show",
       "Updated Grace Kim's details",
       "Updated your weekly goal",
       "Went to Night Owls",

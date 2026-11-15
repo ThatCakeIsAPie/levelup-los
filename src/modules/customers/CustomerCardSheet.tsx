@@ -1,16 +1,5 @@
-import { useState } from "react";
 import { Link } from "@tanstack/react-router";
-import {
-  ArrowUpRight,
-  ClockAlert,
-  Kanban,
-  Mail,
-  MoveRight,
-  Pencil,
-  Phone,
-  ShoppingBag,
-} from "lucide-react";
-import { toast } from "sonner";
+import { ArrowUpRight, ClockAlert, Kanban, Mail, Pencil, Phone, ShoppingBag } from "lucide-react";
 import { PersonAvatar, RatingPicker, ToneChip, useIsDesktop, Sensitive } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,17 +13,9 @@ import { toastWithUndo } from "@/components/log/quickLog";
 import { cn } from "@/lib/utils";
 import { displayPhone, phoneHref } from "@/lib/phone";
 import {
-  CUSTOMER_BOARD,
   REFERRAL_SOURCE,
   addEntryToRecruiting,
-  bookNextStep,
-  bookableColumns,
-  bookingError,
-  sameBooking,
   openLog,
-  updateCustomerCard,
-  useBoardDef,
-  useCustomerColumns,
   useStageNames,
   updateListEntry,
   useListEntry,
@@ -44,26 +25,23 @@ import {
   type CustomerBand,
   type PipelineColumn,
 } from "@/data";
-import { MoveMenu } from "@/modules/pipeline/moveCard";
-import { ageLong, bookingState } from "@/modules/pipeline/format";
-import { BookingFields, NoteField } from "@/modules/pipeline/BookingFields";
-import { BookedStep } from "@/modules/pipeline/BookedStep";
+import { ageLong } from "@/modules/pipeline/format";
 import { ReferralsBlock } from "@/modules/pipeline/Referrals";
+import { CardFollowups } from "@/modules/pipeline/CardFollowups";
+import { keepEscapeInTaskTitle } from "@/modules/pipeline/taskEscape";
 
-/** A customer card's details: where it is, move it, next step, warm/hot, the people it became. */
+/** A customer card's details: where it is, its tasks and notes, warm/hot, the people it became. */
 export function CustomerCardSheet({
   card,
   columns,
   open,
   onOpenChange,
-  onMove,
   onEdit,
 }: {
   card: BoardCard | null;
   columns: PipelineColumn<CustomerBand>[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onMove: (id: string, name: string, to: string) => void;
   onEdit: (entryId: string) => void;
 }) {
   const desktop = useIsDesktop();
@@ -71,6 +49,7 @@ export function CustomerCardSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side={desktop ? "right" : "bottom"}
+        onEscapeKeyDown={keepEscapeInTaskTitle}
         className={cn(
           "flex flex-col gap-0 p-0",
           desktop ? "w-full sm:max-w-md" : "max-h-[92dvh] rounded-t-card pb-safe",
@@ -81,7 +60,6 @@ export function CustomerCardSheet({
             key={card.personId}
             card={card}
             columns={columns}
-            onMove={onMove}
             onEdit={onEdit}
             onClose={() => onOpenChange(false)}
           />
@@ -94,13 +72,11 @@ export function CustomerCardSheet({
 function Details({
   card,
   columns,
-  onMove,
   onEdit,
   onClose,
 }: {
   card: BoardCard;
   columns: PipelineColumn<CustomerBand>[];
-  onMove: (id: string, name: string, to: string) => void;
   onEdit: (entryId: string) => void;
   onClose: () => void;
 }) {
@@ -111,32 +87,6 @@ function Details({
   const col = columns.find((c) => c.id === card.column);
   const names = useStageNames("customer");
   const recruitingNames = useStageNames("recruiting");
-  const def = useBoardDef("customer");
-  const ownerColumns = useCustomerColumns(card.ownerId);
-  const bookable = bookableColumns(ownerColumns, card.cardColumn, CUSTOMER_BOARD, card.band);
-  const initial = bookingState(card.booking);
-  const [booking, setBooking] = useState(initial);
-  const [note, setNote] = useState(card.note ?? "");
-  const [error, setError] = useState<string | null>(null);
-  const bookingChanged = !sameBooking(booking, initial);
-  const dirty = bookingChanged || note !== (card.note ?? "");
-
-  const save = () => {
-    if (bookingChanged) {
-      const err = bookingError(booking, bookable);
-      if (err) {
-        setError(err);
-        return;
-      }
-      const r = bookNextStep("customer", card.personId, booking);
-      if (!r.ok) {
-        toast.error(r.error);
-        return;
-      }
-    }
-    if (note !== (card.note ?? "")) updateCustomerCard(card.personId, { note });
-    onClose();
-  };
 
   return (
     <>
@@ -185,20 +135,6 @@ function Details({
               </>
             )}
           </span>
-          <MoveMenu
-            columns={columns}
-            bands={def.bands}
-            current={card.column}
-            align="start"
-            onMove={(to) => {
-              onMove(card.personId, card.name, to);
-              onClose();
-            }}
-          >
-            <Button variant="soft" size="sm" className="justify-self-start">
-              <MoveRight /> Move to…
-            </Button>
-          </MoveMenu>
         </div>
 
         {entry && (
@@ -251,40 +187,7 @@ function Details({
           board="customer"
           source={card.cardColumn === REFERRAL_SOURCE}
         />
-        <BookedStep
-          board="customer"
-          cardId={card.personId}
-          name={card.name}
-          booking={card.booking}
-          onCancelled={onClose}
-        />
-        <form
-          className="grid gap-3"
-          onSubmit={(e) => {
-            e.preventDefault();
-            save();
-          }}
-        >
-          <BookingFields
-            id="cc-booking"
-            columns={bookable}
-            bands={def.bands}
-            value={booking}
-            onChange={(b) => {
-              setBooking(b);
-              setError(null);
-            }}
-          />
-          {error && (
-            <p className="text-[12.5px] font-semibold text-bad" role="alert">
-              {error}
-            </p>
-          )}
-          <NoteField id="cc-note" value={note} onChange={setNote} />
-          <Button type="submit" disabled={!dirty}>
-            Save
-          </Button>
-        </form>
+        <CardFollowups card={{ board: "customer", id: card.personId }} />
 
         <div className="flex flex-wrap gap-2 border-t border-line pt-4">
           {customer && (

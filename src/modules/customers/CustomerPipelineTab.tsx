@@ -138,7 +138,6 @@ function CustomerBoard({
           columns={board.columns}
           open={open}
           onOpenChange={onOpenChange}
-          onMove={move}
           onEdit={onEdit}
         />
       )}
