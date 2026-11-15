@@ -27,6 +27,7 @@ import { emptyLibrary, useLibraryStore } from "@/data/library/store";
 import { useLibraryExtras } from "@/data/library/extras";
 import { emptyPipeline, usePipelineStore } from "@/data/pipeline/store";
 import { emptyCustomerPipeline, useCustomerPipelineStore } from "@/data/customerPipeline/store";
+import { emptyCardTasks, useCardTasksStore } from "@/data/cardTasks/store";
 import { emptyTeam, useTeamStore } from "@/data/team/store";
 import { useHomeLayoutStore } from "@/data/homeLayoutStore";
 import { useStageNamesStore } from "@/data/stageNames/store";
@@ -194,6 +195,7 @@ export function closeRemoteSession(cancelLoading = true): void {
     useLibraryStore.setState(emptyLibrary());
     usePipelineStore.setState(emptyPipeline());
     useCustomerPipelineStore.setState(emptyCustomerPipeline());
+    useCardTasksStore.setState(emptyCardTasks());
     useTeamStore.setState(emptyTeam());
     useHomeLayoutStore.setState({ layouts: {} });
     useStageNamesStore.setState({ entries: [] });

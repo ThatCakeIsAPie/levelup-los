@@ -86,16 +86,28 @@ export interface AuditEntry {
 /**
  * The person's name for the tools that are about one person, nothing for any other tool: an added
  * prospect by the name that was sent (or stored), a changed one by its stored name (the new one, else
- * the one it had), a looked-up person by the name the tool recorded. A refused call about a person
- * the caller cannot see has no name to show.
+ * the one it had), a looked-up person by the name the tool recorded, a card tool by its card's person.
+ * A refused call about a person the caller cannot see has no name to show.
  */
 export function entryPersonName(e: AuditEntry): string | null {
   const clean = (s: string | null) => (s && s.trim() ? s : null);
   if (e.tool === "add_prospect") return clean(e.newName) ?? clean(e.argsName);
   if (e.tool === "update_prospect") return clean(e.newName) ?? clean(e.oldName);
   if (e.tool === "get_person") return clean(e.newName);
+  // The card tools record the card's person (new_values, and old_values for a changed task); the
+  // listing tools are about many cards and record none.
+  if (CARD_PERSON_TOOLS.includes(e.tool)) return clean(e.newName) ?? clean(e.oldName);
   return null;
 }
+
+/** The card tools that are about one card: the audit row carries its person's name. */
+const CARD_PERSON_TOOLS = [
+  "get_card",
+  "add_card_task",
+  "update_card_task",
+  "complete_card_task",
+  "add_card_note",
+];
 
 /** A call the connector or a tool turned down, or one that failed (the connector writes these prefixes). */
 export function isRefusal(result: string): boolean {

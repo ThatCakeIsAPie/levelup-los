@@ -15,11 +15,11 @@ import { IS_SUPABASE } from "@/lib/config";
 import { SEED_VERSION, seedPeople } from "@/data/seed";
 import { dataStorage } from "@/stores/storage";
 import { usePeopleStore } from "@/stores/peopleStore";
-import { convertLegacyCards } from "../pipeline/booking";
+import { cardTasks } from "../cardTasks/store";
+import { convertLegacyCards, saveConverted } from "../cardTasks/legacy";
 import { chainOf, columnsFor } from "../pipeline/rules";
 import type { BoardDef, PipelineColumn } from "../pipeline/types";
 import { seedCustomerPipeline } from "./seed";
-import { cardBand } from "./rules";
 import { CUSTOMER_BOARD, type CustomerPipelineData } from "./types";
 
 export const CUSTOMER_PIPELINE_STORAGE_KEY = storageKey("customerPipeline");
@@ -32,10 +32,12 @@ export function emptyCustomerPipeline(): CustomerPipelineData {
 }
 
 /**
- * Saved demo data from before booked next steps: free-text `nextStep` becomes
- * a booked column when it names one on the list owner's board, else the
- * card's note. Names saved before "Referred by" get empty links.
+ * Names saved before "Referred by" get empty links. Booked next steps and notes on saved cards are
+ * converted into tasks and notes by the card tasks store (src/data/cardTasks/legacy.ts).
  */
+/** Saved cards of the old shape were converted while loading: write them back at once. */
+let convertedOnLoad = false;
+
 export function upgradeCustomerPipeline(state: CustomerPipelineData): CustomerPipelineData {
   const people = usePeopleStore.getState().people;
   const owner = new Map((state.entries ?? []).map((e) => [e.id, e.ownerId]));
@@ -54,21 +56,22 @@ export function upgradeCustomerPipeline(state: CustomerPipelineData): CustomerPi
     }
     return c;
   };
-  const cards = convertLegacyCards(
-    state.cards ?? [],
-    (c) => ({
-      columns: columnsOf(owner.get(c.entryId)),
-      band: cardBand(c.column, state.steps ?? []),
-    }),
-    CUSTOMER_BOARD as BoardDef<string>,
-  );
-  // Saved names from before "Referred by" (src/data/referrals) have no links.
+  const conv = convertLegacyCards("customer", state.cards ?? [], (c) => c.entryId, {
+    ownerOf: (id) => owner.get(id) ?? null,
+    labelOf: (id, col) =>
+      columnsOf(owner.get(id)).find((c) => c.id === col)?.label ??
+      (state.steps ?? []).find((x) => x.id === col)?.label ??
+      null,
+    existing: cardTasks(),
+  });
+  saveConverted(conv);
+  if (conv.found) convertedOnLoad = true;
   const entries = (state.entries ?? []).map((e) =>
     e.referredBy === undefined || e.referredByEntry === undefined
       ? { ...e, referredBy: e.referredBy ?? null, referredByEntry: e.referredByEntry ?? null }
       : e,
   );
-  return { ...state, entries, cards };
+  return { ...state, entries, cards: conv.cards };
 }
 
 function fresh(): CustomerPipelineData {
@@ -85,6 +88,10 @@ export const useCustomerPipelineStore = create<CustomerPipelineData>()(
       upgradeCustomerPipeline({ ...current, ...(saved as CustomerPipelineData) }),
   }),
 );
+
+// Persist writes only when the state changes: save the converted cards now, so a reload cannot
+// convert them a second time.
+if (convertedOnLoad) useCustomerPipelineStore.setState((s) => ({ ...s }));
 
 /** Apply an immutable update. */
 export function updateCustomerPipeline(

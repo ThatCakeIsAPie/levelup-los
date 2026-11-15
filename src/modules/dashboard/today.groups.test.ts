@@ -8,7 +8,7 @@ import { seedAttendances, seedContacts, seedEvents, seedPeople, seedSales } from
 import { filterAttendances, visibleIdSet, type Viewer } from "@/data/access";
 import { daysFromToday } from "@/lib/dates";
 import { startingCategories } from "@/data/eventCategories/rules";
-import type { Attendance, CrmEvent, CrmPerson, DueBooking, Role } from "@/data";
+import type { Attendance, CrmEvent, CrmPerson, Role } from "@/data";
 import {
   buildTodayItems,
   groupToday,
@@ -130,31 +130,6 @@ describe("groups go by who the item is about", () => {
     const items = buildTodayItems(empty({ people: [me, old] }));
     expect(items.length).toBeGreaterThan(0);
     expect(items.every((i) => i.filter === "team")).toBe(true);
-  });
-
-  it("puts booked steps on names that already buy under Customers, the rest under Pipeline › Customer", () => {
-    const col = { id: "on_ditto", band: "on_ditto", kind: "milestone", label: "On Ditto" } as const;
-    const step = (cardId: string, customerId?: string): DueBooking => ({
-      board: "customer",
-      cardId,
-      name: `Name ${cardId}`,
-      ownerId: "me",
-      column: col,
-      date: daysFromToday(0),
-      time: null,
-      due: "today",
-      daysLate: 0,
-      ...(customerId ? { customerId } : {}),
-    });
-    const items = buildTodayItems(empty({ bookings: [step("le-1", "c9"), step("le-2")] }));
-    expect(items.find((i) => i.key === "step:customer:le-1")).toMatchObject({
-      filter: "customers",
-    });
-    expect(items.find((i) => i.key === "step:customer:le-1")?.sub).toBeUndefined();
-    expect(items.find((i) => i.key === "step:customer:le-2")).toMatchObject({
-      filter: "pipeline",
-      sub: "customer",
-    });
   });
 
   it("keeps event items under Events whoever they're about, customers on the list included", () => {

@@ -47,6 +47,9 @@ export * from "./rating";
 // Your list and the customer pipeline (src/data/customerPipeline)
 export * from "./customerPipeline";
 
+// Tasks and notes on both pipelines' cards (src/data/cardTasks)
+export * from "./cardTasks";
+
 // Referral sources and "Referred by" on both pipelines (src/data/referrals)
 export * from "./referrals";
 

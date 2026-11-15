@@ -22,23 +22,16 @@ import {
 } from "@/components/ui/select";
 import { toastWithUndo } from "@/components/log/quickLog";
 import {
-  NO_BOOKING,
-  RECRUITING_BOARD,
   addPipelineProspect,
   useBoardDef,
   useStageNames,
-  bookableColumns,
-  bookingError,
   useCurrentUser,
-  usePipelineColumns,
   useVisibleTeam,
-  type Booking,
   type ContactRating,
   type PipelineColumn,
   type Ref,
 } from "@/data";
 import { PhoneInput, RatingPicker, Sensitive } from "@/components/brand";
-import { BookingFields, NoteField } from "./BookingFields";
 import { ReferrerPicker } from "./Referrals";
 
 import { sensitive } from "@/lib/sensitive";
@@ -88,32 +81,18 @@ function AddForm({ columns, onDone }: { columns: PipelineColumn[]; onDone: () =>
   const [source, setSource] = useState("");
   const [column, setColumn] = useState("contact");
   const [sponsorId, setSponsorId] = useState(me.personId);
-  const [booking, setBooking] = useState<Booking>(NO_BOOKING);
-  const [note, setNote] = useState("");
   const [rating, setRating] = useState<ContactRating | null>(null);
   const [referredBy, setReferredBy] = useState<Ref | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const def = useBoardDef("recruiting");
   const choices = columns.filter((c) => c.id !== "registered" && c.band !== "out");
-  // The booking lives on the owner's board, after the column they start in.
-  const ownerColumns = usePipelineColumns(sponsorId);
-  const bookable = bookableColumns(ownerColumns, column, RECRUITING_BOARD);
-  const booked = bookable.some((c) => c.id === booking.nextColumn) ? booking : NO_BOOKING;
 
   const save = () => {
-    const err = bookingError(booked, bookable);
-    if (err) {
-      setError(err);
-      return;
-    }
     const r = addPipelineProspect({
       name,
       phone,
       source,
       column,
       sponsorId,
-      booking: booked,
-      note,
       rating,
       referredBy,
     });
@@ -211,22 +190,6 @@ function AddForm({ columns, onDone }: { columns: PipelineColumn[]; onDone: () =>
           </div>
         )}
       </div>
-      <BookingFields
-        id="ap-booking"
-        columns={bookable}
-        bands={def.bands}
-        value={booked}
-        onChange={(b) => {
-          setBooking(b);
-          setError(null);
-        }}
-      />
-      {error && (
-        <p className="text-[12.5px] font-semibold text-bad" role="alert">
-          {error}
-        </p>
-      )}
-      <NoteField id="ap-note" value={note} onChange={setNote} />
       <DialogFooter>
         <Button type="submit" disabled={!name.trim()}>
           <Plus /> Add prospect

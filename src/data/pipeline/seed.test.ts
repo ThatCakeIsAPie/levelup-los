@@ -13,7 +13,6 @@ import {
   monthlySeries,
   reachesOf,
 } from "./rules";
-import { bookableColumns, bookingOf, dueBookings, type BookingCandidate } from "./booking";
 
 const people = seedPeople();
 const byId = new Map(people.map((p) => [p.id, p]));
@@ -77,43 +76,5 @@ describe("pipeline seed", () => {
 
   it("stays small enough for browser storage", () => {
     expect(JSON.stringify(data).length).toBeLessThan(800_000);
-  });
-
-  it("books next steps only into columns after the card's on its owner's board", () => {
-    let booked = 0;
-    for (const c of data.cards) {
-      if (!c.nextColumn) {
-        expect(c.nextStepDate).toBeNull();
-        continue;
-      }
-      booked++;
-      const owner = byId.get(c.personId)!.sponsorId!;
-      const cols = columnsFor(chainOf(people, owner), data.steps, data.hides);
-      expect(bookableColumns(cols, c.column).map((x) => x.id)).toContain(c.nextColumn);
-      expect(c.nextStepDate).not.toBeNull();
-    }
-    expect(booked).toBeGreaterThan(20);
-  });
-
-  it("Maria, Anita and Jamal each have booked steps due today or overdue", () => {
-    for (const me of ["1", "2", "4"]) {
-      const cols = columnsFor(chainOf(people, me), data.steps, data.hides);
-      const mine: BookingCandidate[] = data.cards
-        .filter((c) => byId.get(c.personId)?.sponsorId === me)
-        .map((c) => ({
-          board: "recruiting",
-          cardId: c.personId,
-          name: byId.get(c.personId)!.name,
-          ownerId: me,
-          personIds: [c.personId],
-          booking: bookingOf(c),
-          column: c.column,
-          dropped: false,
-          columns: cols,
-        }));
-      const due = dueBookings(mine, me, today);
-      expect(due.length).toBeGreaterThan(0);
-      if (me !== "4") expect(due.some((d) => d.column.id === "first_meeting")).toBe(true);
-    }
   });
 });

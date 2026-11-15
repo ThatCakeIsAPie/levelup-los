@@ -7,6 +7,7 @@ import { IS_SUPABASE } from "@/lib/config";
 import { normalizePhone } from "@/lib/phone";
 import { scheduleRefresh, serverSide } from "./remote";
 import { rosterWithout } from "./cascade";
+import { removeCardFollowups } from "./cardTasks/mutations";
 import { downlineOf, sponsorChain, visibleCustomers, visibleIdSet, type Viewer } from "./access";
 import { getViewer, useViewer } from "./session";
 
@@ -199,6 +200,8 @@ export function removePerson(id: string): void {
   useAttendanceStore.getState().removeWhere((a) => a.personId === id);
   useAttendanceStore.getState().removeNotesWhere((n) => n.personId === id);
   useOpsStore.getState().removePerson(id, heirId);
+  // A prospect's tasks and notes go with them (and nobody who is gone stays an assignee or author).
+  removeCardFollowups({ personId: id });
 }
 
 /**
@@ -218,6 +221,8 @@ function removePersonRemote(id: string): void {
     useAttendanceStore.getState().removeWhere((a) => a.personId === id);
     useAttendanceStore.getState().removeNotesWhere((n) => n.personId === id);
     useOpsStore.getState().removePerson(id, r.heirId);
+    // The database cascades the prospect's tasks and notes (and clears them as assignee or author).
+    removeCardFollowups({ personId: id });
   });
   usePeopleStore.setState({ people: usePeopleStore.getState().people.filter((p) => p.id !== id) });
   scheduleRefresh(["crm"], 1500);

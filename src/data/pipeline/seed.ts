@@ -15,6 +15,7 @@
 import { addDays, endOfMonth, getDate, startOfMonth, subDays, subMonths } from "date-fns";
 import { localDate } from "@/lib/dates";
 import type { CrmPerson } from "@/stores/peopleStore";
+import type { SeedFollowup } from "../cardTasks/types";
 import { chainOf, columnsFor, isMilestone, reachesOf } from "./rules";
 import {
   ANITA_STEP,
@@ -148,7 +149,20 @@ function stamp(now: Date, daysAgo: number, hour: number, minute = 0): string {
  * includes ./seedPeople.ts). `now` is for tests.
  */
 export function seedPipeline(people: CrmPerson[], now: Date = new Date()): PipelineData {
+  return buildPipelineSeed(people, now).data;
+}
+
+/** What the demo's cards carry beyond the board: tasks and notes (src/data/cardTasks/seed.ts). */
+export function seedPipelineFollowups(people: CrmPerson[], now: Date = new Date()): SeedFollowup[] {
+  return buildPipelineSeed(people, now).followups;
+}
+
+function buildPipelineSeed(
+  people: CrmPerson[],
+  now: Date,
+): { data: PipelineData; followups: SeedFollowup[] } {
   const rng = makeRng(77);
+  const followups: SeedFollowup[] = [];
   const steps = seedSteps();
   const hides = seedHides();
   const byId = new Map(people.map((p) => [p.id, p]));
@@ -255,14 +269,19 @@ export function seedPipeline(people: CrmPerson[], now: Date = new Date()): Pipel
       personId: person.id,
       column: referral ? REFERRAL_SOURCE : cols[idx].id,
       enteredAt,
-      nextColumn: nextCol?.id ?? null,
-      nextStepDate: nextCol && pl.next ? localDate(addDays(now, pl.next.inDays)) : null,
-      nextStepTime: (nextCol && pl.next?.time) || null,
-      note: pl.note ?? null,
       rating: pl.rating ?? null,
       source: pl.source ?? null,
       droppedAt: null,
       updatedAt: enteredAt,
+    });
+    followups.push({
+      cardId: person.id,
+      ownerId: person.sponsorId,
+      title: nextCol?.label ?? null,
+      dueDate: nextCol && pl.next ? localDate(addDays(now, pl.next.inDays)) : null,
+      dueTime: (nextCol && pl.next?.time) || null,
+      note: pl.note ?? null,
+      noteAt: enteredAt,
     });
   }
   // Registered lately: their whole path, ending in Registered.
@@ -401,14 +420,16 @@ export function seedPipeline(people: CrmPerson[], now: Date = new Date()): Pipel
   }
 
   return {
-    steps,
-    hides,
-    cards,
-    moves,
-    settings: seedSettings(),
-    shares: seedShares(),
-    requests: seedRequests(),
-    cancellations: [],
+    data: {
+      steps,
+      hides,
+      cards,
+      moves,
+      settings: seedSettings(),
+      shares: seedShares(),
+      requests: seedRequests(),
+    },
+    followups,
   };
 }
 

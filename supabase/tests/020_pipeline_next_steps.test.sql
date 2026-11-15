@@ -3,7 +3,9 @@
 -- clearing the booking, undo restoring it, and cancelled steps
 -- (pipeline_step_cancellations: who reads and writes them, the activity entry).
 --
--- Seed facts (src/data/pipeline/seedPeople.ts, src/data/customerPipeline/seed.ts):
+-- The demo seed no longer books steps (the app stopped using them: card tasks replaced them), so
+-- this file books the cards it needs itself, in the "Fixture" block below.
+-- Cards (src/data/pipeline/seedPeople.ts, src/data/customerPipeline/seed.ts):
 -- Jamal (4) is under Anita (2) under Maria (1); David (3) is a crossline. Jamal's
 -- prospects: Carlos (9) in First plan booked into F1 (s-f1), note "Bring to
 -- Fall Weekend"; Rowan (204) in Opened the Door (s-door) booked into First
@@ -46,7 +48,15 @@ create function pg_temp.booked(p_person text) returns text language sql as $$
   select coalesce(next_column, '-') || ' ' || coalesce(next_step_date::text, '-')
     from public.pipeline_cards where person_id = p_person
 $$;
--- The seeded bookings (seed days follow the workspace calendar, not UTC).
+-- Fixture: the bookings this file works on, dated from the workspace calendar, not UTC.
+update public.pipeline_cards set next_column = 's-f1', next_step_date = public.workspace_today('w1') + 2,
+  next_step_time = null, note = 'Bring to Fall Weekend' where person_id = '9';
+update public.pipeline_cards set next_column = 'first_meeting', next_step_date = public.workspace_today('w1'),
+  next_step_time = '18:30' where person_id = '204';
+update public.pipeline_cards set next_column = 's-mg2', next_step_date = public.workspace_today('w1') + 3,
+  next_step_time = null where person_id = '200';
+update public.customer_cards set next_column = 'first_meeting', next_step_date = public.workspace_today('w1'),
+  next_step_time = null where entry_id = 'le-4-6';
 create temp table seeded as
   select person_id as id, pg_temp.booked(person_id) as booked from public.pipeline_cards
   union all

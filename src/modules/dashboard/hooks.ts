@@ -8,7 +8,7 @@ import {
   useContactSettings,
   useCurrentUser,
   useDoNotContactIds,
-  useDueBookings,
+  useDueTasks,
   useEvents,
   useLastContactMap,
   useMissedFollowUps,
@@ -86,7 +86,7 @@ export function useTodayItems(): TodayItem[] {
   const doNotContact = useDoNotContactIds();
   const missed = useMissedFollowUps();
   const categories = useAllEventCategories();
-  const bookings = useDueBookings();
+  const tasks = useDueTasks();
   const referrals = useReferralReminders();
   const { ids: dismissedInvites } = useInvitesOff(user.personId);
   return useMemo(
@@ -103,7 +103,7 @@ export function useTodayItems(): TodayItem[] {
         doNotContact,
         missed,
         categories,
-        bookings,
+        tasks,
         referrals,
         dismissedInvites,
       }),
@@ -118,7 +118,7 @@ export function useTodayItems(): TodayItem[] {
       doNotContact,
       missed,
       categories,
-      bookings,
+      tasks,
       referrals,
       dismissedInvites,
     ],
