@@ -30,7 +30,8 @@ import {
   type CardTask,
 } from "@/data";
 import { dueText } from "./format";
-import { UndoButton, useUndoSlot, type Undoable } from "./UndoSlot";
+import { UndoButton } from "./UndoSlot";
+import { useUndoSlot, type Undoable } from "./useUndoSlot";
 
 const NOBODY = "nobody";
 

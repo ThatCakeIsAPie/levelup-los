@@ -608,7 +608,7 @@ function TodayRow({
               <Check /> Done
             </Button>
           )}
-          <Button asChild size="icon" variant="outline" className="size-8" title="Open card">
+          <Button asChild size="icon" variant="outline" className="size-8">
             <Link
               to={t.board === "customer" ? "/customers" : "/pipeline"}
               aria-label={`Open card: ${p.name}`}

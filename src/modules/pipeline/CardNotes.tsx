@@ -17,7 +17,8 @@ import {
   type CardNote,
   type CardRef,
 } from "@/data";
-import { UndoButton, useUndoSlot, type Undoable } from "./UndoSlot";
+import { UndoButton } from "./UndoSlot";
+import { useUndoSlot, type Undoable } from "./useUndoSlot";
 
 /**
  * A card's Notes: a running log, newest first, each with who wrote it and when (relative). Enter adds
