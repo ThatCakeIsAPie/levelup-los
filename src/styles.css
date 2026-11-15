@@ -397,11 +397,14 @@ html[data-glass="on"] {
  * where an unstyled one is an overlay that only fades in while scrolling. The
  * standard scrollbar-color / scrollbar-width would make Chromium ignore those
  * pseudo-elements, so they go to browsers without them only (Firefox).
- * --scrollbar-track is the inset of the bar, --scrollbar-thumb the grip; a
- * brand may set either in :root / .dark (the :where() here has no specificity).
+ * The grip floats: no track is drawn, and the grip is thinner than the strip it
+ * sits in (a transparent border, so the strip stays easy to grab) and fills
+ * out a little on hover. --scrollbar-thumb is the grip, --scrollbar-track the
+ * strip behind it (transparent); a brand may set either in :root / .dark (the
+ * :where() here has no specificity).
  */
 :where(html[data-glass="on"]) {
-  --scrollbar-track: var(--track-fill);
+  --scrollbar-track: transparent;
   --scrollbar-thumb: color-mix(in srgb, var(--primary-base) 70%, var(--fg));
 }
 html[data-glass="on"] .glass-scrollbar::-webkit-scrollbar {
@@ -413,11 +416,14 @@ html[data-glass="on"] .glass-scrollbar::-webkit-scrollbar-track {
   border-radius: 9999px;
 }
 html[data-glass="on"] .glass-scrollbar::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
   background-color: var(--scrollbar-thumb);
+  background-clip: padding-box;
   border-radius: 9999px;
 }
 html[data-glass="on"] .glass-scrollbar::-webkit-scrollbar-thumb:hover,
 html[data-glass="on"] .glass-scrollbar::-webkit-scrollbar-thumb:active {
+  border-width: 2px;
   background-color: color-mix(in srgb, var(--scrollbar-thumb), var(--fg) 30%);
 }
 html[data-glass="on"] .glass-scrollbar::-webkit-scrollbar-button,
