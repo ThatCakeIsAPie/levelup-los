@@ -273,16 +273,16 @@ select is(public.agent_whoami() ->> 'team_size', '1', 'Xavier''s is 1');
 select pg_temp.as_connector(3, 6);
 select is(public.agent_whoami() ->> 'team_size', '0', 'Ann''s is 0');
 select pg_temp.as_connector(1, 1);
-select is((select array_agg(x order by x) from jsonb_array_elements_text(public.agent_whoami() -> 'can') x),
-  (select array_agg(substr(p.proname::text, 7) order by p.proname) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+select is((select array_agg(x order by x collate "C") from jsonb_array_elements_text(public.agent_whoami() -> 'can') x),
+  (select array_agg(substr(p.proname::text, 7) order by p.proname::text collate "C") from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'public' and p.proname like 'agent\_%'),
   'a write connection can call every agent_ tool in the database');
 select pg_temp.as_connector(1, 8);
-select is((select array_agg(x order by x) from jsonb_array_elements_text(public.agent_whoami() -> 'can') x),
-  (select array_agg(substr(p.proname::text, 7) order by p.proname) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+select is((select array_agg(x order by x collate "C") from jsonb_array_elements_text(public.agent_whoami() -> 'can') x),
+  (select array_agg(substr(p.proname::text, 7) order by p.proname::text collate "C") from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'public' and p.proname like 'agent\_%' and p.prosrc like '%agent_private.ctx(false)%'),
   'a read connection can call exactly the tools that ask for read access');
-select is(jsonb_array_length(public.agent_whoami() -> 'can'), 8, 'eight of them');
+select is(jsonb_array_length(public.agent_whoami() -> 'can'), 11, 'eleven of them (the people, event and card reads)');
 select is(public.agent_whoami() -> 'can' ? 'log_learning', false, 'and not log_learning');
 select is(public.agent_whoami() ->> 'access', 'read', 'access is still shown');
 

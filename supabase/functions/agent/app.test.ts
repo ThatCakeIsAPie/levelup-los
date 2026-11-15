@@ -44,7 +44,7 @@ describe("POST /pair", () => {
       team: WORKSPACE,
     });
     expect(j.urls.mcp).toBe(`${BASE}/mcp`);
-    expect(j.tools.map((t: { name: string }) => t.name)).toHaveLength(13);
+    expect(j.tools.map((t: { name: string }) => t.name)).toHaveLength(20);
     expect(j.setup.claude_code).toContain(`${BASE}/mcp`);
     expect(JSON.stringify(j.setup)).not.toContain(j.connection_key);
     // only the hash of the key reached the database
@@ -321,6 +321,13 @@ describe("plain HTTP surface", () => {
       "set_event_answer",
       "log_learning",
       "list_learning",
+      "list_cards",
+      "get_card",
+      "list_card_tasks",
+      "add_card_task",
+      "update_card_task",
+      "complete_card_task",
+      "add_card_note",
     ]);
     const writes = j.tools
       .filter((t: { changes_data: boolean }) => t.changes_data)
@@ -331,6 +338,10 @@ describe("plain HTTP surface", () => {
       "update_my_profile",
       "set_event_answer",
       "log_learning",
+      "add_card_task",
+      "update_card_task",
+      "complete_card_task",
+      "add_card_note",
     ]);
     expect(j.tools[0]).toMatchObject({ changes_data: false });
   });
@@ -725,7 +736,7 @@ describe("MCP", () => {
     expect(res.status).toBe(401);
   });
 
-  it("lists the thirteen tools with schemas and read-only hints", async () => {
+  it("lists the twenty tools with schemas and read-only hints", async () => {
     const { db, handle } = setup();
     await db.addConnection(KEY);
     const j = await (
@@ -736,12 +747,16 @@ describe("MCP", () => {
       inputSchema: { type: string };
       annotations: { readOnlyHint: boolean };
     }[];
-    expect(tools).toHaveLength(13);
+    expect(tools).toHaveLength(20);
     expect(tools.every((t) => t.inputSchema.type === "object")).toBe(true);
     expect(tools.find((t) => t.name === "whoami")?.annotations.readOnlyHint).toBe(true);
     expect(tools.find((t) => t.name === "add_prospect")?.annotations.readOnlyHint).toBe(false);
     for (const name of ["update_my_profile", "log_learning"])
       expect(tools.find((t) => t.name === name)?.annotations.readOnlyHint, name).toBe(false);
+    for (const name of ["add_card_task", "update_card_task", "complete_card_task", "add_card_note"])
+      expect(tools.find((t) => t.name === name)?.annotations.readOnlyHint, name).toBe(false);
+    for (const name of ["list_cards", "get_card", "list_card_tasks"])
+      expect(tools.find((t) => t.name === name)?.annotations.readOnlyHint, name).toBe(true);
     for (const name of ["list_team", "list_customers", "get_person", "list_learning"])
       expect(tools.find((t) => t.name === name)?.annotations.readOnlyHint, name).toBe(true);
     expect(tools.find((t) => t.name === "export_events_ics")?.annotations.readOnlyHint).toBe(true);

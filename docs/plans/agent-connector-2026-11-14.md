@@ -70,6 +70,23 @@ Choices worth knowing:
 - **Replaced, not edited.** The shipped connector migrations are untouched; `agent_list_prospects(int)` is dropped and replaced by a three-argument function, `agent_whoami()` by `create or replace`. A function deployed before the migration, or the migration before the function, makes `list_prospects` fail until both are in place (see the per-deployment steps in the pull request).
 - **Not built here:** a duplicate guard for `log_learning`; any write for a customer, prospect pipeline stage or contact log (3b).
 
+## Phase 4: card tasks and notes (part 1 BUILT when merged; part 2 NOT STARTED)
+
+Why: the owner wants a card to work like a Basecamp card: a checklist of tasks with due dates (for example "Text Nik to confirm the Nov 19 info session"), a running log of notes with timestamps, tasks assignable to a person, on every pipeline card on both boards, reachable by the connected agent. Migration `20261108000100_card_tasks`, registry entries in `supabase/functions/agent/tools.ts`, pgTAP `051` and `052` (`043` and `047` updated), vitest, the integration test, and the seven plain-word tool labels in `src/data/agents/rules.ts`. The tables, the rules and the tool list: [`backend.md`](../backend.md), "Card tasks and notes" and "Agent connector".
+
+Choices worth knowing:
+
+- **Card tasks and notes, on the existing cards.** Not a new kind of record: a task or note belongs to a prospect's card (recruiting board) or a list name's card (customer board). The rows point at the prospect or the list name, so a card that never moved (no stored row) can have them, and they go with the card's subject by cascade. The rules are the cards' own: whoever may read a card reads its tasks and notes, whoever may edit it edits its tasks, and an upline therefore sees and can assign tasks on a team member's cards; customers stay private to their owner because the customer board shows list names, not customer records.
+- **The card's due date is `next_due`**: the earliest due date among its open tasks, with its time when that task has one. There is no due-date or assignee column on the cards. The tools say so in their descriptions.
+- **A task's assignee** is the card's owner (by default, also when null) or the person who sets it, so an upline can hand a task to a team member on a card of theirs, and take one on themself.
+- **Times are the team's**: `due_time` is a wall-clock time in the team's time zone (as `events.start_time`); "today", "now" and "overdue" are the team's, never the server's. A task with a date and no time is due at the end of that day. A past date is allowed.
+- **Shaped for the receiver**: a task is returned as an iCalendar VTODO (RFC 5545) with the CRM's own fields beside it, the way events are returned as VEVENTs (stable `uid`, `summary`, `due` as a date or a local date-time with `timezone` and `due_utc`, `status` NEEDS-ACTION / COMPLETED, `completed`, `created`, `last_modified`). Each description also names the other words people use for a card's tasks, so an agent asked for one of those finds the tools.
+- **No deletes by an agent**, no tool changes a card, its column or its booking, and none reads or writes the booking columns or the card's old note box (a pgTAP assertion proves the stored cards are byte-identical after every call).
+- **Rows can be written without a signed-in person** (part 2's migration copies existing bookings and card notes into `card_tasks` and `card_notes` as the migration role): `created_by`, `done_by`, `assignee_id` and `author_id` are nullable, and the guard triggers skip the who-may-do-what checks for a writer that is not `authenticated`; pgTAP `051` proves both that insert and its refusal for a signed-in person who cannot edit the card.
+- **Not built here**: `changed_since` reports changed tasks only, not deleted ones (no deletion log, and a new table was not worth it); no tool for reordering tasks.
+
+Part 1 is the database and the connector. **Part 2: NOT STARTED** (needs the owner's say-so before it is begun): the app (tasks count, earliest open due date, notes count and assignee on each card's face on both boards; tasks and notes in the card sheet; tasks due in Home's Today card; a notification when a task is assigned to you) AND removing the booked next step (each existing booking copied into a card task, the old columns kept unused).
+
 ## Phase 3b: not started
 
 Pipeline moves short of the registered step (through `move_pipeline_card`, never the Registered stage), customers (add and update), check-ins (through the existing contact log). Before any tool that writes beyond what phases 1 and 3a do, the owner decides.

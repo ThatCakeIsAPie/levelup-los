@@ -16,8 +16,8 @@ import { icsFromData, type IcsData } from "./ics.ts";
 export type Json = null | boolean | number | string | Json[] | { [k: string]: Json };
 
 interface FieldSpec {
-  /** `date`: a calendar date "YYYY-MM-DD"; `timestamp`: an ISO 8601 time WITH an offset or Z. */
-  type: "string" | "integer" | "boolean" | "date" | "timestamp";
+  /** `date`: a calendar date "YYYY-MM-DD"; `time`: a wall-clock time "HH:MM" (24 hours, no zone); `timestamp`: an ISO 8601 time WITH an offset or Z. */
+  type: "string" | "integer" | "boolean" | "date" | "timestamp" | "time";
   description: string;
   /** string: length in characters; integer: value */
   min?: number;
@@ -113,11 +113,325 @@ const EXPORT_ICS_DESCRIPTION = [
   "A repeating event's master VEVENT has no LAST-MODIFIED (its occurrences' own times are on the exceptions).",
 ].join(" ");
 
+/** The card tools' shared wording: said once, in every description that has it. */
+const CARD_WORDS =
+  "A card is a prospect on the recruiting board or a name on someone's customer board; its tasks (a checklist with optional due date and time) and notes (a running log) are what some people call follow-ups or to-dos. The card's due date is `next_due`: the earliest due date among its open tasks, with its time when that task has one.";
+const VTODO =
+  "Each task is shaped after an iCalendar VTODO (RFC 5545): uid (stable, never changes), summary (the title), status (NEEDS-ACTION or COMPLETED), due (a date YYYY-MM-DD when it has no time, else the local date-time YYYY-MM-DDTHH:MM:SS in `timezone` (DUE;TZID), with due_utc as the UTC instant), completed, created and last_modified (UTC); plus the CRM's own id, done, due_date, due_time, card {board, person}, assignee {id, full_name} (null when unassigned: it is then the card owner's), completed_by and position.";
+const BOARD_ID =
+  "person_id: the card's id: a prospect's id on the recruiting board (from list_prospects), or the id of the name on the customer board (from list_cards with board customer).";
+const BOARD_FIELD = (all: boolean): FieldSpec => ({
+  type: "string",
+  description: all
+    ? "recruiting, customer or all (default all)."
+    : "recruiting (default) or customer.",
+  enum: all ? ["recruiting", "customer", "all"] : ["recruiting", "customer"],
+});
+
+const CARD_TOOLS: readonly ToolDef[] = [
+  {
+    name: "list_cards",
+    description: [
+      "List pipeline cards with their tasks and notes summary, in the CRM's terms (there is no external standard for a card).",
+      CARD_WORDS,
+      "Arguments: board (recruiting, customer or all), person_id (one card: a prospect, a name on the customer board, or the customer it became), mine_only (default true: the cards the connected person owns; false adds their team's, never another line's), has_open_tasks, due_from and due_until (YYYY-MM-DD, inclusive, on next_due), overdue (an open task is due before the team's now; a task with no time is due at the end of its day), search (the person's name), limit (default 50, at most 200), offset.",
+      "Result: {total, limit, offset, timezone (the team's IANA zone), cards, note}. Each card: board, person {id, full_name}, customer_id (a customer-board name that became a customer), owner {id, full_name}, column {id, name}, tasks_done, tasks_total, next_due (a date, or a local date-time in `timezone` beside it; absent when no open task has a due date), assignees (of open tasks), notes_count. Ordered by next_due, then name. `note` is present only when the list is empty or past its end and says why and what to use. Use get_card for one card's tasks and notes.",
+    ].join(" "),
+    write: false,
+    properties: {
+      board: BOARD_FIELD(true),
+      person_id: { type: "string", description: "Only this card.", min: 1, max: 100 },
+      mine_only: {
+        type: "boolean",
+        description: "Only cards the connected person owns (default true).",
+        default: true,
+      },
+      has_open_tasks: {
+        type: "boolean",
+        description: "true: cards with an open task; false: cards with none.",
+      },
+      due_from: {
+        type: "date",
+        description: "Cards whose next_due is on or after this day, YYYY-MM-DD.",
+      },
+      due_until: {
+        type: "date",
+        description: "Cards whose next_due is on or before this day, YYYY-MM-DD.",
+      },
+      overdue: {
+        type: "boolean",
+        description: "Only cards with an open task due before the team's now.",
+      },
+      search: { type: "string", description: "Part of the person's name.", min: 1, max: 100 },
+      limit: {
+        type: "integer",
+        description: "How many (default 50, at most 200).",
+        min: 1,
+        max: 200,
+        default: 50,
+      },
+      offset: {
+        type: "integer",
+        description: "How many to skip (default 0).",
+        min: 0,
+        max: 100000,
+        default: 0,
+      },
+    },
+    sql: "select public.agent_list_cards($1::text, $2::text, $3::boolean, $4::boolean, $5::date, $6::date, $7::boolean, $8::text, $9::int, $10::int) as r",
+    params: (a) => [
+      a.board ?? "all",
+      a.person_id ?? null,
+      a.mine_only ?? true,
+      a.has_open_tasks ?? null,
+      a.due_from ?? null,
+      a.due_until ?? null,
+      a.overdue ?? false,
+      a.search ?? null,
+      a.limit ?? 50,
+      a.offset ?? 0,
+    ],
+  },
+  {
+    name: "get_card",
+    description: [
+      "One pipeline card with ALL its tasks and its notes (newest first, the 100 newest, `notes_truncated` says when more exist).",
+      CARD_WORDS,
+      VTODO,
+      "The card as list_cards shows it, plus tasks and notes [{id, author {id, full_name}, body, created_at}]. A card the connected person cannot see gets the same refusal as one that does not exist.",
+      BOARD_ID,
+    ].join(" "),
+    write: false,
+    properties: {
+      person_id: {
+        type: "string",
+        description: "The card's id (see below).",
+        min: 1,
+        max: 100,
+        required: true,
+      },
+      board: BOARD_FIELD(false),
+    },
+    sql: "select public.agent_get_card($1::text, $2::text) as r",
+    params: (a) => [a.person_id, a.board ?? "recruiting"],
+  },
+  {
+    name: "list_card_tasks",
+    description: [
+      "List card tasks (checklist items on pipeline cards; what some people call follow-ups or to-dos) across cards.",
+      VTODO,
+      "Arguments: status (open default, done, all), assigned (me default: assigned to the connected person, or unassigned on cards they own; team: assigned to people in their downline, or unassigned on those people's cards; all: both), person_id (one card), due_from and due_until (YYYY-MM-DD, inclusive), overdue (open and due before the team's now; a task with no time is due at the end of its day), changed_since (ISO 8601 with an offset: only tasks changed after it; a deleted task is not reported), limit (default 50, at most 200), offset.",
+      "Result: {total, limit, offset, timezone (the team's IANA zone), tasks, note}; dated tasks first by due date and time, then the undated. `note` is present only when the list is empty or past its end and says why and what to use (add_card_task).",
+    ].join(" "),
+    write: false,
+    properties: {
+      status: {
+        type: "string",
+        description: "open (default), done or all.",
+        enum: ["open", "done", "all"],
+      },
+      assigned: {
+        type: "string",
+        description: "me (default), team or all.",
+        enum: ["me", "team", "all"],
+      },
+      person_id: {
+        type: "string",
+        description: "Only this card (see get_card).",
+        min: 1,
+        max: 100,
+      },
+      due_from: { type: "date", description: "Due on or after this day, YYYY-MM-DD." },
+      due_until: { type: "date", description: "Due on or before this day, YYYY-MM-DD." },
+      overdue: { type: "boolean", description: "Only open tasks due before the team's now." },
+      changed_since: {
+        type: "timestamp",
+        description: "ISO 8601 time with an offset or Z: only tasks changed after it.",
+      },
+      limit: {
+        type: "integer",
+        description: "How many (default 50, at most 200).",
+        min: 1,
+        max: 200,
+        default: 50,
+      },
+      offset: {
+        type: "integer",
+        description: "How many to skip (default 0).",
+        min: 0,
+        max: 100000,
+        default: 0,
+      },
+    },
+    sql: "select public.agent_list_card_tasks($1::text, $2::date, $3::date, $4::boolean, $5::text, $6::text, $7::timestamptz, $8::int, $9::int) as r",
+    params: (a) => [
+      a.status ?? "open",
+      a.due_from ?? null,
+      a.due_until ?? null,
+      a.overdue ?? false,
+      a.assigned ?? "me",
+      a.person_id ?? null,
+      a.changed_since ?? null,
+      a.limit ?? 50,
+      a.offset ?? 0,
+    ],
+  },
+  {
+    name: "add_card_task",
+    description: [
+      "Add ONE task (a checklist item; what some people call a follow-up or a to-do) to a pipeline card, optionally with a due date and time and an assignee.",
+      CARD_WORDS,
+      VTODO,
+      "due_time is the team's wall-clock time (the team's timezone, not yours) and needs a due_date. assignee_id may only be the card's owner or the connected person; leave it out for the owner. Result: the card as get_card shows it (without notes) plus `task`, the new one. Not deduplicated: adding the same title twice makes two tasks.",
+      BOARD_ID,
+    ].join(" "),
+    write: true,
+    properties: {
+      person_id: {
+        type: "string",
+        description: "The card's id (see below).",
+        min: 1,
+        max: 100,
+        required: true,
+      },
+      title: {
+        type: "string",
+        description: "What to do, 1 to 200 characters.",
+        min: 1,
+        max: 200,
+        required: true,
+      },
+      board: BOARD_FIELD(false),
+      due_date: {
+        type: "date",
+        description: "Due day, YYYY-MM-DD (the team's calendar; a past date is allowed).",
+      },
+      due_time: {
+        type: "time",
+        description: "Due time of day, HH:MM, 24 hours, the team's time. Needs due_date.",
+      },
+      assignee_id: {
+        type: "string",
+        description: "Who has to do it: the card's owner (default) or the connected person.",
+        min: 1,
+        max: 100,
+      },
+    },
+    sql: "select public.agent_add_card_task($1::text, $2::text, $3::text, $4::date, $5::time, $6::text) as r",
+    params: (a) => [
+      a.person_id,
+      a.title,
+      a.board ?? "recruiting",
+      a.due_date ?? null,
+      a.due_time ?? null,
+      a.assignee_id ?? null,
+    ],
+  },
+  {
+    name: "update_card_task",
+    description: [
+      "Change a card task's title, due date, due time or assignee (complete_card_task ticks it). Send the task id and only the fields to change; null clears due_date, due_time or assignee_id. A time needs a date: clear both to remove the due date. Nothing else about a task can be changed and a field outside that list is refused.",
+      VTODO,
+      "assignee_id may only be the card's owner or the connected person. Result: the card as get_card shows it (without notes), whose `tasks` include the changed task, and a `note` when nothing changed.",
+    ].join(" "),
+    write: true,
+    requireOneOf: ["title", "due_date", "due_time", "assignee_id"],
+    properties: {
+      task_id: {
+        type: "string",
+        description: "The task's id (from get_card or list_card_tasks).",
+        min: 1,
+        max: 100,
+        required: true,
+      },
+      title: { type: "string", description: "New title, 1 to 200 characters.", min: 1, max: 200 },
+      due_date: {
+        type: "date",
+        description: "New due day, YYYY-MM-DD, or null to clear.",
+        nullable: true,
+      },
+      due_time: {
+        type: "time",
+        description: "New due time, HH:MM (the team's time), or null to clear.",
+        nullable: true,
+      },
+      assignee_id: {
+        type: "string",
+        description: "The card's owner or the connected person, or null for unassigned.",
+        min: 1,
+        max: 100,
+        nullable: true,
+      },
+    },
+    sql: "select public.agent_update_card_task($1::text, $2::text::jsonb) as r", // ::text::jsonb: postgres.js double-encodes a string bound as jsonb
+    params: (a) => {
+      const patch: Record<string, Json> = {};
+      for (const k of ["title", "due_date", "due_time", "assignee_id"] as const)
+        if (k in a) patch[k] = a[k];
+      return [a.task_id, JSON.stringify(patch)];
+    },
+  },
+  {
+    name: "complete_card_task",
+    description: [
+      "Tick a card task (done true, the default) or untick it (done false). Ticking the last open task does not close or remove anything: the card stays, with tasks_done equal to tasks_total and no next_due. A `note` is present only when the task was already in the state you asked for.",
+      VTODO,
+      "Result: the card as get_card shows it (without notes) plus `task`.",
+    ].join(" "),
+    write: true,
+    properties: {
+      task_id: {
+        type: "string",
+        description: "The task's id (from get_card or list_card_tasks).",
+        min: 1,
+        max: 100,
+        required: true,
+      },
+      done: {
+        type: "boolean",
+        description: "true ticks it (default), false reopens it.",
+        default: true,
+      },
+    },
+    sql: "select public.agent_complete_card_task($1::text, $2::boolean) as r",
+    params: (a) => [a.task_id, a.done ?? true],
+  },
+  {
+    name: "add_card_note",
+    description: [
+      "Add a note to a pipeline card's running log, stamped with the time and the connected person as author. Notes are never edited or deleted through this connector.",
+      CARD_WORDS,
+      "Result: {card, note {id, author, body, created_at}, notes_count}.",
+      BOARD_ID,
+    ].join(" "),
+    write: true,
+    properties: {
+      person_id: {
+        type: "string",
+        description: "The card's id (see below).",
+        min: 1,
+        max: 100,
+        required: true,
+      },
+      body: {
+        type: "string",
+        description: "The note, 1 to 2000 characters.",
+        min: 1,
+        max: 2000,
+        required: true,
+      },
+      board: BOARD_FIELD(false),
+    },
+    sql: "select public.agent_add_card_note($1::text, $2::text, $3::text) as r",
+    params: (a) => [a.person_id, a.body, a.board ?? "recruiting"],
+  },
+];
+
 export const TOOLS: readonly ToolDef[] = [
   {
     name: "whoami",
     description:
-      "Who the connected person is: their name, stage and role, their team, today's date for the team, what this connection may do (access: read or write), `can` (the tool names this connection may call) and `team_size` (how many registered people are in their downline, the count list_team lists). Call it first.",
+      "Who the connected person is: their name, stage and role, their team, today's date for the team, what this connection may do (access: read or write), `can` (the tool names this connection may call) and `team_size` (how many registered people are in their downline, the count list_team lists) and `open_tasks` (open card tasks assigned to them, or unassigned on cards they own: something to do). Call it first.",
     write: false,
     properties: {},
     sql: "select public.agent_whoami() as r",
@@ -396,6 +710,7 @@ export const TOOLS: readonly ToolDef[] = [
     sql: "select public.agent_list_learning($1::date, $2::date) as r",
     params: (a) => [a.from ?? null, a.until ?? null],
   },
+  ...CARD_TOOLS,
 ];
 
 const BY_NAME = new Map(TOOLS.map((t) => [t.name, t]));
@@ -424,6 +739,9 @@ export function inputSchema(t: ToolDef): JsonSchema {
     } else if (f.type === "date" || f.type === "timestamp") {
       p.type = "string";
       p.format = f.type === "date" ? "date" : "date-time";
+    } else if (f.type === "time") {
+      p.type = f.nullable ? ["string", "null"] : "string";
+      p.pattern = "^([01][0-9]|2[0-3]):[0-5][0-9]$";
     } else {
       if (f.min !== undefined) p.minimum = f.min;
       if (f.max !== undefined) p.maximum = f.max;
@@ -454,6 +772,11 @@ export function isDate(s: string): boolean {
   if (!m) return false;
   const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
   return d.getUTCFullYear() === +m[1] && d.getUTCMonth() === +m[2] - 1 && d.getUTCDate() === +m[3];
+}
+
+/** A wall-clock time of day, "HH:MM" (24 hours). */
+export function isTime(s: string): boolean {
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(s);
 }
 
 /** An ISO 8601 date-time that names its offset (Z or +hh:mm), so it is one instant. */
@@ -499,6 +822,10 @@ export function validateArgs(t: ToolDef, raw: unknown): Validated {
     }
     if (f.type === "date") {
       if (typeof v !== "string" || !isDate(v)) problems.push(`${k}: must be a date, YYYY-MM-DD`);
+      else args[k] = v;
+    } else if (f.type === "time") {
+      if (typeof v !== "string" || !isTime(v))
+        problems.push(`${k}: must be a time of day, HH:MM (24 hours)`);
       else args[k] = v;
     } else if (f.type === "timestamp") {
       if (typeof v !== "string" || !isTimestamp(v))
