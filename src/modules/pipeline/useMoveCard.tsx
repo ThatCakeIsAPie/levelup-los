@@ -30,6 +30,9 @@ const FAILURE: Record<MoveFailure, string> = {
   "not-on-board": "That card is off the board.",
   "unknown-column": "That column isn't on this board.",
   "same-column": "Already there.",
+  "registered-only": "Steps after Registered are for people who have registered.",
+  "after-registered-only":
+    "A registered person moves only between Registered and the steps after it.",
 };
 
 /**

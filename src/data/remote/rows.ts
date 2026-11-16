@@ -75,7 +75,7 @@ import type {
   PipelineStep,
   StatRequest,
   StatShare,
-  StepBand,
+  RecruitingStepBand,
   StepHide,
   TeamSetting,
 } from "@/data/pipeline/types";
@@ -1157,7 +1157,7 @@ export function stepFromRow(r: R<"pipeline_steps">): PipelineStep {
   return {
     id: r.id!,
     ownerId: r.owner_id!,
-    band: r.band as StepBand,
+    band: r.band as RecruitingStepBand,
     label: r.label ?? "",
     position: Number(r.position ?? 0),
     createdAt: isoOr(r.created_at),

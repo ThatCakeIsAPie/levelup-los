@@ -115,11 +115,11 @@ const EXPORT_ICS_DESCRIPTION = [
 
 /** The card tools' shared wording: said once, in every description that has it. */
 const CARD_WORDS =
-  "A card is a prospect on the recruiting board or a name on someone's customer board; its tasks (a checklist with optional due date and time) and notes (a running log) are what some people call follow-ups or to-dos. The card's due date is `next_due`: the earliest due date among its open tasks, with its time when that task has one.";
+  "A card is a prospect on the recruiting board (or a registered person whose card is in Registered or a step after it, when the team has such steps) or a name on someone's customer board; its tasks (a checklist with optional due date and time) and notes (a running log) are what some people call follow-ups or to-dos. The card's due date is `next_due`: the earliest due date among its open tasks, with its time when that task has one.";
 const VTODO =
   "Each task is shaped after an iCalendar VTODO (RFC 5545): uid (stable, never changes), summary (the title), status (NEEDS-ACTION or COMPLETED), due (a date YYYY-MM-DD when it has no time, else the local date-time YYYY-MM-DDTHH:MM:SS in `timezone` (DUE;TZID), with due_utc as the UTC instant), completed, created and last_modified (UTC); plus the CRM's own id, done, due_date, due_time, card {board, person}, assignee {id, full_name} (null when unassigned: it is then the card owner's), completed_by and position.";
 const BOARD_ID =
-  "person_id: the card's id: a prospect's id on the recruiting board (from list_prospects), or the id of the name on the customer board (from list_cards with board customer).";
+  "person_id: the card's id: a prospect's id on the recruiting board (from list_prospects) or a registered person's whose card is after Registered (from list_cards), or the id of the name on the customer board (from list_cards with board customer).";
 const BOARD_FIELD = (all: boolean): FieldSpec => ({
   type: "string",
   description: all
