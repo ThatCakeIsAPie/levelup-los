@@ -27,9 +27,22 @@ export const MILESTONES: readonly MilestoneCode[] = [
   "registered",
 ];
 
-/** Bands that can hold leader steps (nothing comes after Registered). */
+/**
+ * Bands that can hold leader steps before the last milestone (the funnel, the "inside your steps"
+ * breakdown and the steps editor's first three sections are about these).
+ */
 export type StepBand = Exclude<MilestoneCode, "registered">;
 export const STEP_BANDS: readonly StepBand[] = ["contact", "first_meeting", "first_plan"];
+
+/**
+ * Every band a step can be in on the recruiting board: the three above, and "registered": the steps
+ * AFTER the Registered milestone (a leader's own post-registration milestones: "Activated", ...).
+ * Only registered people have cards in them. The customer board has no such band.
+ */
+export type RecruitingStepBand = MilestoneCode;
+export const RECRUITING_STEP_BANDS: readonly RecruitingStepBand[] = [...STEP_BANDS, "registered"];
+/** The band of the steps after Registered. */
+export const POST_REGISTRATION_BAND = "registered" satisfies RecruitingStepBand;
 
 export const MILESTONE_LABEL: Record<MilestoneCode, string> = {
   contact: "Contact made",
@@ -101,7 +114,7 @@ export const MILESTONE_COLUMN_LABEL: Record<MilestoneCode, string> = {
  * `pipeline_steps` (and `customer_steps` on the customer board): a
  * leader-defined step between two milestones.
  */
-export interface PipelineStep<B extends string = StepBand> {
+export interface PipelineStep<B extends string = RecruitingStepBand> {
   id: string;
   /** The leader who defined it; their whole downline inherits it. */
   ownerId: string;
@@ -119,10 +132,10 @@ export interface StepHide {
   createdAt: string;
 }
 
-/** `pipeline_cards`: one per prospect on the board. */
+/** `pipeline_cards`: one per prospect on the board, and per registered person whose card is after Registered. */
 export interface PipelineCard {
   personId: string;
-  /** A milestone code or a step id. */
+  /** A milestone code or a step id (a registered person's: "registered" or a step after it). */
   column: string;
   /** When the card entered its current column (ISO timestamp). */
   enteredAt: string;
@@ -130,7 +143,7 @@ export interface PipelineCard {
   rating: ContactRating | null;
   /** Where you met ("Gym", "Referral"). */
   source: string | null;
-  /** Taken off the board (not now / said no). The person stays a prospect. */
+  /** Taken off the board (not now / said no). The person stays what they are (a prospect, or registered). */
   droppedAt: string | null;
   updatedAt: string;
 }
@@ -297,7 +310,7 @@ export const RECRUITING_BOARD: BoardDef<RecruitingBand> = {
     { id: "out", kind: "outcome", label: RECRUITING_BAND_LABEL.out },
   ],
   milestones: MILESTONES,
-  stepBands: STEP_BANDS,
+  stepBands: RECRUITING_STEP_BANDS,
   milestoneColumnLabel: MILESTONE_COLUMN_LABEL,
   fixed: FIXED_RECRUITING_COLUMNS,
   reserved: [...Object.values(MILESTONE_LABEL), ...FIXED_RECRUITING_COLUMNS.map((c) => c.label)],

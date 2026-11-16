@@ -5190,6 +5190,8 @@ export type Database = {
           registered: number;
         }[];
       };
+      pipeline_registered_card_column: { Args: { p_person_id: string }; Returns: string };
+      pipeline_registered_in_progress: { Args: { p_person_id: string }; Returns: boolean };
       pipeline_stats_visible: { Args: { p_owner_id: string }; Returns: boolean };
       pipeline_team_row_visible: {
         Args: { p_person_id: string; p_workspace_id: string };
