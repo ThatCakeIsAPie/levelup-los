@@ -75,7 +75,7 @@ describe("buildTodayItems: referral sources", () => {
         ],
         lastContact: new Map([
           ["hector", daysFromToday(0)],
-          ["ann", daysFromToday(-20)],
+          ["ann", daysFromToday(-200)],
         ]),
         referrals: [reminder({ days: 60 })],
       }),

@@ -57,6 +57,7 @@ import {
 } from "./rules";
 import {
   MILESTONES,
+  NOT_INTERESTED,
   POST_REGISTRATION_BAND,
   RECRUITING_BOARD,
   REFERRAL_SOURCE,
@@ -74,6 +75,7 @@ import {
   type StepBand,
 } from "./types";
 import { columnsFor, isRegisteredPerson } from "./rules";
+import { revisitHint, type CheckInMonths } from "./checkIns";
 import { afterRegistered, zonedDay, type AfterRegisteredCard } from "./afterRegistered";
 import {
   registeredBandCount,
@@ -182,10 +184,17 @@ export function usePipelineColumns(personId: string | undefined): PipelineColumn
   const chatPeople = useChatPeople();
   const viewer = useViewer();
   const def = useBoardDef("recruiting");
+  const settings = usePipelineStore((s) => s.settings);
   return useMemo(() => {
     if (!personId) return [];
-    return columnsFor(chainOf(people, personId, uplines), steps, hides, def).map((c) =>
-      c.ownerId
+    // The Not interested hint names the interval the viewer is using.
+    const revisit = revisitHint(
+      effectiveSettings(chainOf(people, viewer?.personId ?? personId, uplines), settings).checkIns
+        .notInterested,
+    );
+    return columnsFor(chainOf(people, personId, uplines), steps, hides, def).map((c0) => {
+      const c = c0.id === NOT_INTERESTED && c0.kind === "fixed" ? { ...c0, hint: revisit } : c0;
+      return c.ownerId
         ? {
             ...c,
             ownerName:
@@ -193,9 +202,9 @@ export function usePipelineColumns(personId: string | undefined): PipelineColumn
                 ? "You"
                 : firstName(chatPeople.get(c.ownerId)?.name ?? "A leader"),
           }
-        : c,
-    );
-  }, [people, personId, steps, hides, chatPeople, viewer, uplines, def]);
+        : c;
+    });
+  }, [people, personId, steps, hides, chatPeople, viewer, uplines, def, settings]);
 }
 
 /** "Maria" or "You". */
@@ -584,6 +593,48 @@ export function useTeamSettings(scope: PipelineScope): TeamSettingsView | null {
       },
     };
   }, [opt, people, settings, viewer, name, uplines]);
+}
+
+// ---------------------------------------------------------------------------
+// Prospect check-in intervals
+// ---------------------------------------------------------------------------
+
+export interface CheckInSettingsView {
+  /** The four intervals in use for the viewer. */
+  months: CheckInMonths;
+  /** Whose they are (name); null = the app's defaults. */
+  from: string | null;
+  fromId: string | null;
+  /** The viewer set them themselves (so using the upline's again does something). */
+  own: boolean;
+  /** What the viewer would use if they cleared their own. */
+  inherited: { months: CheckInMonths; from: string | null };
+}
+
+/** The viewer's prospect check-in intervals: their own, else the nearest upline's, else the defaults. */
+export function useCheckInSettings(): CheckInSettingsView {
+  const people = usePeopleStore((s) => s.people);
+  const uplines = useUplines();
+  const settings = usePipelineStore((s) => s.settings);
+  const viewer = useViewer();
+  const name = useNamer();
+  return useMemo(() => {
+    const chain = viewer ? chainOf(people, viewer.personId, uplines) : [];
+    const eff = effectiveSettings(chain, settings);
+    const up = effectiveSettings(chain.slice(0, -1), settings);
+    return {
+      months: eff.checkIns,
+      from: eff.checkInsFrom ? name(eff.checkInsFrom) : null,
+      fromId: eff.checkInsFrom,
+      own: !!viewer && eff.checkInsFrom === viewer.personId,
+      inherited: { months: up.checkIns, from: up.checkInsFrom ? name(up.checkInsFrom) : null },
+    };
+  }, [people, settings, viewer, name, uplines]);
+}
+
+/** The recruiting board's cards (Today reads their rating and column). */
+export function usePipelineCards(): PipelineCard[] {
+  return usePipelineStore((s) => s.cards);
 }
 
 // ---------------------------------------------------------------------------

@@ -1240,6 +1240,7 @@ export function moveToRow(m: PipelineMove): Row {
 export const hhmm = (v: string | null | undefined): string | null => (v ? v.slice(0, 5) : null);
 export function teamSettingFromRow(r: R<"pipeline_team_settings">): TeamSetting {
   const t1 = r.target_contact_to_meeting;
+  const hot = r.checkin_hot_months;
   return {
     personId: r.person_id!,
     mg1Goal: r.mg1_goal ?? null,
@@ -1250,6 +1251,20 @@ export function teamSettingFromRow(r: R<"pipeline_team_settings">): TeamSetting 
             contactToMeeting: Number(t1),
             meetingToPlan: Number(r.target_meeting_to_plan),
             planToRegistered: Number(r.target_plan_to_registered),
+          },
+    // The four are all set or all null (a check constraint); one missing is none.
+    checkIns:
+      hot === null ||
+      hot === undefined ||
+      r.checkin_warm_months == null ||
+      r.checkin_cold_months == null ||
+      r.checkin_not_interested_months == null
+        ? null
+        : {
+            hot: Number(hot),
+            warm: Number(r.checkin_warm_months),
+            cold: Number(r.checkin_cold_months),
+            notInterested: Number(r.checkin_not_interested_months),
           },
     updatedAt: isoOr(r.updated_at),
   };
@@ -1263,6 +1278,10 @@ export function teamSettingToRow(t: TeamSetting): Row {
     target_contact_to_meeting: t.targets?.contactToMeeting ?? null,
     target_meeting_to_plan: t.targets?.meetingToPlan ?? null,
     target_plan_to_registered: t.targets?.planToRegistered ?? null,
+    checkin_hot_months: t.checkIns?.hot ?? null,
+    checkin_warm_months: t.checkIns?.warm ?? null,
+    checkin_cold_months: t.checkIns?.cold ?? null,
+    checkin_not_interested_months: t.checkIns?.notInterested ?? null,
   };
 }
 

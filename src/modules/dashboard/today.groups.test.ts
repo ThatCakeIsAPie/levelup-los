@@ -52,6 +52,11 @@ const person = (o: Partial<CrmPerson> & { id: string }): CrmPerson => ({
   bizClass: "prospect",
   ...o,
 });
+/** The same input with every last contact over a year ago: every demo prospect is past its check-in interval. */
+const inYear = (input: TodayInput): TodayInput => ({
+  ...input,
+  lastContact: new Map([...input.lastContact].map(([id]) => [id, daysFromToday(-400)])),
+});
 const me = person({ id: "me", name: "Maria", bizClass: "ibo" });
 const empty = (over: Partial<TodayInput>): TodayInput => ({
   viewerId: "me",
@@ -95,12 +100,15 @@ describe("groups go by who the item is about", () => {
         expect(i.person.bizClass).toBe("customer");
       }
     }
-    // Maria's team has prospects nobody has checked in with lately.
-    expect(buildTodayItems(inputFor("1", "leader")).some((i) => i.kind === "prospect")).toBe(true);
+    // Maria's team has prospects nobody has checked in with for a year or more
+    // (the demo's own are all recent: a prospect is due after 3 to 12 months).
+    expect(
+      buildTodayItems(inYear(inputFor("1", "leader"))).some((i) => i.kind === "prospect"),
+    ).toBe(true);
   });
 
   it('puts "Check in with Finley Underwood" (a prospect) under Pipeline › Recruiting', () => {
-    const finley = person({ id: "f", name: "Finley Underwood", joinedDate: daysFromToday(-60) });
+    const finley = person({ id: "f", name: "Finley Underwood", joinedDate: daysFromToday(-200) });
     const sam = person({
       id: "s",
       name: "Sam Ortiz",
@@ -160,7 +168,7 @@ describe("groups go by who the item is about", () => {
   });
 
   it("respects Do not contact in every group", () => {
-    const input = inputFor("1", "leader");
+    const input = inYear(inputFor("1", "leader"));
     const all = buildTodayItems(input);
     const prospect = all.find((i) => i.kind === "prospect")!;
     const left = buildTodayItems({ ...input, doNotContact: new Set([prospect.person.id]) });
@@ -168,7 +176,7 @@ describe("groups go by who the item is about", () => {
   });
 
   it("groups in the chip order, each keeping the list's order", () => {
-    const items = buildTodayItems(inputFor("1", "leader"));
+    const items = buildTodayItems(inYear(inputFor("1", "leader")));
     const groups = groupToday(items);
     expect(groups.map((g) => g.filter)).toEqual(["team", "customers", "pipeline", "events"]);
     expect(groups.flatMap((g) => g.items)).toHaveLength(items.length);
