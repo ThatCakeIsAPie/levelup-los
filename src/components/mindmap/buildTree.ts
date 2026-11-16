@@ -73,6 +73,7 @@ function subtreeDescendantCount(node: TreeNode): number {
  *  - Keep each person's PPV as given (0 when missing).
  *  - Recompute GPV as the sum of PPV in the subtree (incl. self).
  *  - Stamp memberCount = total nodes in the subtree (incl. self).
+ *  - Stamp legCount = the people directly under the node.
  *  - Re-assign sequential IDs in DFS order (post-sort) starting at 1.
  *    Sponsor IDs are rewritten to match.
  */
@@ -96,7 +97,7 @@ export function normalizeForest(roots: TreeNode[]): TreeNode[] {
   }
   sortedRoots.forEach(setPpv);
 
-  // 3. memberCount + GPV bottom-up.
+  // 3. memberCount, legCount + GPV bottom-up.
   function tally(n: TreeNode): number {
     let count = 1;
     let gpv = n.person.ppv ?? 0;
@@ -105,6 +106,7 @@ export function normalizeForest(roots: TreeNode[]): TreeNode[] {
       gpv += c.person.gpv ?? 0;
     }
     n.person.memberCount = count;
+    n.person.legCount = n.children.length;
     n.person.gpv = gpv;
     return count;
   }
