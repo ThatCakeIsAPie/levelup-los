@@ -14,11 +14,14 @@ import { toastWithUndo } from "@/components/log/quickLog";
 import {
   REFERRAL_SOURCE,
   getStageNames,
+  isAfterRegisteredStep,
+  isRegisteredPerson,
   movePipelineCard,
   useStageNames,
   type MoveFailure,
   type PipelineColumn,
 } from "@/data";
+import { usePeopleStore } from "@/stores/peopleStore";
 import { closeInviteDialog, openInviteDialog } from "@/modules/invites/inviteDialogStore";
 import { forgetPersonInvite } from "@/modules/invites/personInvites";
 
@@ -72,9 +75,15 @@ export function useMoveCard(columns: PipelineColumn[]) {
   };
 
   const move = (personId: string, name: string, to: string) => {
-    if (to === "registered") setConfirm({ personId, name });
+    // Only a prospect is registered by reaching Registered: a registered person's card moving back to it needs no question.
+    const person = usePeopleStore.getState().people.find((p) => p.id === personId);
+    if (to === "registered" && !(person && isRegisteredPerson(person)))
+      setConfirm({ personId, name });
     else doMove(personId, name, to);
   };
+
+  /** Steps after Registered on this board: the person's card stays on it, in Registered. */
+  const staysOnBoard = columns.some((c) => isAfterRegisteredStep(c));
 
   const dialog = (
     <AlertDialog open={!!confirm} onOpenChange={(o) => !o && setConfirm(null)}>
@@ -85,7 +94,11 @@ export function useMoveCard(columns: PipelineColumn[]) {
           </AlertDialogTitle>
           <AlertDialogDescription>
             Reaching {stages.name("registered")} registers them: they become an apprentice from
-            today and leave the board. Their IBO and LTD numbers can be added on their profile.
+            today and{" "}
+            {staysOnBoard
+              ? `their card stays on the board in ${stages.name("registered")}`
+              : "leave the board"}
+            . Their IBO and LTD numbers can be added on their profile.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

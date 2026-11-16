@@ -52,13 +52,21 @@ export function ownCards(
 ): { mine: number; mixed: boolean } {
   let mine = 0;
   let others = 0;
+  let regMine = 0;
   const count = (ownerId: string) => {
     if (ownerId === me) mine++;
     else others++;
   };
   for (const b of board.bands)
-    for (const c of b.columns) for (const card of c.cards) count(card.ownerId);
-  let regMine = 0;
+    for (const c of b.columns)
+      for (const card of c.cards) {
+        // Registered people's cards (steps after Registered) only tell whether the board is mixed:
+        // "prospects in progress · N yours" counts prospects.
+        if (card.registered) {
+          if (card.ownerId === me) regMine++;
+          else others++;
+        } else count(card.ownerId);
+      }
   for (const r of board.registered.cards) {
     if (r.ownerId === me) regMine++;
     else others++;

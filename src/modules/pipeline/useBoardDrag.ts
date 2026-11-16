@@ -29,15 +29,23 @@ export function useBoardDrag({
   scroller,
   onDrop,
   pageStep,
+  accepts,
 }: {
   scroller: RefObject<HTMLElement | null>;
   onDrop: (personId: string, to: string) => void;
   /** Scroll by one column (phones) instead of smoothly. */
   pageStep?: boolean;
+  /**
+   * May this card be dropped on this column? A column that refuses it is never `over` (a drop there
+   * does nothing). Omitted: every column takes every card.
+   */
+  accepts?: (personId: string, column: string) => boolean;
 }) {
   const [drag, setDrag] = useState<DragInfo | null>(null);
   const dragRef = useRef<DragInfo | null>(null);
   const cleanup = useRef<(() => void) | null>(null);
+  const acceptsRef = useRef(accepts);
+  acceptsRef.current = accepts;
   /** Set right after a drop so the card's click (opening details) is skipped. */
   const suppressClick = useRef(false);
   const lastEdgeScroll = useRef(0);
@@ -49,9 +57,10 @@ export function useBoardDrag({
 
   useEffect(() => () => cleanup.current?.(), []);
 
-  const overAt = (x: number, y: number): string | null => {
+  const overAt = (x: number, y: number, personId: string): string | null => {
     const el = document.elementFromPoint(x, y);
-    return el?.closest<HTMLElement>("[data-drop-column]")?.dataset.dropColumn ?? null;
+    const id = el?.closest<HTMLElement>("[data-drop-column]")?.dataset.dropColumn ?? null;
+    return id && acceptsRef.current && !acceptsRef.current(personId, id) ? null : id;
   };
 
   const edgeScroll = useCallback(
@@ -86,7 +95,7 @@ export function useBoardDrag({
       const activate = (x: number, y: number) => {
         active = true;
         if (touch) navigator.vibrate?.(8);
-        set({ ...card, from: card.column, x, y, over: overAt(x, y) });
+        set({ ...card, from: card.column, x, y, over: overAt(x, y, card.personId) });
       };
       const finish = (drop: boolean) => {
         const d = dragRef.current;
@@ -110,7 +119,12 @@ export function useBoardDrag({
         }
         const d = dragRef.current;
         if (!d) return;
-        set({ ...d, x: ev.clientX, y: ev.clientY, over: overAt(ev.clientX, ev.clientY) });
+        set({
+          ...d,
+          x: ev.clientX,
+          y: ev.clientY,
+          over: overAt(ev.clientX, ev.clientY, d.personId),
+        });
         edgeScroll(ev.clientX);
       };
       const up = () => finish(true);

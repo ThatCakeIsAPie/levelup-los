@@ -188,7 +188,7 @@ select is(pg_temp.card('pre') || ' ' || pg_temp.stage('pre'), '- ' || (select ev
 select is(pg_temp.try_as(1, $$select public.move_pipeline_card('prb', 's-act')$$), 'rows=1', 'upline (Pat)');
 select is(pg_temp.try_as(2, $$select public.move_pipeline_card('prb', 's-act')$$), 'rows=1', 'owner (Alex)');
 select is(pg_temp.try_as(4, $$select public.move_pipeline_card('prb', 's-act')$$), 'rows=1', 'deputy (Dee)');
-select is(pg_temp.try_as(3, $$select public.move_pipeline_card('prb', 's-act')$$), 'rows=1', 'the registered person (Bo), who sees himself');
+select is(pg_temp.try_as(3, $$select public.move_pipeline_card('prb', 's-act')$$), '42501', 'the registered person (Bo) cannot move his own card, though he sees it (061)');
 select is(pg_temp.try_as(5, $$select public.move_pipeline_card('prb', 's-act')$$), 'P0002', 'crossline (Xavier): the person is not found');
 select is(pg_temp.try_as(6, $$select public.move_pipeline_card('prb', 's-act')$$), '42501', 'candidate (Cal): no pipeline');
 select is(pg_temp.try_as(1, $$select public.move_pipeline_card('prp2', 'first_meeting')$$), 'rows=1', 'for comparison, a prospect: upline');
