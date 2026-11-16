@@ -12,6 +12,9 @@ import { useCustomerPipelineStore } from "../customerPipeline/store";
 import { useDoNotContactIds } from "../customerPipeline/hooks";
 import { visibleEntries } from "../customerPipeline/rules";
 import { usePipelineStore } from "../pipeline/store";
+import { registeredInProgressIds } from "../pipeline/afterRegistered";
+import { useRemoteStore } from "../remote/extras";
+import { useBoardDef } from "../stageNames/hooks";
 import { useCardTasksStore } from "./store";
 import {
   assigneeChoices,
@@ -106,6 +109,12 @@ export function useDueTasks(): DueTask[] {
   const tasks = useCardTasksStore((s) => s.tasks);
   const people = usePeopleStore((s) => s.people);
   const cards = usePipelineStore((s) => s.cards);
+  const steps = usePipelineStore((s) => s.steps);
+  const hides = usePipelineStore((s) => s.hides);
+  const moves = usePipelineStore((s) => s.moves);
+  const uplineRows = useRemoteStore((s) => s.chain);
+  const def = useBoardDef("recruiting");
+  const uplines = useMemo(() => uplineRows.map((c) => c.personId), [uplineRows]);
   const entries = useCustomerPipelineStore((s) => s.entries);
   const customerCards = useCustomerPipelineStore((s) => s.cards);
   const skip = useDoNotContactIds();
@@ -116,8 +125,19 @@ export function useDueTasks(): DueTask[] {
     const ids = visibleIdSet(people, viewer);
     const map = new Map<string, { ownerId: string; name: string; customerId?: string | null }>();
     const stored = new Map(cards.map((c) => [c.personId, c]));
+    // Registered people whose card is in progress after Registered (none unless a team has steps there).
+    const inProgress = registeredInProgressIds(
+      people.filter((p) => p.sponsorId && ids.has(p.id) && !skip.has(p.id)),
+      { people, steps, hides, cards, moves, uplines, def, timeZone, now: new Date() },
+    );
     for (const p of people) {
-      if (p.bizClass !== "prospect" || !p.sponsorId || !ids.has(p.id) || skip.has(p.id)) continue;
+      if (
+        (p.bizClass !== "prospect" && !inProgress.has(p.id)) ||
+        !p.sponsorId ||
+        !ids.has(p.id) ||
+        skip.has(p.id)
+      )
+        continue;
       const c = stored.get(p.id);
       if (c?.droppedAt || c?.column === "do_not_contact") continue;
       map.set(`recruiting:${p.id}`, { ownerId: p.sponsorId, name: p.name });
@@ -131,7 +151,21 @@ export function useDueTasks(): DueTask[] {
     }
     const due = dueTasksFor(tasks, viewer.personId, map, { now: new Date(), timeZone });
     return due.length ? due : NONE_DUE;
-  }, [viewer, tasks, people, cards, entries, customerCards, skip, timeZone]);
+  }, [
+    viewer,
+    tasks,
+    people,
+    cards,
+    entries,
+    customerCards,
+    skip,
+    timeZone,
+    steps,
+    hides,
+    moves,
+    uplines,
+    def,
+  ]);
 }
 
 /**

@@ -114,8 +114,8 @@ select throws_ok($$select public.move_pipeline_card('20', 'contact')$$, '42501',
 select pg_temp.login('2');
 select throws_ok($$insert into public.pipeline_steps (owner_id, band, label) values ('1', 'contact', 'Sneaky')$$,
   '42501', null, 'nobody adds a step for someone else');
-select throws_ok($$insert into public.pipeline_steps (band, label) values ('registered', 'After')$$,
-  '23514', null, 'no steps after Registered');
+select throws_ok($$insert into public.pipeline_steps (band, label) values ('afterwards', 'After')$$,
+  '23514', null, 'a step needs one of the four milestones as its band (steps after Registered: 20261112000100)');
 select throws_ok($$insert into public.pipeline_steps (id, band, label) values ('contact', 'contact', 'Fake')$$,
   '23514', null, 'a step can''t take a milestone''s code');
 select throws_ok($$insert into public.pipeline_steps (band, label) values ('contact', 'First meeting')$$,
