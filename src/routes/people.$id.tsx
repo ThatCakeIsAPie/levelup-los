@@ -25,6 +25,7 @@ import {
   openLog,
   useAttendancesForPerson,
   useCurrentUser,
+  canSeeTags,
   useCustomerCounts,
   useCustomersOf,
   useDownline,
@@ -486,14 +487,15 @@ function BusinessProfile({ person }: { person: CrmPerson }) {
               <div className="grid min-w-0 content-start gap-4">
                 <SignInCard person={person} />
                 <TeamCard person={person} />
-                {isSelf && <StatsAccessCard />}
                 <CustomersCard person={person} onOpenTab={openCustomers} />
                 <RecentActivityCard
                   personId={person.id}
                   isDesktop
                   onShowAll={() => setTab("activity")}
                 />
-                <TagsCard tags={person.tags} onEdit={openDetailsEdit} />
+                {canSeeTags(person, me.personId) && (
+                  <TagsCard tags={person.tags} onEdit={openDetailsEdit} />
+                )}
               </div>
             </div>
           ) : (
@@ -505,14 +507,15 @@ function BusinessProfile({ person }: { person: CrmPerson }) {
               <NextEventCard person={person} canEdit={canEditEvents} />
               <StatStrip items={stats} />
               <TeamCard person={person} />
-              {isSelf && <StatsAccessCard />}
               <CustomersCard person={person} onOpenTab={openCustomers} />
               <RecentActivityCard
                 personId={person.id}
                 isDesktop={false}
                 onShowAll={() => undefined}
               />
-              <TagsCard tags={person.tags} onEdit={openDetailsEdit} />
+              {canSeeTags(person, me.personId) && (
+                <TagsCard tags={person.tags} onEdit={openDetailsEdit} />
+              )}
             </div>
           )}
         </TabsContent>
@@ -526,7 +529,10 @@ function BusinessProfile({ person }: { person: CrmPerson }) {
         </TabsContent>
 
         <TabsContent value="details" className="mt-0">
-          <DetailsTab person={person} perms={perms} editing={editing} setEditing={setEditing} />
+          <div className="grid gap-4">
+            <DetailsTab person={person} perms={perms} editing={editing} setEditing={setEditing} />
+            {isSelf && <StatsAccessCard />}
+          </div>
         </TabsContent>
 
         {isDesktop && (

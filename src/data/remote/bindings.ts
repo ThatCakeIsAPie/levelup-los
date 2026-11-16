@@ -189,7 +189,7 @@ export const peopleBinding: Binding<PeopleS> = {
       get: (s) => s.people,
       set: (people) => ({ people }),
       toRow: m.personToRow,
-      fromRow: m.personFromRow,
+      fromRow: (r) => m.personFromRow(r, me()),
     }),
   ],
 };

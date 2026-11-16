@@ -10,6 +10,9 @@ import {
   removePerson,
   updatePerson,
   useCurrentUser,
+  canSeeTags,
+  tagsPatch,
+  visibleTags,
   useCustomerCounts,
   useDownline,
   usePerson,
@@ -91,6 +94,7 @@ function DetailsView({
   onEdit: () => void;
 }) {
   const sponsor = usePerson(person.sponsorId ?? undefined);
+  const me = useCurrentUser();
   const owner = usePerson(person.ownerId ?? undefined);
   const isCustomer = person.bizClass === "customer";
   const missing = new Set(missingRequiredFields(person));
@@ -164,14 +168,16 @@ function DetailsView({
           </div>
         ))}
       </dl>
-      <div className="grid gap-1.5 border-t border-line pt-3 text-[13px]">
-        <span className="text-muted-foreground">Tags</span>
-        {person.tags?.length ? (
-          <TagList tags={person.tags} />
-        ) : (
-          <span className="text-faint">No tags</span>
-        )}
-      </div>
+      {canSeeTags(person, me.personId) && (
+        <div className="grid gap-1.5 border-t border-line pt-3 text-[13px]">
+          <span className="text-muted-foreground">Tags</span>
+          {person.tags?.length ? (
+            <TagList tags={person.tags} />
+          ) : (
+            <span className="text-faint">No tags</span>
+          )}
+        </div>
+      )}
       <div className="grid gap-1.5 border-t border-line pt-3 text-[13px]">
         <span className="text-muted-foreground">Notes</span>
         {person.notes ? (
@@ -261,6 +267,9 @@ function DetailsForm({
 }) {
   const isCustomer = person.bizClass === "customer";
   const router = useRouter();
+  const me = useCurrentUser();
+  // Nobody sees or edits their own tags: no field, and the patch never carries `tags`.
+  const showTags = canSeeTags(person, me.personId);
   const team = useVisibleTeam();
   const downline = useDownline(person.id);
   const sponsorOptions = useMemo(() => {
@@ -283,7 +292,7 @@ function DetailsForm({
     monthlyVolume: person.monthlyVolume?.toString() ?? "",
     notes: person.notes ?? "",
   });
-  const [tags, setTags] = useState<string[]>(person.tags ?? []);
+  const [tags, setTags] = useState<string[]>(visibleTags(person, me.personId));
   const [tagDraft, setTagDraft] = useState("");
   const set =
     (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
@@ -307,7 +316,7 @@ function DetailsForm({
       email: opt(f.email),
       phone: opt(f.phone),
       notes: opt(f.notes),
-      tags: tags.length ? tags : undefined,
+      ...tagsPatch(person, me.personId, tags),
     };
     if (perms.canEditIds) {
       patch.joinedDate = opt(f.joinedDate);
@@ -495,30 +504,37 @@ function DetailsForm({
           </Field>
         </div>
 
-        <Field label="Tags" id="d-tag">
-          <div className="grid gap-2">
-            {tags.length > 0 && (
-              <TagList tags={tags} onRemove={(t) => setTags(tags.filter((x) => x !== t))} />
-            )}
-            <div className="flex gap-2">
-              <Input
-                id="d-tag"
-                value={tagDraft}
-                onChange={(e) => setTagDraft(e.target.value)}
-                placeholder="Add a tag, e.g. Bilingual"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    addTag();
-                  }
-                }}
-              />
-              <Button type="button" variant="outline" onClick={addTag} disabled={!tagDraft.trim()}>
-                Add
-              </Button>
+        {showTags && (
+          <Field label="Tags" id="d-tag">
+            <div className="grid gap-2">
+              {tags.length > 0 && (
+                <TagList tags={tags} onRemove={(t) => setTags(tags.filter((x) => x !== t))} />
+              )}
+              <div className="flex gap-2">
+                <Input
+                  id="d-tag"
+                  value={tagDraft}
+                  onChange={(e) => setTagDraft(e.target.value)}
+                  placeholder="Add a tag, e.g. Bilingual"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      addTag();
+                    }
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={addTag}
+                  disabled={!tagDraft.trim()}
+                >
+                  Add
+                </Button>
+              </div>
             </div>
-          </div>
-        </Field>
+          </Field>
+        )}
 
         <Field label="Notes" id="d-notes">
           <Textarea
