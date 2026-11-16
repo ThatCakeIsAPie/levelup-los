@@ -14,7 +14,9 @@ import {
   DEFAULT_TARGETS,
   MILESTONES,
   MIN_SAMPLE,
+  NOT_INTERESTED,
   RECRUITING_BOARD,
+  REFERRAL_SOURCE,
   STALE_DAYS,
   TRANSITIONS,
   type BoardDef,
@@ -602,6 +604,35 @@ export function prospectDoNotContactIds(cards: PipelineCard[]): Set<string> {
   return new Set(
     cards.filter((c) => c.column === DO_NOT_CONTACT && !c.droppedAt).map((c) => c.personId),
   );
+}
+
+/** The board's outcome columns, on its right: a card there is closed out. */
+const OUTCOME_COLUMNS: ReadonlySet<string> = new Set([
+  REFERRAL_SOURCE,
+  NOT_INTERESTED,
+  DO_NOT_CONTACT,
+]);
+
+/**
+ * Prospects whose card sits in one of the outcome columns (\"Referral source\",
+ * \"Not interested\", \"Do not contact\") and is still on the board.
+ */
+export function prospectOutcomeIds(cards: PipelineCard[]): Set<string> {
+  return new Set(
+    cards.filter((c) => OUTCOME_COLUMNS.has(c.column) && !c.droppedAt).map((c) => c.personId),
+  );
+}
+
+/**
+ * The people the team map draws and counts: everyone except prospects whose
+ * card is in an outcome column (`closed`, from `prospectOutcomeIds`). One of
+ * those stays only when someone who is drawn sits under them, so nobody below
+ * drops off the map.
+ */
+export function mapPeople(people: CrmPerson[], closed: ReadonlySet<string>): CrmPerson[] {
+  const off = (p: CrmPerson) => p.bizClass === "prospect" && closed.has(p.id);
+  const sponsors = new Set(people.filter((p) => !off(p)).map((p) => p.sponsorId));
+  return people.filter((p) => !off(p) || sponsors.has(p.id));
 }
 
 /** True for people who belong on the board (business path, prospect). */
