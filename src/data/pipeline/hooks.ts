@@ -57,6 +57,7 @@ import {
 } from "./rules";
 import {
   MILESTONES,
+  POST_REGISTRATION_BAND,
   RECRUITING_BOARD,
   REFERRAL_SOURCE,
   STEP_BANDS,
@@ -72,7 +73,15 @@ import {
   type RecruitingStepBand,
   type StepBand,
 } from "./types";
-import { columnsFor } from "./rules";
+import { columnsFor, isRegisteredPerson } from "./rules";
+import { afterRegistered, zonedDay, type AfterRegisteredCard } from "./afterRegistered";
+import {
+  registeredBandCount,
+  registeredColumnViews,
+  registeredProfile,
+  type RegisteredProfile,
+} from "./boardView";
+import { useWorkspaceTimezone } from "../workspaceTimezone";
 import { useBoardDef, useStageNames } from "../stageNames/hooks";
 import { ratingRank, type ContactRating } from "../rating";
 import { useReferralIndex } from "../referrals/hooks";
@@ -235,6 +244,15 @@ export interface BoardCard {
   referredBy?: string | null;
   /** How many people they referred (src/data/referrals). */
   referrals?: number;
+  /**
+   * A registered person's card (an apprentice or IBO in Registered or a step after it, only on a board
+   * that has steps after Registered). It has no rating or source and is never `listed` or `dim`.
+   */
+  registered?: boolean;
+  /** Registered cards: the person's class (their avatar). */
+  personStage?: BizClass;
+  /** Registered cards: in the finishing column (the last step), where nothing goes stale. */
+  finishing?: boolean;
 }
 
 export interface BoardColumn<B extends string = RecruitingBand> {
@@ -242,6 +260,11 @@ export interface BoardColumn<B extends string = RecruitingBand> {
   cards: BoardCard[];
   /** Milestones: reached in the chosen month. */
   reached: number | null;
+  /**
+   * The finishing column (the last step after Registered): how many cards arrived before this month.
+   * They are counted here, not listed in `cards`. Undefined for every other column.
+   */
+  earlier?: number;
 }
 
 export interface BoardBand<B extends string = RecruitingBand> {
@@ -263,9 +286,15 @@ export interface RegisteredCard {
 export interface PipelineBoard<B extends string = RecruitingBand> {
   columns: PipelineColumn<B>[];
   bands: BoardBand<B>[];
-  /** Recruiting: the month's registrations (the customer board has none). */
+  /**
+   * Recruiting: the month's registrations (the customer board has none). Empty when the board has steps
+   * after Registered: registered people are then real cards in the Registered band's columns.
+   */
   registered: { cards: RegisteredCard[]; total: number };
+  /** Prospects in progress (registered people on cards after Registered are not counted). */
   inProgress: number;
+  /** The board has a step after Registered: registered people have cards in it. */
+  afterRegistered?: boolean;
 }
 
 /** The board for a scope: current cards, plus the month's registrations. */
@@ -278,6 +307,7 @@ export function usePipelineBoard(scope: PipelineScope, month: string): PipelineB
   const columns = usePipelineColumns(opt?.leaderId);
   const refs = useReferralIndex();
   const today = localDate();
+  const timeZone = useWorkspaceTimezone();
   return useMemo(() => {
     if (!opt) return null;
     const byId = new Map(people.map((p) => [p.id, p]));
@@ -349,27 +379,82 @@ export function usePipelineBoard(scope: PipelineScope, month: string): PipelineB
     }
     regCards.sort((a, b) => b.day.localeCompare(a.day));
 
+    // Steps after Registered: registered people are cards in Registered and in those steps.
+    const after = afterRegistered({
+      columns,
+      steps: data.steps,
+      people: prospects.filter(isRegisteredPerson),
+      cards: data.cards,
+      moves: data.moves,
+      today: zonedDay(new Date().toISOString(), timeZone),
+      timeZone,
+    });
+    const afterViews = new Map(registeredColumnViews(after).map((v) => [v.column.id, v]));
+    const registeredCard = (c: AfterRegisteredCard, finishing: boolean): BoardCard => {
+      const person = byId.get(c.personId)!;
+      const o = owner(person);
+      const own = c.cardColumn ? stepById.get(c.cardColumn) : undefined;
+      return {
+        personId: person.id,
+        name: person.name,
+        ownerId: person.sponsorId!,
+        ownerName: o ? firstName(o.name) : "",
+        ownerStage: o ? effectiveBizClass(o) : undefined,
+        column: c.column,
+        cardColumn: c.cardColumn ?? c.column,
+        band: POST_REGISTRATION_BAND,
+        elsewhere: own
+          ? { label: own.label, ownerName: firstName(byId.get(own.ownerId)?.name ?? "") }
+          : null,
+        days: daysInColumn(c.enteredAt, today),
+        stale: !finishing && isStale(c.enteredAt, lastContact.get(person.id), today),
+        rating: null,
+        source: null,
+        enteredAt: c.enteredAt,
+        registered: true,
+        personStage: effectiveBizClass(person),
+        finishing,
+      };
+    };
+
     let inProgress = 0;
     const bands: BoardBand[] = RECRUITING_BOARD.bands.map(({ id: m }) => {
       const cols = columns
         .filter((c) => c.band === m)
-        .map((column) => ({
-          column,
-          cards: m === "registered" ? [] : (byColumn.get(column.id) ?? []),
-          reached: column.kind === "milestone" && isMilestoneBand(m) ? reached[m] : null,
-        }));
+        .map((column): BoardColumn => {
+          const view = m === POST_REGISTRATION_BAND ? afterViews.get(column.id) : undefined;
+          if (view)
+            return {
+              column,
+              cards: view.cards.map((c) => registeredCard(c, view.earlier !== null)),
+              reached: null,
+              ...(view.earlier !== null ? { earlier: view.earlier } : {}),
+            };
+          return {
+            column,
+            cards: m === "registered" ? [] : (byColumn.get(column.id) ?? []),
+            reached: column.kind === "milestone" && isMilestoneBand(m) ? reached[m] : null,
+          };
+        });
       const count =
-        m === "registered" ? regReaches.length : cols.reduce((s, c) => s + c.cards.length, 0);
+        m === "registered"
+          ? after.enabled
+            ? registeredBandCount([...afterViews.values()])
+            : regReaches.length
+          : cols.reduce((s, c) => s + c.cards.length, 0);
       if (m !== "registered" && m !== "out") inProgress += count;
       return { milestone: m, columns: cols, count };
     });
     return {
       columns,
       bands,
-      registered: { cards: regCards, total: regReaches.length },
+      registered: after.enabled
+        ? { cards: [], total: 0 }
+        : { cards: regCards, total: regReaches.length },
       inProgress,
+      afterRegistered: after.enabled,
     };
-  }, [opt, people, ids, data, lastContact, columns, month, today, refs]);
+  }, [opt, people, ids, data, lastContact, columns, month, today, refs, timeZone]);
 }
 
 // ---------------------------------------------------------------------------
@@ -692,6 +777,15 @@ export interface ProspectPipeline {
   /** The viewer's board columns (for "Move to…"). */
   columns: PipelineColumn[];
   ownerId: string | null;
+  /**
+   * A registered person whose card is in progress on the viewer's board (it has steps after Registered):
+   * where it is. Null for a prospect, and for a registered person who is finished or not on the board.
+   */
+  registered: (RegisteredProfile & { days: number; stale: boolean }) | null;
+  /** A registered person taken off the board (on a board with steps after Registered): can be put back. */
+  registeredDropped: boolean;
+  /** False for the viewer's own card: nobody moves, takes off or puts back their own card. */
+  canMove: boolean;
 }
 
 export function useProspectPipeline(personId: string | undefined): ProspectPipeline | null {
@@ -705,6 +799,7 @@ export function useProspectPipeline(personId: string | undefined): ProspectPipel
   const name = useNamer();
   const def = useBoardDef("recruiting");
   const today = localDate();
+  const timeZone = useWorkspaceTimezone();
   return useMemo(() => {
     if (!viewer || viewer.role === "candidate" || !personId || !ids.has(personId)) return null;
     const person = people.find((p) => p.id === personId);
@@ -713,8 +808,21 @@ export function useProspectPipeline(personId: string | undefined): ProspectPipel
       .filter((m) => m.personId === personId)
       .sort((a, b) => b.movedAt.localeCompare(a.movedAt));
     const prospect = person.bizClass === "prospect";
-    if (!prospect && moves.length === 0) return null;
     const stored = data.cards.find((c) => c.personId === personId) ?? null;
+    // A registered person on a board with steps after Registered: in progress, finished or off it.
+    const after = isRegisteredPerson(person)
+      ? afterRegistered({
+          columns,
+          steps: data.steps,
+          people: [person],
+          cards: data.cards,
+          moves: data.moves,
+          today: zonedDay(new Date().toISOString(), timeZone),
+          timeZone,
+        })
+      : null;
+    const reg = after ? registeredProfile(after, personId) : null;
+    if (!prospect && moves.length === 0 && !reg) return null;
     const card = prospect
       ? (boardCards([person], stored ? [stored] : [])[0]?.card ?? stored)
       : stored;
@@ -753,8 +861,17 @@ export function useProspectPipeline(personId: string | undefined): ProspectPipel
       })),
       columns,
       ownerId: person.sponsorId ?? null,
+      registered: reg
+        ? {
+            ...reg,
+            days: daysInColumn(reg.enteredAt, today),
+            stale: !reg.finishing && isStale(reg.enteredAt, lastContact.get(personId), today),
+          }
+        : null,
+      registeredDropped: !!after?.enabled && !reg && !!stored?.droppedAt,
+      canMove: personId !== viewer.personId,
     };
-  }, [viewer, personId, ids, people, data, columns, lastContact, today, name]);
+  }, [viewer, personId, ids, people, data, columns, lastContact, today, name, timeZone]);
 }
 
 // ---------------------------------------------------------------------------
