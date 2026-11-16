@@ -17,6 +17,17 @@ export {
 } from "./afterRegistered";
 export { registeredInProgress } from "./inProgress";
 export {
+  canDropOn,
+  isAfterRegisteredStep,
+  moveChoices,
+  registeredBandCount,
+  registeredColumnViews,
+  registeredProfile,
+  type CardKind,
+  type RegisteredColumnView,
+  type RegisteredProfile,
+} from "./boardView";
+export {
   implicitRegisteredCard,
   isRegisteredPerson,
   registeredColumnOf,
