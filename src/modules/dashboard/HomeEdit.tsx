@@ -654,6 +654,7 @@ export function HomeEdit({
         <div
           ref={gridRef}
           data-home-edit-grid
+          data-glass-still={pointerHeld ? "" : undefined}
           role="list"
           aria-label="Home cards"
           className="relative mt-3"
@@ -709,7 +710,7 @@ export function HomeEdit({
                   heights[id] == null && "opacity-0",
                   isPointer
                     ? cn(
-                        "glass-flat z-30 will-change-transform cursor-grabbing transition-[box-shadow] duration-150 motion-reduce:transition-none motion-reduce:duration-0",
+                        "glass-lifted z-30 will-change-transform cursor-grabbing transition-[box-shadow] duration-150 motion-reduce:transition-none motion-reduce:duration-0",
                         !gliding &&
                           "shadow-[0_22px_44px_var(--shadow-tint-strong)] ring-2 ring-primary",
                       )
@@ -717,7 +718,7 @@ export function HomeEdit({
                         settled &&
                           "transition-transform duration-[180ms] ease-out motion-reduce:transition-none motion-reduce:duration-0",
                         isKeys &&
-                          "z-30 scale-[1.03] shadow-[0_22px_44px_var(--shadow-tint-strong)] ring-2 ring-primary",
+                          "glass-lifted z-30 scale-[1.03] shadow-[0_22px_44px_var(--shadow-tint-strong)] ring-2 ring-primary",
                       ),
                 )}
                 style={
