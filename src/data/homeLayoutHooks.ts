@@ -11,6 +11,12 @@ export function useHomeLayout(): HomeLayout | undefined {
   return useMemo(() => (me ? layouts[me] : undefined), [layouts, me]);
 }
 
+function copyLayout(l: HomeLayout): HomeLayout {
+  return l.hidden?.length
+    ? { order: [...l.order], side: [...l.side], hidden: [...l.hidden] }
+    : { order: [...l.order], side: [...l.side] };
+}
+
 /** Save the signed-in person's layout (nothing when it didn't change). */
 export function setHomeLayout(layout: HomeLayout): void {
   const me = getViewer()?.personId;
@@ -18,7 +24,7 @@ export function setHomeLayout(layout: HomeLayout): void {
   const { layouts } = useHomeLayoutStore.getState();
   if (layouts[me] && sameLayout(layouts[me], layout)) return;
   useHomeLayoutStore.setState({
-    layouts: { ...layouts, [me]: { order: [...layout.order], side: [...layout.side] } },
+    layouts: { ...layouts, [me]: copyLayout(layout) },
   });
 }
 

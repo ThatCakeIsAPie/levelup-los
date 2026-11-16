@@ -356,4 +356,37 @@ describe("weekly goal row mappers", () => {
     ]);
     expect(m.CARD_NOTE_SERVER_COLUMNS).toEqual(["author_id", "created_at"]);
   });
+
+  it("round-trip a Home layout, with its hidden cards when there are any", () => {
+    const plain = { order: ["today", "team", "myDay"], side: ["team"] };
+    // Nothing hidden: the row keeps the two-key shape the database always accepted.
+    expect(m.homeLayoutToRow("4", plain)).toEqual({ person_id: "4", layout: plain });
+    expect(Object.keys(m.homeLayoutToRow("4", { ...plain, hidden: [] }).layout as object)).toEqual([
+      "order",
+      "side",
+    ]);
+    const hidden = { ...plain, hidden: ["myDay", "futureCard"] };
+    const row = m.homeLayoutToRow("4", hidden);
+    expect(row).toEqual({ person_id: "4", layout: hidden });
+    expect(m.homeLayoutFromRow(row as never)).toEqual(["4", hidden]);
+    expect(m.homeLayoutFromRow(m.homeLayoutToRow("4", plain) as never)).toEqual(["4", plain]);
+  });
+
+  it("read a Home layout row saved before hiding, and one that isn't a layout", () => {
+    const old = { person_id: "4", layout: { order: ["today"], side: [] } };
+    const [id, l] = m.homeLayoutFromRow(old as never);
+    expect(id).toBe("4");
+    expect(l).toStrictEqual({ order: ["today"], side: [] });
+    // Bad hidden entries are dropped, a bad shape is the default (an empty layout).
+    expect(
+      m.homeLayoutFromRow({
+        person_id: "4",
+        layout: { order: ["today"], side: [], hidden: ["team", "team", "<x>", 7] },
+      } as never)[1],
+    ).toEqual({ order: ["today"], side: [], hidden: ["team"] });
+    expect(m.homeLayoutFromRow({ person_id: "4", layout: [] } as never)[1]).toEqual({
+      order: [],
+      side: [],
+    });
+  });
 });
