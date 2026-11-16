@@ -27,6 +27,7 @@ export {
   useCustomerFunnel,
   useCustomerStepsEditor,
   useDoNotContactIds,
+  usePersonKinds,
   type ListOwner,
   type ListRow,
   type YourList,

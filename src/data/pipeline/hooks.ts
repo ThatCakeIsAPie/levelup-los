@@ -54,7 +54,6 @@ import {
   type MilestoneCounts,
   type Reach,
   type TransitionStat,
-  prospectOutcomeIds,
 } from "./rules";
 import {
   MILESTONES,
@@ -103,12 +102,6 @@ const firstName = (name: string): string => name.split(" ")[0] ?? name;
 
 /** Real accounts: the signed-in person's sponsor line (root first); [] in the demo. */
 export const usePipelineUplines = useUplines;
-
-/** Prospects whose card is in one of the board's outcome columns (the team map leaves them off). */
-export function useProspectOutcomeIds(): Set<string> {
-  const cards = usePipelineStore((s) => s.cards);
-  return useMemo(() => prospectOutcomeIds(cards), [cards]);
-}
 
 /** Who may use the pipeline: everyone but candidates. */
 export function usePipelineAccess(): { enabled: boolean; personId: string | null } {

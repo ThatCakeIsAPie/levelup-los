@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { BizClass, CrmPerson } from "@/data";
+import { hasReferralSourceTag, type BizClass, type CrmPerson, type PersonType } from "@/data";
 import { listParam, parseListParam, toggleInList } from "@/lib/searchList";
 import {
   DEFAULT_FILTERS,
@@ -18,9 +18,14 @@ import {
   sponsorChoices,
   stageChangePlan,
   stageCounts,
+  stageKeyOf,
   stagePatch,
+  stageWordOf,
   tagPlan,
   tagsInUse,
+  tagsOf,
+  tagSuggestions,
+  sortRows,
   toggleAllShown,
   toggleAttention,
   toggleSelected,
@@ -52,10 +57,19 @@ const people: CrmPerson[] = [
   P("cy", "customer", "maria"),
 ];
 
-const row = (p: CrmPerson, attention: AttentionReason[] = []): PersonRow =>
+// Carlos is a Prospect (met), Pat a Contact; the rest of the fixtures are not prospect-class.
+const TYPES: Record<string, PersonType> = { carlos: "prospect", pat: "contact" };
+
+const row = (
+  p: CrmPerson,
+  attention: AttentionReason[] = [],
+  extra: Partial<PersonRow> = {},
+): PersonRow =>
   ({
     person: p,
     stage: p.bizClass,
+    type: p.bizClass === "prospect" ? (TYPES[p.id] ?? "contact") : null,
+    referralSource: hasReferralSourceTag(p.tags),
     isSelf: p.id === "maria",
     attention: new Set(attention),
     contact: { days: null, tone: "bad", overdue: true, limit: 14 },
@@ -63,6 +77,7 @@ const row = (p: CrmPerson, attention: AttentionReason[] = []): PersonRow =>
     followUpOverdue: false,
     alert: null,
     missing: [],
+    ...extra,
   }) as unknown as PersonRow;
 
 const ATTN: Record<string, AttentionReason[]> = {
@@ -194,7 +209,14 @@ describe("filters", () => {
 
   it("counts chips from every other filter", () => {
     const base = baseFilter(rows, "business", f({ attention: ["contact"] }));
-    expect(stageCounts(base)).toEqual({ all: 2, prospect: 0, apprentice: 2, ibo: 0 });
+    expect(stageCounts(base)).toEqual({
+      all: 2,
+      contact: 0,
+      prospect: 0,
+      filtered: 0,
+      apprentice: 2,
+      ibo: 0,
+    });
     const c = attentionCounts(rows, "business", f({ stages: ["prospect", "apprentice"] }));
     expect(c.any).toBe(3);
     expect(c.contact).toBe(2);
@@ -304,5 +326,94 @@ describe("bulk actions", () => {
     const p = deletePlan([byId("anita"), byId("carlos"), byId("cy")], up);
     expect(ids(p.apply)).toEqual(["carlos", "cy"]);
     expect(p.skipped[0].reason).toBe("above you");
+  });
+});
+
+describe("person types in the list", () => {
+  // A team with one of each type, a hand-tagged IBO, a derived tag on a customer and a Filtered prospect.
+  const T = (id: string, type: PersonType, extra: Partial<PersonRow> = {}) =>
+    row(P(id, "prospect", "maria"), [], { type, ...extra });
+  const contact = T("cora", "contact");
+  const met = T("mel", "prospect");
+  const out = T("fred", "filtered", { referralSource: true }); // card in the Referral source column
+  const tagged = row(P("tess", "ibo", "maria", { tags: [" referral SOURCE "] }));
+  const derivedCustomer = row(P("cy2", "customer", "maria"), [], { referralSource: true });
+  const all = [byId("maria"), byId("lena"), contact, met, out, tagged, derivedCustomer];
+
+  it("a prospect-class row shows its type word, everyone else their stage", () => {
+    expect(stageWordOf(contact)).toBe("Contact");
+    expect(stageWordOf(met)).toBe("Prospect");
+    expect(stageWordOf(out)).toBe("Filtered");
+    expect(stageWordOf(byId("lena"))).toBe("Apprentice");
+    expect(stageWordOf(byId("maria"))).toBe("IBO");
+  });
+
+  it("the stage filter offers the three types in place of the single Prospect choice", () => {
+    expect(ids(filterRows(all, "business", f({ stages: ["contact"] })))).toEqual(["cora"]);
+    expect(ids(filterRows(all, "business", f({ stages: ["prospect"] })))).toEqual(["mel"]);
+    expect(ids(filterRows(all, "business", f({ stages: ["filtered"] })))).toEqual(["fred"]);
+    expect(ids(filterRows(all, "business", f({ stages: ["contact", "filtered"] })))).toEqual([
+      "cora",
+      "fred",
+    ]);
+    expect(ids(filterRows(all, "business", f({ stages: ["apprentice", "ibo"] })))).toEqual([
+      "lena",
+      "maria",
+      "tess",
+    ]);
+    expect(stageKeyOf(byId("cy"))).toBe("customer");
+    expect(stageCounts(baseFilter(all, "business", f({})))).toEqual({
+      all: 6,
+      contact: 1,
+      prospect: 1,
+      filtered: 1,
+      apprentice: 1,
+      ibo: 2,
+    });
+  });
+
+  it("an old ?stage=prospect link and the new keys are read back", () => {
+    expect(validatePeopleSearch({ stage: "filtered,contact,prospect,nope" }).stage).toBe(
+      "contact,prospect,filtered",
+    );
+    expect(filtersFromSearch({ stage: "filtered,contact" }).filters.stages).toEqual([
+      "contact",
+      "filtered",
+    ]);
+  });
+
+  it("sorting by stage keeps seniority, with Prospect, Contact and Filtered side by side", () => {
+    const order = sortRows([out, derivedCustomer, contact, byId("lena"), met, tagged], "stage");
+    expect(order.map((r) => r.person.id)).toEqual(["tess", "lena", "mel", "cora", "fred", "cy2"]);
+  });
+
+  it("the badge and the search find the tag, hand-set or derived, in any spelling", () => {
+    expect(all.filter((r) => r.referralSource).map((r) => r.person.id)).toEqual([
+      "fred",
+      "tess",
+      "cy2",
+    ]);
+    const found = (q: string, seg: "business" | "customers" = "business") =>
+      ids(filterRows(all, seg, f({ q })));
+    expect(found("referral source")).toEqual(["fred", "tess"]);
+    expect(found("  Referral")).toEqual(["fred", "tess"]);
+    expect(found("referral", "customers")).toEqual(["cy2"]);
+    expect(found("mel")).toEqual(["mel"]);
+  });
+
+  it("tags to show or export add a derived Referral source once", () => {
+    expect(tagsOf(out)).toEqual(["Referral source"]);
+    expect(tagsOf(tagged)).toEqual([" referral SOURCE "]);
+    expect(tagsOf(byId("carlos"))).toEqual(["leader", "Fall weekend"]);
+    expect(
+      tagsOf(row(P("x", "prospect", "maria", { tags: ["Gym"] }), [], { referralSource: true })),
+    ).toEqual(["Gym", "Referral source"]);
+  });
+
+  it("the bulk tag field always offers Referral source first, without doubling it", () => {
+    expect(tagSuggestions(people)).toEqual(["Referral source", "Leader", "Fall weekend"]);
+    const withIt = [...people, P("z", "ibo", "maria", { tags: ["referral source", "Leader"] })];
+    expect(tagSuggestions(withIt)).toEqual(["Referral source", "Leader", "Fall weekend"]);
+    expect(tagSuggestions(people, 2)).toEqual(["Referral source", "Leader"]);
   });
 });

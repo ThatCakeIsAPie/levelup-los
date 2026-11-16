@@ -40,6 +40,17 @@ describe("team structure (frontline/total)", () => {
     });
   });
 
+  it("counts only the prospects a predicate says yes to (the map's switched-on types)", () => {
+    const only = (...ids: string[]) => ({ includeProspects: (p: CrmPerson) => ids.includes(p.id) });
+    expect(teamStructure(team, "me", only())).toEqual({ frontline: 1, total: 3 });
+    expect(teamStructure(team, "me", only("d"))).toEqual({ frontline: 2, total: 4 });
+    expect(teamStructure(team, "me", only("c"))).toEqual({ frontline: 1, total: 4 });
+    expect(teamStructure(team, "me", only("c", "d"))).toEqual({ frontline: 2, total: 5 });
+    expect(teamStructure(team, "me", { includeProspects: () => true })).toEqual(
+      teamStructure(team, "me", { includeProspects: true }),
+    );
+  });
+
   it("survives a sponsor loop", () => {
     const loop = [P("x", "ibo", "y"), P("y", "ibo", "x")];
     expect(teamStructure(loop, "x")).toEqual({ frontline: 1, total: 1 });

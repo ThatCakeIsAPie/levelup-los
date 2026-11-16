@@ -1,9 +1,9 @@
 import { useRef, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { Check, ChevronRight } from "lucide-react";
-import { PersonAvatar, StageChip, Sensitive } from "@/components/brand";
+import { PersonAvatar, Sensitive } from "@/components/brand";
 import { cn } from "@/lib/utils";
-import { ContactText, FlagChips } from "./cells";
+import { ContactText, FlagChips, RowStageChip } from "./cells";
 import { shortDate, type PersonRow } from "./model";
 
 function metaLine(r: PersonRow, viewerId: string): ReactNode {
@@ -136,7 +136,7 @@ export function PeopleCards({
                 <span className="truncate text-[13.5px] font-semibold">
                   <Sensitive kind="name">{p.name}</Sensitive>
                 </span>
-                <StageChip stage={r.stage} />
+                <RowStageChip row={r} />
               </div>
               <div className="truncate text-[12px] text-muted-foreground">
                 {metaLine(r, viewerId)}

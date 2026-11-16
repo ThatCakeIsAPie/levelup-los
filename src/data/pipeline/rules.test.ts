@@ -19,9 +19,13 @@ import {
   isStale,
   monthActivity,
   rateTone,
+  hasReferralSourceTag,
   mapPeople,
+  type MapTypes,
+  personKind,
+  personKindOf,
+  typeShown,
   prospectDoNotContactIds,
-  prospectOutcomeIds,
   reachesOf,
   recruitingBand,
   registrationPatch,
@@ -486,49 +490,204 @@ describe("not contacted yet and the outcomes", () => {
   });
 });
 
-describe("the team map leaves closed prospects off", () => {
+describe("person types and the Referral source tag", () => {
+  const card = (column: string, droppedAt: string | null = null) => ({ column, droppedAt });
+  const prospect = (tags?: string[]) => ({ bizClass: "prospect" as const, tags });
+  const step = (id: string, band: "contact" | "first_meeting" | "first_plan"): PipelineStep => ({
+    id,
+    ownerId: "L",
+    band,
+    label: id,
+    position: 0,
+    createdAt: "x",
+  });
+  const steps = [
+    step("s_contact", "contact"),
+    step("s_mtg", "first_meeting"),
+    step("s_plan", "first_plan"),
+  ];
+  const typeOf = (column: string) => personKind(prospect(), card(column), steps).type;
+
+  it("decides the type by the band of the card's column, fixed columns and a team's own steps", () => {
+    expect(typeOf("not_contacted")).toBe("contact");
+    expect(typeOf("contact")).toBe("contact");
+    expect(typeOf("s_contact")).toBe("contact");
+    expect(typeOf("first_meeting")).toBe("prospect");
+    expect(typeOf("s_mtg")).toBe("prospect");
+    expect(typeOf("first_plan")).toBe("prospect");
+    expect(typeOf("s_plan")).toBe("prospect");
+    expect(typeOf("registered")).toBe("prospect");
+    expect(typeOf("referral_source")).toBe("filtered");
+    expect(typeOf("not_interested")).toBe("filtered");
+    expect(typeOf("do_not_contact")).toBe("filtered");
+  });
+
+  it("a deleted or unknown step counts as Contact made (the board's own rule)", () => {
+    expect(typeOf("gone")).toBe("contact");
+  });
+
+  it("a prospect with no card at all is a Contact", () => {
+    expect(personKind(prospect(), undefined, steps)).toEqual({
+      type: "contact",
+      referralSource: false,
+    });
+    expect(personKind(prospect(), null, steps).type).toBe("contact");
+  });
+
+  it("a card taken off the board is Filtered, wherever it sat", () => {
+    const off = "2026-10-01T00:00:00.000Z";
+    expect(personKind(prospect(), card("first_plan", off), steps).type).toBe("filtered");
+    expect(personKind(prospect(), card("not_contacted", off), steps).type).toBe("filtered");
+  });
+
+  it("gives no type to apprentices, IBOs and customers, whatever their card says", () => {
+    for (const bizClass of ["apprentice", "ibo", "customer"] as const) {
+      for (const column of ["not_interested", "first_meeting", "contact"]) {
+        expect(personKind({ bizClass }, card(column), steps).type).toBeNull();
+      }
+      expect(personKind({ bizClass }, card("x", "2026-10-01"), steps).type).toBeNull();
+    }
+  });
+
+  it("tags from the stored tag in any spelling, trimmed and ignoring case", () => {
+    for (const t of [
+      "Referral source",
+      "referral source",
+      "  Referral Source ",
+      "REFERRAL SOURCE",
+    ]) {
+      expect(personKind(prospect([t]), null, steps).referralSource).toBe(true);
+      expect(
+        personKind({ bizClass: "customer", tags: ["Gym", t] }, null, steps).referralSource,
+      ).toBe(true);
+    }
+    for (const t of ["Referral", "referral sources", "source", "Referral  source", ""]) {
+      expect(personKind({ bizClass: "ibo", tags: [t] }, null, steps).referralSource).toBe(false);
+    }
+    expect(personKind({ bizClass: "ibo" }, null, steps).referralSource).toBe(false);
+    expect(hasReferralSourceTag(undefined)).toBe(false);
+  });
+
+  it("tags from a card in the Referral source column, for any class, and writes nothing", () => {
+    const person = { bizClass: "prospect" as const, tags: [] as string[] };
+    expect(personKind(person, card("referral_source"), steps)).toEqual({
+      type: "filtered",
+      referralSource: true,
+    });
+    // Moved out again: the tag goes with the card (undoing a move needs no extra work).
+    expect(personKind(person, card("first_meeting"), steps).referralSource).toBe(false);
+    // Not a prospect any more but a stale card is still there: the tag follows the card.
+    expect(personKind({ bizClass: "apprentice" }, card("referral_source"), steps)).toEqual({
+      type: null,
+      referralSource: true,
+    });
+    // Taken off the board: no longer in the column.
+    expect(personKind(person, card("referral_source", "2026-10-01"), steps).referralSource).toBe(
+      false,
+    );
+    // A name behind the customer board's Referral source column.
+    expect(personKind({ bizClass: "customer" }, undefined, steps, true).referralSource).toBe(true);
+  });
+
+  it("both at once: a hand-set tag and the column are one tag", () => {
+    expect(personKind(prospect(["Referral source"]), card("referral_source"), steps)).toEqual({
+      type: "filtered",
+      referralSource: true,
+    });
+    // Hand-set tag on a Contact: still a Contact.
+    expect(personKind(prospect(["referral source"]), card("contact"), steps)).toEqual({
+      type: "contact",
+      referralSource: true,
+    });
+  });
+
+  it("personKindOf indexes the cards once and reads the customer board's ids", () => {
+    const cards = [
+      { personId: "a", column: "first_meeting", droppedAt: null },
+      { personId: "b", column: "referral_source", droppedAt: null },
+    ] as PipelineCard[];
+    const kindOf = personKindOf(cards, steps, new Set(["c"]));
+    expect(kindOf({ id: "a", bizClass: "prospect" })).toEqual({
+      type: "prospect",
+      referralSource: false,
+    });
+    expect(kindOf({ id: "b", bizClass: "ibo" })).toEqual({ type: null, referralSource: true });
+    expect(kindOf({ id: "c", bizClass: "customer" }).referralSource).toBe(true);
+    expect(kindOf({ id: "z", bizClass: "prospect" }).type).toBe("contact");
+  });
+});
+
+describe("the team map draws people by type", () => {
   const c = (personId: string, column: string, droppedAt: string | null = null) =>
     ({ personId, column, droppedAt }) as PipelineCard;
   const p = (id: string, bizClass: string, sponsorId: string | null) =>
     ({ id, bizClass, sponsorId, name: id }) as unknown as CrmPerson;
-
-  it("a card in any of the three outcome columns closes its prospect (cards still on the board)", () => {
-    expect([
-      ...prospectOutcomeIds([
-        c("a", "not_interested"),
-        c("b", "do_not_contact"),
-        c("r", "referral_source"),
-        c("d", "contact"),
-        c("e", "first_meeting"),
-        c("f", "not_contacted"),
-        c("g", "not_interested", "2026-10-01T00:00:00.000Z"),
-      ]),
-    ]).toEqual(["a", "b", "r"]);
+  const people = [
+    p("me", "ibo", null),
+    p("ct", "prospect", "me"), // contact (no card)
+    p("pr", "prospect", "me"), // prospect
+    p("fl", "prospect", "me"), // filtered
+    p("ap", "apprentice", "me"),
+    // A filtered prospect with an apprentice under them: stays while the apprentice is drawn.
+    p("bridge", "prospect", "me"),
+    p("under", "apprentice", "bridge"),
+    // Two filtered in a chain with an IBO below: both stay, all the way up.
+    p("b1", "prospect", "me"),
+    p("b2", "prospect", "b1"),
+    p("deep", "ibo", "b2"),
+    // A filtered prospect with only a contact under them.
+    p("fl2", "prospect", "me"),
+    p("ct2", "prospect", "fl2"),
+  ];
+  const cards = [
+    c("pr", "first_plan"),
+    c("fl", "not_interested"),
+    c("bridge", "do_not_contact"),
+    c("b1", "referral_source"),
+    c("b2", "not_interested"),
+    c("fl2", "do_not_contact"),
+  ];
+  const kindOf = personKindOf(cards, []);
+  const ids = (show: MapTypes) => mapPeople(people, kindOf, show, "me").map((x) => x.id);
+  const base = ["me", "ap", "bridge", "under", "b1", "b2", "deep"];
+  const flags = (n: number): MapTypes => ({
+    contact: !!(n & 1),
+    prospect: !!(n & 2),
+    filtered: !!(n & 4),
   });
 
-  it("drops closed prospects, keeps everyone else and anyone with a drawn person under them", () => {
-    const people = [
-      p("me", "ibo", null),
-      p("open", "prospect", "me"),
-      p("closed", "prospect", "me"),
-      // Registered since, with a stale card in an outcome column: not a prospect, so drawn.
-      p("joined", "apprentice", "me"),
-      // Closed, but someone registered sits under them: kept so that person stays on the map.
-      p("bridge", "prospect", "me"),
-      p("under", "apprentice", "bridge"),
-      // Closed, and the only one under them is closed too: both go.
-      p("deadEnd", "prospect", "me"),
-      p("deadLeaf", "prospect", "deadEnd"),
-    ];
-    const closed = new Set(["closed", "joined", "bridge", "deadEnd", "deadLeaf"]);
-    expect(mapPeople(people, closed).map((x) => x.id)).toEqual([
-      "me",
-      "open",
-      "joined",
-      "bridge",
-      "under",
-    ]);
-    expect(mapPeople(people, new Set()).map((x) => x.id)).toEqual(people.map((x) => x.id));
+  it("draws exactly what the eight switch combinations say", () => {
+    const want: Record<number, string[]> = {
+      0: base,
+      1: [...base, "ct", "ct2", "fl2"], // ct2 is a contact; its filtered sponsor fl2 stays as the link
+      2: [...base, "pr"],
+      3: [...base, "ct", "pr", "ct2", "fl2"],
+      4: [...base, "fl", "fl2"],
+      5: [...base, "ct", "fl", "ct2", "fl2"],
+      6: [...base, "pr", "fl", "fl2"],
+      7: people.map((x) => x.id),
+    };
+    for (let n = 0; n < 8; n++) {
+      expect(new Set(ids(flags(n)))).toEqual(new Set(want[n]));
+    }
+  });
+
+  it("keeps the order of the people it was given", () => {
+    expect(ids(flags(7))).toEqual(people.map((x) => x.id));
+    const some = ids(flags(3));
+    expect(some).toEqual(people.map((x) => x.id).filter((i) => some.includes(i)));
+  });
+
+  it("never drops the viewer, even a prospect with everything off", () => {
+    const viewer = p("v", "prospect", null);
+    expect(mapPeople([viewer], kindOf, flags(0), "v").map((x) => x.id)).toEqual(["v"]);
+    expect(mapPeople([viewer], kindOf, flags(0)).map((x) => x.id)).toEqual([]);
+  });
+
+  it("typeShown: everyone with no type is always drawn", () => {
+    expect(typeShown({ type: null, referralSource: false }, flags(0))).toBe(true);
+    expect(typeShown({ type: "filtered", referralSource: false }, flags(3))).toBe(false);
+    expect(typeShown({ type: "filtered", referralSource: false }, flags(4))).toBe(true);
   });
 });
 

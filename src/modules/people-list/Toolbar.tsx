@@ -32,16 +32,17 @@ import {
   DEFAULT_FILTERS,
   activeFilterCount,
   SORT_OPTIONS,
+  STAGE_KEYS,
   toggleAttention,
   type AttentionFilter,
   type Filters,
   type Segment,
   type SortKey,
   type StageFilter,
-  type StageKey,
 } from "./model";
 
 import { Sensitive } from "@/components/brand";
+import { stageChipLook } from "./stageLook";
 
 import { sensitiveIf } from "@/lib/sensitive";
 export interface ToolbarProps {
@@ -105,8 +106,6 @@ function SegmentedControl({
     </div>
   );
 }
-
-const STAGES: readonly StageKey[] = ["prospect", "apprentice", "ibo"];
 
 function AttentionToggle({
   value,
@@ -398,7 +397,8 @@ export function DesktopToolbar(p: ToolbarProps) {
         {segment === "business" && (
           <>
             <StageFilterChips
-              stages={STAGES}
+              stages={STAGE_KEYS}
+              look={stageChipLook}
               value={filters.stages}
               onChange={(stages) => setFilters({ stages })}
               counts={p.stageCounts}
@@ -460,7 +460,8 @@ export function PhoneToolbar(p: ToolbarProps) {
       </div>
       {segment === "business" && (
         <StageFilterChips
-          stages={STAGES}
+          stages={STAGE_KEYS}
+          look={stageChipLook}
           value={filters.stages}
           onChange={(stages) => setFilters({ stages })}
           counts={p.stageCounts}
@@ -484,7 +485,8 @@ export function PhoneToolbar(p: ToolbarProps) {
             {segment === "business" && (
               <FieldBlock label="Stage">
                 <StageFilterChips
-                  stages={STAGES}
+                  stages={STAGE_KEYS}
+                  look={stageChipLook}
                   value={filters.stages}
                   onChange={(stages) => setFilters({ stages })}
                   counts={p.stageCounts}

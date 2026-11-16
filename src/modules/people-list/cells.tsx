@@ -1,6 +1,13 @@
 import { Link } from "@tanstack/react-router";
 import { AlertCircle, CalendarClock, TrendingUp } from "lucide-react";
-import { ToneChip, type Tone, Sensitive } from "@/components/brand";
+import {
+  PersonTypeChip,
+  ReferralSourceMark,
+  StageChip,
+  ToneChip,
+  type Tone,
+  Sensitive,
+} from "@/components/brand";
 import { apprenticeAlertLabel } from "@/data";
 import { cn } from "@/lib/utils";
 import { contactLabel, MISSING_LABEL, plural, shortDate, type PersonRow } from "./model";
@@ -81,9 +88,14 @@ export function UplineLink({ row, viewerId }: { row: PersonRow; viewerId: string
   );
 }
 
-/** Alert chips: IBO anniversary, missing required fields, event follow-up. */
+/**
+ * Chips under Flags: the "Referral source" badge when the row has the tag
+ * (typed by hand or derived), IBO anniversary, missing required fields,
+ * event follow-up.
+ */
 export function FlagChips({ row, className }: { row: PersonRow; className?: string }) {
   const chips: React.ReactNode[] = [];
+  if (row.referralSource) chips.push(<ReferralSourceMark key="referral" label />);
   if (row.alert && row.anniversaryDays !== undefined) {
     const d = row.anniversaryDays;
     const title = `${apprenticeAlertLabel(row.alert)}${row.anniversaryDate ? ` (${shortDate(row.anniversaryDate)})` : ""}`;
@@ -120,4 +132,16 @@ export function FlagChips({ row, className }: { row: PersonRow; className?: stri
   }
   if (!chips.length) return null;
   return <div className={cn("flex flex-wrap gap-1", className)}>{chips}</div>;
+}
+
+/**
+ * The stage chip of a row: Contact, Prospect or Filtered for a prospect-class
+ * person (their type replaces the stage word), the stage chip for everyone else.
+ */
+export function RowStageChip({ row, className }: { row: PersonRow; className?: string }) {
+  return row.type ? (
+    <PersonTypeChip type={row.type} className={className} />
+  ) : (
+    <StageChip stage={row.stage} className={className} />
+  );
 }

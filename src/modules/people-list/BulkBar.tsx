@@ -65,7 +65,7 @@ import {
 import { toastWithUndo } from "@/components/log/quickLog";
 import { exportRowsCsv } from "./exportCsv";
 import {
-  STAGE_KEYS,
+  CLASS_KEYS,
   cleanTag,
   deletePlan,
   plural,
@@ -76,12 +76,12 @@ import {
   stageChangePlan,
   stagePatch,
   tagPlan,
-  tagsInUse,
+  tagSuggestions,
   uplineIdsOf,
   type PersonRow,
   type Plan,
   type Segment,
-  type StageKey,
+  type ClassKey,
 } from "./model";
 
 type DialogKind = "event" | "followup" | "stage" | "sponsor" | "tag" | "delete";
@@ -266,7 +266,7 @@ function StageDialog({
   onDone,
   everyone,
 }: DialogProps & { everyone: CrmPerson[] }) {
-  const [to, setTo] = useState<StageKey | "">("");
+  const [to, setTo] = useState<ClassKey | "">("");
   const plan = to ? stageChangePlan(rows, to, everyone) : null;
 
   const submit = () => {
@@ -295,12 +295,12 @@ function StageDialog({
         </DialogHeader>
         <div className="grid gap-1.5">
           <Label htmlFor="bulk-stage">New stage</Label>
-          <Select value={to} onValueChange={(v) => setTo(v as StageKey)}>
+          <Select value={to} onValueChange={(v) => setTo(v as ClassKey)}>
             <SelectTrigger id="bulk-stage">
               <SelectValue placeholder="Choose a stage" />
             </SelectTrigger>
             <SelectContent>
-              {STAGE_KEYS.map((s) => (
+              {CLASS_KEYS.map((s) => (
                 <SelectItem key={s} value={s}>
                   {STAGE_LABEL[s]}
                 </SelectItem>
@@ -409,7 +409,7 @@ function TagDialog({
 }: DialogProps & { everyone: CrmPerson[] }) {
   const [draft, setDraft] = useState("");
   const tag = cleanTag(draft);
-  const suggestions = useMemo(() => tagsInUse(everyone).slice(0, 8), [everyone]);
+  const suggestions = useMemo(() => tagSuggestions(everyone), [everyone]);
   const plan = tag ? tagPlan(rows, tag) : null;
 
   const submit = (e?: React.FormEvent) => {
@@ -436,7 +436,10 @@ function TagDialog({
         <form onSubmit={submit} className="grid gap-4">
           <DialogHeader>
             <DialogTitle>Add a tag to {people(rows.length)}</DialogTitle>
-            <DialogDescription>Tags show on each profile and in the CSV export.</DialogDescription>
+            <DialogDescription>
+              Tags show on each profile and in the CSV export. “Referral source” also shows on the
+              map and the list.
+            </DialogDescription>
           </DialogHeader>
           <div className="grid gap-1.5">
             <Label htmlFor="bulk-tag">Tag</Label>
