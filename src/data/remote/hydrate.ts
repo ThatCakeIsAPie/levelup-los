@@ -268,7 +268,7 @@ export async function fetchCrm(client: SupabaseClient, me: string): Promise<CrmS
   const mine = settings.find((r) => r.person_id === me);
 
   return {
-    people: people.map((r) => m.personFromRow(r)),
+    people: people.map((r) => m.personFromRow(r, me)),
     eventCategories: eventCategories.map((r) => m.eventCategoryFromRow(r)),
     events: events.map((r) => m.eventFromRow(r)),
     series: series.map((r) => m.seriesFromRow(r)),

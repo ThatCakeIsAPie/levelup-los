@@ -316,7 +316,7 @@ describe("bulk actions", () => {
     expect(cleanTag("  Fall   weekend ")).toBe("Fall weekend");
     const p = tagPlan([byId("anita"), byId("carlos"), byId("lena")], "LEADER");
     expect(ids(p.apply)).toEqual(["lena"]);
-    expect(tagsInUse(people)).toEqual(["Leader", "Fall weekend"]);
+    expect(tagsInUse(people, "maria")).toEqual(["Leader", "Fall weekend"]);
   });
 
   it("delete never touches yourself or anyone above you", () => {
@@ -411,9 +411,9 @@ describe("person types in the list", () => {
   });
 
   it("the bulk tag field always offers Referral source first, without doubling it", () => {
-    expect(tagSuggestions(people)).toEqual(["Referral source", "Leader", "Fall weekend"]);
+    expect(tagSuggestions(people, "maria")).toEqual(["Referral source", "Leader", "Fall weekend"]);
     const withIt = [...people, P("z", "ibo", "maria", { tags: ["referral source", "Leader"] })];
-    expect(tagSuggestions(withIt)).toEqual(["Referral source", "Leader", "Fall weekend"]);
-    expect(tagSuggestions(people, 2)).toEqual(["Referral source", "Leader"]);
+    expect(tagSuggestions(withIt, "maria")).toEqual(["Referral source", "Leader", "Fall weekend"]);
+    expect(tagSuggestions(people, "maria", 2)).toEqual(["Referral source", "Leader"]);
   });
 });

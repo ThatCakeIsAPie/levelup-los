@@ -119,7 +119,14 @@ const numNull = (v: unknown): number | null => (v === null || v === undefined ? 
 // People, events, attendance
 // ---------------------------------------------------------------------------
 
-export function personFromRow(r: R<"people">): CrmPerson {
+/**
+ * A `people` row as a person. The signed-in person's own tags are dropped here
+ * (`viewerId`): nobody sees their own tags (visibleTags in data/pipeline/rules),
+ * so they are not in the app's state, exports or anything derived. The stored
+ * tags are never overwritten: an update sends only the columns that changed,
+ * and the state and its baseline both have no tags for this row.
+ */
+export function personFromRow(r: R<"people">, viewerId?: string): CrmPerson {
   const history = (r.stage_history as unknown as StageChange[] | null) ?? [];
   return {
     id: r.id!,
@@ -138,7 +145,7 @@ export function personFromRow(r: R<"people">): CrmPerson {
     notes: opt(r.notes),
     pipelineStage: opt(r.pipeline_stage) as CrmPerson["pipelineStage"],
     stageHistory: history.length ? history : undefined,
-    tags: r.tags?.length ? r.tags : undefined,
+    tags: r.tags?.length && r.id !== viewerId ? r.tags : undefined,
     lastUpdatedAt: iso(r.last_updated_at) ?? undefined,
     losUid: opt(r.los_uid),
     dittoSince: opt(r.ditto_since),

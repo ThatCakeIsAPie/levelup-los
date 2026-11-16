@@ -228,7 +228,7 @@ export function BulkBar({
       <FollowUpDialog {...dialogProps("followup")} />
       {!customers && <StageDialog {...dialogProps("stage")} everyone={everyone} />}
       {!customers && <SponsorDialog {...dialogProps("sponsor")} everyone={everyone} />}
-      <TagDialog {...dialogProps("tag")} everyone={everyone} />
+      <TagDialog {...dialogProps("tag")} everyone={everyone} viewerId={viewerId} />
       <DeleteDialog
         {...dialogProps("delete")}
         everyone={everyone}
@@ -406,10 +406,11 @@ function TagDialog({
   rows,
   onDone,
   everyone,
-}: DialogProps & { everyone: CrmPerson[] }) {
+  viewerId,
+}: DialogProps & { everyone: CrmPerson[]; viewerId: string }) {
   const [draft, setDraft] = useState("");
   const tag = cleanTag(draft);
-  const suggestions = useMemo(() => tagSuggestions(everyone), [everyone]);
+  const suggestions = useMemo(() => tagSuggestions(everyone, viewerId), [everyone, viewerId]);
   const plan = tag ? tagPlan(rows, tag) : null;
 
   const submit = (e?: React.FormEvent) => {
