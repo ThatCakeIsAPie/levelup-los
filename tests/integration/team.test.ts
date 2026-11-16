@@ -81,10 +81,32 @@ describe("deputies, switches and the admin flag", () => {
   it("the admin flag comes from the database", async () => {
     await signInApp("admin");
     expect(useSessionStore.getState().user?.admin).toBe(true);
-    expect(getUnlocks().can.chats).toBe(true);
+    // Admin Tester is also Maria's deputy (the seed): whoever can flip the team's switches
+    // follows them, so with Chats switched off the admin preview does not apply.
+    expect(getUnlocks().deputy).toBe(true);
+    expect(getUnlocks().can.chats).toBe(false);
     await signInApp("maria");
     expect(useSessionStore.getState().user?.admin).toBeFalsy();
     expect(getUnlocks().can.chats).toBe(false);
+  });
+
+  it("an admin who is neither a leader nor a deputy previews a switched-off feature", async () => {
+    await must(adminClient().from("deputies").delete().eq("deputy_id", "800"), "deputy");
+    cleanup.push(() =>
+      must(
+        adminClient()
+          .from("deputies")
+          .insert({ workspace_id: "w1", leader_id: "1", deputy_id: "800", added_by: "1" }),
+        "deputy",
+      ),
+    );
+    await signInApp("admin");
+    expect(getUnlocks().deputy).toBe(false);
+    expect(getUnlocks().can.chats && getUnlocks().can.library && getUnlocks().can.campaigns).toBe(
+      true,
+    );
+    // no stored switch for AI agents: on for everyone, preview or not
+    expect(getUnlocks().feature.agents).toBe(true);
   });
 
   it("Maria switches the library on from the app; the team reads who did it", async () => {

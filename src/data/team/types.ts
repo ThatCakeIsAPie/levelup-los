@@ -6,7 +6,7 @@
 
 import type { DataSource } from "@/lib/config";
 
-/** Features switched off for a team unless a leader turns them on. */
+/** The switched features. All are off for a team unless a leader turns them on, except those with `defaultOn`. */
 export type FeatureKey = "chats" | "library" | "campaigns" | "agents";
 
 export interface FeatureInfo {
@@ -22,6 +22,8 @@ export interface FeatureInfo {
    * so its switch is never offered where it could not work.
    */
   hosted?: boolean;
+  /** On for a team with no stored switch (an explicit row, on or off, always decides). */
+  defaultOn?: boolean;
 }
 
 export const FEATURES: readonly FeatureInfo[] = [
@@ -43,10 +45,15 @@ export const FEATURES: readonly FeatureInfo[] = [
     phase: 3,
     description: "Messages sent to a group of people at once.",
   },
-  { key: "agents", label: "AI agents", hosted: true },
+  { key: "agents", label: "AI agents", hosted: true, defaultOn: true },
 ];
 
 export const FEATURE_KEYS: readonly FeatureKey[] = FEATURES.map((f) => f.key);
+
+/** Is the feature on for a team that never stored a switch for it? */
+export function featureDefault(key: FeatureKey): boolean {
+  return FEATURES.find((f) => f.key === key)?.defaultOn === true;
+}
 
 /**
  * The features that can work with this data source: all of them with Supabase, all but the
@@ -57,7 +64,7 @@ export function featuresFor(source: DataSource): readonly FeatureInfo[] {
   return FEATURES.filter((f) => !f.hosted || source === "supabase");
 }
 
-/** One team's switch for one feature (no row means off). */
+/** One team's switch for one feature (no row means the feature's default: off, except AI agents). */
 export interface FeatureSwitch {
   workspaceId: string;
   feature: FeatureKey;

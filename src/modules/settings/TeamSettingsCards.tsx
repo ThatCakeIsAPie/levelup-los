@@ -72,7 +72,7 @@ export function FeatureSwitchesCard() {
     <SectionCard title="Features for your team">
       <p className="text-[12.5px] text-muted-foreground">
         These are built for later phases and stay off until you switch them on. Wallet is always on.
-        {user.admin && " Your admin login sees all of them either way."}
+        {user.admin && !canEdit && " Your admin login sees all of them either way."}
       </p>
       <div className="grid">
         {featuresFor(DATA_SOURCE).map((f) => {

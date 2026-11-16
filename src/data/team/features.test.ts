@@ -19,16 +19,20 @@ describe("the feature list per data source", () => {
     expect(f?.description).toBeUndefined();
   });
 
-  it("keeps every feature in the full list, in the key list and in the switch map (off)", () => {
+  it("keeps every feature in the full list, in the key list and in the switch map (agents on)", () => {
     expect(FEATURE_KEYS).toEqual(FEATURES.map((f) => f.key));
     expect(FEATURE_KEYS).toContain("agents");
-    expect(switchMap(seedFeatureSwitches()).agents).toBe(false);
+    expect(switchMap(seedFeatureSwitches()).agents).toBe(true);
+    expect(FEATURES.find((x) => x.key === "agents")?.defaultOn).toBe(true);
   });
 
-  it("is off in the unlocks until the team switches it on; an admin has it regardless", () => {
+  it("is on in the unlocks until the team switches it off; an admin previews a stored off", () => {
     const base = { role: "ibo" as const, firstSponsor: true, threeTen: false, canChat: true };
-    expect(computeUnlocks({ ...base, switches: {} }).feature.agents).toBe(false);
+    expect(computeUnlocks({ ...base, switches: {} }).feature.agents).toBe(true);
     expect(computeUnlocks({ ...base, switches: { agents: true } }).feature.agents).toBe(true);
-    expect(computeUnlocks({ ...base, admin: true, switches: {} }).feature.agents).toBe(true);
+    expect(computeUnlocks({ ...base, switches: { agents: false } }).feature.agents).toBe(false);
+    expect(
+      computeUnlocks({ ...base, admin: true, switches: { agents: false } }).feature.agents,
+    ).toBe(true);
   });
 });

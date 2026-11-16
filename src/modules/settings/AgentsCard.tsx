@@ -13,7 +13,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { DATA_SOURCE } from "@/lib/config";
-import { useCurrentUser, useFeatureSwitches } from "@/data";
+import { useCurrentUser, useFeature, useFeatureSwitches } from "@/data";
 import {
   createAgentPairing,
   fetchAgentAccess,
@@ -55,12 +55,13 @@ function useAgentAccess(): AgentAccessInfo | null {
 
 /**
  * Settings > AI agents: the person's own agents (connect one, see its activity, disconnect it).
- * Shown only with the hosted data source and only when the database allows this person
- * (`agentCardVisible`); otherwise nothing at all.
+ * Shown only with the hosted data source, when the database allows this person and the
+ * feature is on for them in the app (`agentCardVisible`); otherwise nothing at all.
  */
 export function AgentsCard() {
   const access = useAgentAccess();
-  if (!agentCardVisible(DATA_SOURCE, access)) return null;
+  const featureOn = useFeature("agents");
+  if (!agentCardVisible(DATA_SOURCE, access, featureOn)) return null;
   return <AgentsCardBody />;
 }
 

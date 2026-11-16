@@ -720,6 +720,39 @@ describe("pairing and the tools", () => {
     expect((await post("/mcp", { jsonrpc: "2.0", id: 1, method: "ping" }, key)).status).toBe(401);
   });
 
+  it("is on for a team with no switch row and off for an explicit false row", async () => {
+    const insert = (enabled: boolean) =>
+      admin.unsafe(
+        `insert into public.feature_switches (workspace_id, feature, enabled) values ('w1', 'agents', ${enabled}) on conflict (workspace_id, feature) do update set enabled = ${enabled}`,
+      );
+    await admin.unsafe(
+      "delete from public.feature_switches where workspace_id = 'w1' and feature = 'agents'",
+    );
+    try {
+      // no row: pairing, the key and a tool call all work, and the switch reads as on (no preview)
+      const { key } = await connect("write", "No row");
+      expect((await post("/tools/whoami", {}, key)).status).toBe(200);
+      const none = await jamal.rpc("my_agent_access");
+      expect(none.data).toMatchObject({ allowed: true, switch_on: true, preview: false });
+
+      // an explicit false row: refused, as for a team that switched it off
+      await insert(false);
+      const off = await post("/tools/whoami", {}, key);
+      expect(off.status).toBe(403);
+      expect((await off.json()).error).toBe("Agents are not switched on for this team");
+      const refused = await jamal.rpc("my_agent_access");
+      expect(refused.data).toMatchObject({
+        allowed: false,
+        reason: "switched_off",
+        switch_on: false,
+      });
+      const { error } = await jamal.rpc("create_agent_pairing", { p_access: "write" });
+      expect(error?.message).toBe("Agents are not switched on for this team");
+    } finally {
+      await insert(true);
+    }
+  });
+
   it("answers MCP with the team's name as the server name", async () => {
     const { key } = await connect("write", "MCP agent");
     const init = await (
