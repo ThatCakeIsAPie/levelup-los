@@ -185,6 +185,8 @@ export function movePipelineCard(personId: string, to: string): MoveResult {
   const person = visiblePerson(personId);
   if (!person) return { ok: false, reason: "not-found" };
   const registeredPerson = isRegisteredPerson(person);
+  // Nobody moves their own card: a registered person can see theirs but not change it.
+  if (registeredPerson && personId === me) return { ok: false, reason: "no-access" };
   if (person.bizClass !== "prospect" && !registeredPerson)
     return { ok: false, reason: "not-a-prospect" };
   const { card, stored } = cardOf(person);
@@ -401,8 +403,10 @@ export function updatePipelineCard(
  * and their moves still count. Returns the undo.
  */
 export function dropPipelineCard(personId: string): (() => void) | null {
-  const person = actor() ? visiblePerson(personId) : undefined;
+  const me = actor();
+  const person = me ? visiblePerson(personId) : undefined;
   if (!person || (person.bizClass !== "prospect" && !isRegisteredPerson(person))) return null;
+  if (isRegisteredPerson(person) && personId === me) return null; // never their own card
   const { card, stored } = cardOf(person);
   if (card.droppedAt) return null;
   putCard({ ...card, droppedAt: now(), updatedAt: now() });
@@ -411,8 +415,10 @@ export function dropPipelineCard(personId: string): (() => void) | null {
 
 /** Put a dropped card back where it was. */
 export function restorePipelineCard(personId: string): void {
-  const person = actor() ? visiblePerson(personId) : undefined;
+  const me = actor();
+  const person = me ? visiblePerson(personId) : undefined;
   if (!person) return;
+  if (isRegisteredPerson(person) && personId === me) return; // never their own card
   const stored = pipeline().cards.find((c) => c.personId === personId);
   if (stored?.droppedAt) putCard({ ...stored, droppedAt: null, updatedAt: now() });
 }

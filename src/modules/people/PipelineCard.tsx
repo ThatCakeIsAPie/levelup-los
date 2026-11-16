@@ -1,10 +1,13 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { format } from "date-fns";
-import { ClockAlert, MoveRight, Undo2 } from "lucide-react";
+import { ClockAlert, MoveRight, Undo2, UserMinus } from "lucide-react";
 import { RatingChip, SectionCard, ToneChip, Sensitive } from "@/components/brand";
 import { Button } from "@/components/ui/button";
+import { toastWithUndo } from "@/components/log/quickLog";
 import {
+  dropPipelineCard,
+  moveChoices,
   parseDate,
   restorePipelineCard,
   useCardSummary,
@@ -63,7 +66,7 @@ export function PipelineCard({ person }: { person: CrmPerson }) {
           </span>
           <CardMeta summary={summary} ownerId={person.sponsorId ?? null} />
           <MoveMenu
-            columns={p.columns}
+            columns={moveChoices("prospect", p.columns)}
             current={p.column.id}
             align="start"
             onMove={(to) => move(person.id, person.name, to)}
@@ -75,6 +78,65 @@ export function PipelineCard({ person }: { person: CrmPerson }) {
         </div>
       )}
       {p.onBoard && p.column && <CardFollowups card={{ board: "recruiting", id: person.id }} />}
+      {p.registered && (
+        <div className="grid gap-2 rounded-[10px] bg-surface-2 px-3.5 py-3">
+          <span className="text-[10px] font-extrabold uppercase tracking-[.08em] text-faint">
+            {names.band(p.registered.column.band)}
+          </span>
+          <div className="flex flex-wrap items-center gap-2 text-[14px]">
+            <b>{p.registered.column.label}</b>
+            {p.registered.stale && (
+              <ToneChip tone="warn" icon={ClockAlert}>
+                No movement in {ageLong(p.registered.days)}
+              </ToneChip>
+            )}
+          </div>
+          <span className="text-[12px] text-muted-foreground">
+            {p.registered.days === 0
+              ? "Moved here today"
+              : `Here for ${ageLong(p.registered.days)}`}
+          </span>
+          <CardMeta summary={summary} ownerId={person.sponsorId ?? null} />
+          {p.canMove && (
+            <div className="flex flex-wrap gap-2">
+              <MoveMenu
+                columns={moveChoices("registered", p.columns)}
+                bands={[{ id: "registered", label: names.name("registered") }]}
+                current={p.registered.column.id}
+                align="start"
+                onMove={(to) => move(person.id, person.name, to)}
+              >
+                <Button variant="soft" size="sm" className="justify-self-start">
+                  <MoveRight /> Move to…
+                </Button>
+              </MoveMenu>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const undo = dropPipelineCard(person.id);
+                  if (undo)
+                    toastWithUndo(`${person.name} taken off the board`, undo, {
+                      description: "They stay on your People list.",
+                      undoneMessage: "Back on the board",
+                    });
+                }}
+              >
+                <UserMinus /> Take off the board
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+      {p.registered && <CardFollowups card={{ board: "recruiting", id: person.id }} />}
+      {p.registeredDropped && p.canMove && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-[10px] bg-surface-2 px-3.5 py-3 text-[13px]">
+          <span className="text-muted-foreground">Taken off the board for now.</span>
+          <Button size="sm" variant="soft" onClick={() => restorePipelineCard(person.id)}>
+            <Undo2 /> Put back
+          </Button>
+        </div>
+      )}
       {p.dropped && (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-[10px] bg-surface-2 px-3.5 py-3 text-[13px]">
           <span className="text-muted-foreground">Taken off the board for now.</span>
@@ -108,7 +170,7 @@ export function PipelineCard({ person }: { person: CrmPerson }) {
             </li>
           ))}
         </ol>
-      ) : (
+      ) : p.registered ? null : (
         <p className="text-[12.5px] text-muted-foreground">
           Not moved yet: they started in {names.name("contact")}.
         </p>

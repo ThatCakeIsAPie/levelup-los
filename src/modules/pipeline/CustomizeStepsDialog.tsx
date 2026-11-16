@@ -24,6 +24,7 @@ import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import {
   MAX_STEP_LABEL,
+  RECRUITING_STEP_BANDS,
   addPipelineStep,
   deletePipelineStep,
   hidePipelineStep,
@@ -112,7 +113,8 @@ export function CustomizeStepsDialog({
 }
 
 function RecruitingBands() {
-  return <Bands bands={useStepsEditor()} kind="recruiting" />;
+  // The band after Registered is edited like the three before it.
+  return <Bands bands={useStepsEditor(RECRUITING_STEP_BANDS)} kind="recruiting" />;
 }
 
 function CustomerBands() {
@@ -121,6 +123,7 @@ function CustomerBands() {
 
 function Bands({ bands, kind }: { bands: EditorBand[]; kind: BoardKind }) {
   const editor = useStageNameEditor(kind);
+  // The customer board has one stage after its last band; the recruiting board's last stage is Registered, which has its own band.
   const last = editor.rows[bands.length];
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
@@ -131,9 +134,11 @@ function Bands({ bands, kind }: { bands: EditorBand[]; kind: BoardKind }) {
         {bands.map((b, i) => (
           <BandEditor key={b.band} band={b} index={i} kind={kind} editor={editor} />
         ))}
-        <li className="grid gap-1.5">
-          {last && <StageRow kind={kind} index={bands.length + 1} row={last} editor={editor} />}
-        </li>
+        {last && (
+          <li className="grid gap-1.5">
+            <StageRow kind={kind} index={bands.length + 1} row={last} editor={editor} />
+          </li>
+        )}
       </ol>
     </div>
   );
@@ -337,6 +342,11 @@ function BandEditor({
   return (
     <li className="grid grid-cols-[minmax(0,1fr)] gap-1.5" aria-label={`${name} band`}>
       <StageRow kind={kind} index={index + 1} row={editor.rows[index]} editor={editor} />
+      {kind === "recruiting" && band.band === "registered" && (
+        <p className="pl-[34px] text-[11.5px] text-muted-foreground">
+          Steps for after someone registers, for example Activated.
+        </p>
+      )}
       <ul className="grid gap-1 pl-3">
         {band.steps.map((s) => (
           <StepRow
