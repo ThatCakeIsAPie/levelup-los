@@ -1,5 +1,5 @@
 import { pageTitle } from "@/lib/brand";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { format } from "date-fns";
 import { PageHeader, useIsDesktop, Sensitive } from "@/components/brand";
@@ -26,7 +26,7 @@ import { MyLearningCard, PathCard } from "@/modules/dashboard/JourneyCards";
 import { ContinueLearningCard } from "@/modules/library/HomeCards";
 import { FirstSponsorCelebration, NextMilestoneCard } from "@/modules/growth/HomeCards";
 import { MyDayCard } from "@/modules/dashboard/MyDayCard";
-import { HomeGrid, type HomeCards } from "@/modules/dashboard/HomeGrid";
+import { EditLayoutButton, HomeGrid, type HomeCards } from "@/modules/dashboard/HomeGrid";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -72,6 +72,8 @@ function Dashboard() {
   // The week ahead needs room for seven columns: in the narrow right-hand column it is a list.
   const weekBeside = resolveLayout(useHomeLayout()).side.has("week");
 
+  const [editing, setEditing] = useState(false);
+
   const now = new Date();
   const first = user.name.split(" ")[0];
   const n = items.length;
@@ -87,6 +89,7 @@ function Dashboard() {
         </>
       }
       subtitle={subtitle}
+      actions={!editing && <EditLayoutButton desktop={desktop} onClick={() => setEditing(true)} />}
     />
   );
   const today = <TodayCard items={items} compact={!desktop} candidate={candidate} />;
@@ -145,7 +148,7 @@ function Dashboard() {
       }
     >
       {header}
-      <HomeGrid cards={cards} desktop={desktop} />
+      <HomeGrid cards={cards} desktop={desktop} editing={editing} onEditingChange={setEditing} />
     </div>
   );
 }
