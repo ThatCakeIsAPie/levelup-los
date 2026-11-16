@@ -10,7 +10,14 @@ import { getSupabase } from "@/lib/supabase";
 import { refreshAccount, signOut } from "@/modules/login/auth";
 import { useSessionStore } from "@/stores/sessionStore";
 import { useHomeLayoutStore } from "@/data/homeLayoutStore";
-import { HOME_CARDS, moveHomeCard, resetHomeLayout, setHomeLayout } from "@/data";
+import {
+  HOME_CARDS,
+  hideHomeCard,
+  moveHomeCard,
+  resetHomeLayout,
+  setHomeLayout,
+  showHomeCard,
+} from "@/data";
 import { whenIdle } from "@/data/remote";
 import { fetchSnapshot } from "@/data/remote/hydrate";
 
@@ -73,6 +80,44 @@ describe("home layout", () => {
     expect(row.data?.layout).toEqual(layout);
     const snap = await fetchSnapshot(jamal, "4");
     expect(snap.crm.homeLayouts["4"]).toEqual(layout);
+  });
+
+  it("saves the cards you hid with the layout, and loads them back", async () => {
+    const hidden = hideHomeCard(
+      moveHomeCard(undefined, visible, "myDay", { column: "main", index: 0 }),
+      "inbox",
+    );
+    setHomeLayout(hidden);
+    await whenIdle();
+    const row = await jamal
+      .from("dashboard_layouts")
+      .select("layout")
+      .eq("person_id", "4")
+      .single();
+    expect(row.data?.layout).toEqual(hidden);
+    expect((row.data?.layout as { hidden?: string[] }).hidden).toEqual(["inbox"]);
+    const snap = await fetchSnapshot(jamal, "4");
+    expect(snap.crm.homeLayouts["4"]).toEqual(hidden);
+    // The database refuses a hidden list that isn't one, and a key it doesn't know.
+    const bad = await jamal
+      .from("dashboard_layouts")
+      .update({ layout: { order: [], side: [], hidden: ["inbox", "inbox"] } })
+      .eq("person_id", "4");
+    expect(bad.error?.code).toBe("23514");
+    const extra = await jamal
+      .from("dashboard_layouts")
+      .update({ layout: { order: [], side: [], hidden: [], other: [] } })
+      .eq("person_id", "4");
+    expect(extra.error?.code).toBe("23514");
+    // Showing the card again saves the plain two-key layout.
+    setHomeLayout(showHomeCard(hidden, "inbox"));
+    await whenIdle();
+    const back = await jamal
+      .from("dashboard_layouts")
+      .select("layout")
+      .eq("person_id", "4")
+      .single();
+    expect(Object.keys(back.data?.layout as object).sort()).toEqual(["order", "side"]);
   });
 
   it("is private: an upline doesn't load it", async () => {

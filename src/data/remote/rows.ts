@@ -690,7 +690,10 @@ export function homeLayoutFromRow(r: R<"dashboard_layouts">): [string, HomeLayou
 }
 
 export function homeLayoutToRow(personId: string, l: HomeLayout): Row {
-  return { person_id: personId, layout: { order: [...l.order], side: [...l.side] } };
+  // `hidden` only when something is hidden: a layout nobody hid from stays the two-key shape.
+  const layout: Record<string, string[]> = { order: [...l.order], side: [...l.side] };
+  if (l.hidden?.length) layout.hidden = [...l.hidden];
+  return { person_id: personId, layout };
 }
 
 // ---------------------------------------------------------------------------
