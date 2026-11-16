@@ -94,7 +94,10 @@
  *      the highlight and the shadow. Variants: glass-reading (denser: dialogs,
  *      sheets, menus, toasts), glass-dark (dark glass in both themes: sidebar,
  *      the event card), glass-flat (tint only, no blur), glass-bar (flat, and no
- *      drop shadow: full-width bars and panes).
+ *      drop shadow: full-width bars and panes), glass-lifted (a layer lifted
+ *      above the page, such as a card being dragged: solid --surface backing,
+ *      no blur). A container with data-glass-still makes its direct glass
+ *      children drop their blur (tint kept) while something in it is dragged.
  *   3. A glass layer inside another one is demoted: the denser tint, no blur
  *      of its own (a nested backdrop-filter cannot see the picture anyway), so
  *      blur is never stacked and cards in cards stay readable.
@@ -502,6 +505,29 @@ html[data-glass="on"] .glass-dark {
 /* No blur of its own (tint, border and highlight only): for layers that sit over the already blurred base. */
 html[data-glass="on"] .glass-flat {
   --glass-blur: none;
+}
+/*
+ * A layer lifted above the page (the card being dragged on Home): solid --surface under the sheen and
+ * no blur, so nothing behind it shows through and moving it costs no blur. The nested layers inside
+ * keep their usual denser tint, over that solid backing.
+ */
+html[data-glass="on"] .glass-lifted {
+  --glass-bg: var(--surface);
+  --glass-blur: none;
+}
+/*
+ * While a container carries data-glass-still (Home's edit mode, during a drag) its direct glass children
+ * (other than a glass-lifted one) drop their blur and keep their tint (the blur is off at once: a fade
+ * of the filter cost more frames than the small tone step it hides): a layer moving over
+ * many blurred layers would otherwise make the browser re-blur everything under it on every frame.
+ */
+html[data-glass="on"]
+  [data-glass-still]
+  > :is(.glass, :is(.rounded-card, [class*=":rounded-card"]):is(.bg-card, .bg-surface, .bg-popover)):not(
+    .glass-lifted
+  ) {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 html[data-glass="on"] .glass-bar {
   --glass-blur: none;
