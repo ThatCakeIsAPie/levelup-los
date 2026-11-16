@@ -12,6 +12,10 @@ import {
 } from "./calendarHelpers";
 import { RepeatIcon } from "./RepeatIcon";
 import type { CalItem, Segment } from "./calendar";
+import type { ChipDrag } from "./calendarMove";
+
+/** Classes of a chip that can be picked up: no text selection or long-press menu to get in the way of a hold. */
+const PICKABLE = "select-none [-webkit-touch-callout:none]";
 
 /**
  * One item as a row: category icon, name, when. A stored one is a link to its page; a projected
@@ -21,10 +25,16 @@ export function ItemRow({
   item,
   category,
   className,
+  drag,
+  grabDay,
 }: {
   item: CalItem;
   category: EventCategory | undefined;
   className?: string;
+  /** Set where the row can be picked up and dropped on a day of the calendar (the phone layout's list). */
+  drag?: ChipDrag;
+  /** The day the row stands for (the selected day), for an event of several days. */
+  grabDay?: string;
 }) {
   const Icon = categoryIcon(category);
   const when = itemWhen(item);
@@ -55,9 +65,14 @@ export function ItemRow({
       to="/events/$id"
       params={{ id: item.eventId }}
       aria-label={itemLabel(item)}
+      draggable={drag ? false : undefined}
+      onPointerDown={drag ? (e) => drag.start(e, item, grabDay) : undefined}
+      onContextMenu={drag?.onContextMenu}
       className={cn(
         base,
         "hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring",
+        drag && PICKABLE,
+        drag?.liftedKey === item.key && "opacity-40",
         className,
       )}
     >
@@ -81,6 +96,7 @@ export function EntryView({
   today,
   tabbable = !seg.before,
   narrow = false,
+  drag,
 }: {
   seg: Segment;
   category: EventCategory | undefined;
@@ -97,6 +113,8 @@ export function EntryView({
    * repeat mark share the line under it. Bars are drawn as in the calendar.
    */
   narrow?: boolean;
+  /** Set on the Events calendar for people who may edit events: the chip can be picked up and dropped on another day. */
+  drag?: ChipDrag;
 }) {
   const { item } = seg;
   const Icon = categoryIcon(category);
@@ -182,10 +200,15 @@ export function EntryView({
       params={{ id: item.eventId! }}
       aria-label={itemLabel(item)}
       tabIndex={tabbable ? undefined : -1}
+      draggable={drag ? false : undefined}
+      onPointerDown={drag ? (e) => drag.start(e, item) : undefined}
+      onContextMenu={drag?.onContextMenu}
       className={cn(
         className,
         bar ? "hover:brightness-95" : "hover:bg-surface-2",
         "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
+        drag && PICKABLE,
+        drag?.liftedKey === item.key && "opacity-40",
       )}
       style={place}
     >
