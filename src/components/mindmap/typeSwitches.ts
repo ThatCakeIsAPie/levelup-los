@@ -1,35 +1,33 @@
 /**
- * The map's three person-type switches (Contacts, Prospects, Filtered): what
- * they are called, where each is remembered, and how the header names what
- * is included. Pure apart from reading and writing the browser's storage.
+ * The map's "Include prospects" switch: where it is remembered and how the
+ * header names what is included. The map only ever adds people of the
+ * Prospect type; Contacts and Filtered people are never drawn, so they have
+ * no switch. Pure apart from reading and writing the browser's storage.
  */
 import { storageKey } from "@/lib/brand";
 import type { MapTypes, PersonType } from "@/data";
 
 export const TYPE_SWITCHES: readonly { type: PersonType; label: string }[] = [
-  { type: "contact", label: "Contacts" },
-  { type: "prospect", label: "Prospects" },
-  { type: "filtered", label: "Filtered" },
+  { type: "prospect", label: "Include prospects" },
 ];
 
-/**
- * Where a switch is remembered. Prospects keeps the key of the single
- * "Include prospects" switch it replaced, so whoever had that on keeps
- * Prospects on; Contacts and Filtered have new keys and start off.
- */
+/** Where a switch is remembered (`<prefix>.mindmap.prospects.<personId>` for "Include prospects"). */
 export const typeSwitchKey = (personId: string, type: PersonType): string =>
   storageKey(type === "prospect" ? `mindmap.prospects.${personId}` : `mindmap.${type}.${personId}`);
 
-/** The viewer's switches on this device (all off when nothing is stored or storage is blocked). */
+/**
+ * What the map draws for this viewer on this device: Prospects when "Include
+ * prospects" is on (off when nothing is stored or storage is blocked);
+ * Contacts and Filtered never, whatever an earlier version stored for them.
+ */
 export function readTypeSwitches(personId: string): MapTypes {
-  const get = (type: PersonType): boolean => {
-    try {
-      return localStorage.getItem(typeSwitchKey(personId, type)) === "1";
-    } catch {
-      return false;
-    }
-  };
-  return { contact: get("contact"), prospect: get("prospect"), filtered: get("filtered") };
+  let prospect = false;
+  try {
+    prospect = localStorage.getItem(typeSwitchKey(personId, "prospect")) === "1";
+  } catch {
+    // Storage blocked: off.
+  }
+  return { contact: false, prospect, filtered: false };
 }
 
 export function writeTypeSwitch(personId: string, type: PersonType, on: boolean): void {
