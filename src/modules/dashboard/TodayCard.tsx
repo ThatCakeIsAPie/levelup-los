@@ -381,7 +381,10 @@ function ContactSettings() {
           <Settings2 />
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="grid max-h-[80vh] w-80 gap-3 overflow-y-auto">
+      <PopoverContent
+        align="end"
+        className="grid max-h-[min(80vh,var(--radix-popover-content-available-height))] w-80 gap-3 overflow-y-auto"
+      >
         <div>
           <p className="text-sm font-bold">Remind me to get in touch</p>
           <p className="text-[12.5px] text-muted-foreground">
