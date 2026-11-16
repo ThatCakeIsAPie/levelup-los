@@ -169,7 +169,8 @@ describe("buildTodayItems (rules)", () => {
   });
 
   it("uses the contact thresholds", () => {
-    const p = person({ id: "p" });
+    // Registered team members: the team-members day count (a prospect's interval is in months).
+    const p = person({ id: "p", bizClass: "apprentice" });
     const run = (teamDays: number) =>
       buildTodayItems(
         base({

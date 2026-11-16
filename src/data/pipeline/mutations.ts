@@ -27,6 +27,7 @@ import {
   type CustomerStepBand,
 } from "../customerPipeline/types";
 import { pipeline, updatePipeline } from "./store";
+import { validCheckInSet, type CheckInMonths } from "./checkIns";
 import {
   bandIndex,
   bandOf,
@@ -604,7 +605,11 @@ export function showPipelineStep(stepId: string, kind: BoardKind = "recruiting")
 // Team goal and conversion targets (yours, for your team; null = inherit)
 // ---------------------------------------------------------------------------
 
-function patchSetting(patch: { mg1Goal?: number | null; targets?: ConversionTargets | null }) {
+function patchSetting(patch: {
+  mg1Goal?: number | null;
+  targets?: ConversionTargets | null;
+  checkIns?: CheckInMonths | null;
+}) {
   const me = actor();
   if (!me) return false;
   updatePipeline((s) => {
@@ -613,6 +618,7 @@ function patchSetting(patch: { mg1Goal?: number | null; targets?: ConversionTarg
       personId: me,
       mg1Goal: prev?.mg1Goal ?? null,
       targets: prev?.targets ?? null,
+      checkIns: prev?.checkIns ?? null,
       ...patch,
       updatedAt: now(),
     };
@@ -635,6 +641,15 @@ export function setTeamGoal(goal: number | null): boolean {
 export function setConversionTargets(targets: ConversionTargets | null): boolean {
   if (targets && !Object.values(targets).every(validTarget)) return false;
   return patchSetting({ targets });
+}
+
+/**
+ * Your four prospect check-in intervals, in months, for you and your team
+ * (null: use your upline's). All four are saved together.
+ */
+export function setCheckInMonths(months: CheckInMonths | null): boolean {
+  if (months && !validCheckInSet(months)) return false;
+  return patchSetting({ checkIns: months ? { ...months } : null });
 }
 
 // ---------------------------------------------------------------------------

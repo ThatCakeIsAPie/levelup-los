@@ -22,6 +22,10 @@ import {
   useCurrentUser,
   useEvents,
   useLastContactMap,
+  useCheckInSettings,
+  usePipelineCards,
+  prospectCheckIn,
+  type ProspectCheckIn,
   useSales,
   useVisibleAttendances,
   useVisiblePeople,
@@ -138,6 +142,19 @@ function contactState(date: string | undefined, limit: number): ContactState {
   return { date, days, tone: days > limit * 2 ? "bad" : "warn", overdue: true, limit };
 }
 
+/**
+ * A prospect's contact state: overdue when their check-in is due (the interval
+ * their card's rating selects, `prospectCheckIn`), never by the team-members
+ * day count. `limit` is the interval in days.
+ */
+export function prospectContactState(date: string | undefined, ci: ProspectCheckIn): ContactState {
+  const days = daysSince(date);
+  const limit = ci.intervalDays;
+  if (!ci.due) return { date, days, tone: "good", overdue: false, limit };
+  const tone = days === null || days > limit * 2 ? "bad" : "warn";
+  return { date, days, tone, overdue: true, limit };
+}
+
 /** Every visible person with the derived fields the list needs. */
 export function usePeopleRows(): PersonRow[] {
   const people = useVisiblePeople();
@@ -146,11 +163,14 @@ export function usePeopleRows(): PersonRow[] {
   const events = useEvents();
   const lastContact = useLastContactMap();
   const settings = useContactSettings();
+  const checkIns = useCheckInSettings().months;
+  const cards = usePipelineCards();
   const sales = useSales();
   const kindOf = usePersonKinds();
 
   return useMemo(() => {
     const today = localDate();
+    const cardOf = new Map(cards.map((c) => [c.personId, c] as const));
     const byId = new Map(people.map((p) => [p.id, p]));
     const upcoming = new Set(events.filter((e) => (e.endDate ?? e.date) >= today).map((e) => e.id));
     const followUps = new Map<string, string>();
@@ -164,7 +184,14 @@ export function usePeopleRows(): PersonRow[] {
       const isCustomer = p.bizClass === "customer";
       const isSelf = p.id === user.personId;
       const limit = isCustomer ? settings.customerDays : settings.teamDays;
-      const contact = contactState(lastContact.get(p.id), limit);
+      // Prospects: the check-in interval (as in Today); everyone else: the day count.
+      const contact =
+        p.bizClass === "prospect"
+          ? prospectContactState(
+              lastContact.get(p.id),
+              prospectCheckIn(p, lastContact.get(p.id), cardOf.get(p.id), checkIns, today),
+            )
+          : contactState(lastContact.get(p.id), limit);
       const alert = apprenticeAlertLevel(p);
       const anniversaryDate = p.bizClass === "apprentice" ? anniversaryOf(p) : undefined;
       const anniversaryDays = anniversaryDate
@@ -201,7 +228,18 @@ export function usePeopleRows(): PersonRow[] {
         attention,
       };
     });
-  }, [people, user.personId, attendances, events, lastContact, settings, sales, kindOf]);
+  }, [
+    people,
+    user.personId,
+    attendances,
+    events,
+    lastContact,
+    settings,
+    checkIns,
+    cards,
+    sales,
+    kindOf,
+  ]);
 }
 
 /** The stages the People list filters by, in chip order (customers have their own segment). */

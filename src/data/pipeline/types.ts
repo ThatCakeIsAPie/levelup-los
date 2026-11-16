@@ -16,6 +16,7 @@
  *    activity ("happened this month") and conversions.
  */
 import type { ContactRating } from "../rating";
+import type { CheckInMonths } from "./checkIns";
 
 export type MilestoneCode = "contact" | "first_meeting" | "first_plan" | "registered";
 
@@ -89,7 +90,7 @@ export type RecruitingBand = "start" | MilestoneCode | "out";
 export const FIXED_RECRUITING_COLUMNS = [
   { id: NOT_CONTACTED, band: "start", label: "Not contacted yet", hint: "Haven't reached out" },
   { id: REFERRAL_SOURCE, band: "out", label: REFERRAL_SOURCE_LABEL, hint: REFERRAL_SOURCE_HINT },
-  { id: NOT_INTERESTED, band: "out", label: "Not interested", hint: "Revisit in 6 months" },
+  { id: NOT_INTERESTED, band: "out", label: "Not interested", hint: "Revisit in a year" },
   { id: DO_NOT_CONTACT, band: "out", label: "Do not contact", hint: "Hidden from reminders" },
 ] as const satisfies readonly { id: string; band: RecruitingBand; label: string; hint: string }[];
 
@@ -176,11 +177,16 @@ export interface ConversionTargets {
   planToRegistered: number;
 }
 
-/** `pipeline_team_settings`: a leader's goals for their team (null = inherit). */
+/**
+ * `pipeline_team_settings`: a person's goals and prospect check-in intervals
+ * for their team (null = inherit from the nearest upline who set them).
+ */
 export interface TeamSetting {
   personId: string;
   mg1Goal: number | null;
   targets: ConversionTargets | null;
+  /** The four check-in intervals, all set or all null (never mixed). Rows saved before they existed have none. */
+  checkIns?: CheckInMonths | null;
   updatedAt: string;
 }
 

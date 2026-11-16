@@ -33,7 +33,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { quickCheckIn, toastWithUndo } from "@/components/log/quickLog";
 import {
+  CHECK_IN_BASIS_LABEL,
   effectiveBizClass,
+  everyMonths,
   removeContact,
   setTaskDone,
   openLog,
@@ -51,6 +53,7 @@ import { ReferralTodayRow } from "@/modules/pipeline/Referrals";
 import { requestOpenCard } from "@/modules/pipeline/openCard";
 import { plural, relativeDay, shortDate } from "./format";
 import { useInvitesOff } from "./hooks";
+import { ProspectCheckInSettings } from "./ProspectCheckInSettings";
 import {
   countByFilter,
   groupToday,
@@ -378,7 +381,10 @@ function ContactSettings() {
           <Settings2 />
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="grid w-72 gap-3">
+      <PopoverContent
+        align="end"
+        className="grid max-h-[min(80vh,var(--radix-popover-content-available-height))] w-80 gap-3 overflow-y-auto"
+      >
         <div>
           <p className="text-sm font-bold">Remind me to get in touch</p>
           <p className="text-[12.5px] text-muted-foreground">
@@ -387,6 +393,7 @@ function ContactSettings() {
         </div>
         {field("teamDays", "Team members")}
         {field("customerDays", "Customers")}
+        <ProspectCheckInSettings />
       </PopoverContent>
     </Popover>
   );
@@ -679,17 +686,25 @@ function TodayRow({
     case "referral":
       return <ReferralTodayRow item={item} compact={compact} />;
     case "team":
-    case "prospect":
+    case "prospect": {
       title = compact ? p.name : `Check in with ${p.name}`;
+      // A prospect's row also says which interval applies ("Hot, every 3 months").
+      const every =
+        item.kind === "prospect"
+          ? ` · ${CHECK_IN_BASIS_LABEL[item.basis]}, ${everyMonths(item.months)}`
+          : "";
       detail = item.never
         ? item.days !== null
-          ? `Never contacted · joined ${plural(item.days, "day")} ago`
+          ? `Never contacted · joined ${plural(item.days, "day")} ago${compact ? "" : every}`
           : "Never contacted"
         : compact
           ? plural(item.days ?? 0, "day")
-          : `Last contact ${plural(item.days ?? 0, "day")} ago · your goal is ${item.threshold}`;
+          : item.kind === "prospect"
+            ? `Last contact ${plural(item.days ?? 0, "day")} ago${every}`
+            : `Last contact ${plural(item.days ?? 0, "day")} ago · your goal is ${item.threshold}`;
       action = quick("Check in");
       break;
+    }
     case "missed": {
       const { latest, lastAttended, missed } = item.streak;
       title = compact ? p.name : `${p.name} missed ${latest.name}`;

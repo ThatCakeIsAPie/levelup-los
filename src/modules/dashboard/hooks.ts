@@ -7,12 +7,14 @@ import {
   useWeeklyGoal,
   useContactSettings,
   useCurrentUser,
+  useCheckInSettings,
   useDoNotContactIds,
   useDueTasks,
   useEvents,
   useLastContactMap,
   useMissedFollowUps,
   useAllEventCategories,
+  usePipelineCards,
   useReferralReminders,
   useSales,
   useVisibleAttendances,
@@ -80,6 +82,8 @@ export function useTodayItems(): TodayItem[] {
   const people = useVisiblePeople();
   const lastContact = useLastContactMap();
   const settings = useContactSettings();
+  const checkIns = useCheckInSettings().months;
+  const cards = usePipelineCards();
   const events = useEvents();
   const attendances = useVisibleAttendances();
   const sales = useSales();
@@ -97,6 +101,8 @@ export function useTodayItems(): TodayItem[] {
         people,
         lastContact,
         settings,
+        checkIns,
+        cards,
         events,
         attendances,
         sales,
@@ -112,6 +118,8 @@ export function useTodayItems(): TodayItem[] {
       people,
       lastContact,
       settings,
+      checkIns,
+      cards,
       events,
       attendances,
       sales,
