@@ -15,16 +15,19 @@ import {
   missingRequiredFields,
   needsTicket,
   parseDate,
+  prospectCheckIn,
   registeredOn,
   useAttendancesForEvent,
   useAttendancesForPerson,
   useCategoryOf,
+  useCheckInSettings,
   useContactSettings,
   useCurrentUser,
   useEvents,
   useLastContactMap,
   useMyCampaigns,
   useMyInvoices,
+  usePipelineCards,
   useUpcomingEvents,
   useVisibleAttendances,
   useVisibleCustomers,
@@ -69,10 +72,13 @@ export function usePeopleAttentionCount(): number {
   const team = useVisibleTeam();
   const lastContact = useLastContactMap();
   const { teamDays } = useContactSettings();
+  const checkIns = useCheckInSettings().months;
+  const cards = usePipelineCards();
   const events = useEvents();
   const attendances = useVisibleAttendances();
   return useMemo(() => {
     const today = localDate();
+    const cardOf = new Map(cards.map((c) => [c.personId, c] as const));
     const upcoming = new Set(events.filter((e) => (e.endDate ?? e.date) >= today).map((e) => e.id));
     const followUp = new Map<string, string>();
     for (const a of attendances) {
@@ -82,8 +88,17 @@ export function usePeopleAttentionCount(): number {
     }
     let n = 0;
     for (const p of team) {
-      const days = daysSince(lastContact.get(p.id));
-      const contactOverdue = p.id !== user.personId && (days === null || days > teamDays);
+      // Registered people: the team-members day count. Prospects: the check-in
+      // interval their card's rating selects (months).
+      const contactOverdue =
+        p.id === user.personId
+          ? false
+          : isRegistered(p)
+            ? (() => {
+                const days = daysSince(lastContact.get(p.id));
+                return days === null || days > teamDays;
+              })()
+            : prospectCheckIn(p, lastContact.get(p.id), cardOf.get(p.id), checkIns, today).due;
       const next = followUp.get(p.id);
       if (
         contactOverdue ||
@@ -94,7 +109,7 @@ export function usePeopleAttentionCount(): number {
         n++;
     }
     return n;
-  }, [team, lastContact, teamDays, events, attendances, user.personId]);
+  }, [team, lastContact, teamDays, checkIns, cards, events, attendances, user.personId]);
 }
 
 /** Your customers, their monthly volume and how many are due for contact. */

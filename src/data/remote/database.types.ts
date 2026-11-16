@@ -4043,6 +4043,10 @@ export type Database = {
       };
       pipeline_team_settings: {
         Row: {
+          checkin_cold_months: number | null;
+          checkin_hot_months: number | null;
+          checkin_not_interested_months: number | null;
+          checkin_warm_months: number | null;
           mg1_goal: number | null;
           person_id: string;
           target_contact_to_meeting: number | null;
@@ -4053,6 +4057,10 @@ export type Database = {
         };
         ComputedFields: never;
         Insert: {
+          checkin_cold_months?: number | null;
+          checkin_hot_months?: number | null;
+          checkin_not_interested_months?: number | null;
+          checkin_warm_months?: number | null;
           mg1_goal?: number | null;
           person_id?: string;
           target_contact_to_meeting?: number | null;
@@ -4062,6 +4070,10 @@ export type Database = {
           workspace_id?: string;
         };
         Update: {
+          checkin_cold_months?: number | null;
+          checkin_hot_months?: number | null;
+          checkin_not_interested_months?: number | null;
+          checkin_warm_months?: number | null;
           mg1_goal?: number | null;
           person_id?: string;
           target_contact_to_meeting?: number | null;
@@ -5153,6 +5165,16 @@ export type Database = {
       };
       my_agent_access: { Args: Record<PropertyKey, never>; Returns: Json };
       my_chain_ids: { Args: Record<PropertyKey, never>; Returns: string[] };
+      my_checkin_months: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          cold: number;
+          from_person_id: string;
+          hot: number;
+          not_interested: number;
+          warm: number;
+        }[];
+      };
       my_conversation_ids: { Args: Record<PropertyKey, never>; Returns: string[] };
       normalize_step_text: { Args: { p_text: string }; Returns: string };
       notify: {

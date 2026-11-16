@@ -38,6 +38,7 @@ import {
   type TeamSetting,
   type TransitionKey,
 } from "./types";
+import { DEFAULT_CHECK_IN_MONTHS, type CheckInMonths } from "./checkIns";
 
 // ---------------------------------------------------------------------------
 // Milestones, bands and columns
@@ -969,6 +970,9 @@ export interface EffectiveSettings {
   goalFrom: string | null;
   targets: ConversionTargets;
   targetsFrom: string | null;
+  /** The four prospect check-in intervals, taken whole from one person. */
+  checkIns: CheckInMonths;
+  checkInsFrom: string | null;
 }
 
 /** The nearest setting up the chain (the person's own first), else the defaults. */
@@ -978,6 +982,8 @@ export function effectiveSettings(chain: string[], settings: TeamSetting[]): Eff
   let goalFrom: string | null = null;
   let targets = DEFAULT_TARGETS;
   let targetsFrom: string | null = null;
+  let checkIns = DEFAULT_CHECK_IN_MONTHS;
+  let checkInsFrom: string | null = null;
   for (let i = chain.length - 1; i >= 0; i--) {
     const s = byId.get(chain[i]);
     if (!s) continue;
@@ -989,8 +995,12 @@ export function effectiveSettings(chain: string[], settings: TeamSetting[]): Eff
       targets = s.targets;
       targetsFrom = s.personId;
     }
+    if (checkInsFrom === null && s.checkIns) {
+      checkIns = s.checkIns;
+      checkInsFrom = s.personId;
+    }
   }
-  return { mg1Goal, goalFrom, targets, targetsFrom };
+  return { mg1Goal, goalFrom, targets, targetsFrom, checkIns, checkInsFrom };
 }
 
 export const MAX_GOAL = 9999;
