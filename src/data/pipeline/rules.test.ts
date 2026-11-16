@@ -808,6 +808,8 @@ describe("team settings and stale cards", () => {
       goalFrom: null,
       targets: DEFAULT_TARGETS,
       targetsFrom: null,
+      checkIns: { hot: 3, warm: 6, cold: 12, notInterested: 12 },
+      checkInsFrom: null,
     });
   });
 

@@ -14,7 +14,10 @@
  *      Missed an event they came to last time (uplines)       650 - days since
  *      (src/data/eventTypes/missed.ts; cleared for every upline by a
  *      check-in or an "already handled" note)
- *   4. Contact overdue (team, prospects, customers)           100 × days / threshold
+ *   4. Contact overdue: team members (days, `teamDays`) and customers
+ *      (days, `customerDays`) 100 × days / threshold; prospects (months, by
+ *      their card: Hot / Warm / Cold, Not interested; src/data/pipeline/
+ *      checkIns.ts) 100 × days since contact / days in the interval
  *      Apprentices 90 days out                                 150
  *      Referral sources with no names after a week (own cards)  90 + days over 7 (max 99)
  *      ("Ask Sarah for names", src/data/referrals)
@@ -36,6 +39,13 @@
  *                customers.
  */
 import { addYears, differenceInCalendarDays } from "date-fns";
+import {
+  DEFAULT_CHECK_IN_MONTHS,
+  prospectCheckIn,
+  type CheckInBasis,
+  type CheckInCard,
+  type CheckInMonths,
+} from "@/data/pipeline/checkIns";
 import {
   apprenticeAlertLevel,
   effectiveBizClass,
@@ -78,6 +88,7 @@ interface ContactDue {
   /** Days since last contact (or since joining when never contacted); null if unknown. */
   days: number | null;
   never: boolean;
+  /** Team members and customers: the day count. Prospects: the length in days of their interval. */
   threshold: number;
 }
 
@@ -101,8 +112,8 @@ export type TodayItem =
   | (Base & ContactDue & { kind: "customer"; lastSale?: Sale })
   /** A registered team member past the team contact threshold. */
   | (Base & ContactDue & { kind: "team" })
-  /** A prospect (recruiting pipeline) past the team contact threshold. */
-  | (Base & ContactDue & { kind: "prospect" })
+  /** A prospect (recruiting pipeline) past the check-in interval their card's rating selects. */
+  | (Base & ContactDue & { kind: "prospect"; months: number; basis: CheckInBasis })
   | (Base & {
       kind: "missed";
       /** Came to `streak.lastAttended`, missed `streak.latest` (and maybe more). */
@@ -148,6 +159,13 @@ export interface TodayInput {
   /** personId -> last contact date. */
   lastContact: Map<string, string>;
   settings: { teamDays: number; customerDays: number };
+  /**
+   * The viewer's four prospect check-in intervals in months (`useCheckInSettings()`):
+   * Hot, Warm, Cold, Not interested. Defaults to 3 / 6 / 12 / 12.
+   */
+  checkIns?: CheckInMonths;
+  /** The recruiting board's cards (`usePipelineCards()`): a prospect's column, rating and `droppedAt` choose their interval. */
+  cards?: readonly (CheckInCard & { personId: string })[];
   /** Events (any order); only unfinished ones are used. */
   events: CrmEvent[];
   /** Visible attendance rows (any event). */
@@ -205,6 +223,7 @@ export function buildTodayItems(input: TodayInput): TodayItem[] {
   const skip = input.doNotContact;
   const byId = new Map(input.people.filter((p) => !skip?.has(p.id)).map((p) => [p.id, p] as const));
   const everyone = new Map(input.people.map((p) => [p.id, p] as const));
+  const cards = new Map((input.cards ?? []).map((c) => [c.personId, c] as const));
   const items: TodayItem[] = [];
 
   // 1 + 2. Event tickets and follow-ups on events that haven't finished
@@ -365,26 +384,49 @@ export function buildTodayItems(input: TodayInput): TodayItem[] {
       });
     }
 
-    // 5. Past the team contact threshold (never the viewer): registered
-    // people under Team, prospects under Pipeline › Recruiting.
+    // 5. Past the contact threshold (never the viewer). Registered people
+    // (Team) use the team-members day count; prospects (Pipeline ›
+    // Recruiting) use the interval their card's rating selects, in months.
     if (p.id === input.viewerId) continue;
-    const { days, never } = daysSinceContact(p, input.lastContact, today);
-    const t = input.settings.teamDays;
-    if (days !== null && days <= t) continue;
-    const contact = { person: p, self: false, days, never, threshold: t };
-    const score = contactScore(days, t);
     if (registered(p, now)) {
-      items.push({ ...contact, key: `team:${p.id}`, kind: "team", filter: "team", score });
-    } else {
+      const { days, never } = daysSinceContact(p, input.lastContact, today);
+      const t = input.settings.teamDays;
+      if (days !== null && days <= t) continue;
       items.push({
-        ...contact,
-        key: `prospect:${p.id}`,
-        kind: "prospect",
-        filter: "pipeline",
-        sub: "recruiting",
-        score,
+        person: p,
+        self: false,
+        days,
+        never,
+        threshold: t,
+        key: `team:${p.id}`,
+        kind: "team",
+        filter: "team",
+        score: contactScore(days, t),
       });
+      continue;
     }
+    const check = prospectCheckIn(
+      p,
+      input.lastContact.get(p.id),
+      cards.get(p.id),
+      input.checkIns ?? DEFAULT_CHECK_IN_MONTHS,
+      today,
+    );
+    if (!check.due) continue;
+    items.push({
+      person: p,
+      self: false,
+      days: check.days,
+      never: check.never,
+      threshold: check.intervalDays,
+      months: check.months ?? 0,
+      basis: check.basis ?? "unrated",
+      key: `prospect:${p.id}`,
+      kind: "prospect",
+      filter: "pipeline",
+      sub: "recruiting",
+      score: contactScore(check.days, check.intervalDays),
+    });
   }
 
   // 6. Invite your customers to the next events they're welcome at.

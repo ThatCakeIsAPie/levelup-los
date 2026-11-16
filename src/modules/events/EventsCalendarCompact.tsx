@@ -14,6 +14,7 @@ import {
   type CalItem,
 } from "./calendar";
 import { dotClass, useCalendarItems, useCategoryMap } from "./calendarHelpers";
+import { useCalendarMove } from "./calendarMove";
 import { ItemRow } from "./calendarParts";
 
 const CELL_H = 48;
@@ -31,6 +32,7 @@ export function EventsCalendarCompact({
   categoryId,
   today,
   jump,
+  canMove,
 }: {
   events: CrmEvent[];
   series: EventSeries[];
@@ -39,12 +41,20 @@ export function EventsCalendarCompact({
   today: string;
   /** Changes (`n`) when the Today button is pressed. */
   jump: { n: number; focus: boolean };
+  /** The viewer may edit events: an event in the list under the grid can be picked up and dropped on a day of the grid. */
+  canMove?: boolean;
 }) {
   const byId = useCategoryMap(categories);
   const { weeks, items } = useCalendarItems(events, series, today, categoryId);
   const buckets = useMemo(() => bucketByWeek(items, weeks), [items, weeks]);
   const [selected, setSelected] = useState(today);
   const scroller = useRef<HTMLDivElement>(null);
+  const { chip, overDay, ui } = useCalendarMove({
+    enabled: !!canMove,
+    scroller,
+    categories,
+    onMoved: setSelected,
+  });
   const todayWeek = weekStartOf(today);
 
   const toToday = (smooth: boolean) => {
@@ -109,6 +119,7 @@ export function EventsCalendarCompact({
                   today={today}
                   weekend={c === 0 || c === 6}
                   selected={day === selected}
+                  over={day === overDay}
                   items={itemsOnDay(buckets.get(w) ?? [], day)}
                   byId={byId}
                   onSelect={() => setSelected(day)}
@@ -126,12 +137,19 @@ export function EventsCalendarCompact({
           <ul className="grid gap-0.5 rounded-card border border-line bg-card p-1.5">
             {dayItems.map((it) => (
               <li key={it.key}>
-                <ItemRow item={it} category={byId.get(it.categoryId)} className="min-h-11" />
+                <ItemRow
+                  item={it}
+                  category={byId.get(it.categoryId)}
+                  className="min-h-11"
+                  drag={chip}
+                  grabDay={selected}
+                />
               </li>
             ))}
           </ul>
         )}
       </section>
+      {ui}
     </div>
   );
 }
@@ -141,6 +159,7 @@ function DayCell({
   today,
   weekend,
   selected,
+  over,
   items,
   byId,
   onSelect,
@@ -149,6 +168,8 @@ function DayCell({
   today: string;
   weekend: boolean;
   selected: boolean;
+  /** An event being carried would land on this day. */
+  over: boolean;
   items: CalItem[];
   byId: Map<string, EventCategory>;
   onSelect: () => void;
@@ -165,6 +186,7 @@ function DayCell({
         "relative flex flex-col items-center border-r border-line pt-0.5 text-[13px] last:border-r-0 focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring",
         label.kind === "today" ? "bg-primary-soft" : weekend ? "bg-surface-2" : "bg-transparent",
         selected && "outline-2 outline-offset-[-2px] outline-foreground",
+        over && "bg-primary-soft ring-2 ring-inset ring-primary",
       )}
     >
       {label.kind === "month" ? (

@@ -32,6 +32,7 @@ import {
   type Rule,
   type SeriesState,
 } from "./plan";
+import { moveFollowing, moveOne, restoreMove, snapshotOf } from "./move";
 
 export type SeriesResult = { ok: true } | { ok: false; error: string };
 const fail = (error: string): SeriesResult => ({ ok: false, error });
@@ -99,6 +100,8 @@ interface RpcResult {
   events?: Row[];
   deleted?: string[];
   series?: Row[];
+  /** Series the function removed (the undo of a move removes the one the move split off). */
+  deleted_series?: string[];
 }
 
 /** Shows what a series function changed (without sending it back to the database). */
@@ -113,7 +116,8 @@ function applyResult(r: RpcResult) {
       const known = new Set(events.map((e) => e.id));
       for (const e of upserts) if (!known.has(e.id) && !gone.has(e.id)) events.push(e);
       const sById = new Map(series.map((x) => [x.id, x]));
-      const merged = s.series.map((x) => sById.get(x.id) ?? x);
+      const goneSeries = new Set(r.deleted_series ?? []);
+      const merged = s.series.filter((x) => !goneSeries.has(x.id)).map((x) => sById.get(x.id) ?? x);
       for (const x of series) if (!s.series.some((y) => y.id === x.id)) merged.push(x);
       return { events, series: merged };
     }),
@@ -209,6 +213,89 @@ export async function removeEventFollowing(eventId: string): Promise<SeriesResul
   commit(out.state);
   cascadeRemoved(out.removedIds);
   return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// Moving an occurrence (the calendar's drag)
+// ---------------------------------------------------------------------------
+
+/** A move that happened: how many events it moved, and the way back. */
+export type MoveResult =
+  { ok: true; moved: number; undo: () => Promise<SeriesResult> } | { ok: false; error: string };
+
+const asRow = (e: CrmEvent) => ({
+  id: e.id,
+  date: e.date,
+  end_date: e.endDate ?? null,
+  series_id: e.seriesId ?? null,
+  series_date: e.seriesDate ?? null,
+  series_overrides: e.seriesOverrides ?? null,
+});
+
+/** The undo of a move: puts back what changed between two states (see ./move.ts). */
+function undoOf(before: SeriesState, after: SeriesState): () => Promise<SeriesResult> {
+  const snap = snapshotOf(before, after);
+  return async () => {
+    if (!IS_SUPABASE) {
+      commit(restoreMove(stateOf(), snap));
+      return { ok: true };
+    }
+    return call("restore_event_move", {
+      p_events: snap.events.map(asRow),
+      p_series: snap.series.map((s) => ({
+        id: s.id,
+        starts_on: s.startsOn,
+        ends_on: s.endsOn ?? null,
+        skipped: s.skipped,
+      })),
+      p_drop_series: snap.dropSeries,
+    });
+  };
+}
+
+/**
+ * "Move just this one" for an occurrence of a repeating event: it becomes a single event on the new days
+ * (a move keeps the length) and its old place in the series is never made again.
+ */
+export async function moveEventOne(
+  eventId: string,
+  date: string,
+  endDate?: string,
+): Promise<MoveResult> {
+  const before = stateOf();
+  if (IS_SUPABASE) {
+    const done = await call("move_event_one", {
+      p_event_id: eventId,
+      p_date: date,
+      p_end_date: endDate ?? null,
+    });
+    if (!done.ok) return { ok: false, error: done.error };
+  } else {
+    const out = moveOne(before, eventId, date, endDate);
+    if (isPlanError(out)) return { ok: false, error: out.error };
+    commit(out);
+  }
+  return { ok: true, moved: 1, undo: undoOf(before, stateOf()) };
+}
+
+/**
+ * "Move all": this occurrence and every later one move `days` days and the rule moves with them. Earlier
+ * ones stay; every moved event keeps its id and what hangs off it.
+ */
+export async function moveEventFollowing(eventId: string, days: number): Promise<MoveResult> {
+  const before = stateOf();
+  let moved = 0;
+  if (IS_SUPABASE) {
+    const done = await call("move_event_series_following", { p_event_id: eventId, p_days: days });
+    if (!done.ok) return { ok: false, error: done.error };
+    moved = snapshotOf(before, stateOf()).events.length;
+  } else {
+    const out = moveFollowing(before, eventId, days, crypto.randomUUID());
+    if (isPlanError(out)) return { ok: false, error: out.error };
+    commit(out.state);
+    moved = out.movedIds.length;
+  }
+  return { ok: true, moved, undo: undoOf(before, stateOf()) };
 }
 
 // ---------------------------------------------------------------------------

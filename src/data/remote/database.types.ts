@@ -4043,6 +4043,10 @@ export type Database = {
       };
       pipeline_team_settings: {
         Row: {
+          checkin_cold_months: number | null;
+          checkin_hot_months: number | null;
+          checkin_not_interested_months: number | null;
+          checkin_warm_months: number | null;
           mg1_goal: number | null;
           person_id: string;
           target_contact_to_meeting: number | null;
@@ -4053,6 +4057,10 @@ export type Database = {
         };
         ComputedFields: never;
         Insert: {
+          checkin_cold_months?: number | null;
+          checkin_hot_months?: number | null;
+          checkin_not_interested_months?: number | null;
+          checkin_warm_months?: number | null;
           mg1_goal?: number | null;
           person_id?: string;
           target_contact_to_meeting?: number | null;
@@ -4062,6 +4070,10 @@ export type Database = {
           workspace_id?: string;
         };
         Update: {
+          checkin_cold_months?: number | null;
+          checkin_hot_months?: number | null;
+          checkin_not_interested_months?: number | null;
+          checkin_warm_months?: number | null;
           mg1_goal?: number | null;
           person_id?: string;
           target_contact_to_meeting?: number | null;
@@ -5129,6 +5141,14 @@ export type Database = {
         };
         Returns: Json;
       };
+      move_event_one: {
+        Args: { p_date: string; p_end_date: string; p_event_id: string };
+        Returns: Json;
+      };
+      move_event_series_following: {
+        Args: { p_days: number; p_event_id: string };
+        Returns: Json;
+      };
       move_pipeline_card: {
         Args: {
           p_hot?: boolean;
@@ -5145,6 +5165,16 @@ export type Database = {
       };
       my_agent_access: { Args: Record<PropertyKey, never>; Returns: Json };
       my_chain_ids: { Args: Record<PropertyKey, never>; Returns: string[] };
+      my_checkin_months: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          cold: number;
+          from_person_id: string;
+          hot: number;
+          not_interested: number;
+          warm: number;
+        }[];
+      };
       my_conversation_ids: { Args: Record<PropertyKey, never>; Returns: string[] };
       normalize_step_text: { Args: { p_text: string }; Returns: string };
       notify: {
@@ -5209,7 +5239,26 @@ export type Database = {
         Returns: undefined;
       };
       reject_announcement: { Args: { p_draft_id: string }; Returns: undefined };
+      restore_event_move: {
+        Args: { p_drop_series: string[]; p_events: Json; p_series: Json };
+        Returns: Json;
+      };
       revoke_agent_connection: { Args: { p_id: string }; Returns: Json };
+      series_slot_index: {
+        Args: { p_anchor: string; p_date: string; p_freq: string };
+        Returns: number;
+      };
+      series_move_slot: {
+        Args: {
+          p_anchor: string;
+          p_date: string;
+          p_days: number;
+          p_freq: string;
+          p_idx0: number;
+          p_new_anchor: string;
+        };
+        Returns: string;
+      };
       series_period_days: { Args: { p_freq: string }; Returns: number };
       series_nth_date: {
         Args: { p_anchor: string; p_freq: string; p_n: number };

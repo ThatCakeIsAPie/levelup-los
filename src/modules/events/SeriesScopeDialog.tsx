@@ -25,6 +25,8 @@ export function SeriesScopeDialog({
   destructive,
   thisDisabled,
   busy,
+  thisLabel = "This event",
+  followingLabel = "This and following events",
   onChoose,
 }: {
   open: boolean;
@@ -36,6 +38,9 @@ export function SeriesScopeDialog({
   /** A change that only makes sense for this and the following events (Repeats, Ends). */
   thisDisabled?: boolean;
   busy?: boolean;
+  /** The two choices' words (the calendar's drag asks for "Move just this one" and "Move all"). */
+  thisLabel?: string;
+  followingLabel?: string;
   onChoose: (scope: SeriesScope) => void;
 }) {
   const choice = "w-full sm:w-auto";
@@ -58,7 +63,7 @@ export function SeriesScopeDialog({
             disabled={busy || thisDisabled}
             onClick={() => onChoose("this")}
           >
-            This event
+            {thisLabel}
           </Button>
           <Button
             type="button"
@@ -66,7 +71,7 @@ export function SeriesScopeDialog({
             disabled={busy}
             onClick={() => onChoose("following")}
           >
-            This and following events
+            {followingLabel}
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>

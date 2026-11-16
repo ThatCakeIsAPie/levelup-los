@@ -281,6 +281,7 @@ function EventsPage() {
               today={today}
               jump={jump}
               onCreate={manage ? setNewOn : undefined}
+              canMove={manage}
             />
           ) : (
             <EventsCalendarCompact
@@ -290,6 +291,7 @@ function EventsPage() {
               categoryId={filterId}
               today={today}
               jump={jump}
+              canMove={manage}
             />
           )}
         </TabsContent>

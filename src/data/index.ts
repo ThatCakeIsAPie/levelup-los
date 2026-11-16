@@ -131,7 +131,10 @@ export {
   makeEventRepeat,
   saveEventFollowing,
   removeEventFollowing,
+  moveEventOne,
+  moveEventFollowing,
   topUpSeries,
+  type MoveResult,
   type RepeatChoice,
   type SeriesResult,
 } from "./recurrence/api";
