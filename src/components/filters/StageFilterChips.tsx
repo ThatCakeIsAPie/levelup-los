@@ -2,6 +2,19 @@ import { STAGE_CHIP_CLASS, STAGE_LABEL, STAGE_SOLID_CLASS } from "@/components/b
 import type { BizClass } from "@/data";
 import { cn } from "@/lib/utils";
 
+/** The words, fill and dot of one chip. */
+export interface StageChipLook {
+  label: string;
+  chip: string;
+  dot: string;
+}
+
+const bizLook = (s: BizClass): StageChipLook => ({
+  label: STAGE_LABEL[s],
+  chip: STAGE_CHIP_CLASS[s],
+  dot: STAGE_SOLID_CLASS[s],
+});
+
 const FOCUS = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
 
 /**
@@ -9,13 +22,14 @@ const FOCUS = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visi
  * Several stages can be on at once (Apprentice + IBO); none on = everyone.
  * Used by the People list and the event attendee views.
  */
-export function StageFilterChips<S extends BizClass>({
+export function StageFilterChips<S extends string = BizClass>({
   stages,
   value,
   onChange,
   counts,
   total,
   label = "Stage",
+  look = bizLook as unknown as (s: S) => StageChipLook,
   className,
 }: {
   /** The chips to show, in order. */
@@ -27,6 +41,8 @@ export function StageFilterChips<S extends BizClass>({
   /** Count on the "All" chip. */
   total: number;
   label?: string;
+  /** Words and colors per chip (default: the business stages). */
+  look?: (s: S) => StageChipLook;
   className?: string;
 }) {
   const allOn = value.length === 0;
@@ -56,6 +72,7 @@ export function StageFilterChips<S extends BizClass>({
       </button>
       {stages.map((s) => {
         const on = value.includes(s);
+        const lk = look(s);
         return (
           <button
             key={s}
@@ -65,20 +82,16 @@ export function StageFilterChips<S extends BizClass>({
             className={cn(
               "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11.5px] font-semibold transition-colors",
               on
-                ? cn("border-transparent", STAGE_CHIP_CLASS[s])
+                ? cn("border-transparent", lk.chip)
                 : "border-line text-muted-foreground hover:border-foreground/30 hover:text-foreground",
               FOCUS,
             )}
           >
             <span
-              className={cn(
-                "size-2 rounded-full",
-                STAGE_SOLID_CLASS[s],
-                on && "ring-1 ring-current/40",
-              )}
+              className={cn("size-2 rounded-full", lk.dot, on && "ring-1 ring-current/40")}
               aria-hidden="true"
             />
-            {STAGE_LABEL[s]}
+            {lk.label}
             <span className={cn("tabular-nums", on ? "opacity-80" : "text-faint")}>
               {counts[s] ?? 0}
             </span>

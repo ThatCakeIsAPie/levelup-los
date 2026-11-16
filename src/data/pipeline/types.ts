@@ -51,6 +51,25 @@ export const REFERRAL_SOURCE = "referral_source";
 export const REFERRAL_SOURCE_LABEL = "Referral source";
 export const REFERRAL_SOURCE_HINT = "Passes on names";
 
+/**
+ * Person types: what a person whose stored class is "prospect" is to the team
+ * right now. Derived from their card (never stored); `personKind` in ./rules.
+ * A Contact becomes a Prospect at First meeting; a Filtered one is out.
+ */
+export type PersonType = "contact" | "prospect" | "filtered";
+/** In the order a person moves through them, then out. */
+export const PERSON_TYPES: readonly PersonType[] = ["contact", "prospect", "filtered"];
+export const PERSON_TYPE_LABEL: Record<PersonType, string> = {
+  contact: "Contact",
+  prospect: "Prospect",
+  filtered: "Filtered",
+};
+/**
+ * The tag a person of any class can carry (typed by hand, or derived from a
+ * card sitting in a Referral source column). Matched trimmed and ignoring case.
+ */
+export const REFERRAL_SOURCE_TAG = "Referral source";
+
 /** Board bands: the start column, the four milestones, the outcomes. */
 export type RecruitingBand = "start" | MilestoneCode | "out";
 

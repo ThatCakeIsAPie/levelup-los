@@ -33,6 +33,7 @@ import {
   useLastContact,
   useLearning,
   usePerson,
+  usePersonKinds,
   useSales,
   useSponsorChain,
   useUnlocks,
@@ -41,6 +42,7 @@ import {
 import {
   Breadcrumbs,
   EmptyState,
+  PersonTypeChip,
   SectionCard,
   StageChip,
   StatStrip,
@@ -269,6 +271,8 @@ function BusinessProfile({ person }: { person: CrmPerson }) {
   const isSelf = me.personId === person.id;
   const isCandidate = me.role === "candidate";
   const stage = effectiveBizClass(person);
+  // A prospect-class person's stage word is their type (the same rule as the map and the list).
+  const type = usePersonKinds()(person).type;
   const name = firstName(person.name);
 
   const [tab, setTab] = useState<BizTab>("overview");
@@ -435,7 +439,7 @@ function BusinessProfile({ person }: { person: CrmPerson }) {
         isDesktop={isDesktop}
         chips={
           <>
-            <StageChip stage={stage} />
+            {type ? <PersonTypeChip type={type} /> : <StageChip stage={stage} />}
             <MissingChip person={person} onFix={openDetailsEdit} />
           </>
         }

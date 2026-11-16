@@ -13,6 +13,10 @@ import {
   localDate,
   missingRequiredFields,
   parseDate,
+  PERSON_TYPE_LABEL,
+  REFERRAL_SOURCE_TAG,
+  bizClassLabel,
+  usePersonKinds,
   useContactSettings,
   useCurrentUser,
   useEvents,
@@ -23,13 +27,22 @@ import {
   type ApprenticeAlert,
   type BizClass,
   type CrmPerson,
+  type PersonType,
   type Sale,
 } from "@/data";
 import type { Tone } from "@/components/brand";
 import { listParam, parseListParam, toggleInList } from "@/lib/searchList";
 
 export type Segment = "business" | "customers";
-export type StageFilter = "all" | "prospect" | "apprentice" | "ibo";
+/**
+ * What the stage filter and the stage column offer: a prospect-class person is
+ * a Contact, a Prospect or Filtered (`PersonType`); apprentices and IBOs are
+ * as before.
+ */
+export type StageKey = PersonType | "apprentice" | "ibo";
+export type StageFilter = "all" | StageKey;
+/** The stored classes a bulk "Change stage" can set (never the derived types). */
+export type ClassKey = "prospect" | "apprentice" | "ibo";
 export type AttentionFilter = "any" | "contact" | "missing" | "anniversary" | "followup";
 export type SortKey =
   | "name"
@@ -91,6 +104,10 @@ export interface PersonRow {
   person: CrmPerson;
   /** Stage after the automatic apprentice -> IBO promotion. */
   stage: BizClass;
+  /** Contact, Prospect or Filtered for a prospect-class person; null for everyone else. */
+  type: PersonType | null;
+  /** Tagged "Referral source", by hand or from a card in a Referral source column. */
+  referralSource: boolean;
   isSelf: boolean;
   /** Sponsor (business) or owner (customer), when visible. */
   upline?: CrmPerson;
@@ -129,6 +146,7 @@ export function usePeopleRows(): PersonRow[] {
   const lastContact = useLastContactMap();
   const settings = useContactSettings();
   const sales = useSales();
+  const kindOf = usePersonKinds();
 
   return useMemo(() => {
     const today = localDate();
@@ -155,6 +173,7 @@ export function usePeopleRows(): PersonRow[] {
       const followUp = followUps.get(p.id);
       const followUpOverdue = !!followUp && followUp < today;
       const uplineId = isCustomer ? p.ownerId : p.sponsorId;
+      const kind = kindOf(p);
 
       const attention = new Set<Exclude<AttentionFilter, "any">>();
       if (!isSelf && contact.overdue) attention.add("contact");
@@ -165,6 +184,8 @@ export function usePeopleRows(): PersonRow[] {
       return {
         person: p,
         stage: effectiveBizClass(p),
+        type: kind.type,
+        referralSource: kind.referralSource,
         isSelf,
         upline: uplineId ? byId.get(uplineId) : undefined,
         contact,
@@ -179,12 +200,33 @@ export function usePeopleRows(): PersonRow[] {
         attention,
       };
     });
-  }, [people, user.personId, attendances, events, lastContact, settings, sales]);
+  }, [people, user.personId, attendances, events, lastContact, settings, sales, kindOf]);
 }
 
-/** Business stages the People list filters by (customers have their own segment). */
-export type StageKey = Exclude<StageFilter, "all">;
-export const STAGE_KEYS: readonly StageKey[] = ["prospect", "apprentice", "ibo"];
+/** The stages the People list filters by, in chip order (customers have their own segment). */
+export const STAGE_KEYS: readonly StageKey[] = [
+  "contact",
+  "prospect",
+  "filtered",
+  "apprentice",
+  "ibo",
+];
+export const CLASS_KEYS: readonly ClassKey[] = ["prospect", "apprentice", "ibo"];
+
+/** The stage a business row is filtered, counted and sorted by (its type when it has one). */
+export const stageKeyOf = (r: PersonRow): StageKey | "customer" =>
+  r.type ?? (r.stage === "prospect" ? "contact" : r.stage);
+
+/** The stage word a row shows: the type for a prospect-class person, else the stage. */
+export const stageWordOf = (r: PersonRow): string =>
+  r.type ? PERSON_TYPE_LABEL[r.type] : bizClassLabel[r.stage];
+
+/** Tags to show or export: the stored ones, plus "Referral source" when it is derived. */
+export function tagsOf(r: PersonRow): string[] {
+  const own = r.person.tags ?? [];
+  const has = own.some((t) => t.trim().toLowerCase() === REFERRAL_SOURCE_TAG.toLowerCase());
+  return r.referralSource && !has ? [...own, REFERRAL_SOURCE_TAG] : own;
+}
 export type AttentionReason = Exclude<AttentionFilter, "any">;
 export const ATTENTION_KEYS: readonly AttentionFilter[] = ATTENTION_OPTIONS.map((o) => o.value);
 const SORT_KEYS = new Set<string>(
@@ -281,9 +323,11 @@ export function inSegment(r: PersonRow, segment: Segment): boolean {
     : r.person.bizClass !== "customer";
 }
 
-function matchesQuery(p: CrmPerson, needle: string): boolean {
+/** The search box finds a name, contact detail or location, and any tag (the derived one too). */
+function matchesQuery(r: PersonRow, needle: string): boolean {
   if (!needle) return true;
-  return [p.name, p.email, p.phone, p.iboNumber, p.ltdNumber, p.location]
+  const p = r.person;
+  return [p.name, p.email, p.phone, p.iboNumber, p.ltdNumber, p.location, ...tagsOf(r)]
     .filter(Boolean)
     .some((v) => v!.toLowerCase().includes(needle));
 }
@@ -300,7 +344,9 @@ export function matchesAttention(
 
 /** Business rows whose stage is one of `stages` (empty = all). */
 export function matchesStages(r: PersonRow, stages: readonly StageKey[]): boolean {
-  return !stages.length || (r.stage !== "customer" && stages.includes(r.stage));
+  if (!stages.length) return true;
+  const k = stageKeyOf(r);
+  return k !== "customer" && stages.includes(k);
 }
 
 /** Rows for a segment that match everything except the stage filter (for chip counts). */
@@ -310,7 +356,7 @@ export function baseFilter(rows: PersonRow[], segment: Segment, f: Filters): Per
   return rows.filter(
     (r) =>
       inSegment(r, segment) &&
-      matchesQuery(r.person, needle) &&
+      matchesQuery(r, needle) &&
       matchesAttention(r, f.attention) &&
       (!locations.size || locations.has(r.person.location ?? "")),
   );
@@ -327,8 +373,18 @@ export function filterRows(rows: PersonRow[], segment: Segment, f: Filters): Per
 
 /** Chip counts per stage, from rows that match every other filter. */
 export function stageCounts(base: PersonRow[]): Record<StageFilter, number> {
-  const c: Record<StageFilter, number> = { all: base.length, prospect: 0, apprentice: 0, ibo: 0 };
-  for (const r of base) if (r.stage !== "customer") c[r.stage]++;
+  const c: Record<StageFilter, number> = {
+    all: base.length,
+    contact: 0,
+    prospect: 0,
+    filtered: 0,
+    apprentice: 0,
+    ibo: 0,
+  };
+  for (const r of base) {
+    const k = stageKeyOf(r);
+    if (k !== "customer") c[k]++;
+  }
   return c;
 }
 
@@ -450,7 +506,7 @@ export function leadsSomeone(people: CrmPerson[]): Set<string> {
  * Change stage: business people only. Skips anyone already at that stage,
  * and won't make a prospect of someone who sponsors people or has customers.
  */
-export function stageChangePlan(rows: PersonRow[], to: StageKey, people: CrmPerson[]): Plan {
+export function stageChangePlan(rows: PersonRow[], to: ClassKey, people: CrmPerson[]): Plan {
   const leads = leadsSomeone(people);
   return plan(rows, (r) => {
     if (r.person.bizClass === "customer") return "a customer";
@@ -461,7 +517,7 @@ export function stageChangePlan(rows: PersonRow[], to: StageKey, people: CrmPers
 }
 
 /** What a stage change writes (a new apprentice starts their business today unless a date is set). */
-export function stagePatch(p: CrmPerson, to: StageKey, today: string): Partial<CrmPerson> {
+export function stagePatch(p: CrmPerson, to: ClassKey, today: string): Partial<CrmPerson> {
   return {
     bizClass: to,
     pipelineStage: to,
@@ -505,6 +561,16 @@ export function tagPlan(rows: PersonRow[], tag: string): Plan {
   );
 }
 
+/**
+ * What the bulk tag field suggests: "Referral source" first (it is always on
+ * offer), then the tags in use, most used first.
+ */
+export function tagSuggestions(people: CrmPerson[], limit = 8): string[] {
+  const key = REFERRAL_SOURCE_TAG.toLowerCase();
+  const rest = tagsInUse(people).filter((t) => t.trim().toLowerCase() !== key);
+  return [REFERRAL_SOURCE_TAG, ...rest].slice(0, limit);
+}
+
 /** Every tag in use, most used first (capitalisation folded: the first spelling seen wins). */
 export function tagsInUse(people: CrmPerson[]): string[] {
   const n = new Map<string, { tag: string; count: number }>();
@@ -544,7 +610,15 @@ export function skippedNote(p: Plan): string | undefined {
   return `${p.skipped.length} skipped (${reasons.join(", ")})`;
 }
 
-const STAGE_ORDER: Record<BizClass, number> = { ibo: 0, apprentice: 1, prospect: 2, customer: 3 };
+/** Seniority first, as before; Prospect, Contact and Filtered sit together, in that order. */
+const STAGE_ORDER: Record<StageKey | "customer", number> = {
+  ibo: 0,
+  apprentice: 1,
+  prospect: 2,
+  contact: 3,
+  filtered: 4,
+  customer: 5,
+};
 
 export function sortRows(rows: PersonRow[], sort: SortKey): PersonRow[] {
   const byName = (a: PersonRow, b: PersonRow) => a.person.name.localeCompare(b.person.name);
@@ -555,7 +629,7 @@ export function sortRows(rows: PersonRow[], sort: SortKey): PersonRow[] {
       Number(a.isSelf) - Number(b.isSelf) ||
       (b.contact.days ?? Infinity) - (a.contact.days ?? Infinity) ||
       byName(a, b),
-    stage: (a, b) => STAGE_ORDER[a.stage] - STAGE_ORDER[b.stage] || byName(a, b),
+    stage: (a, b) => STAGE_ORDER[stageKeyOf(a)] - STAGE_ORDER[stageKeyOf(b)] || byName(a, b),
     showRate: (a, b) =>
       Number(b.showRate.eligible > 0) - Number(a.showRate.eligible > 0) ||
       b.showRate.pct - a.showRate.pct ||

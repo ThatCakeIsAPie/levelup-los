@@ -3,7 +3,7 @@
  * reference at the top of src/styles.css). Live examples: /styleguide.
  */
 export { Logo, LogoMark } from "./Logo";
-export { StageChip, ToneChip, PersonAvatar } from "./chips";
+export { StageChip, PersonTypeChip, ReferralSourceMark, ToneChip, PersonAvatar } from "./chips";
 export {
   PageHeader,
   SectionCard,
@@ -22,6 +22,8 @@ export {
   STAGE_LABEL,
   STAGE_CHIP_CLASS,
   STAGE_SOLID_CLASS,
+  PERSON_TYPE_CHIP_CLASS,
+  PERSON_TYPE_SOLID_CLASS,
   TONE_CLASS,
   initials,
   type Tone,

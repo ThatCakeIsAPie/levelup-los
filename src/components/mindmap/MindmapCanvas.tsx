@@ -8,6 +8,7 @@ import {
   effectiveBizClass,
   useCurrentUser,
   useCustomerCounts,
+  usePersonKinds,
   useVisibleCustomers,
   useVisiblePeople,
   type BizClass,
@@ -68,6 +69,7 @@ export function MindmapCanvas({ root, canAdd }: Props) {
   const visible = useVisiblePeople();
   const myCustomers = useVisibleCustomers();
   const customerCounts = useCustomerCounts();
+  const kindOf = usePersonKinds();
   const navigate = useNavigate();
 
   const laid = useMemo(() => layout(root, expanded), [root, expanded]);
@@ -402,12 +404,15 @@ export function MindmapCanvas({ root, canAdd }: Props) {
         {ordered.map((n) => {
           const rp = rosterFor(n);
           const stage: BizClass = rp ? effectiveBizClass(rp) : "ibo";
+          const kind = rp ? kindOf(rp) : null;
           const own = rp ? (customersByOwner.get(rp.id) ?? EMPTY) : EMPTY;
           return (
             <NodeCard
               key={n.id}
               node={n}
               stage={stage}
+              personType={kind?.type ?? null}
+              referralSource={kind?.referralSource ?? false}
               isViewer={rp?.id === user.personId}
               selected={selectedId === n.id}
               customers={own}
