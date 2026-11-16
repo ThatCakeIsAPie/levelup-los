@@ -4,6 +4,7 @@ import { DATA_SOURCE } from "@/lib/config";
 import {
   featuresFor,
   useActingFor,
+  useCanEditSwitches,
   useCurrentUser,
   useEvents,
   useFeatureSwitches,
@@ -29,6 +30,7 @@ export function AdminDebugCard() {
   const user = useCurrentUser();
   const unlocks = useUnlocks();
   const switches = useFeatureSwitches();
+  const canEdit = useCanEditSwitches();
   const actingFor = useActingFor();
   const visible = useVisibleIds();
   const customers = useVisibleCustomers();
@@ -45,10 +47,12 @@ export function AdminDebugCard() {
         </ToneChip>
       }
     >
-      <p className="text-[12.5px] text-muted-foreground">
-        This login sees every feature, switched on for the team or not. Everyone else follows the
-        switches in Team settings.
-      </p>
+      {!canEdit && (
+        <p className="text-[12.5px] text-muted-foreground">
+          This login sees every feature, switched on for the team or not. Everyone else follows the
+          switches in Team settings.
+        </p>
+      )}
       <dl className="grid gap-1.5 rounded-lg bg-surface-2 px-3 py-2.5">
         <div className={row}>
           <dt className="text-muted-foreground">Data source</dt>

@@ -6,12 +6,20 @@
  *    business downline (not themselves).
  *  - The leader removes a deputy; a deputy may step down.
  *  - Leaders and their deputies flip the team's feature switches.
- *  - No switch row means off.
+ *  - No switch row means the feature's default (`defaultOn`): off, except AI agents.
+ *  - A feature a person can switch (a leader, a deputy) is on for them exactly when the
+ *    team's switch is on; the admin preview only applies to everyone else.
  */
 import type { CrmPerson } from "@/stores/peopleStore";
 import type { Role } from "@/stores/sessionStore";
 import { downlineIds } from "../access";
-import { FEATURE_KEYS, type Deputy, type FeatureKey, type FeatureSwitch } from "./types";
+import {
+  FEATURE_KEYS,
+  featureDefault,
+  type Deputy,
+  type FeatureKey,
+  type FeatureSwitch,
+} from "./types";
 
 /** The leaders a person is a deputy of. */
 export function deputyOfIds(deputies: readonly Deputy[], personId: string): string[] {
@@ -71,12 +79,26 @@ export function canEditSwitches(role: Role | undefined, deputyOf: readonly strin
   return role === "leader" || deputyOf.length > 0;
 }
 
-/** The team's switches as a map (no row = off). */
+/** The team's switches as a map (no row = the feature's default: off, except AI agents). */
 export function switchMap(switches: readonly FeatureSwitch[]): Record<FeatureKey, boolean> {
-  const out = Object.fromEntries(FEATURE_KEYS.map((k) => [k, false])) as Record<
+  const out = Object.fromEntries(FEATURE_KEYS.map((k) => [k, featureDefault(k)])) as Record<
     FeatureKey,
     boolean
   >;
   for (const s of switches) if (FEATURE_KEYS.includes(s.feature)) out[s.feature] = s.enabled;
   return out;
+}
+
+/**
+ * Is a switched feature on for this viewer? The one place that decides it. Someone who can flip
+ * the team's switches (a leader, a deputy) sees a feature exactly when the team's switch is on,
+ * app admin or not. Everyone else follows the switch too, except an app admin, who previews
+ * a switched-off feature.
+ */
+export function featureOnFor(
+  viewer: { role: Role | undefined; admin?: boolean; deputyOf?: readonly string[] },
+  teamSwitchOn: boolean,
+): boolean {
+  if (canEditSwitches(viewer.role, viewer.deputyOf ?? [])) return teamSwitchOn;
+  return !!viewer.admin || teamSwitchOn;
 }
