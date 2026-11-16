@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
-import { CalendarDays, Trash2, UserRound, X } from "lucide-react";
+import { CalendarDays, Plus, Trash2, UserRound, X } from "lucide-react";
 import { toast } from "sonner";
 import { PersonAvatar, Sensitive } from "@/components/brand";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toastWithUndo } from "@/components/log/quickLog";
 import { sensitive } from "@/lib/sensitive";
 import { cn } from "@/lib/utils";
@@ -37,19 +44,27 @@ const NOBODY = "nobody";
 
 /**
  * A card's Tasks (both boards, the card panels and the profile's pipeline card): tick or untick;
- * add one by typing into the last row and pressing Enter (focus stays for the next one); click a
- * title to rename it in place (Enter saves, Escape cancels); a due date and optional time; the
- * assignee (the card's owner, you, or nobody); delete, with Undo on the toast. In order, new tasks
- * last, ticked ones staying where they are.
+ * the plus button under the list opens the new-task form in its place (title, due date, time and
+ * assignee at once; Save adds the task, Escape or Cancel closes the form, and the focus goes back
+ * to the plus button); click a title to rename it in place (Enter saves, Escape cancels); a due
+ * date and optional time; the assignee (the card's owner, you, or nobody); delete, with Undo on
+ * the toast. In order, new tasks last, ticked ones staying where they are.
  */
 export function CardTasks({ card }: { card: CardRef }) {
   const tasks = useCardTasks(card);
-  const [draft, setDraft] = useState("");
-  const add = useRef<HTMLInputElement>(null);
+  const [adding, setAdding] = useState(false);
+  const plus = useRef<HTMLButtonElement>(null);
+  // Once the form has closed, the button that opened it takes the focus back.
+  const [toPlus, setToPlus] = useState(false);
+  useEffect(() => {
+    if (adding || !toPlus) return;
+    plus.current?.focus();
+    setToPlus(false);
+  }, [adding, toPlus]);
   // After an Undo the restored task takes the focus back.
   const [refocus, setRefocus] = useState<string | null>(null);
   const root = useRef<HTMLUListElement>(null);
-  const undoSlot = useUndoSlot(root, () => add.current?.focus());
+  const undoSlot = useUndoSlot(root, () => plus.current?.focus());
   useEffect(() => {
     if (!refocus) return;
     const box = root.current?.querySelector<HTMLElement>(
@@ -60,23 +75,6 @@ export function CardTasks({ card }: { card: CardRef }) {
       setRefocus(null);
     }
   }, [refocus, tasks]);
-
-  const submit = () => {
-    const title = draft.trim();
-    if (!title) return;
-    const r = addCardTask(card, { title });
-    if (!r.ok) {
-      toast.error(r.error);
-      return;
-    }
-    setDraft("");
-    add.current?.focus();
-  };
-  const onKey = (e: ReactKeyboardEvent<HTMLInputElement>) => {
-    if (e.key !== "Enter" || e.nativeEvent.isComposing) return;
-    e.preventDefault();
-    submit();
-  };
 
   return (
     <section className="grid gap-1.5" aria-labelledby={`tasks-${card.id}`}>
@@ -98,18 +96,135 @@ export function CardTasks({ card }: { card: CardRef }) {
         ))}
       </ul>
       <UndoButton slot={undoSlot.slot} button={undoSlot.button} />
+      {adding ? (
+        <NewTaskForm
+          card={card}
+          onDone={() => {
+            setAdding(false);
+            setToPlus(true);
+          }}
+        />
+      ) : (
+        <Button
+          ref={plus}
+          type="button"
+          variant="soft"
+          size="icon"
+          className="size-8 justify-self-start pointer-coarse:size-9"
+          aria-label="Add a task"
+          onClick={() => setAdding(true)}
+        >
+          <Plus className="size-4" />
+        </Button>
+      )}
+    </section>
+  );
+}
+
+/**
+ * The new-task form: every field at once, nothing saved until Save (or Enter in a field). Not a
+ * <form>: the recruiting card panel is one already, and Enter here must not submit it.
+ */
+function NewTaskForm({ card, onDone }: { card: CardRef; onDone: () => void }) {
+  const me = useCurrentUser().personId;
+  const choices = useAssigneeChoices(card);
+  const who = usePersonLookup();
+  const [title, setTitle] = useState("");
+  const [dueDate, setDueDate] = useState("");
+  const [dueTime, setDueTime] = useState("");
+  const [assignee, setAssignee] = useState(NOBODY);
+
+  const save = () => {
+    if (!title.trim()) return;
+    const r = addCardTask(card, {
+      title,
+      dueDate: dueDate || null,
+      dueTime: dueDate && dueTime ? dueTime : null,
+      assigneeId: assignee === NOBODY ? null : assignee,
+    });
+    if (!r.ok) {
+      toast.error(r.error);
+      return;
+    }
+    onDone();
+  };
+  const onKey = (e: ReactKeyboardEvent<HTMLDivElement>) => {
+    // Keys from the assignee menu arrive here too (it is a portal): those are the menu's own.
+    if (e.nativeEvent.isComposing || !e.currentTarget.contains(e.target as Node)) return;
+    if (e.key === "Escape") {
+      // Not the sheet's own Escape: this one only closes the form (`keepEscapeInTaskTitle`).
+      e.preventDefault();
+      e.stopPropagation();
+      onDone();
+    } else if (e.key === "Enter" && (e.target as HTMLElement).tagName === "INPUT") {
+      e.preventDefault();
+      save();
+    }
+  };
+
+  return (
+    <div
+      role="group"
+      aria-label="New task"
+      data-task-title-input
+      className="grid gap-2 rounded-lg border border-line p-2.5"
+      onKeyDown={onKey}
+    >
       <Input
-        ref={add}
-        value={draft}
+        autoFocus
+        value={title}
         maxLength={MAX_TASK_TITLE}
         placeholder="Add a task"
-        aria-label="New task"
+        aria-label="Task title"
         {...sensitive("note")}
         className="h-9"
-        onChange={(e) => setDraft(e.target.value)}
-        onKeyDown={onKey}
+        onChange={(e) => setTitle(e.target.value)}
       />
-    </section>
+      <div className="flex flex-wrap items-center gap-2">
+        <Input
+          type="date"
+          aria-label="Due date"
+          className="h-8 w-auto min-w-0 pointer-coarse:h-10"
+          value={dueDate}
+          onChange={(e) => setDueDate(e.target.value)}
+        />
+        <Input
+          type="time"
+          aria-label="Time"
+          className="h-8 w-auto min-w-0 pointer-coarse:h-10"
+          disabled={!dueDate}
+          value={dueDate ? dueTime : ""}
+          onChange={(e) => setDueTime(e.target.value)}
+        />
+        <Select value={assignee} onValueChange={setAssignee}>
+          <SelectTrigger
+            aria-label="Assignee"
+            className="h-8 w-auto min-w-28 gap-1.5 pointer-coarse:h-10"
+          >
+            <UserRound className="size-3.5 shrink-0 text-faint" aria-hidden="true" />
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {choices.map((id) => (
+              <SelectItem key={id} value={id}>
+                <Sensitive kind="name">
+                  {id === me ? "You" : (who(id)?.name ?? "Someone")}
+                </Sensitive>
+              </SelectItem>
+            ))}
+            <SelectItem value={NOBODY}>No one</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="flex items-center gap-2">
+        <Button type="button" size="sm" disabled={!title.trim()} onClick={save}>
+          Save
+        </Button>
+        <Button type="button" variant="ghost" size="sm" onClick={onDone}>
+          Cancel
+        </Button>
+      </div>
+    </div>
   );
 }
 
