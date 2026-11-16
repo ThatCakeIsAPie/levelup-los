@@ -11,12 +11,15 @@
  * | Candidates                         | their existing limited view (no customers, pipeline or campaigns) |
  *
  * Chats, Library (phase 2) and Campaigns (phase 3) follow the team's
- * switches (off unless a leader turns them on); an admin account sees them
- * regardless. Wallet is always on. This is UI gating: row-level security
+ * switches (off unless a leader turns them on); AI agents is on unless a
+ * leader switches it off. An admin account previews a switched-off feature,
+ * unless it is also a leader or a deputy: whoever can flip the switches sees
+ * exactly what the switch says (`featureOnFor`). Wallet is always on. This is UI gating: row-level security
  * already limits the data.
  */
 import type { Role } from "@/stores/sessionStore";
-import type { FeatureKey } from "./team/types";
+import { featureOnFor } from "./team/rules";
+import { featureDefault, type FeatureKey } from "./team/types";
 
 export type UnlockStage = "candidate" | "new_apprentice" | "first_sponsor" | "builder" | "leader";
 
@@ -43,14 +46,14 @@ export type UnlockArea =
 
 export interface UnlockInput {
   role: Role;
-  /** The admin ("experimental") account: every feature regardless of switches. */
+  /** The admin ("experimental") account: previews switched-off features (not as a leader or deputy). */
   admin?: boolean;
   /** Leaders this person is a deputy of. */
   deputyOf?: readonly string[];
   /** Growth milestones reached (from the milestone engine). */
   firstSponsor: boolean;
   threeTen: boolean;
-  /** The team's feature switches (missing = off). */
+  /** The team's feature switches (missing = the feature's default: off, except AI agents). */
   switches: Partial<Record<FeatureKey, boolean>>;
   /** Chat eligible (apprentice, IBO or leader; not a candidate or prospect). */
   canChat: boolean;
@@ -68,7 +71,7 @@ export interface Unlocks {
   /** Acting for one or more leaders. */
   deputy: boolean;
   can: Record<UnlockArea, boolean>;
-  /** A feature is on for this person (switch on, or admin). */
+  /** A feature is on for this person (`featureOnFor`: the switch, or the admin preview). */
   feature: Record<FeatureKey, boolean>;
   next: NextUnlock | null;
 }
@@ -96,11 +99,13 @@ export function computeUnlocks(i: UnlockInput): Unlocks {
   const candidate = stage === "candidate";
   const all = admin || stage === "leader";
   const sponsor = all || stage === "first_sponsor" || stage === "builder";
+  const viewer = { role: i.role, admin, deputyOf: i.deputyOf };
+  const on = (k: FeatureKey) => featureOnFor(viewer, i.switches[k] ?? featureDefault(k));
   const feature: Record<FeatureKey, boolean> = {
-    chats: admin || !!i.switches.chats,
-    library: admin || !!i.switches.library,
-    campaigns: admin || !!i.switches.campaigns,
-    agents: admin || !!i.switches.agents,
+    chats: on("chats"),
+    library: on("library"),
+    campaigns: on("campaigns"),
+    agents: on("agents"),
   };
   // Candidates keep their existing view: themselves on the team pages.
   const team = candidate || sponsor;

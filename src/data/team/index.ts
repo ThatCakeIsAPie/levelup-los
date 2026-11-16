@@ -11,6 +11,7 @@ export {
   deputyCandidates,
   deputyError,
   deputyOfIds,
+  featureOnFor,
   switchMap,
 } from "./rules";
 export {

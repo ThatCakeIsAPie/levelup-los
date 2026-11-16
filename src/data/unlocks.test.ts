@@ -253,7 +253,23 @@ describe("the demo cast", () => {
     expect(stageOf("6").deputy).toBe(true);
     expect(stageOf("6").can.eventPlanning).toBe(true);
     expect(stageOf("20").stage).toBe("candidate");
+    // The admin login is also Maria's deputy (src/data/team/seed.ts): whoever can flip the
+    // team's switches follows them, so with all of them off it has no switched feature.
     const admin = stageOf("800");
-    expect(admin.admin && admin.can.chats && admin.can.library && admin.can.campaigns).toBe(true);
+    expect(admin.admin && admin.deputy).toBe(true);
+    expect(admin.can.chats || admin.can.library || admin.can.campaigns).toBe(false);
+    expect(stageOf("1").can.chats).toBe(false);
+  });
+
+  it("an admin who is neither a leader nor a deputy previews every switched feature", () => {
+    const pure = computeUnlocks({
+      role: "ibo",
+      admin: true,
+      firstSponsor: true,
+      threeTen: true,
+      switches: {},
+      canChat: true,
+    });
+    expect(pure.can.chats && pure.can.library && pure.can.campaigns).toBe(true);
   });
 });
