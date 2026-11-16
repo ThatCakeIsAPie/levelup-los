@@ -19,6 +19,7 @@ import {
   MAX_ENTRY_NOTES,
   MAX_HOW_KNOWN,
   NOT_CONTACTED,
+  REFERRAL_SOURCE,
   type CustomerBand,
   type CustomerCard,
   type CustomerMilestone,
@@ -223,6 +224,23 @@ export function doNotContactIds(entries: ListEntry[], cards: CustomerCard[]): Se
   const out = new Set<string>();
   for (const e of entries) {
     if (!dnc.has(e.id)) continue;
+    if (e.customerId) out.add(e.customerId);
+    if (e.prospectId) out.add(e.prospectId);
+  }
+  return out;
+}
+
+/**
+ * People behind names in "Referral source" on the customer board: the
+ * customer or prospect record a list entry became (`customerId`, `prospectId`).
+ * A name that is no one's record yet is only a name on a list and has no one
+ * to tag.
+ */
+export function referralSourcePersonIds(entries: ListEntry[], cards: CustomerCard[]): Set<string> {
+  const referral = new Set(cards.filter((c) => c.column === REFERRAL_SOURCE).map((c) => c.entryId));
+  const out = new Set<string>();
+  for (const e of entries) {
+    if (!referral.has(e.id)) continue;
     if (e.customerId) out.add(e.customerId);
     if (e.prospectId) out.add(e.prospectId);
   }

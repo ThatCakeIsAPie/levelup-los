@@ -14,9 +14,10 @@ import {
   DEFAULT_TARGETS,
   MILESTONES,
   MIN_SAMPLE,
-  NOT_INTERESTED,
+  PERSON_TYPE_LABEL,
   RECRUITING_BOARD,
   REFERRAL_SOURCE,
+  REFERRAL_SOURCE_TAG,
   STALE_DAYS,
   TRANSITIONS,
   type BoardDef,
@@ -25,6 +26,7 @@ import {
   type PipelineCard,
   type PipelineColumn,
   type PipelineMove,
+  type PersonType,
   type PipelineStep,
   type RateTone,
   type RecruitingBand,
@@ -606,33 +608,113 @@ export function prospectDoNotContactIds(cards: PipelineCard[]): Set<string> {
   );
 }
 
-/** The board's outcome columns, on its right: a card there is closed out. */
-const OUTCOME_COLUMNS: ReadonlySet<string> = new Set([
-  REFERRAL_SOURCE,
-  NOT_INTERESTED,
-  DO_NOT_CONTACT,
-]);
+// ---------------------------------------------------------------------------
+// Person types and the Referral source tag (one rule, every surface)
+// ---------------------------------------------------------------------------
 
-/**
- * Prospects whose card sits in one of the outcome columns (\"Referral source\",
- * \"Not interested\", \"Do not contact\") and is still on the board.
- */
-export function prospectOutcomeIds(cards: PipelineCard[]): Set<string> {
-  return new Set(
-    cards.filter((c) => OUTCOME_COLUMNS.has(c.column) && !c.droppedAt).map((c) => c.personId),
-  );
+/** What the rule says about one person. */
+export interface PersonKind {
+  /** Only for people whose stored class is "prospect"; null for everyone else. */
+  type: PersonType | null;
+  /** The derived "Referral source" tag, for a person of any class. */
+  referralSource: boolean;
 }
 
+const REFERRAL_TAG_KEY = REFERRAL_SOURCE_TAG.toLowerCase();
+
+/** True when a stored tag list holds "Referral source" (trimmed, any capitalisation). */
+export const hasReferralSourceTag = (tags: readonly string[] | undefined): boolean =>
+  !!tags?.some((t) => t.trim().toLowerCase() === REFERRAL_TAG_KEY);
+
+/** The type each board band stands for (a team's own columns count by the band they sit in). */
+const TYPE_OF_BAND: Record<RecruitingBand, PersonType> = {
+  start: "contact",
+  contact: "contact",
+  first_meeting: "prospect",
+  first_plan: "prospect",
+  registered: "prospect",
+  out: "filtered",
+};
+
 /**
- * The people the team map draws and counts: everyone except prospects whose
- * card is in an outcome column (`closed`, from `prospectOutcomeIds`). One of
- * those stays only when someone who is drawn sits under them, so nobody below
- * drops off the map.
+ * THE rule for a person's type and Referral source tag. Every surface (the
+ * team map, the People list and its CSV, the profile's stage word) goes
+ * through it; nothing about it is stored.
+ *
+ * Type, for people whose stored class is "prospect" (nobody else gets one):
+ *  - Filtered: the card is in the "out" band (Referral source, Not interested,
+ *    Do not contact), or it was taken off the board (`droppedAt`).
+ *  - Prospect: the card is in the First meeting, First plan or Registered band.
+ *  - Contact: everything else: Not contacted yet, the Contact made band, or no
+ *    card at all (a card row exists only after a first move; a viewer who
+ *    cannot read cards sees none, so everyone is a Contact to them).
+ *
+ * Tag, for a person of any class: the stored tags contain "Referral source",
+ * or their card is on the board in the Referral source column, or
+ * `onReferralBoard` says a name on the customer board's Referral source
+ * column is this person.
  */
-export function mapPeople(people: CrmPerson[], closed: ReadonlySet<string>): CrmPerson[] {
-  const off = (p: CrmPerson) => p.bizClass === "prospect" && closed.has(p.id);
-  const sponsors = new Set(people.filter((p) => !off(p)).map((p) => p.sponsorId));
-  return people.filter((p) => !off(p) || sponsors.has(p.id));
+export function personKind(
+  person: Pick<CrmPerson, "bizClass" | "tags">,
+  card: Pick<PipelineCard, "column" | "droppedAt"> | null | undefined,
+  steps: readonly PipelineStep[],
+  onReferralBoard = false,
+): PersonKind {
+  const referralSource =
+    onReferralBoard ||
+    hasReferralSourceTag(person.tags) ||
+    (!!card && !card.droppedAt && card.column === REFERRAL_SOURCE);
+  if (person.bizClass !== "prospect") return { type: null, referralSource };
+  if (card?.droppedAt) return { type: "filtered", referralSource };
+  const band: RecruitingBand = card ? recruitingBand(card.column, [...steps]) : "start";
+  return { type: TYPE_OF_BAND[band], referralSource };
+}
+
+/** `personKind` for many people: the cards indexed once. */
+export function personKindOf(
+  cards: readonly PipelineCard[],
+  steps: readonly PipelineStep[],
+  referralBoardIds: ReadonlySet<string> = new Set(),
+): (p: Pick<CrmPerson, "id" | "bizClass" | "tags">) => PersonKind {
+  const byId = new Map(cards.map((c) => [c.personId, c]));
+  return (p) => personKind(p, byId.get(p.id), steps, referralBoardIds.has(p.id));
+}
+
+/** The words the map's and the list's stage column show for a person. */
+export const personTypeLabel = (type: PersonType): string => PERSON_TYPE_LABEL[type];
+
+/** Which person types the team map draws. */
+export type MapTypes = Record<PersonType, boolean>;
+export const NO_MAP_TYPES: MapTypes = { contact: false, prospect: false, filtered: false };
+
+/** Is this person of a type the map is set to draw (everyone with no type is)? */
+export const typeShown = (kind: PersonKind, show: MapTypes): boolean =>
+  kind.type === null || show[kind.type];
+
+/**
+ * The people the team map draws: everyone except prospect-class people of a
+ * type that is switched off. A switched-off person stays when someone who is
+ * drawn sits anywhere under them (so nobody below drops off the map), and
+ * `keepId` (the viewer) always stays.
+ */
+export function mapPeople(
+  people: CrmPerson[],
+  kindOf: (p: CrmPerson) => PersonKind,
+  show: MapTypes,
+  keepId?: string,
+): CrmPerson[] {
+  const byId = new Map(people.map((p) => [p.id, p]));
+  const keep = new Set<string>();
+  for (const p of people) if (p.id === keepId || typeShown(kindOf(p), show)) keep.add(p.id);
+  // Whoever sponsors a drawn person is drawn, all the way up.
+  for (const id of [...keep]) {
+    let up = byId.get(id)?.sponsorId;
+    while (up && byId.has(up) && !keep.has(up)) {
+      keep.add(up);
+      up = byId.get(up)?.sponsorId;
+    }
+  }
+  return people.filter((p) => keep.has(p.id));
 }
 
 /** True for people who belong on the board (business path, prospect). */

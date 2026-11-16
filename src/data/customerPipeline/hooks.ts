@@ -26,11 +26,13 @@ import {
   monthActivity,
   monthBounds,
   monthlySeries,
+  personKindOf,
   prospectDoNotContactIds,
   resolveColumn,
   type ChainStep,
   type MilestoneCounts,
   type MonthActivity,
+  type PersonKind,
   type Reach,
 } from "../pipeline/rules";
 import { MIN_SAMPLE, type PipelineColumn, type PipelineScope } from "../pipeline/types";
@@ -45,6 +47,7 @@ import {
   cardBand,
   customerReaches,
   doNotContactIds,
+  referralSourcePersonIds,
   entryCards,
   isCustomerStale,
   visibleEntries,
@@ -496,4 +499,21 @@ export function useDoNotContactIds(): ReadonlySet<string> {
     for (const id of prospectDoNotContactIds(prospectCards)) ids.add(id);
     return ids.size ? ids : NO_IDS;
   }, [entries, cards, prospectCards]);
+}
+
+/**
+ * `personKind` for any person (src/data/pipeline/rules): their type if they
+ * are a prospect, and the Referral source tag. Reads the recruiting cards and
+ * steps, and the customer board's Referral source column. Cards the viewer
+ * cannot read are not loaded, so those people have no card here (a Contact).
+ */
+export function usePersonKinds(): (p: Pick<CrmPerson, "id" | "bizClass" | "tags">) => PersonKind {
+  const cards = usePipelineStore((s) => s.cards);
+  const steps = usePipelineStore((s) => s.steps);
+  const entries = useCustomerPipelineStore((s) => s.entries);
+  const customerCards = useCustomerPipelineStore((s) => s.cards);
+  return useMemo(
+    () => personKindOf(cards, steps, referralSourcePersonIds(entries, customerCards)),
+    [cards, steps, entries, customerCards],
+  );
 }

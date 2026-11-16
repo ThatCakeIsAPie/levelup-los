@@ -13,6 +13,7 @@ import {
   entryError,
   isCustomerStale,
   moveEffects,
+  referralSourcePersonIds,
   visibleEntries,
 } from "./rules";
 import {
@@ -333,5 +334,29 @@ describe("do not contact", () => {
       ...doNotContactIds(entries, [card("a", "do_not_contact"), card("b", "contact")]),
     ]).toEqual(["c1", "9"]);
     expect(doNotContactIds(entries, [card("a", "not_interested")]).size).toBe(0);
+  });
+});
+
+describe("Referral source on the customer board", () => {
+  it("tags the customer and the prospect behind a name in that column, nobody else", () => {
+    const entries = [
+      entry("a", "4", { customerId: "c1", prospectId: "9" }),
+      entry("b", "4", { customerId: "c2" }),
+      // A name on a list that is nobody's record yet: nobody to tag.
+      entry("n", "4"),
+    ];
+    const card = (entryId: string, column: string): CustomerCard => ({
+      entryId,
+      column,
+      enteredAt: "",
+      updatedAt: "",
+    });
+    const ids = referralSourcePersonIds(entries, [
+      card("a", "referral_source"),
+      card("b", "not_interested"),
+      card("n", "referral_source"),
+    ]);
+    expect([...ids]).toEqual(["c1", "9"]);
+    expect(referralSourcePersonIds(entries, [card("b", "contact")]).size).toBe(0);
   });
 });

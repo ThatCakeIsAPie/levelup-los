@@ -11,7 +11,14 @@ import {
   UserPlus,
   Users,
 } from "lucide-react";
-import { PersonAvatar, StageChip, initials, Sensitive } from "@/components/brand";
+import {
+  PersonAvatar,
+  PersonTypeChip,
+  ReferralSourceMark,
+  StageChip,
+  initials,
+  Sensitive,
+} from "@/components/brand";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,7 +27,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import type { BizClass, CrmPerson } from "@/data";
+import { PERSON_TYPE_LABEL, type BizClass, type CrmPerson, type PersonType } from "@/data";
 import { cn } from "@/lib/utils";
 import { NODE_H, NODE_W } from "./layout";
 import type { PositionedNode } from "./types";
@@ -33,6 +40,13 @@ export interface NodeCardProps {
   node: PositionedNode;
   /** Stage from the shared roster (IBO when the person isn't on the roster). */
   stage: BizClass;
+  /**
+   * Contact, Prospect or Filtered for a prospect-class person (shown where the
+   * stage is, and in the card's name); null for everyone else.
+   */
+  personType?: PersonType | null;
+  /** Tagged "Referral source" (by hand or from a card in that column). */
+  referralSource?: boolean;
   isViewer: boolean;
   selected: boolean;
   /** Customers of this person the viewer may see (only ever the viewer's own). */
@@ -72,6 +86,8 @@ function bonusPct(gpv: number | undefined): number {
 function NodeCardImpl({
   node,
   stage,
+  personType = null,
+  referralSource = false,
   isViewer,
   selected,
   customers,
@@ -99,7 +115,7 @@ function NodeCardImpl({
       role="group"
       tabIndex={0}
       data-node-id={p.id}
-      aria-label={`${p.name}${isViewer ? " (you)" : ""}, ${stage === "ibo" ? "IBO" : stage}, ${legs} directly under, ${downline} in the whole downline`}
+      aria-label={`${p.name}${isViewer ? " (you)" : ""}, ${personType ? PERSON_TYPE_LABEL[personType].toLowerCase() : stage === "ibo" ? "IBO" : stage}${referralSource ? ", referral source" : ""}, ${legs} directly under, ${downline} in the whole downline`}
       onClick={() => onSelect(p.id)}
       onKeyDown={(e) => {
         if (e.target !== e.currentTarget) return;
@@ -127,7 +143,11 @@ function NodeCardImpl({
             {isViewer && <span className="ml-1 font-semibold text-faint">· you</span>}
           </div>
           <div className="mt-1 flex items-center gap-1.5">
-            <StageChip stage={stage} className="px-1.5 py-0 text-[10.5px]" />
+            {personType ? (
+              <PersonTypeChip type={personType} className="px-1.5 py-0 text-[10.5px]" />
+            ) : (
+              <StageChip stage={stage} className="px-1.5 py-0 text-[10.5px]" />
+            )}
             <span
               className="text-[11px] font-bold tabular-nums text-muted-foreground"
               title="Performance bonus level from GPV"
@@ -211,6 +231,7 @@ function NodeCardImpl({
         <span className="tabular-nums">
           {legs}/{downline}
         </span>
+        {referralSource && <ReferralSourceMark className="size-4" />}
         <CustomerSlot
           personId={p.id}
           ownerName={firstName}
