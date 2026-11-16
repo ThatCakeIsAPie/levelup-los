@@ -17,6 +17,7 @@ import {
   deputiesOf,
   deputyCandidates,
   deputyOfIds,
+  featureOnFor,
   switchMap,
 } from "./rules";
 import type { Deputy, FeatureKey, FeatureSwitch } from "./types";
@@ -127,20 +128,45 @@ export function getUnlocks(): Unlocks {
   );
 }
 
-/** Is a phase 2/3 feature on for the viewer (the team's switch, or admin)? */
+function featureOnNow(
+  user: DemoUser | null,
+  deputies: Deputy[],
+  switches: Record<FeatureKey, boolean>,
+  key: FeatureKey,
+): boolean {
+  if (!user) return switches[key];
+  return featureOnFor(
+    { role: user.role, admin: user.admin, deputyOf: deputyOfIds(deputies, user.personId) },
+    switches[key],
+  );
+}
+
+/**
+ * Is a switched feature on for the viewer? The team's switch; an app admin who cannot flip the
+ * switches (not a leader, not a deputy) previews it too (`featureOnFor`).
+ */
 export function useFeature(key: FeatureKey): boolean {
-  const admin = useSessionStore((s) => !!s.user?.admin);
-  const on = useTeamStore((s) => s.switches.some((x) => x.feature === key && x.enabled));
-  return admin || on;
+  const user = useSessionStore((s) => s.user);
+  const deputies = useTeamStore((s) => s.deputies);
+  const switches = useTeamStore((s) => s.switches);
+  return useMemo(
+    () => featureOnNow(user, deputies, switchMap(switches), key),
+    [user, deputies, switches, key],
+  );
 }
 
 /** Non-reactive `useFeature`. */
 export function isFeatureOn(key: FeatureKey): boolean {
-  if (useSessionStore.getState().user?.admin) return true;
-  return switchMap(useTeamStore.getState().switches)[key];
+  const team = useTeamStore.getState();
+  return featureOnNow(
+    useSessionStore.getState().user,
+    team.deputies,
+    switchMap(team.switches),
+    key,
+  );
 }
 
-/** The team's switches (what Team settings shows; admins see the real values here). */
+/** The team's real switches (what Team settings shows, for admins too). */
 export function useFeatureSwitches(): Record<FeatureKey, boolean> {
   const switches = useTeamStore((s) => s.switches);
   return useMemo(() => switchMap(switches), [switches]);

@@ -10,20 +10,26 @@ export interface AgentAccessInfo {
   allowed: boolean;
   /** `no_person`, `not_registered` or `switched_off` when `allowed` is false. */
   reason: string | null;
-  /** True when the team's switch is on. */
+  /** True when the team's switch is on (no stored switch counts as on). */
   switchOn: boolean;
-  /** True when only the app-admin preview allows it (the team's switch is still off). */
+  /** True when only the app-admin preview allows it (a switch stored as off). */
   preview: boolean;
 }
 
 /**
  * Does the Settings page show the AI agents card? Only with the hosted data source (the browser
- * demo has no connector) and only when the database says this person may use it: the team's
- * switch is on, or an app admin previews it, and the person is registered. While the answer is
- * unknown (loading, or the call failed) nothing shows, not even a placeholder.
+ * demo has no connector), only when the database says this person may use it (the team's
+ * switch is on, or an app admin previews it, and the person is registered) and only when the
+ * feature is on for this viewer in the app (`featureOnFor`: a leader or deputy who is also an
+ * app admin follows the team's switch). While the answer is unknown (loading, or the call
+ * failed) nothing shows, not even a placeholder.
  */
-export function agentCardVisible(source: DataSource, access: AgentAccessInfo | null): boolean {
-  return source === "supabase" && access?.allowed === true;
+export function agentCardVisible(
+  source: DataSource,
+  access: AgentAccessInfo | null,
+  featureOn: boolean,
+): boolean {
+  return source === "supabase" && featureOn && access?.allowed === true;
 }
 
 /** The `my_agent_access()` jsonb as the app reads it; anything unexpected means "not allowed". */

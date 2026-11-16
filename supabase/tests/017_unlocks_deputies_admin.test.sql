@@ -145,7 +145,7 @@ select is(pg_temp.affected($$update public.events set name = name
 select pg_temp.logout();
 delete from public.feature_switches;
 select pg_temp.login('4');
-select is((select count(*)::int from public.feature_switches), 0, 'no switch rows: everything is off');
+select is((select count(*)::int from public.feature_switches), 0, 'no switch rows: nothing is stored for Chats, Library and Campaigns (off by default; AI agents is on by default)');
 select throws_ok($$insert into public.feature_switches (feature, enabled) values ('chats', true)$$,
   '42501', null, 'a member can''t switch a feature on');
 select pg_temp.login('2');

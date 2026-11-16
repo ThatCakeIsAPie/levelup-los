@@ -283,9 +283,11 @@ select pg_temp.as_connector('a', 1);
 select lives_ok($$select public.agent_whoami()$$, 'switched back on, it works again');
 select pg_temp.as_postgres();
 delete from public.feature_switches where workspace_id = 'agw' and feature = 'agents';
+insert into public.feature_switches (workspace_id, feature, enabled) values ('agw', 'agents', false);
 select pg_temp.as_connector('a', 1);
-select throws_ok($$select public.agent_whoami()$$, '42501', null, 'a team with no switch row is off');
+select throws_ok($$select public.agent_whoami()$$, '42501', null, 'a team with an explicit off row is off');
 select pg_temp.as_postgres();
+delete from public.feature_switches where workspace_id = 'agw' and feature = 'agents';
 insert into public.feature_switches (workspace_id, feature, enabled) values ('agw', 'agents', true);
 
 -- The person changed under the connection --------------------------------------------------------------------------------------

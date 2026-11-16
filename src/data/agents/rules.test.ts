@@ -21,24 +21,32 @@ const info = (over: Partial<AgentAccessInfo> = {}): AgentAccessInfo => ({
 
 describe("who sees the AI agents card", () => {
   it("needs the hosted data source", () => {
-    expect(agentCardVisible("local", info())).toBe(false);
-    expect(agentCardVisible("supabase", info())).toBe(true);
+    expect(agentCardVisible("local", info(), true)).toBe(false);
+    expect(agentCardVisible("supabase", info(), true)).toBe(true);
   });
 
   it("needs the database to allow it (team switch on, or an app admin's preview)", () => {
-    expect(agentCardVisible("supabase", info({ switchOn: true, allowed: true }))).toBe(true);
+    expect(agentCardVisible("supabase", info({ switchOn: true, allowed: true }), true)).toBe(true);
     expect(
-      agentCardVisible("supabase", info({ switchOn: false, preview: true, allowed: true })),
+      agentCardVisible("supabase", info({ switchOn: false, preview: true, allowed: true }), true),
     ).toBe(true);
     for (const reason of ["switched_off", "not_registered", "no_person"]) {
-      expect(agentCardVisible("supabase", info({ allowed: false, reason, switchOn: false }))).toBe(
-        false,
-      );
+      expect(
+        agentCardVisible("supabase", info({ allowed: false, reason, switchOn: false }), true),
+      ).toBe(false);
     }
   });
 
+  it("is hidden when the feature is off for the viewer, whatever the database says", () => {
+    // a leader who is also an app admin: the server still previews it, the app follows the switch
+    const preview = info({ switchOn: false, preview: true, allowed: true });
+    expect(agentCardVisible("supabase", preview, false)).toBe(false);
+    expect(agentCardVisible("supabase", info(), false)).toBe(false);
+    expect(agentCardVisible("supabase", preview, true)).toBe(true);
+  });
+
   it("shows nothing while the answer is unknown", () => {
-    expect(agentCardVisible("supabase", null)).toBe(false);
+    expect(agentCardVisible("supabase", null, true)).toBe(false);
   });
 
   it("reads my_agent_access() and treats anything unexpected as not allowed", () => {
