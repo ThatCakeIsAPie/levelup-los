@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, type CSSProperties } from "react";
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, type CSSProperties } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { CrmEvent, EventCategory, EventSeries } from "@/data";
 import { cn } from "@/lib/utils";
@@ -12,6 +12,7 @@ import {
   type WeekLayout,
 } from "./calendar";
 import { useCalendarItems, useCategoryMap } from "./calendarHelpers";
+import { useCalendarMove, type ChipDrag } from "./calendarMove";
 import { EntryView, ItemRow } from "./calendarParts";
 
 const LABEL_H = 24;
@@ -25,6 +26,8 @@ const rowHeight = (slots: number) => LABEL_H + slots * SLOT_H + PAD_B;
  * `jump` changing scrolls back to it. Every week row has a fixed height worked out from its
  * content, so the rows can be skipped by the browser until they are near the screen
  * (`content-visibility`) and the scroll position never jumps as they are drawn.
+ *
+ * With `canMove` (people who may edit events) an event can be dragged to another day (calendarMove.tsx).
  */
 export function EventsCalendar({
   events,
@@ -34,6 +37,7 @@ export function EventsCalendar({
   today,
   jump,
   onCreate,
+  canMove,
 }: {
   events: CrmEvent[];
   series: EventSeries[];
@@ -44,6 +48,8 @@ export function EventsCalendar({
   jump: { n: number; focus: boolean };
   /** Set for people who may create events: clicking an empty part of a day calls it with the date. */
   onCreate?: (date: string) => void;
+  /** The viewer may edit events: an event can be picked up and dropped on another day. */
+  canMove?: boolean;
 }) {
   const byId = useCategoryMap(categories);
   const { weeks, items } = useCalendarItems(events, series, today, categoryId);
@@ -53,6 +59,11 @@ export function EventsCalendar({
   }, [items, weeks]);
 
   const scroller = useRef<HTMLDivElement>(null);
+  const { chip, overDay, ui } = useCalendarMove({
+    enabled: !!canMove,
+    scroller,
+    categories,
+  });
   const todayWeek = weekStartOf(today);
   const toToday = (smooth: boolean) => {
     const el = scroller.current;
@@ -80,44 +91,60 @@ export function EventsCalendar({
   }, [jump.n]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div className="glass-reading glass-flat flex min-h-[26rem] min-w-0 flex-1 flex-col overflow-hidden rounded-card border border-line bg-card">
-      {/* The weekday header sits above the scrolling weeks, not over them, so nothing shows through it. The
+    <>
+      <div className="glass-reading glass-flat flex min-h-[26rem] min-w-0 flex-1 flex-col overflow-hidden rounded-card border border-line bg-card">
+        {/* The weekday header sits above the scrolling weeks, not over them, so nothing shows through it. The
           same scrollbar gutter on both keeps the seven columns lined up. */}
-      <div data-head className="overflow-y-hidden border-b border-line [scrollbar-gutter:stable]">
-        <div className="grid grid-cols-7">
-          {WEEKDAY_NAMES.map((d) => (
-            <div
-              key={d}
-              className="px-2 py-1.5 text-center text-[11px] font-bold uppercase tracking-[0.06em] text-muted-foreground"
-            >
-              {d}
-            </div>
+        <div data-head className="overflow-y-hidden border-b border-line [scrollbar-gutter:stable]">
+          <div className="grid grid-cols-7">
+            {WEEKDAY_NAMES.map((d) => (
+              <div
+                key={d}
+                className="px-2 py-1.5 text-center text-[11px] font-bold uppercase tracking-[0.06em] text-muted-foreground"
+              >
+                {d}
+              </div>
+            ))}
+          </div>
+        </div>
+        <div
+          ref={scroller}
+          data-scroller
+          className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-gutter:stable]"
+        >
+          {layouts.map((w) => (
+            <WeekRow
+              key={w.start}
+              week={w}
+              today={today}
+              byId={byId}
+              onCreate={onCreate}
+              drag={chip}
+              overDay={overDay && w.days.includes(overDay) ? overDay : null}
+            />
           ))}
         </div>
       </div>
-      <div
-        ref={scroller}
-        data-scroller
-        className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-gutter:stable]"
-      >
-        {layouts.map((w) => (
-          <WeekRow key={w.start} week={w} today={today} byId={byId} onCreate={onCreate} />
-        ))}
-      </div>
-    </div>
+      {ui}
+    </>
   );
 }
 
-function WeekRow({
+const WeekRow = memo(function WeekRow({
   week,
   today,
   byId,
   onCreate,
+  drag,
+  overDay,
 }: {
   week: WeekLayout;
   today: string;
   byId: Map<string, EventCategory>;
   onCreate?: (date: string) => void;
+  drag?: ChipDrag;
+  /** The day of this week an event being carried would land on. */
+  overDay: string | null;
 }) {
   const h = rowHeight(week.slots);
   const style: CSSProperties = {
@@ -146,6 +173,7 @@ function WeekRow({
                   ? "bg-surface-2"
                   : "bg-transparent",
               onCreate && "cursor-pointer hover:bg-surface-2",
+              overDay === day && "bg-primary-soft ring-2 ring-inset ring-primary",
             )}
             style={{ gridColumn: c + 1, gridRow: "1 / -1" }}
           />
@@ -175,6 +203,7 @@ function WeekRow({
           seg={s}
           category={byId.get(s.item.categoryId)}
           today={today}
+          drag={drag}
         />
       ))}
       {week.hidden.map((n, c) =>
@@ -192,7 +221,7 @@ function WeekRow({
       )}
     </div>
   );
-}
+});
 
 function MoreButton({
   col,

@@ -5141,6 +5141,14 @@ export type Database = {
         };
         Returns: Json;
       };
+      move_event_one: {
+        Args: { p_date: string; p_end_date: string; p_event_id: string };
+        Returns: Json;
+      };
+      move_event_series_following: {
+        Args: { p_days: number; p_event_id: string };
+        Returns: Json;
+      };
       move_pipeline_card: {
         Args: {
           p_hot?: boolean;
@@ -5231,7 +5239,26 @@ export type Database = {
         Returns: undefined;
       };
       reject_announcement: { Args: { p_draft_id: string }; Returns: undefined };
+      restore_event_move: {
+        Args: { p_drop_series: string[]; p_events: Json; p_series: Json };
+        Returns: Json;
+      };
       revoke_agent_connection: { Args: { p_id: string }; Returns: Json };
+      series_slot_index: {
+        Args: { p_anchor: string; p_date: string; p_freq: string };
+        Returns: number;
+      };
+      series_move_slot: {
+        Args: {
+          p_anchor: string;
+          p_date: string;
+          p_days: number;
+          p_freq: string;
+          p_idx0: number;
+          p_new_anchor: string;
+        };
+        Returns: string;
+      };
       series_period_days: { Args: { p_freq: string }; Returns: number };
       series_nth_date: {
         Args: { p_anchor: string; p_freq: string; p_n: number };
