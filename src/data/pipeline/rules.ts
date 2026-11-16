@@ -735,14 +735,49 @@ export function personKind(
   return { type: TYPE_OF_BAND[band], referralSource };
 }
 
-/** `personKind` for many people: the cards indexed once. */
+/**
+ * Nobody sees their own tags (an upline may note a mindset that would hurt to
+ * read). THE rule: the viewer is looking at themselves. Everyone else sees
+ * the tags as before. Not a security boundary: the database still sends a
+ * person their own row.
+ */
+export const canSeeTags = (person: Pick<CrmPerson, "id">, viewerId: string | undefined): boolean =>
+  person.id !== viewerId;
+
+/** The stored tags this viewer may see: none on their own person. Every surface goes through it. */
+export const visibleTags = (
+  person: Pick<CrmPerson, "id" | "tags">,
+  viewerId: string | undefined,
+): string[] => (canSeeTags(person, viewerId) ? (person.tags ?? []) : []);
+
+/**
+ * What a tag edit adds to a patch: the new list, or nothing at all on the
+ * viewer's own person (the stored tags must stay as they are: an own row has
+ * no tags in the app's state, and an empty list would be written back).
+ */
+export const tagsPatch = (
+  person: Pick<CrmPerson, "id">,
+  viewerId: string | undefined,
+  tags: readonly string[],
+): Partial<Pick<CrmPerson, "tags">> =>
+  canSeeTags(person, viewerId) ? { tags: tags.length ? [...tags] : undefined } : {};
+
+/**
+ * `personKind` for many people: the cards indexed once. For the viewer's own
+ * person the Referral source tag is never shown, whether it is stored or
+ * comes from a card (the type is not a tag and stays).
+ */
 export function personKindOf(
   cards: readonly PipelineCard[],
   steps: readonly PipelineStep[],
   referralBoardIds: ReadonlySet<string> = new Set(),
+  viewerId?: string,
 ): (p: Pick<CrmPerson, "id" | "bizClass" | "tags">) => PersonKind {
   const byId = new Map(cards.map((c) => [c.personId, c]));
-  return (p) => personKind(p, byId.get(p.id), steps, referralBoardIds.has(p.id));
+  return (p) => {
+    const kind = personKind(p, byId.get(p.id), steps, referralBoardIds.has(p.id));
+    return canSeeTags(p, viewerId) ? kind : { ...kind, referralSource: false };
+  };
 }
 
 /** The words the map's and the list's stage column show for a person. */

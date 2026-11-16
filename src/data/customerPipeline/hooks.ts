@@ -11,6 +11,7 @@ import { localDate } from "@/lib/dates";
 import { effectiveBizClass, usePeopleStore, type CrmPerson } from "@/stores/peopleStore";
 import { useVisibleIds } from "../people";
 import { useMe, useViewer } from "../session";
+import { useSessionStore } from "@/stores/sessionStore";
 import { useBoardDef } from "../stageNames/hooks";
 import { useChatPeople } from "../chat/hooks";
 import { useScope as usePipelineScope, usePipelineUplines } from "../pipeline/hooks";
@@ -512,8 +513,10 @@ export function usePersonKinds(): (p: Pick<CrmPerson, "id" | "bizClass" | "tags"
   const steps = usePipelineStore((s) => s.steps);
   const entries = useCustomerPipelineStore((s) => s.entries);
   const customerCards = useCustomerPipelineStore((s) => s.cards);
+  // Nobody sees their own Referral source tag (visibleTags in pipeline/rules).
+  const viewerId = useSessionStore((s) => s.user?.personId);
   return useMemo(
-    () => personKindOf(cards, steps, referralSourcePersonIds(entries, customerCards)),
-    [cards, steps, entries, customerCards],
+    () => personKindOf(cards, steps, referralSourcePersonIds(entries, customerCards), viewerId),
+    [cards, steps, entries, customerCards, viewerId],
   );
 }

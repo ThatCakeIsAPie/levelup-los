@@ -15,14 +15,13 @@ function metaLine(r: PersonRow, viewerId: string): ReactNode {
   }
   const place = p.location ? <Sensitive kind="address">{p.location}</Sensitive> : null;
   if (r.isSelf) return place ? <>{place} · This is you</> : "This is you";
-  const up = r.upline ? (
-    r.upline.id === viewerId ? (
-      "you"
-    ) : (
+  // Someone you sponsor is under you by definition: no line says so. A person deeper in the
+  // team keeps "Under <sponsor>", which the page does not say anywhere else.
+  const up =
+    r.upline && r.upline.id !== viewerId ? (
       <Sensitive kind="name">{r.upline.name}</Sensitive>
-    )
-  ) : null;
-  if (!up && !place) return "No sponsor";
+    ) : null;
+  if (!up && !place) return r.upline ? null : "No sponsor";
   return (
     <>
       {up && <>Under {up}</>}
@@ -116,6 +115,7 @@ export function PeopleCards({
       {rows.map((r) => {
         const p = r.person;
         const checked = selected.has(p.id);
+        const meta = metaLine(r, viewerId);
         const body = (
           <>
             {selecting && (
@@ -138,9 +138,7 @@ export function PeopleCards({
                 </span>
                 <RowStageChip row={r} />
               </div>
-              <div className="truncate text-[12px] text-muted-foreground">
-                {metaLine(r, viewerId)}
-              </div>
+              {meta && <div className="truncate text-[12px] text-muted-foreground">{meta}</div>}
               <FlagChips row={r} className="mt-1" />
             </div>
             <div className="flex shrink-0 items-center gap-1">

@@ -17,6 +17,7 @@ import {
   REFERRAL_SOURCE_TAG,
   bizClassLabel,
   usePersonKinds,
+  visibleTags,
   useContactSettings,
   useCurrentUser,
   useEvents,
@@ -221,11 +222,18 @@ export const stageKeyOf = (r: PersonRow): StageKey | "customer" =>
 export const stageWordOf = (r: PersonRow): string =>
   r.type ? PERSON_TYPE_LABEL[r.type] : bizClassLabel[r.stage];
 
-/** Tags to show or export: the stored ones, plus "Referral source" when it is derived. */
+/** The stored tags of a row this viewer may see (none on their own row). */
+const storedTagsOf = (r: PersonRow): string[] =>
+  visibleTags(r.person, r.isSelf ? r.person.id : undefined);
+
+/**
+ * Tags to show or export: the stored ones, plus "Referral source" when it is
+ * derived. Never on the viewer's own row (visibleTags: nobody sees their own).
+ */
 export function tagsOf(r: PersonRow): string[] {
-  const own = r.person.tags ?? [];
+  const own = storedTagsOf(r);
   const has = own.some((t) => t.trim().toLowerCase() === REFERRAL_SOURCE_TAG.toLowerCase());
-  return r.referralSource && !has ? [...own, REFERRAL_SOURCE_TAG] : own;
+  return r.referralSource && !r.isSelf && !has ? [...own, REFERRAL_SOURCE_TAG] : own;
 }
 export type AttentionReason = Exclude<AttentionFilter, "any">;
 export const ATTENTION_KEYS: readonly AttentionFilter[] = ATTENTION_OPTIONS.map((o) => o.value);
@@ -556,26 +564,28 @@ export function cleanTag(raw: string): string {
 /** Add a tag: skips people who already have it (any capitalisation). */
 export function tagPlan(rows: PersonRow[], tag: string): Plan {
   const t = cleanTag(tag).toLowerCase();
+  // Your own row is skipped by `plan` ("that's you"): nobody sees or sets their own tags.
   return plan(rows, (r) =>
-    (r.person.tags ?? []).some((x) => x.toLowerCase() === t) ? "already tagged" : null,
+    storedTagsOf(r).some((x) => x.toLowerCase() === t) ? "already tagged" : null,
   );
 }
 
 /**
  * What the bulk tag field suggests: "Referral source" first (it is always on
- * offer), then the tags in use, most used first.
+ * offer), then the tags in use, most used first. Never a tag only on the
+ * viewer's own person.
  */
-export function tagSuggestions(people: CrmPerson[], limit = 8): string[] {
+export function tagSuggestions(people: CrmPerson[], viewerId: string, limit = 8): string[] {
   const key = REFERRAL_SOURCE_TAG.toLowerCase();
-  const rest = tagsInUse(people).filter((t) => t.trim().toLowerCase() !== key);
+  const rest = tagsInUse(people, viewerId).filter((t) => t.trim().toLowerCase() !== key);
   return [REFERRAL_SOURCE_TAG, ...rest].slice(0, limit);
 }
 
 /** Every tag in use, most used first (capitalisation folded: the first spelling seen wins). */
-export function tagsInUse(people: CrmPerson[]): string[] {
+export function tagsInUse(people: CrmPerson[], viewerId: string): string[] {
   const n = new Map<string, { tag: string; count: number }>();
   for (const p of people)
-    for (const t of p.tags ?? []) {
+    for (const t of visibleTags(p, viewerId)) {
       const k = t.toLowerCase();
       const hit = n.get(k);
       if (hit) hit.count++;
