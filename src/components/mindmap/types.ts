@@ -10,6 +10,8 @@ export interface Person {
   customers?: number;
   /** Total members in this node's subtree, including self. */
   memberCount?: number;
+  /** People directly under this node (its legs). */
+  legCount?: number;
   raw: Record<string, unknown>;
 }
 

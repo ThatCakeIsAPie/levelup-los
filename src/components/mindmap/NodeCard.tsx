@@ -87,8 +87,9 @@ function NodeCardImpl({
   onOpenCustomers,
 }: NodeCardProps) {
   const p = node.person;
-  const members = p.memberCount ?? 1;
-  const downline = members - 1;
+  // "2/7": 2 people directly under them (legs), 7 in their whole downline (not counting them).
+  const legs = p.legCount ?? 0;
+  const downline = Math.max(0, (p.memberCount ?? 1) - 1);
   const rank = bonusPct(p.gpv);
   const firstName = p.name.split(/[\s,]+/)[0] || p.name;
   const canHaveCustomers = stage === "apprentice" || stage === "ibo";
@@ -98,7 +99,7 @@ function NodeCardImpl({
       role="group"
       tabIndex={0}
       data-node-id={p.id}
-      aria-label={`${p.name}${isViewer ? " (you)" : ""}, ${stage === "ibo" ? "IBO" : stage}, ${members} ${members === 1 ? "member" : "members"}`}
+      aria-label={`${p.name}${isViewer ? " (you)" : ""}, ${stage === "ibo" ? "IBO" : stage}, ${legs} directly under, ${downline} in the whole downline`}
       onClick={() => onSelect(p.id)}
       onKeyDown={(e) => {
         if (e.target !== e.currentTarget) return;
@@ -204,11 +205,11 @@ function NodeCardImpl({
         </div>
       </div>
 
-      {/* Members + customers */}
+      {/* Legs / downline + customers */}
       <div className="mt-auto flex h-5 items-center gap-1 text-[11.5px] text-muted-foreground">
         <Users className="size-3.5" aria-hidden="true" />
         <span className="tabular-nums">
-          {members} {members === 1 ? "member" : "members"}
+          {legs}/{downline}
         </span>
         <CustomerSlot
           personId={p.id}
