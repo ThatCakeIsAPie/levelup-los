@@ -21,7 +21,6 @@ import {
   usePipelineBoard,
   usePipelineColumns,
   usePipelineConversions,
-  usePipelineMonths,
   usePipelineScope,
   usePipelineScopes,
   useStageNames,
@@ -70,20 +69,18 @@ function Pipeline({ tab, onTab }: { tab: PipelineTab; onTab: (tab: PipelineTab) 
   const access = usePipelineAccess();
   const scopes = usePipelineScopes();
   const [scope, setScope] = useState<PipelineScope>("team");
-  const current = monthOf(localDate());
-  const [month, setMonth] = useState(current);
+  // The Board tab always shows the current month (its activity against the goal, then the board).
+  const month = monthOf(localDate());
   const [period, setPeriod] = useState<PeriodDays>(90);
   const [stepsOpen, setStepsOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [goalsOpen, setGoalsOpen] = useState(false);
-  const months = usePipelineMonths();
   const opt = usePipelineScope(scope);
   const board = usePipelineBoard(scope, month);
   const activity = usePipelineActivity(scope, month);
   const conv = usePipelineConversions(scope, period);
   const settings = useTeamSettings(scope);
   const myColumns = usePipelineColumns(access.personId ?? undefined);
-  const isThisMonth = month === current;
   const own = useMemo(
     () => (board && access.personId ? ownCards(board, access.personId) : null),
     [board, access.personId],
@@ -108,28 +105,7 @@ function Pipeline({ tab, onTab }: { tab: PipelineTab; onTab: (tab: PipelineTab) 
         actions={
           <>
             <ScopeToggle scopes={scopes} scope={scope} onScope={setScope} />
-            {tab === "board" ? (
-              <Select value={month} onValueChange={setMonth}>
-                <SelectTrigger
-                  className="h-9 w-auto gap-1.5 text-[13px] font-semibold"
-                  aria-label="Month"
-                >
-                  <CalendarDays
-                    className="size-4 shrink-0 text-muted-foreground"
-                    aria-hidden="true"
-                  />
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {[...months].reverse().map((m) => (
-                    <SelectItem key={m} value={m}>
-                      {monthName(m)}
-                      {m.slice(0, 4) !== current.slice(0, 4) ? ` ${m.slice(0, 4)}` : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : (
+            {tab !== "board" && (
               <Select
                 value={String(period)}
                 onValueChange={(v) => setPeriod(Number(v) as PeriodDays)}
@@ -202,9 +178,7 @@ function Pipeline({ tab, onTab }: { tab: PipelineTab; onTab: (tab: PipelineTab) 
 
       {tab === "board"
         ? board &&
-          activity && (
-            <BoardTab board={board} activity={activity} month={month} isThisMonth={isThisMonth} />
-          )
+          activity && <BoardTab board={board} activity={activity} month={month} isThisMonth />
         : conv && settings && <ConversionsTab conv={conv} settings={settings} />}
 
       <CustomizeStepsDialog open={stepsOpen} onOpenChange={setStepsOpen} />
