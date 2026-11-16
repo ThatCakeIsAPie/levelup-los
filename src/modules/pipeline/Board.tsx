@@ -6,6 +6,7 @@ import { ClockAlert, Flag, X } from "lucide-react";
 import { PersonAvatar, RatingChip, useIsDesktop, Sensitive } from "@/components/brand";
 import { cn } from "@/lib/utils";
 import {
+  canDropOn,
   monthName,
   monthOf,
   localDate,
@@ -97,6 +98,12 @@ export function BoardView({
   const { drag, start, suppressClick } = useBoardDrag({
     scroller,
     pageStep: !desktop,
+    // A registered person's card goes only to Registered and the steps after it; a prospect's not to a step after Registered.
+    accepts: (personId, columnId) => {
+      const card = cards.get(personId);
+      const col = board.columns.find((c) => c.id === columnId);
+      return !card || !col || canDropOn(card.registered ? "registered" : "prospect", col);
+    },
     onDrop: (personId, to) => {
       const card = cards.get(personId);
       if (card) move(personId, card.name, to);
@@ -123,6 +130,7 @@ export function BoardView({
   // the usual order: hot, then newest in the column).
   const shown = useMemo(() => (markMine ? mineFirst(board, me) : board), [board, me, markMine]);
   const summaries = useCardSummaries(def.kind === "customer" ? "customer" : "recruiting");
+  const columnById = useMemo(() => new Map(board.columns.map((c) => [c.id, c])), [board]);
   const ctx: CardCtx = {
     def,
     drag,
@@ -131,6 +139,15 @@ export function BoardView({
     markMine,
     isMine,
     summaries,
+    after: !!board.afterRegistered,
+    // While a card is held: a column that will not take it is not a target.
+    refuses: (columnId) => {
+      const held = drag && cards.get(drag.personId);
+      const col = columnById.get(columnId);
+      return !!held && !!col && !canDropOn(held.registered ? "registered" : "prospect", col);
+    },
+    // Nobody moves their own card (a registered person sees theirs and cannot change it).
+    locked: (card) => !!card.registered && card.personId === me,
   };
   const isThisMonth = monthOf(localDate()) === month;
   const label = def.kind === "customer" ? "Customer pipeline board" : "Pipeline board";
@@ -214,13 +231,19 @@ interface CardCtx {
   isMine: (ownerId: string) => boolean;
   /** Tasks and notes: a summary for every card that has any (the card's own id as the key). */
   summaries: ReadonlyMap<string, CardSummary>;
+  /** The board has steps after Registered: Registered is a column of cards, not the month's list. */
+  after: boolean;
+  /** A card is held and this column will not take it. */
+  refuses: (columnId: string) => boolean;
+  /** A card that cannot be moved by the viewer (their own). */
+  locked: (card: BoardCard) => boolean;
 }
 
 const bandDef = (def: BoardDef<string>, id: string) => def.bands.find((b) => b.id === id);
 const bandLabel = (def: BoardDef<string>, id: string) => bandDef(def, id)?.label ?? id;
-/** The recruiting board's Registered column lists the month's registrations, not cards. */
-const isRegisteredList = (def: BoardDef<string>, c: PipelineColumn<string>) =>
-  def.kind === "recruiting" && c.id === "registered";
+/** The recruiting board's Registered column lists the month's registrations, not cards (unless steps follow it). */
+const isRegisteredList = (def: BoardDef<string>, c: PipelineColumn<string>, after: boolean) =>
+  !after && def.kind === "recruiting" && c.id === "registered";
 /** The last milestone (Registered, On Ditto) gets a green count. */
 const isWon = (def: BoardDef<string>, c: PipelineColumn<string>) =>
   c.kind === "milestone" && c.id === def.milestones[def.milestones.length - 1];
@@ -273,7 +296,7 @@ function DesktopBand({
 }) {
   const m = band.milestone;
   const kind = bandDef(ctx.def, m)?.kind;
-  const regList = band.columns.some((c) => isRegisteredList(ctx.def, c.column));
+  const regList = band.columns.some((c) => isRegisteredList(ctx.def, c.column, ctx.after));
   const yours = regList
     ? registered.cards.filter((r) => ctx.isMine(r.ownerId)).length
     : band.columns.reduce((n, c) => n + c.cards.filter((x) => ctx.isMine(x.ownerId)).length, 0);
@@ -318,16 +341,20 @@ function ColumnHead({
   month,
   isThisMonth,
   def,
+  after,
 }: {
   col: BoardColumn<string>;
   count: number;
   month: string;
   isThisMonth: boolean;
   def: BoardDef<string>;
+  after: boolean;
 }) {
   const c = col.column;
   const won = isWon(def, c);
-  const regList = isRegisteredList(def, c);
+  const regList = isRegisteredList(def, c, after);
+  // The finishing column (the last step after Registered) lists this month's cards.
+  const finishing = col.earlier !== undefined;
   return (
     <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-0.5 px-0.5 pb-1 pt-0.5">
       <b className="truncate text-[13px]" title={c.label}>
@@ -346,7 +373,7 @@ function ColumnHead({
           {reachedText(c.band, col.reached, month, isThisMonth)}
         </span>
       )}
-      {regList && (
+      {(regList || finishing) && (
         <span className="col-span-2 text-[11px] text-muted-foreground">
           {isThisMonth ? "this month" : `in ${monthName(month)}`}
         </span>
@@ -379,26 +406,32 @@ function DesktopColumn({
 }) {
   const [all, setAll] = useState(false);
   const c = col.column;
-  const isReg = isRegisteredList(ctx.def, c);
+  const isReg = isRegisteredList(ctx.def, c, ctx.after);
   const over = ctx.drag?.over === c.id && ctx.drag.from !== c.id;
+  const refused = ctx.refuses(c.id);
   const list = isReg ? [] : col.cards;
   const shown = all ? list : list.slice(0, SHOW);
+  const earlier = col.earlier ?? 0;
+  const count = isReg ? registered.total : list.length;
   return (
     <div
       data-drop-column={c.id}
-      aria-label={`${c.label}, ${isReg ? registered.total : list.length}`}
+      data-refused={refused || undefined}
+      aria-label={`${c.label}, ${count}${earlier ? `, ${earlier} earlier` : ""}`}
       className={cn(
-        "glass glass-flat grid w-[186px] grid-cols-[minmax(0,1fr)] content-start gap-2 rounded-card bg-app p-2.5 transition-shadow",
+        "glass glass-flat grid w-[186px] grid-cols-[minmax(0,1fr)] content-start gap-2 rounded-card bg-app p-2.5 transition-[box-shadow,opacity]",
         c.kind === "milestone" && "shadow-[inset_0_3px_0_var(--color-stage-ibo)]",
         over && "ring-2 ring-ring",
+        refused && "opacity-50",
       )}
     >
       <ColumnHead
         col={col}
-        count={isReg ? registered.total : list.length}
+        count={count}
         month={month}
         isThisMonth={isThisMonth}
         def={ctx.def}
+        after={ctx.after}
       />
       {isReg ? (
         <RegisteredList registered={registered} isMine={ctx.isMine} />
@@ -409,7 +442,7 @@ function DesktopColumn({
           ))}
           {list.length === 0 && (
             <p className="rounded-[10px] border border-dashed border-line px-2 py-3 text-center text-[11px] text-faint">
-              {ctx.drag ? "Drop here" : "Nobody here"}
+              {ctx.drag && !refused ? "Drop here" : "Nobody here"}
             </p>
           )}
           {list.length > SHOW && (
@@ -420,6 +453,11 @@ function DesktopColumn({
             >
               {all ? "Show less" : `+${list.length - SHOW} more`}
             </button>
+          )}
+          {earlier > 0 && (
+            <p className="text-center text-[11px] text-muted-foreground">
+              +{earlier} from earlier months
+            </p>
           )}
         </>
       )}
@@ -472,12 +510,14 @@ function Heat({ card }: { card: BoardCard }) {
 function DesktopCard({ card, ctx }: { card: BoardCard; ctx: CardCtx }) {
   const dragging = ctx.drag?.personId === card.personId;
   const mine = ctx.isMine(card.ownerId);
+  const locked = ctx.locked(card);
   return (
     <div
-      onPointerDown={(e) => ctx.start(e, card)}
+      onPointerDown={(e) => !locked && ctx.start(e, card)}
       onClick={() => ctx.open(card.personId)}
       className={cn(
-        "group relative grid min-w-0 cursor-grab touch-manipulation select-none gap-1.5 rounded-[10px] border bg-surface px-2.5 py-2 text-xs transition-colors hover:border-primary/40 [-webkit-touch-callout:none]",
+        "group relative grid min-w-0 touch-manipulation select-none gap-1.5 rounded-[10px] border bg-surface px-2.5 py-2 text-xs transition-colors hover:border-primary/40 [-webkit-touch-callout:none]",
+        locked ? "cursor-pointer" : "cursor-grab",
         card.stale ? "border-amber" : "border-line",
         mine && MINE_ACCENT,
         card.dim && "opacity-70",
@@ -505,8 +545,9 @@ function DesktopCard({ card, ctx }: { card: BoardCard; ctx: CardCtx }) {
       </div>
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
         <OwnerTag card={card} mine={mine} />
-        <Heat card={card} />
-        {card.source && (
+        {/* Rating and where they met mean nothing for someone who has registered. */}
+        {!card.registered && <Heat card={card} />}
+        {!card.registered && card.source && (
           <span className="truncate" {...sensitive("note")}>
             {card.source}
           </span>
@@ -629,17 +670,21 @@ function PhoneColumn({
 }) {
   const navigate = useNavigate();
   const c = col.column;
-  const isReg = isRegisteredList(ctx.def, c);
+  const isReg = isRegisteredList(ctx.def, c, ctx.after);
   const over = ctx.drag?.over === c.id && ctx.drag.from !== c.id;
+  const refused = ctx.refuses(c.id);
+  const earlier = col.earlier ?? 0;
   const count = isReg ? registered.total : col.cards.length;
   const yours = (isReg ? registered.cards : col.cards).filter((x) => ctx.isMine(x.ownerId)).length;
   return (
     <section
       data-drop-column={c.id}
-      aria-label={`${c.label}, ${count}`}
+      data-refused={refused || undefined}
+      aria-label={`${c.label}, ${count}${earlier ? `, ${earlier} earlier` : ""}`}
       className={cn(
         "glass glass-flat grid w-[84%] flex-none snap-start content-start rounded-xl border border-line bg-surface px-3 py-2.5",
         over && "ring-2 ring-ring",
+        refused && "opacity-50",
       )}
     >
       <div className="text-[10px] font-extrabold uppercase tracking-[.08em] text-faint">
@@ -667,6 +712,7 @@ function PhoneColumn({
             : col.reached !== null
               ? reachedText(c.band, col.reached, month, isThisMonth)
               : ""}
+        {col.earlier !== undefined && " · this month"}
         {ctx.markMine && <YoursCount n={yours} />}
       </div>
       {isReg ? (
@@ -697,10 +743,13 @@ function PhoneColumn({
           ))}
           {col.cards.length === 0 && (
             <p className="py-4 text-center text-[12px] text-faint">
-              {ctx.drag ? "Drop here" : "Nobody here"}
+              {ctx.drag && !refused ? "Drop here" : "Nobody here"}
             </p>
           )}
         </>
+      )}
+      {earlier > 0 && (
+        <p className="pt-1 text-[11px] text-muted-foreground">+{earlier} from earlier months</p>
       )}
       {isReg && registered.total > registered.cards.length && (
         <p className="pt-1 text-[11px] text-muted-foreground">
@@ -714,11 +763,12 @@ function PhoneColumn({
 function PhoneRow({ card, ctx }: { card: BoardCard; ctx: CardCtx }) {
   const dragging = ctx.drag?.personId === card.personId;
   const mine = ctx.isMine(card.ownerId);
+  const locked = ctx.locked(card);
   const sub = [card.listed ? (card.source ?? "") : ageLong(card.days)];
   if (!card.listed && card.source && ctx.def.kind === "customer") sub.push(card.source);
   return (
     <div
-      onPointerDown={(e) => ctx.start(e, card)}
+      onPointerDown={(e) => !locked && ctx.start(e, card)}
       onClick={() => ctx.open(card.personId)}
       onContextMenu={(e) => e.preventDefault()}
       className={cn(
@@ -727,7 +777,7 @@ function PhoneRow({ card, ctx }: { card: BoardCard; ctx: CardCtx }) {
         dragging && "opacity-40",
       )}
     >
-      <PersonAvatar name={card.name} stage="prospect" />
+      <PersonAvatar name={card.name} stage={card.personStage ?? "prospect"} />
       <div className="min-w-0">
         <div className="flex items-center gap-1.5">
           <button
@@ -740,7 +790,7 @@ function PhoneRow({ card, ctx }: { card: BoardCard; ctx: CardCtx }) {
           >
             <Sensitive kind="name">{card.name}</Sensitive>
           </button>
-          <Heat card={card} />
+          {!card.registered && <Heat card={card} />}
         </div>
         <div
           className={cn(

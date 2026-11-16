@@ -1,5 +1,10 @@
 /** Pure helpers for the Log sheet's pipeline fields (PipelineMoveField.tsx). */
-import { bandIndex, type PipelineColumn, type ProspectPipeline } from "@/data";
+import {
+  bandIndex,
+  isAfterRegisteredStep,
+  type PipelineColumn,
+  type ProspectPipeline,
+} from "@/data";
 
 /**
  * Columns after the card's current one (Registered is done from the board,
@@ -8,7 +13,9 @@ import { bandIndex, type PipelineColumn, type ProspectPipeline } from "@/data";
 export function boardOptions(p: ProspectPipeline | null): PipelineColumn[] {
   if (!p?.onBoard || !p.column) return [];
   const i = p.columns.findIndex((c) => c.id === p.column!.id);
-  return p.columns.slice(i + 1).filter((c) => c.id !== "registered" && c.kind !== "fixed");
+  return p.columns
+    .slice(i + 1)
+    .filter((c) => c.id !== "registered" && c.kind !== "fixed" && !isAfterRegisteredStep(c));
 }
 
 /** The column "Booked a meeting" moves to: the pick, else the next column; null = don't move. */

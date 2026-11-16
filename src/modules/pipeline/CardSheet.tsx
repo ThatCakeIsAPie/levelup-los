@@ -25,6 +25,7 @@ import {
   REFERRAL_SOURCE,
   dropPipelineCard,
   updatePipelineCard,
+  useCurrentUser,
   useStageNames,
   type BoardCard,
   type PipelineColumn,
@@ -82,8 +83,13 @@ function CardDetails({
 }) {
   const col = columns.find((c) => c.id === card.column);
   const names = useStageNames("recruiting");
+  const me = useCurrentUser().personId;
   const [source, setSource] = useState(card.source ?? "");
   const dirty = source !== (card.source ?? "");
+  // A registered person's card (steps after Registered): no rating, source or referrals, and never your own to take off.
+  const registered = !!card.registered;
+  const own = registered && card.personId === me;
+  const kind = card.personStage === "ibo" ? "IBO" : "apprentice";
 
   const save = () => {
     updatePipelineCard(card.personId, { source: source.trim() || null });
@@ -94,7 +100,7 @@ function CardDetails({
     <>
       <SheetHeader className="border-b border-line px-5 pb-3 pt-4 text-left">
         <div className="flex items-center gap-3">
-          <PersonAvatar name={card.name} stage="prospect" size="lg" />
+          <PersonAvatar name={card.name} stage={card.personStage ?? "prospect"} size="lg" />
           <div className="min-w-0">
             <SheetTitle className="truncate text-base font-extrabold">
               <Sensitive kind="name">{card.name}</Sensitive>
@@ -102,7 +108,8 @@ function CardDetails({
             <SheetDescription className="text-[12.5px]">
               {card.ownerName ? (
                 <>
-                  <Sensitive kind="name">{card.ownerName}</Sensitive>&rsquo;s prospect ·{" "}
+                  <Sensitive kind="name">{card.ownerName}</Sensitive>&rsquo;s{" "}
+                  {registered ? kind : "prospect"} ·{" "}
                 </>
               ) : (
                 ""
@@ -116,7 +123,7 @@ function CardDetails({
         <div className="grid gap-2 rounded-card bg-surface-2 px-3.5 py-3 text-[13px]">
           <div className="flex flex-wrap items-center gap-2">
             <b>{col?.label ?? names.name("contact")}</b>
-            <RatingChip rating={card.rating} />
+            {!registered && <RatingChip rating={card.rating} />}
             {card.stale && (
               <ToneChip tone="warn" icon={ClockAlert}>
                 No movement in {ageLong(card.days)}
@@ -135,47 +142,51 @@ function CardDetails({
           </span>
         </div>
 
-        <ReferralsBlock
-          target={{ kind: "person", id: card.personId }}
-          name={card.name}
-          ownerId={card.ownerId}
-          board="recruiting"
-          source={card.cardColumn === REFERRAL_SOURCE}
-        />
+        {!registered && (
+          <ReferralsBlock
+            target={{ kind: "person", id: card.personId }}
+            name={card.name}
+            ownerId={card.ownerId}
+            board="recruiting"
+            source={card.cardColumn === REFERRAL_SOURCE}
+          />
+        )}
         <CardFollowups card={{ board: "recruiting", id: card.personId }} />
-        <form
-          className="grid gap-3"
-          onSubmit={(e) => {
-            e.preventDefault();
-            save();
-          }}
-        >
-          <div className="grid gap-1.5">
-            <Label htmlFor="card-source" className="text-[12px] text-muted-foreground">
-              Where you met
-            </Label>
-            <Input
-              id="card-source"
-              {...sensitive("note")}
-              value={source}
-              maxLength={30}
-              placeholder="e.g. Gym, Referral"
-              onChange={(e) => setSource(e.target.value)}
-            />
-          </div>
-          <div className="grid gap-1.5">
-            <span className="text-[12px] text-muted-foreground" id="card-rating">
-              How warm are they? <span className="text-faint">Hot shows first in the column</span>
-            </span>
-            <RatingPicker
-              value={card.rating}
-              onChange={(rating) => updatePipelineCard(card.personId, { rating })}
-            />
-          </div>
-          <Button type="submit" disabled={!dirty}>
-            Save
-          </Button>
-        </form>
+        {!registered && (
+          <form
+            className="grid gap-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              save();
+            }}
+          >
+            <div className="grid gap-1.5">
+              <Label htmlFor="card-source" className="text-[12px] text-muted-foreground">
+                Where you met
+              </Label>
+              <Input
+                id="card-source"
+                {...sensitive("note")}
+                value={source}
+                maxLength={30}
+                placeholder="e.g. Gym, Referral"
+                onChange={(e) => setSource(e.target.value)}
+              />
+            </div>
+            <div className="grid gap-1.5">
+              <span className="text-[12px] text-muted-foreground" id="card-rating">
+                How warm are they? <span className="text-faint">Hot shows first in the column</span>
+              </span>
+              <RatingPicker
+                value={card.rating}
+                onChange={(rating) => updatePipelineCard(card.personId, { rating })}
+              />
+            </div>
+            <Button type="submit" disabled={!dirty}>
+              Save
+            </Button>
+          </form>
+        )}
 
         <div className="flex flex-wrap gap-2 border-t border-line pt-4">
           <Button asChild variant="outline" size="sm">
@@ -183,21 +194,25 @@ function CardDetails({
               <ArrowUpRight /> Open profile
             </Link>
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              const undo = dropPipelineCard(card.personId);
-              if (undo)
-                toastWithUndo(`${card.name} taken off the board`, undo, {
-                  description: "They stay a prospect on your People list.",
-                  undoneMessage: "Back on the board",
-                });
-              onClose();
-            }}
-          >
-            <UserMinus /> Take off the board
-          </Button>
+          {!own && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const undo = dropPipelineCard(card.personId);
+                if (undo)
+                  toastWithUndo(`${card.name} taken off the board`, undo, {
+                    description: registered
+                      ? `They stay ${kind === "IBO" ? "an IBO" : "an apprentice"} on your People list.`
+                      : "They stay a prospect on your People list.",
+                    undoneMessage: "Back on the board",
+                  });
+                onClose();
+              }}
+            >
+              <UserMinus /> Take off the board
+            </Button>
+          )}
         </div>
       </div>
     </>
