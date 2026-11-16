@@ -628,10 +628,10 @@ describe("the team map draws people by type", () => {
     p("pr", "prospect", "me"), // prospect
     p("fl", "prospect", "me"), // filtered
     p("ap", "apprentice", "me"),
-    // A filtered prospect with an apprentice under them: stays while the apprentice is drawn.
+    // A filtered prospect with an apprentice under them: never drawn; the apprentice moves up.
     p("bridge", "prospect", "me"),
     p("under", "apprentice", "bridge"),
-    // Two filtered in a chain with an IBO below: both stay, all the way up.
+    // Two filtered in a chain with an IBO below: neither is drawn; the IBO moves up past both.
     p("b1", "prospect", "me"),
     p("b2", "prospect", "b1"),
     p("deep", "ibo", "b2"),
@@ -648,8 +648,12 @@ describe("the team map draws people by type", () => {
     c("fl2", "do_not_contact"),
   ];
   const kindOf = personKindOf(cards, []);
-  const ids = (show: MapTypes) => mapPeople(people, kindOf, show, "me").map((x) => x.id);
-  const base = ["me", "ap", "bridge", "under", "b1", "b2", "deep"];
+  const drawn = (show: MapTypes) => mapPeople(people, kindOf, show, "me");
+  const ids = (show: MapTypes) => drawn(show).map((x) => x.id);
+  const sponsors = (show: MapTypes) =>
+    Object.fromEntries(drawn(show).map((x) => [x.id, x.sponsorId]));
+  // Never a link: bridge, b1, b2 and fl2 are filtered, so they go even with people under them.
+  const base = ["me", "ap", "under", "deep"];
   const flags = (n: number): MapTypes => ({
     contact: !!(n & 1),
     prospect: !!(n & 2),
@@ -657,19 +661,57 @@ describe("the team map draws people by type", () => {
   });
 
   it("draws exactly what the eight switch combinations say", () => {
+    const bridges = ["bridge", "b1", "b2", "fl2"];
     const want: Record<number, string[]> = {
       0: base,
-      1: [...base, "ct", "ct2", "fl2"], // ct2 is a contact; its filtered sponsor fl2 stays as the link
+      1: [...base, "ct", "ct2"], // ct2 is a contact; its filtered sponsor fl2 is not drawn for it
       2: [...base, "pr"],
-      3: [...base, "ct", "pr", "ct2", "fl2"],
-      4: [...base, "fl", "fl2"],
-      5: [...base, "ct", "fl", "ct2", "fl2"],
-      6: [...base, "pr", "fl", "fl2"],
+      3: [...base, "ct", "pr", "ct2"],
+      4: [...base, "fl", ...bridges],
+      5: [...base, "ct", "fl", "ct2", ...bridges],
+      6: [...base, "pr", "fl", ...bridges],
       7: people.map((x) => x.id),
     };
     for (let n = 0; n < 8; n++) {
       expect(new Set(ids(flags(n)))).toEqual(new Set(want[n]));
     }
+  });
+
+  it("someone under a person who is not shown is attached to the nearest shown upline", () => {
+    // What the map uses: only Prospects on. Nobody filtered or a contact is drawn, under any condition.
+    const s = sponsors(flags(2));
+    expect(Object.keys(s).sort()).toEqual(["ap", "deep", "me", "pr", "under"]);
+    expect(s.under).toBe("me"); // past the filtered "bridge"
+    expect(s.deep).toBe("me"); // past two filtered people in a row
+    expect(s.ap).toBe("me");
+    expect(s.pr).toBe("me");
+    // A contact under a filtered person, with contacts drawn: attached past the filtered one.
+    expect(sponsors(flags(1)).ct2).toBe("me");
+    // With everyone shown nothing is re-attached, and the people given are returned as they are.
+    expect(sponsors(flags(7))).toEqual(Object.fromEntries(people.map((x) => [x.id, x.sponsorId])));
+    expect(drawn(flags(7)).every((x, i) => x === people[i])).toBe(true);
+    // The stored sponsor is never changed.
+    drawn(flags(0));
+    expect(people.find((x) => x.id === "under")!.sponsorId).toBe("bridge");
+  });
+
+  it("the nearest shown upline can be someone in between, and a sponsor outside the list stays", () => {
+    const chain = [
+      p("top", "ibo", "outside"),
+      p("mid", "apprentice", "top"),
+      p("gone", "prospect", "mid"), // a contact
+      p("low", "ibo", "gone"),
+      p("loopA", "prospect", "loopB"), // bad data: two hidden people sponsoring each other
+      p("loopB", "prospect", "loopA"),
+      p("lost", "ibo", "loopA"),
+    ];
+    const got = Object.fromEntries(
+      mapPeople(chain, kindOf, flags(2)).map((x) => [x.id, x.sponsorId]),
+    );
+    expect(got.low).toBe("mid");
+    expect(got.top).toBe("outside");
+    expect("gone" in got).toBe(false);
+    expect("lost" in got).toBe(true); // drawn, and the walk ends instead of looping
   });
 
   it("keeps the order of the people it was given", () => {
