@@ -8,6 +8,7 @@ export * from "./types";
 export {
   bandIndex,
   isMilestone,
+  mapPeople,
   nextMilestone,
   nextColumn,
   monthOf,
@@ -28,6 +29,7 @@ export {
 } from "./rules";
 export {
   usePipelineAccess,
+  useProspectOutcomeIds,
   usePipelineScopes,
   useScope as usePipelineScope,
   usePipelineColumns,

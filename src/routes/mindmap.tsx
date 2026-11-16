@@ -33,10 +33,12 @@ import { cn } from "@/lib/utils";
 import { rosterToRows } from "@/lib/demoData";
 import {
   effectiveBizClass,
+  mapPeople,
   teamStructure,
   useCurrentUser,
   useMe,
   useMonthPvById,
+  useProspectOutcomeIds,
   useVisibleTeam,
   type CrmPerson,
   type TeamStructure,
@@ -95,7 +97,11 @@ function useIncludeProspects(personId: string): [boolean, (on: boolean) => void]
 function MindmapPage() {
   const user = useCurrentUser();
   const me = useMe();
-  const visibleTeam = useVisibleTeam();
+  const everyone = useVisibleTeam();
+  // A prospect whose card is in one of the pipeline's outcome columns is off
+  // the map and out of its counts, with or without \"Include prospects\".
+  const closed = useProspectOutcomeIds();
+  const visibleTeam = useMemo(() => mapPeople(everyone, closed), [everyone, closed]);
   const [includeProspects, setIncludeProspects] = useIncludeProspects(user.personId);
   // Without prospects the map draws registered people only. A prospect with
   // someone under them stays, so nobody below them drops off the map.

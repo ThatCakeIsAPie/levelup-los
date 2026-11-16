@@ -19,7 +19,9 @@ import {
   isStale,
   monthActivity,
   rateTone,
+  mapPeople,
   prospectDoNotContactIds,
+  prospectOutcomeIds,
   reachesOf,
   recruitingBand,
   registrationPatch,
@@ -481,6 +483,52 @@ describe("not contacted yet and the outcomes", () => {
         c("c", "do_not_contact", "2026-10-01T00:00:00.000Z"),
       ]),
     ]).toEqual(["a"]);
+  });
+});
+
+describe("the team map leaves closed prospects off", () => {
+  const c = (personId: string, column: string, droppedAt: string | null = null) =>
+    ({ personId, column, droppedAt }) as PipelineCard;
+  const p = (id: string, bizClass: string, sponsorId: string | null) =>
+    ({ id, bizClass, sponsorId, name: id }) as unknown as CrmPerson;
+
+  it("a card in any of the three outcome columns closes its prospect (cards still on the board)", () => {
+    expect([
+      ...prospectOutcomeIds([
+        c("a", "not_interested"),
+        c("b", "do_not_contact"),
+        c("r", "referral_source"),
+        c("d", "contact"),
+        c("e", "first_meeting"),
+        c("f", "not_contacted"),
+        c("g", "not_interested", "2026-10-01T00:00:00.000Z"),
+      ]),
+    ]).toEqual(["a", "b", "r"]);
+  });
+
+  it("drops closed prospects, keeps everyone else and anyone with a drawn person under them", () => {
+    const people = [
+      p("me", "ibo", null),
+      p("open", "prospect", "me"),
+      p("closed", "prospect", "me"),
+      // Registered since, with a stale card in an outcome column: not a prospect, so drawn.
+      p("joined", "apprentice", "me"),
+      // Closed, but someone registered sits under them: kept so that person stays on the map.
+      p("bridge", "prospect", "me"),
+      p("under", "apprentice", "bridge"),
+      // Closed, and the only one under them is closed too: both go.
+      p("deadEnd", "prospect", "me"),
+      p("deadLeaf", "prospect", "deadEnd"),
+    ];
+    const closed = new Set(["closed", "joined", "bridge", "deadEnd", "deadLeaf"]);
+    expect(mapPeople(people, closed).map((x) => x.id)).toEqual([
+      "me",
+      "open",
+      "joined",
+      "bridge",
+      "under",
+    ]);
+    expect(mapPeople(people, new Set()).map((x) => x.id)).toEqual(people.map((x) => x.id));
   });
 });
 
