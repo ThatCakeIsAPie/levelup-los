@@ -3,11 +3,15 @@ import {
   HOME_CARDS,
   NEIGHBOUR_PLACED,
   arrangeHome,
+  hiddenCards,
+  hideHomeCard,
   moveHomeCard,
   nudgeHomeCard,
   resolveLayout,
   sameLayout,
   sanitizeLayout,
+  showHomeCard,
+  shownCards,
   type HomeLayout,
 } from "./homeLayout";
 
@@ -141,6 +145,174 @@ describe("home layout", () => {
     const moved = moveHomeCard(undefined, LEADER, "today", { column: null, index: 0 });
     expect(sameLayout(undefined, moved)).toBe(false);
     expect(sameLayout(moved, { ...moved, side: [...moved.side].reverse() })).toBe(true);
+  });
+});
+
+describe("hiding cards", () => {
+  const ids = HOME_CARDS.map((c) => c.id as string);
+  /** What Home shows for a person who can see `visible`. */
+  const home = (saved: HomeLayout | null | undefined, visible: ReadonlySet<string>) =>
+    arrangeHome(saved, shownCards(saved, visible));
+
+  it("loads a layout saved before hiding existed unchanged, with nothing hidden", () => {
+    const old = { order: ["today", "team"], side: ["team"] };
+    const read = sanitizeLayout(old);
+    expect(read).toStrictEqual(old);
+    expect(read).not.toHaveProperty("hidden");
+    expect([...shownCards(read, ALL)]).toHaveLength(ALL.size);
+    expect(hiddenCards(read, ALL)).toEqual([]);
+    expect(resolveLayout(read).hidden.size).toBe(0);
+    expect(home(read, LEADER)).toEqual(arrangeHome(old, LEADER));
+  });
+
+  it("reads the hidden list, dropping what is not a card id and keeping ids it doesn't know", () => {
+    expect(sanitizeLayout({ order: ["today"], side: [], hidden: ["team", "futureCard"] })).toEqual({
+      order: ["today"],
+      side: [],
+      hidden: ["team", "futureCard"],
+    });
+    expect(
+      sanitizeLayout({ hidden: ["team", "team", 3, null, "<x>", "1abc", "inbox", { a: 1 }] }),
+    ).toEqual({ order: [], side: [], hidden: ["team", "inbox"] });
+    // Too many ids: cut at the database's limit.
+    const many = Array.from({ length: 80 }, (_, i) => `card${i}`);
+    expect(sanitizeLayout({ hidden: many })?.hidden).toHaveLength(50);
+  });
+
+  it("ignores a hidden that is not a list, and an empty one, rather than dropping the layout", () => {
+    for (const bad of ["today", 4, { today: true }, null, true]) {
+      const read = sanitizeLayout({ order: ["today"], side: [], hidden: bad });
+      expect(read).toStrictEqual({ order: ["today"], side: [] });
+    }
+    expect(sanitizeLayout({ order: ["today"], hidden: [] })).toStrictEqual({
+      order: ["today"],
+      side: [],
+    });
+    // A bad order still drops the whole layout.
+    expect(sanitizeLayout({ order: "today", hidden: ["team"] })).toBeNull();
+  });
+
+  it("hides a card: it leaves Home and keeps its place in the saved order and column", () => {
+    const next = hideHomeCard(undefined, "inbox");
+    expect(next.hidden).toEqual(["inbox"]);
+    // The full order is saved, the hidden card still in it, at its default place and column.
+    const full = resolveLayout(undefined);
+    expect(next.order).toEqual(full.order);
+    expect(next.order).toContain("inbox");
+    expect(next.side).toEqual(full.order.filter((id) => full.side.has(id)));
+    const a = home(next, LEADER);
+    expect(a.all).not.toContain("inbox");
+    expect(a.main).toEqual(["milestone", "learning", "today"]);
+    expect(a.side).toEqual(["event", "team", "teamLearning", "myDay"]);
+    expect(hiddenCards(next, LEADER)).toEqual(["inbox"]);
+    // Hiding twice changes nothing.
+    expect(hideHomeCard(next, "inbox")).toEqual(next);
+  });
+
+  it("shows it again where it was: same place in the order, same column", () => {
+    // The person moved "inbox" to the right-hand column, then hid it.
+    const moved = moveHomeCard(undefined, LEADER, "inbox", { column: "side", index: 1 });
+    const before = arrangeHome(moved, LEADER);
+    const hidden = hideHomeCard(moved, "inbox");
+    // Meanwhile other cards move around the hidden one.
+    const rearranged = moveHomeCard(hidden, shownCards(hidden, LEADER), "myDay", {
+      column: "side",
+      index: 0,
+    });
+    const shownAgain = showHomeCard(rearranged, "inbox");
+    expect(shownAgain.hidden).toBeUndefined();
+    expect(shownAgain).toStrictEqual({ order: shownAgain.order, side: shownAgain.side });
+    const a = home(shownAgain, LEADER);
+    expect(a.side).toContain("inbox");
+    expect(a.main).not.toContain("inbox");
+    // Showing changes neither the order nor the columns: it is exactly where it was kept.
+    expect(shownAgain.order).toEqual(rearranged.order);
+    expect(shownAgain.side).toEqual(rearranged.side);
+    // Straight after hiding (nothing moved): exactly the arrangement from before.
+    expect(arrangeHome(showHomeCard(hidden, "inbox"), LEADER)).toEqual(before);
+  });
+
+  it("keeps hidden through moves, nudges and the layout comparison", () => {
+    const hidden = hideHomeCard(undefined, "inbox");
+    const shown = shownCards(hidden, LEADER);
+    const moved = moveHomeCard(hidden, shown, "today", { column: "main", index: 0 });
+    expect(moved.hidden).toEqual(["inbox"]);
+    const nudged = nudgeHomeCard(hidden, shown, "today", "up", true)!;
+    expect(nudged.hidden).toEqual(["inbox"]);
+    // The hidden card is skipped, not counted: "today" was below "learning" once "inbox" was out of the way.
+    expect(arrangeHome(nudged, shown).main).toEqual(["milestone", "today", "learning"]);
+    expect(sameLayout(hidden, { ...hidden, hidden: ["inbox"] })).toBe(true);
+    expect(sameLayout(hidden, { order: hidden.order, side: hidden.side })).toBe(false);
+    expect(sameLayout(undefined, hidden)).toBe(false);
+    expect(
+      sameLayout(
+        { order: [], side: [], hidden: ["a", "b"] },
+        { order: [], side: [], hidden: ["b", "a"] },
+      ),
+    ).toBe(true);
+  });
+
+  it("keeps a hidden card the person can't see right now, and hides it when it unlocks", () => {
+    // "library" is locked for a leader here; they hid it (an earlier unlock, or another device).
+    const saved: HomeLayout = { order: ["library", "today"], side: [], hidden: ["library"] };
+    expect(hiddenCards(saved, LEADER)).toEqual([]);
+    expect(home(saved, LEADER).all).not.toContain("library");
+    const moved = moveHomeCard(saved, shownCards(saved, LEADER), "today", {
+      column: null,
+      index: 0,
+    });
+    expect(moved.hidden).toEqual(["library"]);
+    expect(moved.order).toContain("library");
+    // Once it unlocks it is still hidden, and listed under Hidden.
+    expect(hiddenCards(moved, ALL)).toEqual(["library"]);
+    expect(home(moved, ALL).all).not.toContain("library");
+    // Showing a card the person can't see is harmless.
+    expect(showHomeCard(saved, "library").hidden).toBeUndefined();
+  });
+
+  it("keeps hidden ids the app doesn't know", () => {
+    const saved: HomeLayout = { order: ["today", "futureCard"], side: [], hidden: ["futureCard"] };
+    const next = hideHomeCard(saved, "team");
+    expect(next.hidden).toEqual(["futureCard", "team"]);
+    expect(showHomeCard(next, "team").hidden).toEqual(["futureCard"]);
+    expect(
+      moveHomeCard(next, shownCards(next, LEADER), "today", { column: null, index: 3 }).hidden,
+    ).toEqual(["futureCard", "team"]);
+  });
+
+  it("shows a card added to the app later (it is not in hidden), next to its default neighbour", () => {
+    const saved: HomeLayout = {
+      order: ids.filter((id) => id !== "week"),
+      side: ids.filter((id) => HOME_CARDS.find((c) => c.id === id)!.side),
+      hidden: ["today"],
+    };
+    const visible = new Set(ids);
+    expect(shownCards(saved, visible).has("week")).toBe(true);
+    expect(shownCards(saved, visible).has("today")).toBe(false);
+    // "week" sits after "today", which is hidden: it is placed after its neighbour all the same.
+    const { order } = resolveLayout(saved);
+    expect(order[order.indexOf("today") + 1]).toBe("week");
+    expect(home(saved, visible).all).toContain("week");
+  });
+
+  it("can hide every card: nothing is shown and all of them are listed, in order", () => {
+    let saved: HomeLayout | null = null;
+    for (const id of LEADER) saved = hideHomeCard(saved, id);
+    expect(shownCards(saved, LEADER).size).toBe(0);
+    expect(home(saved, LEADER)).toEqual({ all: [], main: [], side: [] });
+    expect(hiddenCards(saved, LEADER)).toEqual(arrangeHome(undefined, LEADER).all);
+    // Showing one brings back only that one.
+    const back = showHomeCard(saved, "today");
+    expect(home(back, LEADER).all).toEqual(["today"]);
+    expect(hiddenCards(back, LEADER)).toHaveLength(LEADER.size - 1);
+  });
+
+  it("is the default again without a saved layout (what Reset layout leaves)", () => {
+    const hidden = hideHomeCard(undefined, "team");
+    expect(home(hidden, LEADER).all).not.toContain("team");
+    expect(home(undefined, LEADER)).toEqual(arrangeHome(undefined, LEADER));
+    expect(home(undefined, LEADER).all).toContain("team");
+    expect(hiddenCards(undefined, LEADER)).toEqual([]);
   });
 });
 
