@@ -96,9 +96,9 @@ function MindmapPage() {
   const me = useMe();
   const everyone = useVisibleTeam();
   // Of the prospect-class people only the Prospect type is ever drawn and
-  // counted, and only with "Include prospects" on; a Contact or Filtered
-  // person stays solely when someone who is drawn sits under them, so nobody
-  // below drops off the map.
+  // counted, and only with "Include prospects" on. Someone who is not shown
+  // is never drawn, whoever sits under them: the people under them are drawn
+  // under their nearest shown upline.
   const kindOf = usePersonKinds();
   const [show, setShow] = useTypeSwitches(user.personId);
   const team = useMemo(

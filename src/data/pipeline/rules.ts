@@ -693,9 +693,12 @@ export const typeShown = (kind: PersonKind, show: MapTypes): boolean =>
 
 /**
  * The people the team map draws: everyone except prospect-class people of a
- * type that is switched off. A switched-off person stays when someone who is
- * drawn sits anywhere under them (so nobody below drops off the map), and
- * `keepId` (the viewer) always stays.
+ * type that is not shown (Contacts and Filtered never are; Prospects only
+ * with "Include prospects" on). A person who is not shown is never drawn,
+ * whoever sits under them: the people under them are attached to their
+ * nearest shown upline instead (the returned copy carries that upline as
+ * `sponsorId`; the stored sponsor is untouched). `keepId` (the viewer)
+ * always stays.
  */
 export function mapPeople(
   people: CrmPerson[],
@@ -704,17 +707,21 @@ export function mapPeople(
   keepId?: string,
 ): CrmPerson[] {
   const byId = new Map(people.map((p) => [p.id, p]));
-  const keep = new Set<string>();
-  for (const p of people) if (p.id === keepId || typeShown(kindOf(p), show)) keep.add(p.id);
-  // Whoever sponsors a drawn person is drawn, all the way up.
-  for (const id of [...keep]) {
-    let up = byId.get(id)?.sponsorId;
-    while (up && byId.has(up) && !keep.has(up)) {
-      keep.add(up);
-      up = byId.get(up)?.sponsorId;
+  const shown = (p: CrmPerson) => p.id === keepId || typeShown(kindOf(p), show);
+  const out: CrmPerson[] = [];
+  for (const p of people) {
+    if (!shown(p)) continue;
+    // Walk up past everyone who is not shown (a sponsor outside the list ends the walk as it is).
+    let up = p.sponsorId;
+    const seen = new Set<string>([p.id]);
+    for (let s = up ? byId.get(up) : undefined; s && !shown(s) && !seen.has(s.id);) {
+      seen.add(s.id);
+      up = s.sponsorId;
+      s = up ? byId.get(up) : undefined;
     }
+    out.push(up === p.sponsorId ? p : { ...p, sponsorId: up });
   }
-  return people.filter((p) => keep.has(p.id));
+  return out;
 }
 
 /** True for people who belong on the board (business path, prospect). */
