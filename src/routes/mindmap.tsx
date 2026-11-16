@@ -76,8 +76,9 @@ function findByName(nodes: TreeNode[], name: string): TreeNode | null {
 }
 
 /**
- * The Contacts, Prospects and Filtered switches on the map, remembered per
- * viewer on this device (src/components/mindmap/typeSwitches.ts).
+ * The "Include prospects" switch on the map, remembered per viewer on this
+ * device (src/components/mindmap/typeSwitches.ts). Contacts and Filtered
+ * people have no switch: the map never draws them.
  */
 function useTypeSwitches(personId: string): [MapTypes, (type: PersonType, on: boolean) => void] {
   const [state, setState] = useState(() => ({ personId, on: readTypeSwitches(personId) }));
@@ -94,9 +95,10 @@ function MindmapPage() {
   const user = useCurrentUser();
   const me = useMe();
   const everyone = useVisibleTeam();
-  // Prospect-class people are drawn and counted by type (Contacts, Prospects,
-  // Filtered); one of a switched-off type still stays when someone who is
-  // drawn sits under them, so nobody below drops off the map.
+  // Of the prospect-class people only the Prospect type is ever drawn and
+  // counted, and only with "Include prospects" on; a Contact or Filtered
+  // person stays solely when someone who is drawn sits under them, so nobody
+  // below drops off the map.
   const kindOf = usePersonKinds();
   const [show, setShow] = useTypeSwitches(user.personId);
   const team = useMemo(

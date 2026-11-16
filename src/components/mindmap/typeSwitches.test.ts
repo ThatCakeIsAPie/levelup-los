@@ -13,16 +13,22 @@ vi.hoisted(() => {
   });
 });
 
-import { includedLabel, readTypeSwitches, typeSwitchKey, writeTypeSwitch } from "./typeSwitches";
+import {
+  includedLabel,
+  readTypeSwitches,
+  TYPE_SWITCHES,
+  typeSwitchKey,
+  writeTypeSwitch,
+} from "./typeSwitches";
 
-describe("the map's three switches", () => {
+describe("the map's Include prospects switch", () => {
   beforeEach(() => mem.clear());
 
   it("start off for someone who never touched the map", () => {
     expect(readTypeSwitches("me")).toEqual({ contact: false, prospect: false, filtered: false });
   });
 
-  it("the old 'Include prospects' value becomes Prospects; Contacts and Filtered start off", () => {
+  it("the stored 'Include prospects' value is read per viewer", () => {
     // What the single switch stored: "1" under <prefix>.mindmap.prospects.<person>.
     mem.set(typeSwitchKey("me", "prospect"), "1");
     expect(typeSwitchKey("me", "prospect")).toMatch(/\.mindmap\.prospects\.me$/);
@@ -39,15 +45,20 @@ describe("the map's three switches", () => {
     expect(readTypeSwitches("me").prospect).toBe(false);
   });
 
-  it("each switch is remembered on its own, per viewer", () => {
+  it("'Include prospects' is the only switch, remembered per viewer", () => {
+    expect(TYPE_SWITCHES).toEqual([{ type: "prospect", label: "Include prospects" }]);
+    writeTypeSwitch("me", "prospect", true);
+    expect(readTypeSwitches("me")).toEqual({ contact: false, prospect: true, filtered: false });
+    expect(readTypeSwitches("you")).toEqual({ contact: false, prospect: false, filtered: false });
+    writeTypeSwitch("me", "prospect", false);
+    expect(readTypeSwitches("me")).toEqual({ contact: false, prospect: false, filtered: false });
+  });
+
+  it("Contacts and Filtered are never drawn, even when an earlier version stored them as on", () => {
     writeTypeSwitch("me", "contact", true);
     writeTypeSwitch("me", "filtered", true);
-    expect(readTypeSwitches("me")).toEqual({ contact: true, prospect: false, filtered: true });
-    writeTypeSwitch("me", "contact", false);
-    expect(readTypeSwitches("me")).toEqual({ contact: false, prospect: false, filtered: true });
-    expect(readTypeSwitches("you")).toEqual({ contact: false, prospect: false, filtered: false });
-    const keys = (["contact", "prospect", "filtered"] as const).map((t) => typeSwitchKey("me", t));
-    expect(new Set(keys).size).toBe(3);
+    writeTypeSwitch("me", "prospect", true);
+    expect(readTypeSwitches("me")).toEqual({ contact: false, prospect: true, filtered: false });
   });
 
   it("names what is included, nothing when all are off", () => {
