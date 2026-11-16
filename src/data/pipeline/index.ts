@@ -7,8 +7,14 @@
 export * from "./types";
 export {
   bandIndex,
+  hasReferralSourceTag,
   isMilestone,
   mapPeople,
+  NO_MAP_TYPES,
+  personKind,
+  personKindOf,
+  personTypeLabel,
+  typeShown,
   nextMilestone,
   nextColumn,
   monthOf,
@@ -24,12 +30,13 @@ export {
   type BandBreakdown,
   type ChainStep,
   type GoalPace,
+  type MapTypes,
   type MilestoneCounts,
+  type PersonKind,
   type TransitionStat,
 } from "./rules";
 export {
   usePipelineAccess,
-  useProspectOutcomeIds,
   usePipelineScopes,
   useScope as usePipelineScope,
   usePipelineColumns,

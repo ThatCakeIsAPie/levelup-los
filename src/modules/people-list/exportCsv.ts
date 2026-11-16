@@ -1,9 +1,13 @@
 import { toast } from "sonner";
-import { bizClassLabel, localDate } from "@/data";
+import { localDate } from "@/data";
 import { downloadCsv, toCsv } from "@/lib/csvExport";
-import type { PersonRow } from "./model";
+import { stageWordOf, tagsOf, type PersonRow } from "./model";
 
-/** Download the given rows as a CSV (same columns as before the redesign, plus contact info). */
+/**
+ * Download the given rows as a CSV (same columns as before the redesign, plus
+ * contact info). BizClass holds the type word for a prospect-class person
+ * (Contact, Prospect, Filtered); Tags includes a derived "Referral source".
+ */
 export function exportRowsCsv(rows: PersonRow[], label: string) {
   if (!rows.length) {
     toast("Nothing to export");
@@ -15,7 +19,7 @@ export function exportRowsCsv(rows: PersonRow[], label: string) {
     return {
       ID: p.id,
       Name: p.name,
-      BizClass: bizClassLabel[r.stage],
+      BizClass: stageWordOf(r),
       "IBO#": p.iboNumber ?? "",
       "LTD#": p.ltdNumber ?? "",
       Location: p.location ?? "",
@@ -31,7 +35,7 @@ export function exportRowsCsv(rows: PersonRow[], label: string) {
       LastContact: r.contact.date ?? "",
       NextFollowUp: r.followUp ?? "",
       MissingFields: r.missing.join("; "),
-      Tags: (p.tags ?? []).join("; "),
+      Tags: tagsOf(r).join("; "),
     };
   });
   downloadCsv(`${label}-${localDate()}.csv`, toCsv(data));

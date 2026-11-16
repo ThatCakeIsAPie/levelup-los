@@ -1,3 +1,4 @@
+import type { PersonType } from "@/data/pipeline/types";
 import type { BizClass } from "@/stores/peopleStore";
 
 /** Display label per stage. */
@@ -14,6 +15,24 @@ export const STAGE_CHIP_CLASS: Record<BizClass, string> = {
   apprentice: "bg-stage-apprentice-soft text-stage-apprentice-ink",
   prospect: "bg-stage-prospect-soft text-stage-prospect-ink",
   customer: "bg-stage-customer-soft text-stage-customer-ink",
+};
+
+/**
+ * Chip colors per person type (people whose stored class is "prospect"):
+ * Contact and Prospect are soft fills; Filtered is an outlined, dashed, muted
+ * chip, so the three differ by shape as well as by color.
+ */
+export const PERSON_TYPE_CHIP_CLASS: Record<PersonType, string> = {
+  contact: "bg-info-soft text-info-ink",
+  prospect: "bg-stage-prospect-soft text-stage-prospect-ink",
+  filtered: "border border-dashed border-foreground/40 bg-transparent text-muted-foreground",
+};
+
+/** Dot per person type, for the stage filter chips. */
+export const PERSON_TYPE_SOLID_CLASS: Record<PersonType, string> = {
+  contact: "bg-info",
+  prospect: "bg-stage-prospect",
+  filtered: "bg-track",
 };
 
 /** Solid fill per stage, for bars, dots and legends. */

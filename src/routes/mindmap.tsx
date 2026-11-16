@@ -1,4 +1,4 @@
-import { pageTitle, storageKey } from "@/lib/brand";
+import { pageTitle } from "@/lib/brand";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import {
@@ -38,11 +38,20 @@ import {
   useCurrentUser,
   useMe,
   useMonthPvById,
-  useProspectOutcomeIds,
+  usePersonKinds,
   useVisibleTeam,
   type CrmPerson,
+  type MapTypes,
+  type PersonKind,
+  type PersonType,
   type TeamStructure,
 } from "@/data";
+import {
+  TYPE_SWITCHES,
+  includedLabel,
+  readTypeSwitches,
+  writeTypeSwitch,
+} from "@/components/mindmap/typeSwitches";
 
 export const Route = createFileRoute("/mindmap")({
   head: () => ({
@@ -67,29 +76,16 @@ function findByName(nodes: TreeNode[], name: string): TreeNode | null {
 }
 
 /**
- * "Include prospects" on the map, remembered per viewer on this device.
- * Off by default: the team is registered people, like Home.
+ * The Contacts, Prospects and Filtered switches on the map, remembered per
+ * viewer on this device (src/components/mindmap/typeSwitches.ts).
  */
-function useIncludeProspects(personId: string): [boolean, (on: boolean) => void] {
-  const key = storageKey(`mindmap.prospects.${personId}`);
-  const read = () => {
-    try {
-      return localStorage.getItem(key) === "1";
-    } catch {
-      return false;
-    }
-  };
-  const [state, setState] = useState(() => ({ key, on: read() }));
+function useTypeSwitches(personId: string): [MapTypes, (type: PersonType, on: boolean) => void] {
+  const [state, setState] = useState(() => ({ personId, on: readTypeSwitches(personId) }));
   // Another person signing in on this device gets their own choice.
-  const on = state.key === key ? state.on : read();
-  const set = (next: boolean) => {
-    setState({ key, on: next });
-    try {
-      if (next) localStorage.setItem(key, "1");
-      else localStorage.removeItem(key);
-    } catch {
-      // Storage blocked: the choice lasts until the page reloads.
-    }
+  const on = state.personId === personId ? state.on : readTypeSwitches(personId);
+  const set = (type: PersonType, next: boolean) => {
+    setState({ personId, on: { ...on, [type]: next } });
+    writeTypeSwitch(personId, type, next);
   };
   return [on, set];
 }
@@ -98,20 +94,15 @@ function MindmapPage() {
   const user = useCurrentUser();
   const me = useMe();
   const everyone = useVisibleTeam();
-  // A prospect whose card is in one of the pipeline's outcome columns is off
-  // the map and out of its counts, with or without \"Include prospects\".
-  const closed = useProspectOutcomeIds();
-  const visibleTeam = useMemo(() => mapPeople(everyone, closed), [everyone, closed]);
-  const [includeProspects, setIncludeProspects] = useIncludeProspects(user.personId);
-  // Without prospects the map draws registered people only. A prospect with
-  // someone under them stays, so nobody below them drops off the map.
-  const team = useMemo(() => {
-    if (includeProspects) return visibleTeam;
-    const sponsors = new Set(visibleTeam.map((p) => p.sponsorId));
-    return visibleTeam.filter(
-      (p) => p.bizClass !== "prospect" || p.id === user.personId || sponsors.has(p.id),
-    );
-  }, [visibleTeam, includeProspects, user.personId]);
+  // Prospect-class people are drawn and counted by type (Contacts, Prospects,
+  // Filtered); one of a switched-off type still stays when someone who is
+  // drawn sits under them, so nobody below drops off the map.
+  const kindOf = usePersonKinds();
+  const [show, setShow] = useTypeSwitches(user.personId);
+  const team = useMemo(
+    () => mapPeople(everyone, kindOf, show, user.personId),
+    [everyone, kindOf, show, user.personId],
+  );
   const pvById = useMonthPvById();
   const roots = useTreeStore((s) => s.roots);
   const source = useTreeStore((s) => s.source);
@@ -163,9 +154,10 @@ function MindmapPage() {
         uploaded={uploaded}
         isCandidate={isCandidate}
         onUseRoster={() => loadRoster(false)}
-        people={visibleTeam}
-        includeProspects={includeProspects}
-        onIncludeProspects={setIncludeProspects}
+        people={team}
+        kindOf={kindOf}
+        show={show}
+        onShow={setShow}
       />
       <div className="relative min-h-0 flex-1">
         {isCandidate ? (
@@ -215,9 +207,13 @@ function findNodeById(node: TreeNode, id: string): TreeNode | null {
  * (registered people, `teamStructure`); an uploaded sheet has no stages, so
  * it counts everyone in it.
  */
-function structureOf(node: TreeNode, people: CrmPerson[], includeProspects: boolean) {
+function structureOf(
+  node: TreeNode,
+  people: CrmPerson[],
+  countsProspect: (p: CrmPerson) => boolean,
+) {
   const id = rosterIdOf(node.person);
-  if (id) return teamStructure(people, id, { includeProspects });
+  if (id) return teamStructure(people, id, { includeProspects: countsProspect });
   return {
     frontline: node.children.length,
     total: Math.max(0, (node.person.memberCount ?? 1) - 1),
@@ -229,11 +225,14 @@ function StructureBadge({
   s,
   whose,
   mode,
+  included,
 }: {
   s: TeamStructure;
   /** "you" or a first name, for the explanation. */
   whose: string;
   mode: "registered" | "prospects" | "sheet";
+  /** "contacts and prospects": what is counted besides registered people ("prospects" mode). */
+  included: string;
 }) {
   const ratio = `${s.frontline}/${s.total}`;
   const people = (n: number) => `${n} ${n === 1 ? "person" : "people"}`;
@@ -242,7 +241,7 @@ function StructureBadge({
     mode === "registered"
       ? `${s.frontline} personally sponsored · ${people(s.total)} registered in the whole group, ${notMe}. The same count as the 3/10 and 6/25 milestones.`
       : mode === "prospects"
-        ? `${s.frontline} on the frontline · ${people(s.total)} in the whole group, prospects included, ${notMe}. Milestones count registered people only.`
+        ? `${s.frontline} on the frontline · ${people(s.total)} in the whole group, ${included} included, ${notMe}. Milestones count registered people only.`
         : `${s.frontline} on the frontline · ${people(s.total)} in the whole group, ${notMe}, from the spreadsheet.`;
   return (
     <Tooltip>
@@ -258,7 +257,7 @@ function StructureBadge({
           )}
         >
           {ratio}
-          {mode === "prospects" && <span className="font-semibold">with prospects</span>}
+          {mode === "prospects" && <span className="font-semibold">with {included}</span>}
         </button>
       </TooltipTrigger>
       <TooltipContent aria-hidden="true" className="max-w-64">
@@ -275,8 +274,9 @@ function Toolbar({
   isCandidate,
   onUseRoster,
   people,
-  includeProspects,
-  onIncludeProspects,
+  kindOf,
+  show,
+  onShow,
 }: {
   root: TreeNode | undefined;
   rootCount: number;
@@ -285,8 +285,9 @@ function Toolbar({
   onUseRoster: () => void;
   /** Everyone on the viewer's team (for the structure numbers). */
   people: CrmPerson[];
-  includeProspects: boolean;
-  onIncludeProspects: (on: boolean) => void;
+  kindOf: (p: CrmPerson) => PersonKind;
+  show: MapTypes;
+  onShow: (type: PersonType, on: boolean) => void;
 }) {
   const user = useCurrentUser();
   const expandAll = useTreeStore((s) => s.expandAll);
@@ -297,15 +298,24 @@ function Toolbar({
   const select = useTreeStore((s) => s.select);
   const upload = useSpreadsheetUpload();
   const switchId = useId();
-  const prospectsId = useId();
+  const typeIdBase = useId();
+  const included = includedLabel(show);
+  // The header counts registered people plus the prospect-class people of a type that is drawn.
+  const countsProspect = useCallback(
+    (p: CrmPerson) => {
+      const t = kindOf(p).type;
+      return t !== null && show[t];
+    },
+    [kindOf, show],
+  );
 
   // The structure follows the card you tapped; otherwise the whole map.
   const focus = (root && selectedId && findNodeById(root, selectedId)) || root;
   const focused = !!focus && focus !== root;
   const isMe = root?.person.name === user.name;
   const structure = useMemo(
-    () => (focus ? structureOf(focus, people, includeProspects && !uploaded) : null),
-    [focus, people, includeProspects, uploaded],
+    () => (focus ? structureOf(focus, people, uploaded ? () => false : countsProspect) : null),
+    [focus, people, countsProspect, uploaded],
   );
   const whose =
     focus && !(focus === root && isMe) ? focus.person.name.split(/[ ,]+/)[0] || "them" : "you";
@@ -338,7 +348,8 @@ function Toolbar({
               <StructureBadge
                 s={structure}
                 whose={whose}
-                mode={uploaded ? "sheet" : includeProspects ? "prospects" : "registered"}
+                mode={uploaded ? "sheet" : included ? "prospects" : "registered"}
+                included={included}
               />
               {focused && (
                 <button
@@ -367,19 +378,23 @@ function Toolbar({
 
       {!isCandidate && (
         <>
-          <div className="flex items-center gap-4 max-sm:order-last max-sm:w-full">
-            {!uploaded && (
-              <div className="flex items-center gap-2">
-                <Switch
-                  id={prospectsId}
-                  checked={includeProspects}
-                  onCheckedChange={onIncludeProspects}
-                />
-                <label htmlFor={prospectsId} className="cursor-pointer text-[12.5px] font-semibold">
-                  Include prospects
-                </label>
-              </div>
-            )}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 max-sm:order-last max-sm:w-full">
+            {!uploaded &&
+              TYPE_SWITCHES.map(({ type, label }) => (
+                <div key={type} className="flex items-center gap-2">
+                  <Switch
+                    id={`${typeIdBase}-${type}`}
+                    checked={show[type]}
+                    onCheckedChange={(on) => onShow(type, on)}
+                  />
+                  <label
+                    htmlFor={`${typeIdBase}-${type}`}
+                    className="cursor-pointer text-[12.5px] font-semibold"
+                  >
+                    {label}
+                  </label>
+                </div>
+              ))}
             <div className="flex items-center gap-2">
               <Switch
                 id={switchId}

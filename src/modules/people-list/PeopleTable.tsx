@@ -1,8 +1,8 @@
 import { Link } from "@tanstack/react-router";
-import { PersonAvatar, StageChip, Sensitive } from "@/components/brand";
+import { PersonAvatar, Sensitive } from "@/components/brand";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
-import { ContactText, FlagChips, ShowRateText, UplineLink } from "./cells";
+import { ContactText, FlagChips, RowStageChip, ShowRateText, UplineLink } from "./cells";
 import { shortDate, type PersonRow, type Segment } from "./model";
 import { RowActions } from "./RowActions";
 
@@ -93,7 +93,7 @@ export function PeopleTable({
                         >
                           <Sensitive kind="name">{p.name}</Sensitive>
                         </Link>
-                        <StageChip stage={r.stage} />
+                        <RowStageChip row={r} />
                         {r.isSelf && (
                           <span className="text-[11px] font-semibold text-muted-foreground">
                             You

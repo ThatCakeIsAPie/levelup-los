@@ -382,19 +382,24 @@ export interface TeamStructure {
  * The team-map structure in the milestone notation (3/10, 6/25): registered
  * personal sponsors / registered people in the whole group, not counting the
  * person, counted exactly like the headcount milestones (`teamDates`).
- * `includeProspects` also counts prospects (the map's "Include prospects";
+ * `includeProspects` also counts prospects: all of them (`true`), or the ones
+ * it says yes to (the map counts the person types it draws);
  * those numbers are not milestone numbers).
  */
 export function teamStructure(
   people: CrmPerson[],
   personId: string,
-  opts: { includeProspects?: boolean } = {},
+  opts: { includeProspects?: boolean | ((p: CrmPerson) => boolean) } = {},
 ): TeamStructure {
   const byId = new Map(people.map((p) => [p.id, p]));
   const kids = businessKids(people);
   const counts = (id: string) => {
     const p = byId.get(id);
-    return !!p && (isRegistered(p) || (!!opts.includeProspects && p.bizClass === "prospect"));
+    if (!p) return false;
+    if (isRegistered(p)) return true;
+    if (p.bizClass !== "prospect") return false;
+    const inc = opts.includeProspects;
+    return typeof inc === "function" ? inc(p) : !!inc;
   };
   const frontline = (kids.get(personId) ?? []).filter(counts).length;
   let total = 0;
