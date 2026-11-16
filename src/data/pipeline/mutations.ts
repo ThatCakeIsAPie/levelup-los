@@ -37,7 +37,9 @@ import {
   chainOf,
   columnsFor,
   implicitCard,
+  implicitRegisteredCard,
   isMilestone,
+  isRegisteredPerson,
   nextPosition,
   registrationPatch,
   reorderOwnSteps,
@@ -45,6 +47,8 @@ import {
   validGoal,
   validTarget,
   validateMove,
+  validateProspectMove,
+  validateRegisteredMove,
 } from "./rules";
 import {
   NOT_CONTACTED,
@@ -58,7 +62,7 @@ import {
   type PipelineMove,
   type PipelineStep,
   type RecruitingBand,
-  type StepBand,
+  type RecruitingStepBand,
   type StepHide,
 } from "./types";
 
@@ -111,10 +115,14 @@ function columnsForMove(person: CrmPerson, me: string): PipelineColumn[] {
   return [...mine, ...theirs.filter((c) => !ids.has(c.id))];
 }
 
-/** The card as stored, or the implicit Contact made card for a prospect without one. */
+/** The card as stored, or the implicit card (Contact made for a prospect, Registered for a registered person) when none is stored. */
 function cardOf(person: CrmPerson): { card: PipelineCard; stored: boolean } {
   const stored = pipeline().cards.find((c) => c.personId === person.id);
-  return stored ? { card: stored, stored: true } : { card: implicitCard(person), stored: false };
+  if (stored) return { card: stored, stored: true };
+  return {
+    card: isRegisteredPerson(person) ? implicitRegisteredCard(person) : implicitCard(person),
+    stored: false,
+  };
 }
 
 function putCard(card: PipelineCard): void {
@@ -145,32 +153,52 @@ function removeMoves(ids: string[]): void {
 // ---------------------------------------------------------------------------
 
 export type MoveFailure =
-  "no-access" | "not-found" | "not-a-prospect" | "not-on-board" | "unknown-column" | "same-column";
+  | "no-access"
+  | "not-found"
+  | "not-a-prospect"
+  | "not-on-board"
+  | "unknown-column"
+  | "same-column"
+  /** A prospect cannot go to a step after Registered (they register first). */
+  | "registered-only"
+  /** A registered person's card moves only between Registered and the steps after it. */
+  | "after-registered-only";
 
 export type MoveResult =
   | { ok: true; move: PipelineMove; registered: boolean; undo: () => void }
   | { ok: false; reason: MoveFailure };
 
 /**
- * Move a prospect's card to a column (a milestone or a step on their owner's
- * or your board) and record the move. Moving into Registered makes them an
- * apprentice from today (stage history and activity come from updatePerson).
+ * Move a card to a column (a milestone or a step on their owner's or your board) and record the move.
+ *  - A prospect's card: moving into Registered makes them an apprentice from today (stage history and
+ *    activity come from updatePerson) and returns `registered: true`. A prospect cannot go to a step
+ *    after Registered.
+ *  - A registered person's card (apprentice or IBO): only between Registered and the steps after it, in
+ *    either direction (`validateRegisteredMove`); their class, stage history and start date never change,
+ *    no registration is logged, `registered` is false. The move is recorded like any other (band
+ *    `registered`); a card that was never stored is created by the first move (`from: null`).
+ *  Undo removes the move and restores the card; it un-registers only a move that registered a prospect.
  */
 export function movePipelineCard(personId: string, to: string): MoveResult {
   const me = actor();
   if (!me) return { ok: false, reason: "no-access" };
   const person = visiblePerson(personId);
   if (!person) return { ok: false, reason: "not-found" };
-  if (person.bizClass !== "prospect") return { ok: false, reason: "not-a-prospect" };
+  const registeredPerson = isRegisteredPerson(person);
+  if (person.bizClass !== "prospect" && !registeredPerson)
+    return { ok: false, reason: "not-a-prospect" };
   const { card, stored } = cardOf(person);
-  const check = validateMove(card, to, columnsForMove(person, me));
+  const columns = columnsForMove(person, me);
+  const check = registeredPerson
+    ? validateRegisteredMove(stored ? card : undefined, to, columns)
+    : validateProspectMove(card, to, columns);
   if (!check.ok) return check;
   const at = now();
   const move: PipelineMove = {
     id: crypto.randomUUID(),
     personId,
     ownerId: person.sponsorId ?? me,
-    from: card.column,
+    from: registeredPerson && !stored ? null : card.column,
     to,
     milestone: check.to.band,
     movedAt: at,
@@ -183,7 +211,7 @@ export function movePipelineCard(personId: string, to: string): MoveResult {
     updatedAt: at,
   });
   updatePipeline((s) => ({ moves: [...s.moves, move] }));
-  const registered = to === "registered";
+  const registered = to === "registered" && !registeredPerson;
   const before = { businessStartDate: person.businessStartDate };
   if (registered) {
     // Real accounts: move_pipeline_card() registers them (and logs the activity).
@@ -369,12 +397,12 @@ export function updatePipelineCard(
 }
 
 /**
- * Take a card off the board ("not now"); the person stays a prospect and
- * their moves still count. Returns the undo.
+ * Take a card off the board ("not now"); the person stays what they are (a prospect, or registered)
+ * and their moves still count. Returns the undo.
  */
 export function dropPipelineCard(personId: string): (() => void) | null {
   const person = actor() ? visiblePerson(personId) : undefined;
-  if (!person || person.bizClass !== "prospect") return null;
+  if (!person || (person.bizClass !== "prospect" && !isRegisteredPerson(person))) return null;
   const { card, stored } = cardOf(person);
   if (card.droppedAt) return null;
   putCard({ ...card, droppedAt: now(), updatedAt: now() });
@@ -458,7 +486,7 @@ function bandLabels(t: StepTables, band: string, me: string, except?: string): s
 
 /** Add one of your own steps at the end of your steps in a band. */
 export function addPipelineStep(
-  band: StepBand | CustomerStepBand,
+  band: RecruitingStepBand | CustomerStepBand,
   label: string,
   kind: BoardKind = "recruiting",
 ): StepResult {

@@ -6,6 +6,23 @@
  */
 export * from "./types";
 export {
+  afterRegistered,
+  registeredInProgressIds,
+  zonedDay,
+  type AfterRegistered,
+  type AfterRegisteredCard,
+  type AfterRegisteredColumn,
+  type AfterRegisteredInput,
+  type InProgressState,
+} from "./afterRegistered";
+export { registeredInProgress } from "./inProgress";
+export {
+  implicitRegisteredCard,
+  isRegisteredPerson,
+  registeredColumnOf,
+  validateProspectMove,
+  validateRegisteredMove,
+  type RecruitingMoveCheck,
   bandIndex,
   hasReferralSourceTag,
   isMilestone,

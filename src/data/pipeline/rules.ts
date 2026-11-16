@@ -15,6 +15,7 @@ import {
   MILESTONES,
   MIN_SAMPLE,
   PERSON_TYPE_LABEL,
+  POST_REGISTRATION_BAND,
   RECRUITING_BOARD,
   REFERRAL_SOURCE,
   REFERRAL_SOURCE_TAG,
@@ -85,8 +86,10 @@ export function withUplines(chain: string[], uplines: string[]): string[] {
  * The board's columns for the last person in `chain`: each milestone, then
  * the steps in its band defined by anyone in the chain (uplines first, each
  * owner's steps in their own order), minus steps hidden by anyone in the
- * chain. Registered has no steps after it. Another board layout (`def`, the
- * customer board) adds its fixed start and outcome columns in their bands.
+ * chain. Steps after Registered (band `registered`) follow the Registered
+ * column, then the outcome columns. Another board layout (`def`, the
+ * customer board) adds its fixed start and outcome columns in their bands
+ * and has no steps after its last milestone.
  */
 export function columnsFor<B extends string = MilestoneCode>(
   chain: string[],
@@ -206,7 +209,7 @@ export const isMilestoneBand = (b: RecruitingBand): b is MilestoneCode => bandIn
 export type MoveCheck<C = PipelineColumn> =
   { ok: true; to: C } | { ok: false; reason: "not-on-board" | "unknown-column" | "same-column" };
 
-/** Can this card move to `to` on a board with these columns? */
+/** Can this card move to `to` on a board with these columns? (Both boards.) */
 export function validateMove<C extends PipelineColumn<string> = PipelineColumn>(
   card: Pick<PipelineCard, "column" | "droppedAt"> | undefined,
   to: string,
@@ -216,6 +219,67 @@ export function validateMove<C extends PipelineColumn<string> = PipelineColumn>(
   const col = columns.find((c) => c.id === to);
   if (!col) return { ok: false, reason: "unknown-column" };
   if (card.column === to) return { ok: false, reason: "same-column" };
+  return { ok: true, to: col };
+}
+
+/** The recruiting board's moves also fail for the two reasons about the steps after Registered. */
+export type RecruitingMoveCheck<C = PipelineColumn> =
+  | MoveCheck<C>
+  | {
+      ok: false;
+      reason:
+        /** A prospect's card cannot go to a step after Registered (they register first). */
+        | "registered-only"
+        /** A registered person's card stays in Registered and the steps after it. */
+        | "after-registered-only";
+    };
+
+/** `validateMove` for a PROSPECT's card on the recruiting board: not into a step after Registered. */
+export function validateProspectMove<C extends PipelineColumn<string> = PipelineColumn>(
+  card: Pick<PipelineCard, "column" | "droppedAt"> | undefined,
+  to: string,
+  columns: C[],
+): RecruitingMoveCheck<C> {
+  const check = validateMove(card, to, columns);
+  if (check.ok && check.to.kind === "step" && check.to.band === POST_REGISTRATION_BAND)
+    return { ok: false, reason: "registered-only" };
+  return check;
+}
+
+/** A registered person: an apprentice or an IBO (the people who may have a card after Registered). */
+export const isRegisteredPerson = (p: Pick<CrmPerson, "bizClass">): boolean =>
+  p.bizClass === "apprentice" || p.bizClass === "ibo";
+
+/**
+ * The column a registered person's card is in on a board: its stored column when that is one of
+ * the board's columns after Registered, else Registered (no card, or a step that is hidden,
+ * deleted or another team's).
+ */
+export function registeredColumnOf(
+  card: Pick<PipelineCard, "column"> | null | undefined,
+  columns: readonly PipelineColumn<string>[],
+): string {
+  return card && columns.some((c) => c.id === card.column && c.band === POST_REGISTRATION_BAND)
+    ? card.column
+    : "registered";
+}
+
+/**
+ * Can a REGISTERED person's card move to `to`? Only between Registered and the steps after it
+ * (the columns of the band `registered`), in either direction; never to an earlier or an outcome
+ * column. `card` is the stored card (undefined: none, so it sits in Registered). Moving never
+ * changes the person (see movePipelineCard).
+ */
+export function validateRegisteredMove<C extends PipelineColumn<string> = PipelineColumn>(
+  card: Pick<PipelineCard, "column" | "droppedAt"> | undefined,
+  to: string,
+  columns: C[],
+): RecruitingMoveCheck<C> {
+  if (card?.droppedAt) return { ok: false, reason: "not-on-board" };
+  const col = columns.find((c) => c.id === to);
+  if (!col) return { ok: false, reason: "unknown-column" };
+  if (col.band !== POST_REGISTRATION_BAND) return { ok: false, reason: "after-registered-only" };
+  if (registeredColumnOf(card, columns) === to) return { ok: false, reason: "same-column" };
   return { ok: true, to: col };
 }
 
@@ -738,6 +802,22 @@ export function implicitCard(p: CrmPerson): PipelineCard {
   return {
     personId: p.id,
     column: "contact",
+    enteredAt: at,
+    rating: null,
+    source: null,
+    droppedAt: null,
+    updatedAt: at,
+  };
+}
+
+/** A registered person with no stored card sits in Registered from the day they registered. */
+export function implicitRegisteredCard(p: CrmPerson): PipelineCard {
+  const at = p.businessStartDate
+    ? localNoon(p.businessStartDate)
+    : (p.lastUpdatedAt ?? new Date(0).toISOString());
+  return {
+    personId: p.id,
+    column: POST_REGISTRATION_BAND,
     enteredAt: at,
     rating: null,
     source: null,

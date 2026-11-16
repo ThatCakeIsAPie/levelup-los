@@ -905,6 +905,15 @@ type PipeS = PipelineData;
 const SERVER_CARD_COLS = ["person_id", "column_id", "entered_at"];
 const cardPatch = (row: Row): Row =>
   Object.fromEntries(Object.entries(row).filter(([k]) => !SERVER_CARD_COLS.includes(k)));
+/**
+ * The column of a card created by a client write (a prospect that has no card yet is in Contact made; a
+ * registered person's is in Registered: the only card a client may create, see the "add the card of a
+ * registered person" policy).
+ */
+const newCardColumn = (personId: string): string => {
+  const p = usePeopleStore.getState().people.find((x) => x.id === personId);
+  return p && (p.bizClass === "apprentice" || p.bizClass === "ibo") ? "registered" : "contact";
+};
 
 function rpcError(what: string, error: { message: string; code?: string }): Error {
   const e = new Error(`${what}: ${error.message}`) as Error & { code?: string };
@@ -995,7 +1004,10 @@ export const pipelineBinding: Binding<PipeS> = {
                 .eq("person_id", r.person_id as string)
             : await c.client
                 .from("pipeline_cards")
-                .insert({ ...r, column_id: "contact" }, { defaultToNull: false });
+                .insert(
+                  { ...r, column_id: newCardColumn(r.person_id as string) },
+                  { defaultToNull: false },
+                );
           if (res.error) throw rpcError("write pipeline_cards", res.error);
         }
       },
