@@ -10,6 +10,7 @@ import { visibleIdSet } from "../access";
 import { getViewer } from "../session";
 import { customerPipeline } from "../customerPipeline/store";
 import { visibleEntries } from "../customerPipeline/rules";
+import { registeredInProgress } from "../pipeline/inProgress";
 import { cardTasks, updateCardTasks } from "./store";
 import {
   canAssign,
@@ -43,7 +44,10 @@ export function cardOwner(ref: CardRef): { ownerId: string | null } | undefined 
   if (ref.board === "recruiting") {
     if (!visibleIdSet(people, viewer).has(ref.id)) return undefined;
     const p = people.find((x) => x.id === ref.id);
-    return p?.bizClass === "prospect" ? { ownerId: p.sponsorId ?? null } : undefined;
+    // A prospect, or a registered person whose card is in progress after Registered (src/data/pipeline/afterRegistered).
+    return p?.bizClass === "prospect" || (p && registeredInProgress(p))
+      ? { ownerId: p.sponsorId ?? null }
+      : undefined;
   }
   const e = visibleEntries(customerPipeline().entries, people, viewer).find((x) => x.id === ref.id);
   return e ? { ownerId: e.ownerId } : undefined;

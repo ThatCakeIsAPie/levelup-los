@@ -69,6 +69,7 @@ import {
   type RecruitingBand,
   type StatRequest,
   type StatShare,
+  type RecruitingStepBand,
   type StepBand,
 } from "./types";
 import { columnsFor } from "./rules";
@@ -761,12 +762,17 @@ export function useProspectPipeline(personId: string | undefined): ProspectPipel
 // ---------------------------------------------------------------------------
 
 export interface StepsEditorBand {
-  band: StepBand;
+  band: RecruitingStepBand;
   steps: (ChainStep & { ownerName: string; hiddenByName: string | null; cards: number })[];
 }
 
-/** The viewer's steps per band: inherited (hide/show) and their own (edit). */
-export function useStepsEditor(): StepsEditorBand[] {
+/**
+ * The viewer's steps per band: inherited (hide/show) and their own (edit). `bands` defaults to the three
+ * before Registered (the editor as it is); pass `RECRUITING_STEP_BANDS` to include the steps after it.
+ */
+export function useStepsEditor(
+  bands: readonly RecruitingStepBand[] = STEP_BANDS,
+): StepsEditorBand[] {
   const viewer = useViewer();
   const people = usePeopleStore((s) => s.people);
   const uplines = useUplines();
@@ -779,7 +785,7 @@ export function useStepsEditor(): StepsEditorBand[] {
     const chain = chainOf(people, viewer.personId, uplines);
     const counts = new Map<string, number>();
     for (const c of cards) if (!c.droppedAt) counts.set(c.column, (counts.get(c.column) ?? 0) + 1);
-    return STEP_BANDS.map((band) => ({
+    return bands.map((band) => ({
       band,
       steps: chainSteps(chain, steps, hides, band).map((s) => ({
         ...s,
@@ -788,7 +794,7 @@ export function useStepsEditor(): StepsEditorBand[] {
         cards: counts.get(s.step.id) ?? 0,
       })),
     }));
-  }, [viewer, people, steps, hides, cards, name, uplines]);
+  }, [viewer, people, steps, hides, cards, name, uplines, bands]);
 }
 
 // ---------------------------------------------------------------------------
